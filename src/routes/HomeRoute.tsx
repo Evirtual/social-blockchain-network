@@ -18,6 +18,8 @@ export function HomeRoute() {
       onPost={app.mintPost}
       posts={app.posts}
       chainId={app.chainId}
+      status={app.status}
+      isFeedLoading={app.isFeedLoading}
       walletAddress={app.walletAddress}
       authorIdentity={app.authorIdentity}
       editingTokenId={app.editingTokenId}

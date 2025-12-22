@@ -37,6 +37,8 @@ async function main() {
   const keyByNetwork = {
     localhost: "VITE_CONTRACT_ADDRESS",
     hardhat: "VITE_CONTRACT_ADDRESS",
+    ethereum: "VITE_CONTRACT_ADDRESS_ETH",
+    sepolia: "VITE_CONTRACT_ADDRESS_SEPOLIA",
     base: "VITE_CONTRACT_ADDRESS_BASE",
     baseSepolia: "VITE_CONTRACT_ADDRESS_BASE_SEPOLIA",
     bsc: "VITE_CONTRACT_ADDRESS_BSC",
@@ -45,7 +47,11 @@ async function main() {
 
   const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS";
 
-  const envPath = path.join(process.cwd(), ".env.local");
+  // Local dev should not overwrite deployment config.
+  // - localhost/hardhat: write to .env.local (dev-only overrides)
+  // - everything else: write to .env (deploy + build-time config)
+  const envFilename = networkName === "localhost" || networkName === "hardhat" ? ".env.local" : ".env";
+  const envPath = path.join(process.cwd(), envFilename);
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);
   fs.writeFileSync(envPath, next, { encoding: "utf8" });

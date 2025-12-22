@@ -16,6 +16,8 @@ type Props = {
 
   posts: Post[];
   chainId: string | null;
+  status: string;
+  isFeedLoading: boolean;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
@@ -125,6 +127,8 @@ export function HomePage(props: Props) {
             aria-label="Search posts or accounts"
           />
         }
+        isLoading={props.isFeedLoading}
+        loadingText={props.status}
         posts={filteredPosts}
         chainId={props.chainId}
         walletAddress={props.walletAddress}

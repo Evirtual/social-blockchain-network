@@ -383,6 +383,11 @@
   font-weight: 650;
 }
 
+.badge.networkBadge {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+}
+
 .postTitleLine {
   margin-top: 0.25rem;
   font-weight: 650;

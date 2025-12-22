@@ -11,6 +11,8 @@ type Props = {
 
   posts: Post[];
   chainId: string | null;
+  status: string;
+  isFeedLoading: boolean;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
@@ -73,6 +75,8 @@ export function ProfilePage(props: Props) {
         <Feed
           title="Profile Feed"
           pillText={`${props.posts.length} posts`}
+          isLoading={props.isFeedLoading}
+          loadingText={props.status}
           posts={props.posts}
           chainId={props.chainId}
           walletAddress={props.walletAddress}

@@ -36,6 +36,7 @@ export function ProfileRoute() {
           profileBio: app.profileBio,
             profileAvatarUrl: app.profileAvatarUrl,
           myPostsCount: app.myPostsCount,
+          onDisconnectWallet: app.disconnectWallet,
           isEditingProfile: app.isEditingProfile,
           profileDraftName: app.profileDraftName,
           profileDraftBio: app.profileDraftBio,
@@ -63,6 +64,8 @@ export function ProfileRoute() {
           shortAddress: app.shortAddress,
           getNativeSymbol: app.getNativeSymbol
         }}
+        status={app.status}
+        isFeedLoading={app.isFeedLoading}
         posts={filtered}
         chainId={app.chainId}
         walletAddress={app.walletAddress}
@@ -100,6 +103,8 @@ export function ProfileRoute() {
       avatarUrl={avatarUrl}
       posts={filtered}
       chainId={app.chainId}
+      status={app.status}
+      isFeedLoading={app.isFeedLoading}
       walletAddress={app.walletAddress}
       authorIdentity={app.authorIdentity}
       editingTokenId={app.editingTokenId}

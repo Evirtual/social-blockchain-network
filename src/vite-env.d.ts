@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_CONTRACT_ADDRESS?: string;
+  readonly VITE_CONTRACT_ADDRESS_ETH?: string;
+  readonly VITE_CONTRACT_ADDRESS_SEPOLIA?: string;
   readonly VITE_CONTRACT_ADDRESS_BASE?: string;
   readonly VITE_CONTRACT_ADDRESS_BASE_SEPOLIA?: string;
   readonly VITE_CONTRACT_ADDRESS_BSC?: string;

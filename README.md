@@ -20,7 +20,7 @@ A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 5. Start the frontend
    - `npm run dev`
 
-## Deploying to Base + BSC
+## Deploying to Ethereum + Base
 
 GitHub Pages (or any static host) can host the frontend, but the contract must be deployed to each chain separately.
 
@@ -33,18 +33,35 @@ Set at minimum:
 
 - `DEPLOYER_PRIVATE_KEY` (no `0x` prefix)
 - RPC URLs:
+   - `ETH_RPC_URL`
    - `BASE_RPC_URL`
-   - `BSC_RPC_URL`
 
 ### 2) Deploy
 
+- Ethereum mainnet:
+   - `npm run deploy:eth`
 - Base mainnet:
    - `npm run deploy:base`
-- BSC mainnet:
-   - `npm run deploy:bsc`
 
-Each deploy writes the resulting address into `.env.local` using a chain-specific key:
+Testnets:
 
+- Ethereum Sepolia:
+   - `npm run deploy:sepolia`
+- Base Sepolia:
+   - `npm run deploy:base:sepolia`
+
+Deploy both Sepolia networks (with a preflight RPC/chainId check):
+
+- `npm run deploy:sepolias`
+
+Optional: BSC is also supported, and you can deploy Base Sepolia + BSC Testnet via:
+
+- `npm run deploy:testnets`
+
+Each deploy writes the resulting address into `.env` using a chain-specific key:
+
+- `VITE_CONTRACT_ADDRESS_ETH` for Ethereum (chainId 1)
+- `VITE_CONTRACT_ADDRESS_SEPOLIA` for Ethereum Sepolia (chainId 11155111)
 - `VITE_CONTRACT_ADDRESS_BASE` for Base (chainId 8453)
 - `VITE_CONTRACT_ADDRESS_BSC` for BSC (chainId 56)
 

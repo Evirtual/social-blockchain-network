@@ -9,6 +9,7 @@ type Props = {
   profileBio: string;
   profileAvatarUrl: string;
   myPostsCount?: number;
+  onDisconnectWallet: () => void;
   isEditingProfile: boolean;
   profileDraftName: string;
   profileDraftBio: string;
@@ -46,6 +47,7 @@ type ProfileCardProps = Pick<
   | "profileBio"
   | "profileAvatarUrl"
   | "myPostsCount"
+  | "onDisconnectWallet"
   | "isEditingProfile"
   | "profileDraftName"
   | "profileDraftBio"
@@ -104,6 +106,9 @@ export function ProfileCard(props: ProfileCardProps) {
           <div className="profileActions">
             <button className="secondary" type="button" onClick={props.onStartEditProfile}>
               Edit profile
+            </button>
+            <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
+              Disconnect
             </button>
           </div>
         ) : null}
@@ -253,6 +258,7 @@ export function Sidebar({
   profileBio,
   profileAvatarUrl,
   myPostsCount,
+  onDisconnectWallet,
   isEditingProfile,
   profileDraftName,
   profileDraftBio,
@@ -288,6 +294,7 @@ export function Sidebar({
         profileBio={profileBio}
         profileAvatarUrl={profileAvatarUrl}
         myPostsCount={myPostsCount}
+        onDisconnectWallet={onDisconnectWallet}
         isEditingProfile={isEditingProfile}
         profileDraftName={profileDraftName}
         profileDraftBio={profileDraftBio}

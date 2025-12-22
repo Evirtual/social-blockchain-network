@@ -10,6 +10,8 @@ type Props = {
   headerAction?: ReactNode;
   singleColumn?: boolean;
   hideHeader?: boolean;
+  isLoading?: boolean;
+  loadingText?: string;
   posts: Post[];
   chainId: string | null;
   walletAddress: string | null;
@@ -47,6 +49,8 @@ export function Feed({
   headerAction,
   singleColumn,
   hideHeader,
+  isLoading,
+  loadingText,
   posts,
   chainId,
   walletAddress,
@@ -85,6 +89,14 @@ export function Feed({
           <span className="pill feedHeaderPill">{pillText ?? `${posts.length} minted posts`}</span>
         </div>
       )}
+
+      {isLoading ? (
+        <section className="card">
+          <div className="cardTitle">Loading posts…</div>
+          <div className="muted">{loadingText || "Fetching on-chain posts. This can take a few seconds on testnets."}</div>
+        </section>
+      ) : null}
+
       <div className={singleColumn ? "posts postsSingle" : "posts"}>
         {posts.map((post, index) => {
           const authorKey = post.author?.toLowerCase();

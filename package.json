@@ -8,10 +8,14 @@
     "preview": "vite preview",
     "chain": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:eth": "hardhat run scripts/deploy.js --network ethereum",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "deploy:base": "hardhat run scripts/deploy.js --network base",
     "deploy:base:sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:bsc": "hardhat run scripts/deploy.js --network bsc",
-    "deploy:bsc:testnet": "hardhat run scripts/deploy.js --network bscTestnet"
+    "deploy:bsc:testnet": "hardhat run scripts/deploy.js --network bscTestnet",
+    "check:testnets": "node scripts/check-testnets.js --target=base+eth+bsc",
+    "deploy:testnets": "npm run check:testnets && npm run deploy:base:sepolia && npm run deploy:sepolia && npm run deploy:bsc:testnet"
   },
   "dependencies": {
     "ethers": "^6.11.1",

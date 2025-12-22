@@ -6,6 +6,9 @@ import type { Draft, Post } from "../types";
 type Props = {
   sidebar: ComponentProps<typeof Sidebar>;
 
+  status: string;
+  isFeedLoading: boolean;
+
   posts: Post[];
   chainId: string | null;
   walletAddress: string | null;
@@ -47,6 +50,7 @@ export function AccountPage(props: Props) {
           profileBio={props.sidebar.profileBio}
           profileAvatarUrl={props.sidebar.profileAvatarUrl}
           myPostsCount={props.sidebar.myPostsCount}
+          onDisconnectWallet={props.sidebar.onDisconnectWallet}
           isEditingProfile={props.sidebar.isEditingProfile}
           profileDraftName={props.sidebar.profileDraftName}
           profileDraftBio={props.sidebar.profileDraftBio}
@@ -85,6 +89,8 @@ export function AccountPage(props: Props) {
         <Feed
           title="Your Posts"
           pillText={`${props.posts.length} posts`}
+          isLoading={props.isFeedLoading}
+          loadingText={props.status}
           posts={props.posts}
           chainId={props.chainId}
           walletAddress={props.walletAddress}

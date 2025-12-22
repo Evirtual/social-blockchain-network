@@ -12,6 +12,7 @@ hardhat-node.pid
 hardhat-node.log
 
 # Env
+.env
 .env.local
 .env.*.local
 

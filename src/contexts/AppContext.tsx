@@ -10,7 +10,12 @@ import { createMetadataUri, fetchTokenMetadata } from "../lib/metadata";
 import { isUserRejectedTx, useTxNotifications } from "./TxNotificationsContext";
 
 const LEGACY_CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined;
+const WALLET_DISCONNECTED_KEY = "socialBlockchainNetwork.walletDisconnected";
 const CONTRACT_ADDRESS_BY_CHAIN_ID: Record<number, string | undefined> = {
+  // Ethereum
+  1: import.meta.env.VITE_CONTRACT_ADDRESS_ETH as string | undefined,
+  11155111: import.meta.env.VITE_CONTRACT_ADDRESS_SEPOLIA as string | undefined,
+
   // Base
   8453: import.meta.env.VITE_CONTRACT_ADDRESS_BASE as string | undefined,
   84532: import.meta.env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA as string | undefined,
@@ -54,8 +59,12 @@ export type AppContextValue = {
   withdrawableTipsWei: bigint;
 
   connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
   refreshWalletPanel: () => Promise<void>;
   withdrawTips: () => Promise<void>;
+
+  // Feed loading
+  isFeedLoading: boolean;
 
   // Composer
   isComposerOpen: boolean;
@@ -204,6 +213,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [withdrawableTipsWei, setWithdrawableTipsWei] = useState<bigint>(0n);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isFeedLoading, setIsFeedLoading] = useState<boolean>(false);
+
+  // Ethers BrowserProvider caches network info. When the wallet network changes,
+  // recreate the provider so reads use the new chain immediately.
+  const [providerNonce, setProviderNonce] = useState<number>(0);
+
+  const [isWalletAutoConnectDisabled, setIsWalletAutoConnectDisabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(WALLET_DISCONNECTED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
@@ -221,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const ethereum = window.ethereum as ethers.Eip1193Provider | undefined;
     if (!ethereum) return null;
     return new ethers.BrowserProvider(ethereum);
-  }, []);
+  }, [providerNonce]);
 
   const contractAddressForChain = useMemo(() => {
     const chain = chainIdToNumber(chainId);
@@ -229,17 +251,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [chainId]);
 
   const requireContractAddress = useCallback(() => {
-    if (contractAddressForChain) return contractAddressForChain;
+    const chain = chainIdToNumber(chainId) ?? chainIdNumberRef.current;
+    const resolved = resolveContractAddress(chain);
+    if (resolved) return resolved;
 
-    const chain = chainIdToNumber(chainId);
     const chainHint = typeof chain === "number" ? ` (chainId ${chain})` : "";
 
     throw new Error(
       `Missing contract address${chainHint}. Set it in your environment (e.g. .env.local).\n\n` +
-        `For multi-network: set VITE_CONTRACT_ADDRESS_BASE (8453) and/or VITE_CONTRACT_ADDRESS_BSC (56).\n` +
+        `For multi-network: set VITE_CONTRACT_ADDRESS_ETH (1) and/or VITE_CONTRACT_ADDRESS_BASE (8453).\n` +
         "For local dev: run npm run deploy:local then restart the dev server."
     );
-  }, [contractAddressForChain, chainId]);
+  }, [chainId]);
 
   const getSigner = async () => {
     if (!provider) throw new Error("Wallet not found.");
@@ -690,15 +713,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const task = (async () => {
-      await ensureContractDeployedOnCurrentNetwork();
-      const readContract = await getReadContract();
-      setStatus("Loading on-chain feed...");
+      try {
+        setIsFeedLoading(true);
+        await ensureContractDeployedOnCurrentNetwork();
+        const readContract = await getReadContract();
+        setStatus("Loading posts... (this can take a few seconds on testnets)");
 
-      const mintedEvents = await readContract.queryFilter(
-        readContract.filters.PostMinted(),
-        0,
-        "latest"
-      );
+        // Some RPC providers (including wallet-injected providers on testnets) may fail
+        // when querying logs from block 0 to latest. Fetch logs in an adaptive window.
+        const fetchMintedEvents = async () => {
+          const latest = await provider.getBlockNumber();
+
+          // Start with a reasonable window for testnets; expand if needed.
+          let windowSize = 200_000;
+          const maxWindowSize = Math.max(windowSize, latest);
+
+          // If provider rejects large ranges, shrink window until it works.
+          const minWindowSize = 2_000;
+
+          while (true) {
+            const fromBlock = Math.max(0, latest - windowSize);
+            try {
+              const events = await readContract.queryFilter(readContract.filters.PostMinted(), fromBlock, latest);
+              if (events.length > 0 || fromBlock === 0) return events;
+
+              // No events found in this window — expand search range.
+              if (windowSize >= maxWindowSize) return events;
+              windowSize = Math.min(maxWindowSize, windowSize * 2);
+            } catch (err) {
+              // Provider couldn't serve this range — shrink and retry.
+              if (windowSize <= minWindowSize) throw err;
+              windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+            }
+          }
+        };
+
+        const mintedEvents = await fetchMintedEvents();
 
       const eventsNewestFirst = mintedEvents.slice().reverse();
       const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
@@ -749,8 +799,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return post;
       });
 
-      setPosts(minted.filter((post): post is Post => post != null));
-      setStatus("Feed loaded.");
+        setPosts(minted.filter((post): post is Post => post != null));
+        setStatus("Feed loaded.");
+      } catch (err) {
+        setStatus(getErrorMessage(err));
+        throw err;
+      } finally {
+        setIsFeedLoading(false);
+      }
     })();
 
     refreshFeedInFlightRef.current = task;
@@ -774,6 +830,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const network = await provider.getNetwork();
+
+      // User explicitly connected; re-enable auto-connect.
+      setIsWalletAutoConnectDisabled(false);
+      try {
+        localStorage.setItem(WALLET_DISCONNECTED_KEY, "0");
+      } catch {
+        // ignore
+      }
+
       setWalletAddress(address);
       chainIdNumberRef.current = Number(network.chainId);
       setChainId(network.chainId.toString());
@@ -786,7 +851,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const contractAddress = resolveContractAddress(chainIdNumberRef.current);
       if (!contractAddress) {
         setStatus(
-          "Wallet connected, but no contract address is configured for this network. Set VITE_CONTRACT_ADDRESS_BASE (Base 8453) and/or VITE_CONTRACT_ADDRESS_BSC (BSC 56) in .env.local, then restart the dev server."
+          "Wallet connected, but no contract address is configured for this network. Set VITE_CONTRACT_ADDRESS_ETH (Ethereum 1) and/or VITE_CONTRACT_ADDRESS_BASE (Base 8453) in .env.local, then restart the dev server."
         );
         return;
       }
@@ -797,15 +862,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [provider, refreshFeed]);
 
+  const disconnectWallet = useCallback(() => {
+    // Wallet extensions (e.g. MetaMask) don't support a true programmatic disconnect.
+    // This clears the app's local session state.
+    setWalletAddress(null);
+    setNativeBalance("—");
+    setWithdrawableTipsWei(0n);
+    setContractDeployed(null);
+    setStatus("Wallet disconnected");
+
+    setIsWalletAutoConnectDisabled(true);
+    try {
+      localStorage.setItem(WALLET_DISCONNECTED_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     const bootstrap = async () => {
       try {
         if (!provider) return;
 
+        // Always resolve chain info on page load, even if the wallet isn't connected.
+        // This ensures we can select the correct contract address (e.g. Sepolia/Base/BSC)
+        // and load the feed in read-only mode.
+        try {
+          const network = await provider.getNetwork();
+          chainIdNumberRef.current = Number(network.chainId);
+          setChainId(network.chainId.toString());
+          setNetworkName(network.name);
+        } catch {
+          // ignore
+        }
+
         const accounts = (await provider.send("eth_accounts", [])) as string[];
-        const addr = accounts?.[0] ?? null;
+        const addr = isWalletAutoConnectDisabled ? null : (accounts?.[0] ?? null);
         if (!addr) {
           setStatus("Wallet disconnected");
+
+          // If a contract is configured for the current chain, load the feed without requiring a connected wallet.
+          if (resolveContractAddress(chainIdNumberRef.current)) {
+            try {
+              await refreshFeed();
+            } catch {
+              // ignore
+            }
+          } else {
+            setIsFeedLoading(false);
+          }
           return;
         }
 
@@ -824,6 +929,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           } catch {
             // ignore
           }
+        } else {
+          setIsFeedLoading(false);
         }
       } catch {
         // ignore
@@ -831,29 +938,82 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     void bootstrap();
-  }, [provider, refreshFeed, refreshWalletPanel]);
+  }, [provider, refreshFeed, refreshWalletPanel, isWalletAutoConnectDisabled]);
 
   useEffect(() => {
     if (!provider) return;
     const eth = (window.ethereum as any) ?? null;
     if (!eth?.on) return;
 
-    const onAccountsChanged = (accounts: string[]) => {
-      setWalletAddress(accounts?.[0] ?? null);
-      setNativeBalance("—");
-    };
+    const onAccountsChanged = async (accounts: string[]) => {
+      if (isWalletAutoConnectDisabled) {
+        setWalletAddress(null);
+        setNativeBalance("—");
+        setWithdrawableTipsWei(0n);
+        setStatus("Wallet disconnected");
+        return;
+      }
 
-    const onChainChanged = async () => {
+      const addr = accounts?.[0] ?? null;
+      setWalletAddress(addr);
+      setNativeBalance("—");
+      setWithdrawableTipsWei(0n);
+
       try {
         const network = await provider.getNetwork();
         chainIdNumberRef.current = Number(network.chainId);
         setChainId(network.chainId.toString());
         setNetworkName(network.name);
-        if (walletAddress) {
-          const balanceWei = await provider.getBalance(walletAddress);
-          setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
+      } catch {
+        // ignore
+      }
+
+      if (!addr) {
+        setStatus("Wallet disconnected");
+        // Keep the feed available in read-only mode (if configured for this chain).
+        if (resolveContractAddress(chainIdNumberRef.current)) {
+          try {
+            await refreshFeed();
+          } catch {
+            // ignore
+          }
         }
-        if (resolveContractAddress(chainIdNumberRef.current)) await refreshFeed();
+        return;
+      }
+
+      setStatus("Wallet connected.");
+      // Let the existing refreshWalletPanel effect populate balance/tips.
+      if (resolveContractAddress(chainIdNumberRef.current)) {
+        try {
+          await refreshFeed();
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const onChainChanged = async (nextChainId?: string) => {
+      try {
+        setStatus("Network changed. Loading posts for the new network... (testnets can be slow)");
+        setIsFeedLoading(true);
+        setPosts([]);
+        setPostComments({});
+        setIsLoadingPostComments({});
+        setWithdrawableTipsWei(0n);
+        setContractDeployed(null);
+
+        if (typeof nextChainId === "string" && nextChainId.length > 0) {
+          const nextChainNumber = chainIdToNumber(nextChainId);
+          chainIdNumberRef.current = nextChainNumber;
+          if (typeof nextChainNumber === "number") {
+            setChainId(nextChainNumber.toString());
+          } else {
+            setChainId(null);
+          }
+        }
+
+        // Recreate provider to avoid stale network cache.
+        setProviderNonce((n) => n + 1);
       } catch {
         // ignore
       }
@@ -866,7 +1026,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       eth.removeListener?.("accountsChanged", onAccountsChanged);
       eth.removeListener?.("chainChanged", onChainChanged);
     };
-  }, [provider, walletAddress, refreshFeed]);
+  }, [provider, walletAddress, refreshFeed, isWalletAutoConnectDisabled]);
 
   useEffect(() => {
     void refreshWalletPanel();
@@ -1410,8 +1570,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     withdrawableTipsWei,
 
     connectWallet,
+    disconnectWallet,
     refreshWalletPanel,
     withdrawTips,
+
+    isFeedLoading,
 
     isComposerOpen,
     openComposer,
