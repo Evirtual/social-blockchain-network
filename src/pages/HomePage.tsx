@@ -1,6 +1,6 @@
 import type { Draft, Post } from "../types";
 import { Feed } from "../components/Feed";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Props = {
   selfAvatarHue: number;
@@ -54,6 +54,31 @@ export function HomePage(props: Props) {
     }
   });
 
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const filteredPosts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return props.posts;
+
+    return props.posts.filter((post) => {
+      const author = post.author ?? "";
+      const authorKey = author.toLowerCase();
+      const identityName = authorKey ? props.authorIdentity.get(authorKey)?.name ?? "" : "";
+      const short = author ? props.shortAddress(author) : "";
+
+      const haystack = [post.tokenId, post.title, post.body, author, identityName, short]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(q);
+    });
+  }, [props.posts, props.authorIdentity, props.shortAddress, searchQuery]);
+
+  const pillText = searchQuery.trim()
+    ? `${filteredPosts.length} / ${props.posts.length} posts`
+    : `${props.posts.length} posts`;
+
   return (
     <main className="home">
       {!isHeroDismissed && (
@@ -89,13 +114,18 @@ export function HomePage(props: Props) {
 
       <Feed
         title="Main Feed"
-        pillText={`${props.posts.length} posts`}
+        pillText={pillText}
         headerAction={
-          <button className="primary iconButton" type="button" onClick={props.onOpenComposer} aria-label="Create post">
-            +
-          </button>
+          <input
+            className="input feedSearch"
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search posts or accounts"
+            aria-label="Search posts or accounts"
+          />
         }
-        posts={props.posts}
+        posts={filteredPosts}
         chainId={props.chainId}
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}

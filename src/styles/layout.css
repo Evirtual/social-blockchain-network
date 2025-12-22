@@ -56,6 +56,24 @@
   gap: 0.625rem;
   align-items: center;
   flex: 0 0 auto;
+  padding: 0.25rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+}
+
+.topbar-actions button,
+.topbar-actions .btn {
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbar-actions button:not(.iconButton),
+.topbar-actions .btn {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .layout {
@@ -128,11 +146,7 @@
   }
 }
 
-@media (max-width: 32.5rem) {
-  .app {
-    padding: 0.75rem;
-  }
-
+@media (max-width: 40rem) {
   .topbar {
     flex-direction: column;
     align-items: stretch;
@@ -143,6 +157,13 @@
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 0.5rem;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 32.5rem) {
+  .app {
+    padding: 0.75rem;
   }
 
   .brand {

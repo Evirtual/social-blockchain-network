@@ -80,11 +80,9 @@ export function Feed({
     <section className="feed">
       {hideHeader ? null : (
         <div className="feed-header">
-          <h2>{title ?? "Chain Feed"}</h2>
-          <div className="feedHeaderActions">
-            <span className="pill">{pillText ?? `${posts.length} minted posts`}</span>
-            {headerAction}
-          </div>
+          <h2 className="feedHeaderTitle">{title ?? "Chain Feed"}</h2>
+          {headerAction ? <div className="feedHeaderAction">{headerAction}</div> : null}
+          <span className="pill feedHeaderPill">{pillText ?? `${posts.length} minted posts`}</span>
         </div>
       )}
       <div className={singleColumn ? "posts postsSingle" : "posts"}>
