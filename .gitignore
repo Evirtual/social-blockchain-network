@@ -1,0 +1,19 @@
+node_modules/
+
+# Vite
+/dist/
+
+# Hardhat
+/artifacts/
+/cache/
+/typechain-types/
+.hardhat-node.pid
+hardhat-node.pid
+hardhat-node.log
+
+# Env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store

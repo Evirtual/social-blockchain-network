@@ -1,0 +1,667 @@
+.profileRow {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
+}
+
+.cardHeader .cardTitle {
+  margin-bottom: 0;
+}
+
+.profileHeader {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.profileActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+
+.avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.875rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+}
+
+.avatar.small {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 0.75rem;
+}
+
+.profileMain {
+  min-width: 0;
+}
+
+.profileName {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileMeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileBio {
+  margin-top: 0.625rem;
+  padding-top: 0.625rem;
+  border-top: 0.0625rem solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.walletGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+}
+
+.walletGrid > div {
+  min-width: 0;
+}
+
+.value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 32.5rem) {
+  .profileHeader {
+    grid-template-columns: auto 1fr;
+  }
+
+  .profileActions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .walletGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statusLine {
+  margin-top: 0.625rem;
+  color: var(--muted);
+}
+
+.composerHeader {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+}
+
+.composerTitle {
+  font-weight: 700;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* In the modal, avoid a "card inside a card" look */
+.modalBody .card.composer {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.modalBody .card.composer .composerHeader {
+  background: var(--surface);
+  border-color: transparent;
+}
+
+.modalBody .card.composer .input,
+.modalBody .card.composer .textarea,
+.modalBody .card.composer .file-input {
+  background: var(--surface);
+  border-color: transparent;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroClose {
+  position: absolute;
+  top: var(--pad-sm);
+  right: var(--pad-sm);
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.05rem;
+  z-index: 2;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.875rem);
+  -webkit-backdrop-filter: blur(0.875rem);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(56.25rem 22.5rem at 10% -20%, rgba(120, 140, 255, 0.24), transparent 60%),
+    radial-gradient(50rem 20rem at 105% -10%, rgba(60, 240, 190, 0.16), transparent 55%);
+  opacity: 1;
+}
+
+.hero > *:not(.heroClose) {
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-size: 1.55rem;
+  letter-spacing: 0.0125rem;
+}
+
+.heroSub {
+  line-height: 1.55;
+}
+
+.heroBullets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  padding: 0.625rem 0.125rem;
+  flex-wrap: wrap;
+  border-bottom: 0.0625rem solid var(--border);
+}
+
+.feed-header h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.0125rem;
+}
+
+.feedHeaderActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.625rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.posts {
+  column-count: 1;
+  column-gap: 0.75rem;
+}
+
+.posts.postsSingle {
+  column-count: 1;
+}
+
+@media (min-width: 47.5rem) {
+  .posts {
+    column-count: 2;
+  }
+}
+
+.post {
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.625rem);
+  -webkit-backdrop-filter: blur(0.625rem);
+  display: flex;
+  flex-direction: column;
+  break-inside: avoid;
+  margin: 0 0 0.75rem 0;
+  width: 100%;
+}
+
+.postHead {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.875rem 0.875rem 0 0.875rem;
+  align-items: flex-start;
+}
+
+.postHeadMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.postHeadTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.625rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.postAuthor {
+  font-weight: 700;
+}
+
+.postTokenLink {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.postTokenArea {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.postTokenActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.postTokenActions .iconButton {
+  width: 1.875rem;
+  height: 1.875rem;
+  font-size: 1rem;
+}
+
+.postTokenLink:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.postTitleLine {
+  margin-top: 0.25rem;
+  font-weight: 650;
+}
+
+
+.postImageLink {
+  display: block;
+  cursor: pointer;
+}
+
+.postImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-top: 0.0625rem solid var(--border);
+  border-bottom: 0.0625rem solid var(--border);
+  margin-top: 0.75rem;
+}
+
+.post-body {
+  padding: 0.875rem;
+}
+
+.post-body + .post-body {
+  border-top: 0.0625rem solid var(--border);
+}
+
+.post-body p {
+  margin: 0 0 0.625rem 0;
+}
+
+.post-body p:last-child {
+  margin-bottom: 0;
+}
+
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  align-items: center;
+  margin-top: 0.625rem;
+}
+
+.post-actions button {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.92rem;
+}
+
+.comment-box {
+  display: flex;
+  gap: 0.625rem;
+  margin-top: 0.625rem;
+}
+
+.postText {
+  color: var(--text);
+}
+
+.postFooter {
+  padding: 0.875rem;
+  border-top: 0.0625rem solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.postStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.statPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.statPill.statButton {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.statPill.statButton:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+.postActionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.postForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.625rem;
+  border-radius: var(--radius-lg);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+}
+
+.postFormRow {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.postField {
+  flex: 1;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.625rem 0.75rem;
+  outline: none;
+  min-width: 0;
+}
+
+.postField:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+@media (max-width: 32.5rem) {
+  .comment-box {
+    flex-direction: column;
+  }
+
+  .comment-box button {
+    width: 100%;
+  }
+
+  .postFormRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .postFormRow button {
+    width: 100%;
+  }
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.editBox {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.tx-panel {
+  margin-top: 0.75rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  border-radius: 0.75rem;
+  padding: 0.625rem;
+}
+
+.tx-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.tx-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.375rem 0;
+  border-top: 0.0625rem solid var(--border);
+}
+
+.tx-row:first-child {
+  border-top: none;
+}
+
+.tx-state {
+  font-size: 0.8rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+}
+
+.tx-pending {
+  color: rgba(255, 220, 150, 1);
+}
+
+.tx-confirmed {
+  color: rgba(130, 255, 200, 1);
+}
+
+.tx-failed {
+  color: rgba(255, 140, 140, 1);
+}
+
+.tx-cancelled {
+  color: var(--muted);
+}
+
+.tx-link,
+.tx-hash,
+.tx-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.commentList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 0.625rem;
+}
+
+.commentItem {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  padding: 0.625rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+}
+
+.commentMain {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.commentMeta {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.commentAuthor {
+  font-weight: 700;
+}
+
+.commentLink {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.commentText {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.125rem;
+  z-index: 50;
+  backdrop-filter: blur(0.875rem);
+  -webkit-backdrop-filter: blur(0.875rem);
+}
+
+html[data-theme="light"] .modalOverlay {
+  background: rgba(10, 16, 28, 0.18);
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 36.25rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.875rem);
+  -webkit-backdrop-filter: blur(0.875rem);
+  overflow: hidden;
+  max-height: calc(100vh - 2.25rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 0.875rem;
+  border-bottom: 0.0625rem solid var(--border);
+}
+
+.modalTitle {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.0125rem;
+}
+
+.modalBody {
+  padding: 1rem;
+  overflow: auto;
+}
