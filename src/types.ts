@@ -1,11 +1,14 @@
 export type Post = {
   tokenId: string;
+  chainId?: string;
   title: string;
   body: string;
   image: string;
   metadataURI: string;
   author?: string;
   mintTxHash?: string;
+  mintBlockNumber?: number;
+  mintTimestamp?: number;
   likes: number;
   comments: number;
   shares: number;

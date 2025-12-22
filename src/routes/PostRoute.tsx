@@ -1,17 +1,26 @@
-import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { PostPage } from "../pages/PostPage";
 import { useApp } from "../contexts/AppContext";
 
 export function PostRoute() {
   const app = useApp();
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const tokenId = params.tokenId as string | undefined;
+
+  const requestedChainId = useMemo(() => {
+    const raw = searchParams.get("chainId");
+    return raw && raw.trim().length ? raw.trim() : null;
+  }, [searchParams]);
 
   useEffect(() => {
     if (!tokenId) return;
+    // Comments are loaded via the currently-connected chain provider.
+    // Avoid loading comments for posts from a different chain.
+    if (requestedChainId && app.chainId && requestedChainId !== app.chainId) return;
     void app.loadCommentsForPost(tokenId);
-  }, [tokenId, app.loadCommentsForPost]);
+  }, [tokenId, requestedChainId, app.chainId, app.loadCommentsForPost]);
 
   if (!tokenId) {
     return (
@@ -24,12 +33,20 @@ export function PostRoute() {
     );
   }
 
-  const post = app.posts.find((p) => p.tokenId === tokenId) ?? null;
+  const post =
+    app.posts.find((p) => {
+      if (p.tokenId !== tokenId) return false;
+      if (!requestedChainId) return true;
+      return (p.chainId ?? null) === requestedChainId;
+    }) ?? null;
+
+  const postChainId = requestedChainId ?? post?.chainId ?? app.chainId;
 
   return (
     <PostPage
       tokenId={tokenId}
       post={post}
+      postChainId={postChainId}
       comments={app.postComments[tokenId] ?? []}
       isLoadingComments={!!app.isLoadingPostComments[tokenId]}
       posts={app.posts}

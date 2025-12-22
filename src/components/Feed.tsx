@@ -99,18 +99,20 @@ export function Feed({
 
       <div className={singleColumn ? "posts postsSingle" : "posts"}>
         {posts.map((post, index) => {
+          const postKey = post.chainId ? `${post.chainId}:${post.tokenId}` : post.tokenId;
           const authorKey = post.author?.toLowerCase();
           const info = authorKey ? authorIdentity.get(authorKey) : undefined;
           const authorLabel = (info?.name?.trim() || (post.author ? shortAddress(post.author) : "Unknown")) as string;
           const authorHue = info?.hue ?? stableHueFromSeed("guest");
           const authorAvatarUrl = info?.avatarUrl;
           const isMine = !!walletAddress && !!post.author && walletAddress.toLowerCase() === post.author.toLowerCase();
-          const openPanel = getPanel(post.tokenId);
+          const openPanel = getPanel(postKey);
 
           return (
             <PostCard
-              key={post.tokenId}
+              key={postKey}
               post={post}
+              panelKey={postKey}
               animationDelayMs={index * 80}
               from={from}
               chainId={chainId}
@@ -125,7 +127,7 @@ export function Feed({
               tipDrafts={tipDrafts}
               commentDrafts={commentDrafts}
               openPanel={openPanel}
-              onTogglePanel={(panel) => togglePanel(post.tokenId, panel)}
+              onTogglePanel={(panel) => togglePanel(postKey, panel)}
               onSetEditDraft={onSetEditDraft}
               onTipDraftChange={onTipDraftChange}
               onCommentDraftChange={onCommentDraftChange}

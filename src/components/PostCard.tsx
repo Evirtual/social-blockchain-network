@@ -2,11 +2,13 @@ import { ethers } from "ethers";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "../types";
 import { ipfsToHttp } from "../ipfs";
+import { getNetworkBadgeLabel } from "../lib/chain";
 
 export type PostPanel = "comment" | "tip";
 
 type Props = {
   post: Post;
+  panelKey: string;
   animationDelayMs?: number;
   from: string;
 
@@ -36,9 +38,9 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment") => void;
-  onTip: (tokenId: string) => void;
-  onBurn: (tokenId: string) => void;
+  onAction: (tokenId: string, action: "like" | "comment", postChainId?: string | null) => void;
+  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onBurn: (tokenId: string, postChainId?: string | null) => void;
 
   getNativeSymbol: (chainId: string | null) => string;
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
@@ -46,10 +48,14 @@ type Props = {
 
 export function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
-  const explorer = props.post.mintTxHash ? props.getExplorerTxUrl(props.chainId, props.post.mintTxHash) : null;
+  const postChainId = props.post.chainId ?? props.chainId;
+  const explorer = props.post.mintTxHash ? props.getExplorerTxUrl(postChainId, props.post.mintTxHash) : null;
   const avatarStyle = props.authorAvatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.authorAvatarUrl)})` }
     : { background: `hsl(${props.authorHue} 75% 55%)` };
+
+  const networkBadge = getNetworkBadgeLabel(postChainId);
+  const postLink = postChainId ? `/post/${tokenId}?chainId=${encodeURIComponent(postChainId)}` : `/post/${tokenId}`;
 
   const description = (
     <>
@@ -85,9 +91,10 @@ export function PostCard(props: Props) {
               {props.isMine ? <span className="badge">You</span> : null}
             </div>
             <div className="postTokenArea">
-              <Link className="postTokenLink" to={`/post/${tokenId}`} state={{ from: props.from }}>
+              <Link className="postTokenLink" to={postLink} state={{ from: props.from }}>
                 Token #{tokenId}
               </Link>
+              {networkBadge ? <span className="badge networkBadge">{networkBadge}</span> : null}
               {props.isMine && props.editingTokenId !== tokenId ? (
                 <span className="postTokenActions">
                   <button
@@ -102,7 +109,7 @@ export function PostCard(props: Props) {
                   <button
                     className="danger iconButton"
                     type="button"
-                    onClick={() => props.onBurn(tokenId)}
+                    onClick={() => props.onBurn(tokenId, postChainId)}
                     aria-label="Burn post"
                     title="Burn"
                   >
@@ -162,7 +169,7 @@ export function PostCard(props: Props) {
       ) : (
         <>
           {!!props.post.image && (
-            <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
+            <Link className="postImageLink" to={postLink} state={{ from: props.from }} aria-label="Open post">
               <img className="postImage" src={ipfsToHttp(props.post.image)} alt="Post image" loading="lazy" />
             </Link>
           )}
@@ -172,7 +179,7 @@ export function PostCard(props: Props) {
 
       <div className="postFooter">
         <div className="postStats">
-          <button className="statPill statButton" type="button" onClick={() => props.onAction(tokenId, "like")} aria-label="Like">
+          <button className="statPill statButton" type="button" onClick={() => props.onAction(tokenId, "like", postChainId)} aria-label="Like">
             ❤ {props.post.likes}
           </button>
 
@@ -182,7 +189,7 @@ export function PostCard(props: Props) {
             onClick={() => props.onTogglePanel("comment")}
             aria-label="Comment"
             aria-expanded={props.openPanel === "comment"}
-            aria-controls={`comment-${tokenId}`}
+            aria-controls={`comment-${props.panelKey}`}
           >
             💬 {props.post.comments}
           </button>
@@ -193,23 +200,23 @@ export function PostCard(props: Props) {
             onClick={() => props.onTogglePanel("tip")}
             aria-label="Tip"
             aria-expanded={props.openPanel === "tip"}
-            aria-controls={`tip-${tokenId}`}
+            aria-controls={`tip-${props.panelKey}`}
           >
-            ⟠ {Number(ethers.formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(props.chainId)}
+            ⟠ {Number(ethers.formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(postChainId)}
           </button>
         </div>
 
         {props.openPanel === "tip" ? (
-          <div className="postForm" id={`tip-${tokenId}`}>
+          <div className="postForm" id={`tip-${props.panelKey}`}>
             <div className="postFormRow">
               <input
                 className="postField"
                 type="text"
                 value={props.tipDrafts[tokenId] || ""}
                 onChange={(event) => props.onTipDraftChange(tokenId, event.target.value)}
-                placeholder={`Tip amount in ${props.getNativeSymbol(props.chainId)} (e.g. 0.001)`}
+                placeholder={`Tip amount in ${props.getNativeSymbol(postChainId)} (e.g. 0.001)`}
               />
-              <button className="primary" type="button" onClick={() => props.onTip(tokenId)}>
+              <button className="primary" type="button" onClick={() => props.onTip(tokenId, postChainId)}>
                 Tip
               </button>
             </div>
@@ -217,7 +224,7 @@ export function PostCard(props: Props) {
         ) : null}
 
         {props.openPanel === "comment" ? (
-          <div className="postForm" id={`comment-${tokenId}`}>
+          <div className="postForm" id={`comment-${props.panelKey}`}>
             <div className="postFormRow">
               <input
                 className="postField"
@@ -226,7 +233,7 @@ export function PostCard(props: Props) {
                 onChange={(event) => props.onCommentDraftChange(tokenId, event.target.value)}
                 placeholder="Write a comment to sign"
               />
-              <button className="secondary" type="button" onClick={() => props.onAction(tokenId, "comment")}>
+              <button className="secondary" type="button" onClick={() => props.onAction(tokenId, "comment", postChainId)}>
                 Sign
               </button>
             </div>
