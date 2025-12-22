@@ -407,6 +407,11 @@
   padding: 0.875rem;
 }
 
+.postCaption {
+  padding: 0.875rem;
+  border-top: 0.0625rem solid var(--border);
+}
+
 .post-body + .post-body {
   border-top: 0.0625rem solid var(--border);
 }

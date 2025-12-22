@@ -51,6 +51,29 @@ export function PostCard(props: Props) {
     ? { backgroundImage: `url(${ipfsToHttp(props.authorAvatarUrl)})` }
     : { background: `hsl(${props.authorHue} 75% 55%)` };
 
+  const description = (
+    <>
+      <div className="postText">
+        <p>{props.post.body}</p>
+      </div>
+      {props.post.mintTxHash ? (
+        <a
+          href={explorer ?? "#"}
+          target={explorer ? "_blank" : undefined}
+          rel={explorer ? "noreferrer" : undefined}
+          title={explorer ? "View mint transaction" : "Copy mint transaction hash"}
+          onClick={(e) => {
+            if (explorer) return;
+            e.preventDefault();
+            void navigator.clipboard?.writeText(props.post.mintTxHash || "");
+          }}
+        >
+          View mint transaction
+        </a>
+      ) : null}
+    </>
+  );
+
   return (
     <article key={tokenId} className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
       <div className="postHead">
@@ -143,26 +166,7 @@ export function PostCard(props: Props) {
               <img className="postImage" src={ipfsToHttp(props.post.image)} alt="Post image" loading="lazy" />
             </Link>
           )}
-          <div className="post-body">
-            <div className="postText">
-              <p>{props.post.body}</p>
-            </div>
-            {props.post.mintTxHash ? (
-              <a
-                href={explorer ?? "#"}
-                target={explorer ? "_blank" : undefined}
-                rel={explorer ? "noreferrer" : undefined}
-                title={explorer ? "View mint transaction" : "Copy mint transaction hash"}
-                onClick={(e) => {
-                  if (explorer) return;
-                  e.preventDefault();
-                  void navigator.clipboard?.writeText(props.post.mintTxHash || "");
-                }}
-              >
-                View mint transaction
-              </a>
-            ) : null}
-          </div>
+          {props.post.image ? null : <div className="post-body">{description}</div>}
         </>
       )}
 
@@ -229,6 +233,8 @@ export function PostCard(props: Props) {
           </div>
         ) : null}
       </div>
+
+      {props.editingTokenId === tokenId || !props.post.image ? null : <div className="postCaption">{description}</div>}
     </article>
   );
 }
