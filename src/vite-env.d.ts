@@ -8,12 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_CONTRACT_ADDRESS_BASE_SEPOLIA?: string;
   readonly VITE_CONTRACT_ADDRESS_BSC?: string;
   readonly VITE_CONTRACT_ADDRESS_BSC_TESTNET?: string;
-  readonly VITE_RPC_URL_ETH?: string;
-  readonly VITE_RPC_URL_SEPOLIA?: string;
-  readonly VITE_RPC_URL_BASE?: string;
-  readonly VITE_RPC_URL_BASE_SEPOLIA?: string;
-  readonly VITE_RPC_URL_BSC?: string;
-  readonly VITE_RPC_URL_BSC_TESTNET?: string;
   readonly VITE_PINATA_JWT?: string;
   readonly VITE_IPFS_GATEWAY?: string;
 }

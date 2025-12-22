@@ -5,7 +5,6 @@ import { Link, useLocation } from "react-router-dom";
 type Props = {
   tokenId: string;
   post: Post | null;
-  postChainId: string | null;
   comments: PostComment[];
   isLoadingComments: boolean;
 
@@ -30,9 +29,9 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment", postChainId?: string | null) => void;
-  onTip: (tokenId: string, postChainId?: string | null) => void;
-  onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onAction: (tokenId: string, action: "like" | "comment") => void;
+  onTip: (tokenId: string) => void;
+  onBurn: (tokenId: string) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -116,11 +115,7 @@ export function PostPage(props: Props) {
                   onChange={(event) => props.onCommentDraftChange(props.tokenId, event.target.value)}
                   placeholder="Write a comment to sign"
                 />
-                <button
-                  className="secondary"
-                  type="button"
-                  onClick={() => props.onAction(props.tokenId, "comment", props.postChainId)}
-                >
+                <button className="secondary" type="button" onClick={() => props.onAction(props.tokenId, "comment")}>
                   Sign
                 </button>
               </div>
@@ -137,7 +132,7 @@ export function PostPage(props: Props) {
                 {props.comments.map((c, idx) => {
                   const hue = props.stableHueFromSeed(c.commenter.toLowerCase());
                   const label = props.shortAddress(c.commenter);
-                  const explorer = c.txHash ? props.getExplorerTxUrl(props.postChainId ?? props.chainId, c.txHash) : null;
+                  const explorer = c.txHash ? props.getExplorerTxUrl(props.chainId, c.txHash) : null;
                   return (
                     <div key={`${c.txHash ?? "nohash"}-${idx}`} className="commentItem">
                       <div className="avatar small" style={{ background: `hsl(${hue} 75% 55%)` }} />

@@ -25,20 +25,6 @@ const CONTRACT_ADDRESS_BY_CHAIN_ID: Record<number, string | undefined> = {
   97: import.meta.env.VITE_CONTRACT_ADDRESS_BSC_TESTNET as string | undefined
 };
 
-const RPC_URL_BY_CHAIN_ID: Record<number, string | undefined> = {
-  // Ethereum
-  1: import.meta.env.VITE_RPC_URL_ETH as string | undefined,
-  11155111: import.meta.env.VITE_RPC_URL_SEPOLIA as string | undefined,
-
-  // Base
-  8453: import.meta.env.VITE_RPC_URL_BASE as string | undefined,
-  84532: import.meta.env.VITE_RPC_URL_BASE_SEPOLIA as string | undefined,
-
-  // BNB Smart Chain (BSC)
-  56: import.meta.env.VITE_RPC_URL_BSC as string | undefined,
-  97: import.meta.env.VITE_RPC_URL_BSC_TESTNET as string | undefined
-};
-
 function chainIdToNumber(chainId: string | null): number | null {
   if (!chainId) return null;
   if (chainId.startsWith("0x") || chainId.startsWith("0X")) {
@@ -145,9 +131,9 @@ export type AppContextValue = {
   cancelEditPost: () => void;
   saveEditedPost: () => Promise<void>;
 
-  burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
-  handleAction: (tokenId: string, action: "like" | "comment", postChainId?: string | null) => Promise<void>;
-  handleTip: (tokenId: string, postChainId?: string | null) => Promise<void>;
+  burnPost: (tokenId: string) => Promise<void>;
+  handleAction: (tokenId: string, action: "like" | "comment") => Promise<void>;
+  handleTip: (tokenId: string) => Promise<void>;
 
   // Comments
   postComments: Record<string, PostComment[]>;
@@ -729,176 +715,91 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const task = (async () => {
       try {
         setIsFeedLoading(true);
+        await ensureContractDeployedOnCurrentNetwork();
+        const readContract = await getReadContract();
         setStatus("Loading posts... (this can take a few seconds on testnets)");
 
-        type FeedTarget = {
-          chainIdNumber: number;
-          chainId: string;
-          contractAddress: string;
-          provider: ethers.Provider;
+        // Some RPC providers (including wallet-injected providers on testnets) may fail
+        // when querying logs from block 0 to latest. Fetch logs in an adaptive window.
+        const fetchMintedEvents = async () => {
+          const latest = await provider.getBlockNumber();
+
+          // Start with a reasonable window for testnets; expand if needed.
+          let windowSize = 200_000;
+          const maxWindowSize = Math.max(windowSize, latest);
+
+          // If provider rejects large ranges, shrink window until it works.
+          const minWindowSize = 2_000;
+
+          while (true) {
+            const fromBlock = Math.max(0, latest - windowSize);
+            try {
+              const events = await readContract.queryFilter(readContract.filters.PostMinted(), fromBlock, latest);
+              if (events.length > 0 || fromBlock === 0) return events;
+
+              // No events found in this window — expand search range.
+              if (windowSize >= maxWindowSize) return events;
+              windowSize = Math.min(maxWindowSize, windowSize * 2);
+            } catch (err) {
+              // Provider couldn't serve this range — shrink and retry.
+              if (windowSize <= minWindowSize) throw err;
+              windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+            }
+          }
         };
 
-        const targets: FeedTarget[] = [];
+        const mintedEvents = await fetchMintedEvents();
 
-        // Always include current chain if we can resolve an address.
-        const currentChainIdNumber = chainIdNumberRef.current;
-        const currentContract = resolveContractAddress(currentChainIdNumber);
-        if (typeof currentChainIdNumber === "number" && currentContract) {
-          targets.push({
-            chainIdNumber: currentChainIdNumber,
-            chainId: String(currentChainIdNumber),
-            contractAddress: currentContract,
-            provider
-          });
-        }
+        const eventsNewestFirst = mintedEvents.slice().reverse();
+        const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
+          const anyEvent = event as any;
+          const args = anyEvent.args as any[] | undefined;
+          const author = args?.[0] as string | undefined;
+          const tokenIdBig = args?.[1] as bigint | undefined;
+          if (!tokenIdBig) return null;
 
-        // Add other chains only when both contract address AND VITE RPC URL are configured.
-        for (const [chainIdRaw, contractAddress] of Object.entries(CONTRACT_ADDRESS_BY_CHAIN_ID)) {
-          const chainIdNumber = Number(chainIdRaw);
-          if (!Number.isFinite(chainIdNumber)) continue;
-          if (!contractAddress) continue;
-          if (chainIdNumber === currentChainIdNumber) continue;
-          const rpcUrl = RPC_URL_BY_CHAIN_ID[chainIdNumber];
-          if (!rpcUrl) continue;
+          // IMPORTANT: minted events remain even after a burn.
+          // We must check existence BEFORE calling tokenURI/likesOf/etc because those revert for burned tokens.
+          const exists = (await readContract.exists(tokenIdBig)) as boolean;
+          if (!exists) return null;
 
-          targets.push({
-            chainIdNumber,
-            chainId: String(chainIdNumber),
-            contractAddress,
-            provider: new ethers.JsonRpcProvider(rpcUrl)
-          });
-        }
+          let tokenUri = "";
+          let likesRaw = 0n;
+          let commentsRaw = 0n;
+          let sharesRaw = 0n;
+          let tipsWei = 0n;
+          try {
+            [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei] = await Promise.all([
+              readContract.tokenURI(tokenIdBig) as Promise<string>,
+              readContract.likesOf(tokenIdBig) as Promise<bigint>,
+              readContract.commentsOf(tokenIdBig) as Promise<bigint>,
+              readContract.sharesOf(tokenIdBig) as Promise<bigint>,
+              readContract.tipsOf(tokenIdBig) as Promise<bigint>
+            ]);
+          } catch {
+            // If anything fails (reorg, bad tokenURI storage, etc), skip this item rather than nuking the whole feed.
+            return null;
+          }
 
-        if (targets.length === 0) {
-          setPosts([]);
-          setStatus("No networks configured for the feed.");
-          return;
-        }
+          const tokenId = tokenIdBig.toString();
+          const meta = await fetchTokenMetadata(tokenUri);
 
-        const loadPostsForTarget = async (target: FeedTarget): Promise<Post[]> => {
-          const code = await target.provider.getCode(target.contractAddress);
-          if (!code || code === "0x") return [];
-
-          const readContract = getSocialContract(target.contractAddress, target.provider);
-
-          // Some providers fail when querying logs from block 0 to latest. Fetch logs in an adaptive window.
-          const fetchMintedEvents = async () => {
-            const latest = await target.provider.getBlockNumber();
-
-            let windowSize = 200_000;
-            const maxWindowSize = Math.max(windowSize, latest);
-            const minWindowSize = 2_000;
-
-            while (true) {
-              const fromBlock = Math.max(0, latest - windowSize);
-              try {
-                const events = await readContract.queryFilter(readContract.filters.PostMinted(), fromBlock, latest);
-                if (events.length > 0 || fromBlock === 0) return events;
-
-                if (windowSize >= maxWindowSize) return events;
-                windowSize = Math.min(maxWindowSize, windowSize * 2);
-              } catch (err) {
-                if (windowSize <= minWindowSize) throw err;
-                windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
-              }
-            }
+          const post: Post = {
+            tokenId,
+            title: meta?.name ?? `Token #${tokenId}`,
+            body: meta?.description ?? "",
+            image: meta?.image ?? "",
+            metadataURI: tokenUri,
+            author,
+            likes: Number(likesRaw),
+            comments: Number(commentsRaw),
+            shares: Number(sharesRaw),
+            tipsWei
           };
-
-          const mintedEvents = await fetchMintedEvents();
-          const eventsNewestFirst = mintedEvents.slice().reverse();
-
-          const blockTimestampCache = new Map<number, number>();
-          const getTimestamp = async (blockNumber: number) => {
-            const cached = blockTimestampCache.get(blockNumber);
-            if (typeof cached === "number") return cached;
-            try {
-              const block = await target.provider.getBlock(blockNumber);
-              const ts = (block as any)?.timestamp;
-              const n = typeof ts === "number" ? ts : Number(ts);
-              if (Number.isFinite(n)) {
-                blockTimestampCache.set(blockNumber, n);
-                return n;
-              }
-            } catch {
-              // ignore
-            }
-            return undefined;
-          };
-
-          const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
-            const anyEvent = event as any;
-            const args = anyEvent.args as any[] | undefined;
-            const author = args?.[0] as string | undefined;
-            const tokenIdBig = args?.[1] as bigint | undefined;
-            if (!tokenIdBig) return null;
-
-            // IMPORTANT: minted events remain even after a burn.
-            const exists = (await readContract.exists(tokenIdBig)) as boolean;
-            if (!exists) return null;
-
-            let tokenUri = "";
-            let likesRaw = 0n;
-            let commentsRaw = 0n;
-            let sharesRaw = 0n;
-            let tipsWei = 0n;
-            try {
-              [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei] = await Promise.all([
-                readContract.tokenURI(tokenIdBig) as Promise<string>,
-                readContract.likesOf(tokenIdBig) as Promise<bigint>,
-                readContract.commentsOf(tokenIdBig) as Promise<bigint>,
-                readContract.sharesOf(tokenIdBig) as Promise<bigint>,
-                readContract.tipsOf(tokenIdBig) as Promise<bigint>
-              ]);
-            } catch {
-              return null;
-            }
-
-            const tokenId = tokenIdBig.toString();
-            const meta = await fetchTokenMetadata(tokenUri);
-
-            const blockNumber = (event as any)?.blockNumber as number | undefined;
-            const mintTimestamp = typeof blockNumber === "number" ? await getTimestamp(blockNumber) : undefined;
-
-            const post: Post = {
-              tokenId,
-              chainId: target.chainId,
-              title: meta?.name ?? `Token #${tokenId}`,
-              body: meta?.description ?? "",
-              image: meta?.image ?? "",
-              metadataURI: tokenUri,
-              author,
-              mintTxHash: (event as any)?.transactionHash as string | undefined,
-              mintBlockNumber: blockNumber,
-              mintTimestamp,
-              likes: Number(likesRaw),
-              comments: Number(commentsRaw),
-              shares: Number(sharesRaw),
-              tipsWei
-            };
-            return post;
-          });
-
-          return minted.filter((post): post is Post => post != null);
-        };
-
-        const settled = await Promise.allSettled(targets.map((t) => loadPostsForTarget(t)));
-        const loaded: Post[] = [];
-        for (const s of settled) {
-          if (s.status === "fulfilled") loaded.push(...s.value);
-        }
-
-        // Sort newest-first when timestamps are available.
-        loaded.sort((a, b) => {
-          const at = a.mintTimestamp ?? 0;
-          const bt = b.mintTimestamp ?? 0;
-          if (bt !== at) return bt - at;
-          const ab = a.mintBlockNumber ?? 0;
-          const bb = b.mintBlockNumber ?? 0;
-          if (bb !== ab) return bb - ab;
-          return (b.tokenId ?? "").localeCompare(a.tokenId ?? "");
+          return post;
         });
 
-        setPosts(loaded);
+        setPosts(minted.filter((post): post is Post => post != null));
         setStatus("Feed loaded.");
       } catch (err) {
         setStatus(getErrorMessage(err));
@@ -916,7 +817,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshFeedInFlightRef.current = null;
       }
     }
-  }, [provider]);
+  }, [provider, ensureContractDeployedOnCurrentNetwork, requireContractAddress]);
 
   const connectWallet = useCallback(async () => {
     try {
@@ -1313,7 +1214,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const newPost: Post = {
         tokenId: minted.mintedTokenId,
-        chainId: chainIdNumberRef.current ? String(chainIdNumberRef.current) : chainId ?? undefined,
         title: draft.title,
         body: draft.body,
         image: imageRefForUi,
@@ -1336,12 +1236,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleAction = async (tokenId: string, action: "like" | "comment", postChainId?: string | null) => {
+  const handleAction = async (tokenId: string, action: "like" | "comment") => {
     try {
-      if (postChainId && chainId && postChainId !== chainId) {
-        setStatus("Switch your wallet network to interact with this post.");
-        return;
-      }
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
         return;
@@ -1529,12 +1425,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const burnPost = async (tokenId: string, postChainId?: string | null) => {
+  const burnPost = async (tokenId: string) => {
     try {
-      if (postChainId && chainId && postChainId !== chainId) {
-        setStatus("Switch your wallet network to burn this post.");
-        return;
-      }
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
         return;
@@ -1571,12 +1463,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleTip = async (tokenId: string, postChainId?: string | null) => {
+  const handleTip = async (tokenId: string) => {
     try {
-      if (postChainId && chainId && postChainId !== chainId) {
-        setStatus("Switch your wallet network to tip this post.");
-        return;
-      }
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
         return;
