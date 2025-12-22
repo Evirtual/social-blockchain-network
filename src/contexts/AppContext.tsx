@@ -9,7 +9,34 @@ import { shortAddress, stableHueFromSeed } from "../lib/format";
 import { createMetadataUri, fetchTokenMetadata } from "../lib/metadata";
 import { isUserRejectedTx, useTxNotifications } from "./TxNotificationsContext";
 
-const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined;
+const LEGACY_CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined;
+const CONTRACT_ADDRESS_BY_CHAIN_ID: Record<number, string | undefined> = {
+  // Base
+  8453: import.meta.env.VITE_CONTRACT_ADDRESS_BASE as string | undefined,
+  84532: import.meta.env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA as string | undefined,
+
+  // BNB Smart Chain (BSC)
+  56: import.meta.env.VITE_CONTRACT_ADDRESS_BSC as string | undefined,
+  97: import.meta.env.VITE_CONTRACT_ADDRESS_BSC_TESTNET as string | undefined
+};
+
+function chainIdToNumber(chainId: string | null): number | null {
+  if (!chainId) return null;
+  if (chainId.startsWith("0x") || chainId.startsWith("0X")) {
+    const n = Number.parseInt(chainId, 16);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number.parseInt(chainId, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function resolveContractAddress(chainIdNumber: number | null): string | undefined {
+  if (typeof chainIdNumber === "number") {
+    const mapped = CONTRACT_ADDRESS_BY_CHAIN_ID[chainIdNumber];
+    if (mapped) return mapped;
+  }
+  return LEGACY_CONTRACT_ADDRESS;
+}
 
 export type AppContextValue = {
   // Theme
@@ -186,6 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshFeedInFlightRef = useRef<Promise<void> | null>(null);
   const refreshWalletInFlightRef = useRef<Promise<void> | null>(null);
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const chainIdNumberRef = useRef<number | null>(null);
 
   const ipfsConfigured = useMemo(() => hasPinata(), []);
 
@@ -195,14 +223,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return new ethers.BrowserProvider(ethereum);
   }, []);
 
+  const contractAddressForChain = useMemo(() => {
+    const chain = chainIdToNumber(chainId);
+    return resolveContractAddress(chain ?? chainIdNumberRef.current);
+  }, [chainId]);
+
   const requireContractAddress = useCallback(() => {
-    if (!CONTRACT_ADDRESS) {
-      throw new Error(
-        "Missing VITE_CONTRACT_ADDRESS. Set it in your environment (e.g. .env.local). For local dev: run `npm run deploy:local` then restart the dev server."
-      );
-    }
-    return CONTRACT_ADDRESS;
-  }, []);
+    if (contractAddressForChain) return contractAddressForChain;
+
+    const chain = chainIdToNumber(chainId);
+    const chainHint = typeof chain === "number" ? ` (chainId ${chain})` : "";
+
+    throw new Error(
+      `Missing contract address${chainHint}. Set it in your environment (e.g. .env.local).\n\n` +
+        `For multi-network: set VITE_CONTRACT_ADDRESS_BASE (8453) and/or VITE_CONTRACT_ADDRESS_BSC (56).\n` +
+        "For local dev: run npm run deploy:local then restart the dev server."
+    );
+  }, [contractAddressForChain, chainId]);
 
   const getSigner = async () => {
     if (!provider) throw new Error("Wallet not found.");
@@ -438,7 +475,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!provider) return;
-    if (!CONTRACT_ADDRESS) return;
+    if (!contractAddressForChain) return;
     const uniqueAuthors = Array.from(
       new Set(posts.map((p) => (p.author ? p.author.toLowerCase() : "")).filter(Boolean))
     );
@@ -462,7 +499,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     void task();
-  }, [provider, posts, profilesByAddress, loadProfile]);
+  }, [provider, posts, profilesByAddress, loadProfile, contractAddressForChain]);
 
   const loadCommentsForPost = useCallback(
     async (tokenId: string) => {
@@ -593,11 +630,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           provider.getBalance(walletAddress)
         ]);
         setNetworkName(network.name);
+        chainIdNumberRef.current = Number(network.chainId);
         setChainId(network.chainId.toString());
         setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
 
-        if (CONTRACT_ADDRESS) {
-          const code = await provider.getCode(CONTRACT_ADDRESS);
+        const contractAddress = resolveContractAddress(chainIdNumberRef.current);
+        if (contractAddress) {
+          const code = await provider.getCode(contractAddress);
           setContractDeployed(Boolean(code && code !== "0x"));
         } else {
           setContractDeployed(null);
@@ -736,6 +775,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const address = await signer.getAddress();
       const network = await provider.getNetwork();
       setWalletAddress(address);
+      chainIdNumberRef.current = Number(network.chainId);
       setChainId(network.chainId.toString());
       setNetworkName(network.name);
       setStatus("Wallet connected.");
@@ -743,9 +783,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const balanceWei = await provider.getBalance(address);
       setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
 
-      if (!CONTRACT_ADDRESS) {
+      const contractAddress = resolveContractAddress(chainIdNumberRef.current);
+      if (!contractAddress) {
         setStatus(
-          "Wallet connected, but VITE_CONTRACT_ADDRESS is missing. Set it in your environment (e.g. .env.local). For local dev: run `npm run deploy:local` then restart dev server."
+          "Wallet connected, but no contract address is configured for this network. Set VITE_CONTRACT_ADDRESS_BASE (Base 8453) and/or VITE_CONTRACT_ADDRESS_BSC (BSC 56) in .env.local, then restart the dev server."
         );
         return;
       }
@@ -770,13 +811,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const network = await provider.getNetwork();
         setWalletAddress(addr);
+        chainIdNumberRef.current = Number(network.chainId);
         setChainId(network.chainId.toString());
         setNetworkName(network.name);
         setStatus("Wallet connected.");
 
         await refreshWalletPanel();
 
-        if (CONTRACT_ADDRESS) {
+        if (resolveContractAddress(chainIdNumberRef.current)) {
           try {
             await refreshFeed();
           } catch {
@@ -804,13 +846,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const onChainChanged = async () => {
       try {
         const network = await provider.getNetwork();
+        chainIdNumberRef.current = Number(network.chainId);
         setChainId(network.chainId.toString());
         setNetworkName(network.name);
         if (walletAddress) {
           const balanceWei = await provider.getBalance(walletAddress);
           setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
         }
-        if (CONTRACT_ADDRESS) await refreshFeed();
+        if (resolveContractAddress(chainIdNumberRef.current)) await refreshFeed();
       } catch {
         // ignore
       }
@@ -1362,7 +1405,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     networkName,
     nativeBalance,
     contractDeployed,
-    contractAddress: CONTRACT_ADDRESS,
+    contractAddress: contractAddressForChain,
     status,
     withdrawableTipsWei,
 

@@ -1,6 +1,25 @@
-import { ethers } from "hardhat";
+import hre, { ethers } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
+
+function upsertEnvVar(existing: string, key: string, value: string) {
+  const lines = (existing ?? "").split(/\r?\n/);
+  const out: string[] = [];
+  let replaced = false;
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    if (line.startsWith(`${key}=`)) {
+      out.push(`${key}=${value}`);
+      replaced = true;
+      continue;
+    }
+    out.push(line);
+  }
+
+  if (!replaced) out.push(`${key}=${value}`);
+  return out.join("\n") + "\n";
+}
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -14,9 +33,21 @@ async function main() {
   console.log("SocialPosts deployed to:", address);
 
   // Write contract address for Vite
+  const networkName = hre.network.name;
+  const keyByNetwork: Record<string, string> = {
+    localhost: "VITE_CONTRACT_ADDRESS",
+    hardhat: "VITE_CONTRACT_ADDRESS",
+    base: "VITE_CONTRACT_ADDRESS_BASE",
+    baseSepolia: "VITE_CONTRACT_ADDRESS_BASE_SEPOLIA",
+    bsc: "VITE_CONTRACT_ADDRESS_BSC",
+    bscTestnet: "VITE_CONTRACT_ADDRESS_BSC_TESTNET"
+  };
+
+  const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS";
   const envPath = path.join(process.cwd(), ".env.local");
-  const content = `VITE_CONTRACT_ADDRESS=${address}\n`;
-  fs.writeFileSync(envPath, content, { encoding: "utf8" });
+  const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+  const next = upsertEnvVar(existing, envKey, address);
+  fs.writeFileSync(envPath, next, { encoding: "utf8" });
   console.log("Wrote", envPath);
 }
 
