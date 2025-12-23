@@ -162,7 +162,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     // Following list avatar should use backgroundImage if profile exists.
     const avatars = document.querySelectorAll(".avatar.tiny");
     const anyHasBg = Array.from(avatars).some((el) =>
-      (el as HTMLDivElement).style.backgroundImage.includes("ipfs.io/ipfs/avatar2")
+      (el as HTMLDivElement).style.backgroundImage.includes("/ipfs/avatar2")
     );
     expect(anyHasBg).toBe(true);
   });
@@ -511,7 +511,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     // Avatar uses backgroundImage when url is present.
     const avatar = document.querySelector(".avatar") as HTMLDivElement | null;
-    expect(avatar?.style.backgroundImage).toContain("ipfs.io/ipfs/avatar");
+    expect(avatar?.style.backgroundImage).toContain("/ipfs/avatar");
 
     // Following pill shows ellipsis when loading.
     const followingBtn = screen.getByRole("button", { name: "View following" });

@@ -108,7 +108,7 @@ describe("PostCard", () => {
 
     const avatar = document.querySelector(".avatar.small") as HTMLDivElement | null;
     expect(avatar).toBeTruthy();
-    expect(avatar?.style.backgroundImage).toContain("ipfs.io/ipfs/avatar");
+    expect(avatar?.style.backgroundImage).toContain("/ipfs/avatar");
   });
 
   it("renders author label as plain text when post.author is missing", () => {
@@ -655,7 +655,7 @@ describe("PostCard", () => {
 
     const video = document.querySelector("video.postImage") as HTMLVideoElement | null;
     expect(video).toBeTruthy();
-    expect(video?.getAttribute("poster")).toContain("ipfs.io/ipfs/poster");
+    expect(video?.getAttribute("poster")).toContain("/ipfs/poster");
   });
 
   it("renders animationUrl video without a poster when post.image is empty", () => {
