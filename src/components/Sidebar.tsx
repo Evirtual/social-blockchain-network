@@ -115,22 +115,25 @@ export function ProfileCard(props: ProfileCardProps) {
   const profileLink = props.walletAddress ? `/profile/${props.walletAddress}` : null;
   const avatarDisplayUrl = props.profileAvatarUrl;
 
+  const followers = props.followers ?? [];
+  const following = props.following ?? [];
+
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
 
   useEffect(() => {
     if (!isFollowersOpen) return;
-    const addrs = (props.followers ?? []).slice(0, 24);
+    const addrs = followers.slice(0, 24);
     if (addrs.length === 0) return;
     void Promise.all(addrs.map((a) => app.loadProfile(a)));
-  }, [app, isFollowersOpen, props.followers]);
+  }, [app, followers, isFollowersOpen]);
 
   useEffect(() => {
     if (!isFollowingOpen) return;
-    const addrs = (props.following ?? []).slice(0, 24);
+    const addrs = following.slice(0, 24);
     if (addrs.length === 0) return;
     void Promise.all(addrs.map((a) => app.loadProfile(a)));
-  }, [app, isFollowingOpen, props.following]);
+  }, [app, following, isFollowingOpen]);
 
   const avatarStyle = avatarDisplayUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(avatarDisplayUrl)})` }
@@ -180,7 +183,7 @@ export function ProfileCard(props: ProfileCardProps) {
               disabled={!!props.isLoadingFollowing}
               aria-label="View following"
             >
-              {props.isLoadingFollowing ? "…" : `${props.following?.length ?? 0}`} following
+              {props.isLoadingFollowing ? "…" : `${following.length}`} following
             </button>
           </div>
         ) : null}
@@ -194,11 +197,7 @@ export function ProfileCard(props: ProfileCardProps) {
           </div>
           <div className="profileMeta">
             {props.walletAddress ? (
-              profileLink ? (
-                <Link to={profileLink}>{props.shortAddress(props.walletAddress)}</Link>
-              ) : (
-                props.shortAddress(props.walletAddress)
-              )
+              <Link to={profileLink!}>{props.shortAddress(props.walletAddress)}</Link>
             ) : (
               "Connect wallet to edit profile"
             )}
@@ -274,10 +273,10 @@ export function ProfileCard(props: ProfileCardProps) {
 
       <Modal open={isFollowersOpen} title="Followers" onClose={() => setIsFollowersOpen(false)}>
         <div className="list">
-          {(props.followers ?? []).length === 0 ? (
+          {followers.length === 0 ? (
             <div className="muted">No followers yet.</div>
           ) : (
-            (props.followers ?? []).map((addr) => (
+            followers.map((addr) => (
               <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowersOpen(false)}>
                 <span className="listRowLeft">
                   <div
@@ -302,10 +301,10 @@ export function ProfileCard(props: ProfileCardProps) {
 
       <Modal open={isFollowingOpen} title="Following" onClose={() => setIsFollowingOpen(false)}>
         <div className="list">
-          {(props.following ?? []).length === 0 ? (
+          {following.length === 0 ? (
             <div className="muted">Not following anyone yet.</div>
           ) : (
-            (props.following ?? []).map((addr) => (
+            following.map((addr) => (
               <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowingOpen(false)}>
                 <span className="listRowLeft">
                   <div

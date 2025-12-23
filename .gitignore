@@ -2,6 +2,7 @@ node_modules/
 
 # Vite
 /dist/
+/.vite/
 
 # Hardhat
 /artifacts/
@@ -16,5 +17,12 @@ hardhat-node.log
 .env.local
 .env.*.local
 
+# Coverage
+/coverage/
+coverage.json
+
 # Misc
 .DS_Store
+
+# TypeScript
+*.tsbuildinfo

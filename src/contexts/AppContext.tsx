@@ -149,7 +149,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
 
             const active = Array.from(state.entries())
               .filter(([, v]) => v.shared)
-              .sort((a, b) => (b[1].lastBlock ?? 0) - (a[1].lastBlock ?? 0))
+              .sort((a, b) => b[1].lastBlock - a[1].lastBlock)
               .map(([tokenId]) => tokenId);
 
             setRepostTokenIdsByAddress((prev) => ({ ...prev, [key]: active }));

@@ -106,6 +106,21 @@ describe("useContractTx.runContractTx lifecycle", () => {
     expect(onReceipt).toHaveBeenCalledWith({ hash: "0xabc", logs: [] });
   });
 
+  it("returns undefined when no onReceipt is provided", async () => {
+    const get = setup();
+
+    const wait = vi.fn().mockResolvedValue({ hash: "0xabc", logs: [] });
+    const send = vi.fn().mockResolvedValue({ hash: "0xabc", wait });
+
+    let result: any;
+    await act(async () => {
+      result = await get().runContractTx("Like", send as any);
+    });
+
+    expect(result).toBeUndefined();
+    expect(mocks.txNotifications.notifyConfirmed).toHaveBeenCalledWith("0xabc");
+  });
+
   it("dismisses signing toast if send throws", async () => {
     const get = setup();
 
@@ -169,6 +184,49 @@ describe("useContractTx.runContractTx lifecycle", () => {
     });
 
     expect(mocks.txNotifications.notifyFailed).toHaveBeenCalledWith({ hash: "0xdead", label: "Burn post", error: "revert" });
+  });
+
+  it("falls back to error.hash when transaction.hash is missing", async () => {
+    const get = setup();
+
+    const err: any = new Error("revert");
+    err.transaction = {};
+    err.hash = "0xdead";
+
+    const send = vi.fn().mockRejectedValue(err);
+
+    const promise = get().runContractTx("Burn post", send as any);
+    await expect(promise).rejects.toThrow("revert");
+    await act(async () => {
+      try {
+        await promise;
+      } catch {
+        // expected
+      }
+    });
+
+    expect(mocks.txNotifications.notifyFailed).toHaveBeenCalledWith({ hash: "0xdead", label: "Burn post", error: "revert" });
+  });
+
+  it("uses error.transaction.hash when present", async () => {
+    const get = setup();
+
+    const err: any = new Error("revert");
+    err.transaction = { hash: "0xbeef" };
+
+    const send = vi.fn().mockRejectedValue(err);
+
+    const promise = get().runContractTx("Burn post", send as any);
+    await expect(promise).rejects.toThrow("revert");
+    await act(async () => {
+      try {
+        await promise;
+      } catch {
+        // expected
+      }
+    });
+
+    expect(mocks.txNotifications.notifyFailed).toHaveBeenCalledWith({ hash: "0xbeef", label: "Burn post", error: "revert" });
   });
 
   it("reports missing receipt", async () => {

@@ -8,6 +8,19 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     css: true,
     include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["test/**", "node_modules/**", "dist/**"]
+    exclude: ["test/**", "node_modules/**", "dist/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "json-summary"],
+      reportsDirectory: "coverage/frontend",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/test/**",
+        "src/vite-env.d.ts",
+        "src/types.ts",
+        "src/contexts/AppContext.types.ts"
+      ]
+    }
   }
 });

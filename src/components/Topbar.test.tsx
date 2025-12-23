@@ -38,4 +38,21 @@ describe("Topbar", () => {
     expect(screen.queryByRole("button", { name: /connect/i })).not.toBeInTheDocument();
     expect(screen.getByText("ACCOUNT")).toBeInTheDocument();
   });
+
+  it("renders without rightSlot when walletAddress is present", () => {
+    render(
+      <MemoryRouter>
+        <Topbar
+          theme="light"
+          onToggleTheme={() => {}}
+          walletAddress="0x000000000000000000000000000000000000dEaD"
+          onConnectWallet={() => {}}
+          onOpenComposer={() => {}}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole("button", { name: /connect/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Create post")).toBeInTheDocument();
+  });
 });

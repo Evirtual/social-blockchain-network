@@ -237,7 +237,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
                 const events = await readContract.queryFilter(readContract.filters.PostMinted(), fromBlock, latest);
                 if (events.length > 0 || fromBlock === 0) return events;
 
-                if (windowSize >= maxWindowSize) return events;
                 windowSize = Math.min(maxWindowSize, windowSize * 2);
               } catch (err) {
                 if (windowSize <= minWindowSize) throw err;
@@ -343,7 +342,9 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       setStatus(walletAddress ? "Wallet connected." : "Wallet disconnected");
     }
 
-    void refreshFeed(walletAddress);
+      void refreshFeed(walletAddress).catch(() => {
+        // refreshFeed already reports status; avoid unhandled rejections
+      });
   }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, setStatus]);
 
   const value = useMemo<FeedContextValue>(

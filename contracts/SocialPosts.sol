@@ -147,9 +147,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(_hasLiked[tokenId][msg.sender], "Not liked");
 
         _hasLiked[tokenId][msg.sender] = false;
-        if (_likes[tokenId] > 0) {
-            _likes[tokenId] -= 1;
-        }
+        _likes[tokenId] -= 1;
 
         emit PostUnliked(msg.sender, tokenId);
     }
@@ -178,9 +176,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(_hasShared[tokenId][msg.sender], "Not shared");
 
         _hasShared[tokenId][msg.sender] = false;
-        if (_shares[tokenId] > 0) {
-            _shares[tokenId] -= 1;
-        }
+        _shares[tokenId] -= 1;
 
         emit PostUnshared(msg.sender, tokenId);
     }
@@ -211,10 +207,6 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(msg.value > 0, "No tip sent");
 
         address author = _author[tokenId];
-        if (author == address(0)) {
-            // Safety fallback (should never happen for valid mints)
-            author = ownerOf(tokenId);
-        }
 
         _tipsWei[tokenId] += msg.value;
         _withdrawableWei[author] += msg.value;

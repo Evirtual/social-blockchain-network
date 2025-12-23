@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { IconX } from "./icons";
+import { hasDocument } from "../lib/dom";
 
 type Props = {
   open: boolean;
@@ -13,7 +14,7 @@ type Props = {
 export function Modal({ open, title, onClose, children }: Props) {
   useEffect(() => {
     if (!open) return;
-    if (typeof document === "undefined") return;
+    if (!hasDocument()) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -30,7 +31,7 @@ export function Modal({ open, title, onClose, children }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
-  if (typeof document === "undefined") return null;
+  if (!hasDocument()) return null;
 
   return createPortal(
     <div

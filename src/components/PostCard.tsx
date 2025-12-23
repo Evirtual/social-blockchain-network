@@ -67,7 +67,9 @@ export function PostCard(props: Props) {
           onClick={(e) => {
             if (explorer) return;
             e.preventDefault();
-            void navigator.clipboard?.writeText(props.post.mintTxHash || "");
+              if (props.post.mintTxHash) {
+                void navigator.clipboard?.writeText(props.post.mintTxHash);
+              }
           }}
         >
           View mint transaction

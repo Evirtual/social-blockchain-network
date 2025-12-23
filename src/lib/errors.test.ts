@@ -16,6 +16,10 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage({ message: "insufficient funds" })).toBe("Insufficient funds for gas.");
   });
 
+  it("handles local port already in use", () => {
+    expect(getErrorMessage({ message: "EADDRINUSE: address already in use" })).toBe("Local RPC port is already in use.");
+  });
+
   it("prefers shortMessage then reason then message", () => {
     expect(getErrorMessage({ shortMessage: "SHORT", reason: "REASON", message: "MSG" })).toBe("SHORT");
     expect(getErrorMessage({ reason: "REASON", message: "MSG" })).toBe("REASON");

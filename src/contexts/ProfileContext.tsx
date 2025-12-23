@@ -50,6 +50,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { posts } = useFeed();
   const { runContractTx } = useContractTx();
 
+  const walletAddressRef = useRef<string | null>(null);
+  const isEditingProfileRef = useRef(false);
+
   const getReadContract = contract.getReadContract;
   const getWriteContract = contract.getWriteContract;
   const ensureContractDeployedOnCurrentNetwork = contract.ensureContractDeployedOnCurrentNetwork;
@@ -74,6 +77,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [isProfileAvatarLoading, setIsProfileAvatarLoading] = useState(false);
 
   const ipfsConfigured = useMemo(() => hasPinata(), []);
+
+  useEffect(() => {
+    walletAddressRef.current = walletAddress;
+    isEditingProfileRef.current = isEditingProfile;
+  }, [walletAddress, isEditingProfile]);
 
   const loadProfile = useCallback(
     async (address: string) => {
@@ -104,7 +112,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
             return { ...prev, [key]: { name: name || "", bio: bio || "", avatarUrl: avatar || "" } };
           });
 
-          if (walletAddress && walletAddress.toLowerCase() === key && !isEditingProfile) {
+          const currentWalletAddress = walletAddressRef.current;
+          const currentIsEditingProfile = isEditingProfileRef.current;
+          if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
             setProfileName(name || "");
             setProfileBio(bio || "");
             setProfileAvatarUrl(avatar || "");
@@ -199,7 +209,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         setIsProfileAvatarLoading(true);
         try {
           if (ipfsConfigured) {
-            const pinned = await pinataPinFile(profileUploadedAvatarBlob, profileUploadedAvatarFilename || "avatar.png");
+            const pinned = await pinataPinFile(profileUploadedAvatarBlob, profileUploadedAvatarFilename);
             avatar = `ipfs://${pinned.IpfsHash}`;
           } else {
             avatar = profileDraftAvatarDataUrl || "";

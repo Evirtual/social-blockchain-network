@@ -8,11 +8,12 @@ export function ProfileRoute() {
   const app = useApp();
   const params = useParams();
   const address = typeof params.address === "string" ? params.address : "";
-  const key = address ? address.toLowerCase() : "";
 
   if (!address) {
     return <Navigate to="/" replace />;
   }
+
+  const key = address.toLowerCase();
 
   const isSelf = !!app.walletAddress && app.walletAddress.toLowerCase() === key;
 
@@ -40,7 +41,7 @@ export function ProfileRoute() {
     void app.loadFollowingForAddress(address);
   }, [address, app.walletAddress, app.loadFollowerCountForAddress, app.loadFollowersForAddress, app.loadFollowingForAddress, isSelf]);
 
-  const profile = key ? app.profilesByAddress[key] : undefined;
+  const profile = app.profilesByAddress[key];
   const name = profile?.name ?? "";
   const bio = profile?.bio ?? "";
   const avatarUrl = profile?.avatarUrl ?? "";
@@ -48,9 +49,9 @@ export function ProfileRoute() {
   const filtered = app.posts.filter((p) => p.author?.toLowerCase() === key);
 
   if (isSelf) {
-    const selfKey = app.walletAddress?.toLowerCase() ?? "";
+    const selfKey = app.walletAddress!.toLowerCase();
 
-    const savedTokenIds = selfKey ? app.repostTokenIdsByAddress[selfKey] ?? [] : [];
+    const savedTokenIds = app.repostTokenIdsByAddress[selfKey] ?? [];
     const savedPosts = savedTokenIds
       .map((tokenId) => app.posts.find((p) => p.tokenId === tokenId))
       .filter((p): p is NonNullable<typeof p> => !!p);
@@ -63,11 +64,11 @@ export function ProfileRoute() {
           profileBio: app.profileBio,
           profileAvatarUrl: app.profileAvatarUrl,
           myPostsCount: app.myPostsCount,
-          followerCount: selfKey ? app.followerCountByAddress[selfKey] : undefined,
-          followers: selfKey ? app.followersByAddress[selfKey] ?? null : null,
-          following: selfKey ? app.followingByAddress[selfKey] ?? null : null,
-          isLoadingFollowers: selfKey ? !!app.isLoadingFollowersByAddress[selfKey] : false,
-          isLoadingFollowing: selfKey ? !!app.isLoadingFollowingByAddress[selfKey] : false,
+            followerCount: app.followerCountByAddress[selfKey],
+            followers: app.followersByAddress[selfKey] ?? null,
+            following: app.followingByAddress[selfKey] ?? null,
+            isLoadingFollowers: !!app.isLoadingFollowersByAddress[selfKey],
+            isLoadingFollowing: !!app.isLoadingFollowingByAddress[selfKey],
           onDisconnectWallet: app.disconnectWallet,
           isEditingProfile: app.isEditingProfile,
           profileDraftName: app.profileDraftName,
@@ -100,7 +101,7 @@ export function ProfileRoute() {
         isFeedLoading={app.isFeedLoading}
         posts={filtered}
         savedPosts={savedPosts}
-        isLoadingSaved={selfKey ? !!app.isLoadingRepostsByAddress[selfKey] : false}
+          isLoadingSaved={!!app.isLoadingRepostsByAddress[selfKey]}
         chainId={app.chainId}
         walletAddress={app.walletAddress}
         authorIdentity={app.authorIdentity}
@@ -134,9 +135,9 @@ export function ProfileRoute() {
       address={address}
       name={name}
       bio={bio}
-      avatarHue={app.stableHueFromSeed(key || "guest")}
+      avatarHue={app.stableHueFromSeed(key)}
       avatarUrl={avatarUrl}
-      isFollowing={key ? app.isFollowingByAddress[key] : undefined}
+      isFollowing={app.isFollowingByAddress[key]}
       onToggleFollow={() => app.toggleFollow(address)}
       posts={filtered}
       chainId={app.chainId}

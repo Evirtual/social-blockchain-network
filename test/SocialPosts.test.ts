@@ -36,6 +36,8 @@ describe("SocialPosts", () => {
     await expect(contract.connect(author).updatePostURI(1n, "ipfs://updated")).to.emit(contract, "PostUpdated");
     expect(await contract.tokenURI(1n)).to.equal("ipfs://updated");
 
+    await expect(contract.connect(other).freezePost(1n)).to.be.revertedWith("Only author");
+
     await expect(contract.connect(author).freezePost(1n)).to.emit(contract, "PostFrozen");
     await expect(contract.connect(author).updatePostURI(1n, "ipfs://nope")).to.be.revertedWith("Post frozen");
   });
@@ -47,11 +49,13 @@ describe("SocialPosts", () => {
 
     await expect(contract.connect(other).likePost(1n)).to.emit(contract, "PostLiked");
     expect(await contract.likesOf(1n)).to.equal(1n);
+    expect(await contract.hasLiked(1n, other.address)).to.equal(true);
 
     await expect(contract.connect(other).likePost(1n)).to.be.revertedWith("Already liked");
 
     await expect(contract.connect(other).unlikePost(1n)).to.emit(contract, "PostUnliked");
     expect(await contract.likesOf(1n)).to.equal(0n);
+    expect(await contract.hasLiked(1n, other.address)).to.equal(false);
 
     await expect(contract.connect(other).unlikePost(1n)).to.be.revertedWith("Not liked");
   });
@@ -75,9 +79,12 @@ describe("SocialPosts", () => {
   });
 
   it("burn removes post existence", async () => {
-    const { contract, author } = await deploy();
+    const { contract, author, other } = await deploy();
 
     await contract.connect(author).mintPost("ipfs://post-1");
+
+    await expect(contract.connect(other).burnPost(1n)).to.be.revertedWith("Only author");
+
     await expect(contract.connect(author).burnPost(1n)).to.emit(contract, "PostBurned").withArgs(author.address, 1n);
 
     expect(await contract.exists(1n)).to.equal(false);
@@ -87,8 +94,14 @@ describe("SocialPosts", () => {
   it("setProfile enforces limits and emits", async () => {
     const { contract, author } = await deploy();
 
-    await expect(contract.connect(author).setProfile("Alice", "Bio", "ipfs://avatar")).
-      to.emit(contract, "ProfileUpdated").withArgs(author.address, "Alice", "Bio", "ipfs://avatar");
+    await expect(contract.connect(author).setProfile("Alice", "Bio", "ipfs://avatar"))
+      .to.emit(contract, "ProfileUpdated")
+      .withArgs(author.address, "Alice", "Bio", "ipfs://avatar");
+
+    const [name, bio, avatar] = await contract.profileOf(author.address);
+    expect(name).to.equal("Alice");
+    expect(bio).to.equal("Bio");
+    expect(avatar).to.equal("ipfs://avatar");
 
     const long = "x".repeat(65);
     await expect(contract.connect(author).setProfile(long, "", "")).to.be.revertedWith("Name too long");
@@ -139,6 +152,8 @@ describe("SocialPosts", () => {
 
     await expect(contract.connect(author).unfollow(other.address)).to.emit(contract, "Unfollowed").withArgs(author.address, other.address);
     expect(await contract.isFollowing(author.address, other.address)).to.equal(false);
+
+    await expect(contract.connect(author).unfollow(ethers.ZeroAddress)).to.be.revertedWith("Invalid followee");
 
     await expect(contract.connect(author).unfollow(other.address)).to.be.revertedWith("Not following");
   });
