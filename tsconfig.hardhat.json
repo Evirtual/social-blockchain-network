@@ -1,10 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "hardhat"],
+    "types": ["node", "hardhat", "@nomicfoundation/hardhat-chai-matchers"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmit": true
   },
-  "include": ["hardhat.config.ts", "scripts", "contracts"]
+  "include": ["hardhat.config.ts", "scripts", "contracts", "test"]
 }
