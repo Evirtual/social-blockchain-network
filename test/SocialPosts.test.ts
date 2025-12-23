@@ -158,4 +158,45 @@ describe("SocialPosts", () => {
     await contract.connect(author).mintPost("ipfs://post-1");
     await expect(contract.connect(tipper).tipPost(1n, { value: 0n })).to.be.revertedWith("No tip sent");
   });
+
+  it("reverts on non-existent token across post methods", async () => {
+    const { contract, author, other } = await deploy();
+
+    await expect(contract.authorOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.updatePostURI(999n, "ipfs://x")).to.be.revertedWith("Post does not exist");
+    await expect(contract.freezePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.isPostFrozen(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.burnPost(999n)).to.be.revertedWith("Post does not exist");
+
+    await expect(contract.likesOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.commentsOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.sharesOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.tipsOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.hasLiked(999n, author.address)).to.be.revertedWith("Post does not exist");
+    await expect(contract.hasShared(999n, author.address)).to.be.revertedWith("Post does not exist");
+
+    await expect(contract.connect(other).likePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).unlikePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).sharePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).unsharePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).commentPost(999n, "Hi")).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).tipPost(999n, { value: 1n })).to.be.revertedWith("Post does not exist");
+  });
+
+  it("withdrawTips reverts when recipient rejects ETH (no state loss)", async () => {
+    const { contract, tipper } = await deploy();
+
+    const Reject = await ethers.getContractFactory("RejectEtherAuthor");
+    const reject = await Reject.deploy(await contract.getAddress());
+    await reject.waitForDeployment();
+
+    await reject.mint("ipfs://post-1");
+
+    const tipAmount = 77n;
+    await contract.connect(tipper).tipPost(1n, { value: tipAmount });
+    expect(await contract.withdrawableOf(await reject.getAddress())).to.equal(tipAmount);
+
+    await expect(reject.withdraw()).to.be.revertedWith("Withdraw failed");
+    expect(await contract.withdrawableOf(await reject.getAddress())).to.equal(tipAmount);
+  });
 });
