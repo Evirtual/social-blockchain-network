@@ -653,6 +653,11 @@ describe("WalletContext", () => {
   });
 
   it("throws when used outside provider", () => {
-    expect(() => render(<Consumer />)).toThrow(/useWallet must be used/);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() => render(<Consumer />)).toThrow(/useWallet must be used/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

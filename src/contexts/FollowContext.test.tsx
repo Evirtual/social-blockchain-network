@@ -264,8 +264,7 @@ describe("FollowContext transactions", () => {
 
 describe("useFollow", () => {
   it("throws when used outside provider", () => {
-    const original = console.error;
-    console.error = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       function Bad() {
         useFollow();
@@ -274,7 +273,7 @@ describe("useFollow", () => {
 
       expect(() => render(<Bad />)).toThrowError("useFollow must be used within <FollowProvider>");
     } finally {
-      console.error = original;
+      consoleError.mockRestore();
     }
   });
 });

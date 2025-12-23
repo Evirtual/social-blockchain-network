@@ -618,8 +618,7 @@ describe("ProfileContext transactions", () => {
 
 describe("useProfile", () => {
   it("throws when used outside provider", () => {
-    const original = console.error;
-    console.error = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       function Bad() {
         useProfile();
@@ -628,7 +627,7 @@ describe("useProfile", () => {
 
       expect(() => render(<Bad />)).toThrowError("useProfile must be used within <ProfileProvider>");
     } finally {
-      console.error = original;
+      consoleError.mockRestore();
     }
   });
 });

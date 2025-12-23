@@ -12,12 +12,18 @@ describe("ContractContext", () => {
     vi.resetModules();
     const { useContract } = await import("./ContractContext");
 
+     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
     function Bad() {
       useContract();
       return null;
     }
 
-    expect(() => render(<Bad />)).toThrow(/useContract must be used within <ContractProvider>/);
+    try {
+      expect(() => render(<Bad />)).toThrow(/useContract must be used within <ContractProvider>/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("refreshes contract state and withdrawable tips", async () => {
@@ -81,11 +87,18 @@ describe("ContractContext", () => {
       return <div>{c.requireContractAddress()}</div>;
     }
 
-    expect(() => render(
-      <ContractProvider>
-        <Consumer />
-      </ContractProvider>
-    )).toThrow(/Missing contract address/);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() =>
+        render(
+          <ContractProvider>
+            <Consumer />
+          </ContractProvider>
+        )
+      ).toThrow(/Missing contract address/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("requireContractAddress parses hex chainId", async () => {
@@ -255,13 +268,18 @@ describe("ContractContext", () => {
       return <div>{c.requireContractAddress()}</div>;
     }
 
-    expect(() =>
-      render(
-        <ContractProvider>
-          <Consumer />
-        </ContractProvider>
-      )
-    ).toThrow(/Missing contract address/);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() =>
+        render(
+          <ContractProvider>
+            <Consumer />
+          </ContractProvider>
+        )
+      ).toThrow(/Missing contract address/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("requireContractAddress falls back to network chainId when decimal chainId is invalid", async () => {

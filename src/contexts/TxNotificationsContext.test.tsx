@@ -169,12 +169,17 @@ describe("TxNotificationsContext", () => {
   });
 
   it("throws when used outside provider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     function Bad() {
       useTxNotifications();
       return null;
     }
 
-    expect(() => render(<Bad />)).toThrow(/useTxNotifications must be used/);
+    try {
+      expect(() => render(<Bad />)).toThrow(/useTxNotifications must be used/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("helpers classify and format tx states", () => {

@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { StatusProvider, useStatus } from "./StatusContext";
 
@@ -30,6 +30,11 @@ describe("StatusContext", () => {
   });
 
   it("throws when used outside provider", () => {
-    expect(() => render(<Consumer />)).toThrow(/useStatus must be used/);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() => render(<Consumer />)).toThrow(/useStatus must be used/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

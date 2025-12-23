@@ -180,12 +180,17 @@ function Consumer() {
 
 describe("AppContext", () => {
   it("throws when used outside provider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     function Bad() {
       useApp();
       return null;
     }
 
-    expect(() => render(<Bad />)).toThrow(/useApp must be used/);
+    try {
+      expect(() => render(<Bad />)).toThrow(/useApp must be used/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("composes facade values and connectWallet triggers refresh", async () => {

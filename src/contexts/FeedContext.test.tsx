@@ -597,12 +597,17 @@ describe("FeedContext", () => {
   });
 
   it("throws when useFeed is used outside provider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     function Bad() {
       useFeed();
       return null;
     }
 
-    expect(() => render(<Bad />)).toThrow("useFeed must be used within <FeedProvider>");
+    try {
+      expect(() => render(<Bad />)).toThrow("useFeed must be used within <FeedProvider>");
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("loadPostsByTokenIds returns early when provider is missing", async () => {
