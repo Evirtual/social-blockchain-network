@@ -180,15 +180,17 @@ describe("ProfileContext transactions", () => {
 
   it("loadProfile dedupes in-flight requests", async () => {
     mocks.walletAddress = null;
-    let resolve: ((v: any) => void) | null = null;
-    const p = new Promise<any>((r) => (resolve = r));
+    let resolve!: (v: any) => void;
+    const p = new Promise<any>((r) => {
+      resolve = r;
+    });
     mocks.readContract.profileOf.mockReturnValueOnce(p);
     const { get } = renderWithGrabber();
 
     const a = get().loadProfile("0xAAA");
     const b = get().loadProfile("0xAAA");
 
-    resolve?.(["A", "B", "C"]);
+    resolve(["A", "B", "C"]);
     await act(async () => {
       await Promise.all([a, b]);
     });
@@ -199,8 +201,10 @@ describe("ProfileContext transactions", () => {
 
   it("loadProfile does not overwrite cache if updated while in-flight", async () => {
     mocks.walletAddress = "0xAbC";
-    let resolve: ((v: any) => void) | null = null;
-    const p = new Promise<any>((r) => (resolve = r));
+    let resolve!: (v: any) => void;
+    const p = new Promise<any>((r) => {
+      resolve = r;
+    });
     mocks.readContract.profileOf.mockReturnValueOnce(p);
 
     const { get } = renderWithGrabber();
@@ -218,7 +222,7 @@ describe("ProfileContext transactions", () => {
 
     expect(mocks.writeContract.setProfile).toHaveBeenCalledWith("Saved", "", "");
 
-    resolve?.(["Loaded", "Bio", "ipfs://loaded"]);
+    resolve(["Loaded", "Bio", "ipfs://loaded"]);
     await act(async () => {
       await load;
     });
@@ -240,8 +244,10 @@ describe("ProfileContext transactions", () => {
     });
 
   it("resets profile state when wallet disconnects", async () => {
-    let resolve: ((v: any) => void) | null = null;
-    const p = new Promise<any>((r) => (resolve = r));
+    let resolve!: (v: any) => void;
+    const p = new Promise<any>((r) => {
+      resolve = r;
+    });
     mocks.readContract.profileOf.mockReturnValueOnce(p);
 
     const { get, rerender } = renderWithGrabber();
@@ -255,7 +261,7 @@ describe("ProfileContext transactions", () => {
     mocks.walletAddress = null;
     rerender();
 
-    resolve?.(["Alice", "Bio", "ipfs://avatar"]);
+    resolve(["Alice", "Bio", "ipfs://avatar"]);
     await act(async () => {
       await p;
     });

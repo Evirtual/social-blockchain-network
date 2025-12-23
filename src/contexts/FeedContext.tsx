@@ -39,6 +39,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingPostComments, setIsLoadingPostComments] = useState<Record<string, boolean>>({});
 
   const refreshFeedInFlightRef = useRef<Promise<void> | null>(null);
+  const queuedRefreshAccountRef = useRef<string | null | undefined>(undefined);
+  const lastRefreshedAccountRef = useRef<string | null>(null);
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   // React to account/chain changes emitted by WalletContext.
@@ -193,7 +195,18 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
       if (refreshFeedInFlightRef.current) {
-        await refreshFeedInFlightRef.current;
+        queuedRefreshAccountRef.current = account ?? null;
+        try {
+          await refreshFeedInFlightRef.current;
+        } catch {
+          // allow queued refresh attempt even if the in-flight one failed
+        }
+
+        const queued = queuedRefreshAccountRef.current;
+        queuedRefreshAccountRef.current = undefined;
+        if (queued !== undefined && queued !== lastRefreshedAccountRef.current) {
+          await refreshFeed(queued);
+        }
         return;
       }
 
@@ -317,6 +330,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         if (refreshFeedInFlightRef.current === task) {
           refreshFeedInFlightRef.current = null;
         }
+
+        lastRefreshedAccountRef.current = account ?? null;
       }
     },
     [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, setStatus]

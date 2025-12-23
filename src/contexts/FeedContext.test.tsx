@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { FeedProvider, useFeed } from "./FeedContext";
 import { socialInterface } from "../contracts/socialPosts";
 import { fetchTokenMetadata } from "../lib/metadata";
@@ -99,6 +100,14 @@ function Consumer() {
       </button>
     </div>
   );
+}
+
+function ExposeFeed({ onFeed }: { onFeed: (feed: ReturnType<typeof useFeed>) => void }) {
+  const feed = useFeed();
+  useEffect(() => {
+    onFeed(feed);
+  }, [feed, onFeed]);
+  return null;
 }
 
 describe("FeedContext", () => {
@@ -244,6 +253,99 @@ describe("FeedContext", () => {
     await waitFor(() => {
       expect(setStatus).toHaveBeenCalled();
     });
+  });
+
+  it("re-runs refresh when wallet connects mid-flight (so liked/saved state matches after reload)", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = null;
+
+    // Make the first refresh slow so we can change walletAddress while it's in-flight.
+    let resolveTokenUri: ((v: string) => void) | null = null;
+    let tokenUriCalls = 0;
+    readContract.tokenURI.mockImplementation(
+      async (_: bigint) => {
+        const callIndex = tokenUriCalls++;
+        if (callIndex > 0) return "ipfs://meta";
+        return await new Promise<string>((resolve) => {
+          resolveTokenUri = resolve;
+        });
+      }
+    );
+
+    // hasLiked should only be true once the wallet connects.
+    readContract.hasLiked.mockImplementation(async (_: bigint, account: string) => account.toLowerCase() === "0xabc");
+
+    const { rerender } = render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    // Ensure the initial refresh has started and is blocked on tokenURI.
+    await waitFor(() => expect(readContract.tokenURI).toHaveBeenCalled());
+    await waitFor(() => expect(resolveTokenUri).not.toBeNull());
+
+    // Wallet connects while refresh is still pending.
+    walletState.walletAddress = "0xAbC";
+    walletState.walletEpoch = 1;
+
+    rerender(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    // Unblock the slow first refresh.
+    resolveTokenUri!("ipfs://meta");
+
+    // The queued refresh should run and populate likedByMe based on the connected account.
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    await waitFor(() => expect(screen.getByTestId("liked0")).toHaveTextContent("true"));
+  });
+
+  it("allows queued refresh even if in-flight refresh fails (covers catch + nullish queued account)", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = null;
+
+    let rejectMinted: ((err: unknown) => void) | null = null;
+    const mintedPromise = new Promise<any[]>((_, reject) => {
+      rejectMinted = reject;
+    });
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") return mintedPromise;
+      return [{ transactionHash: "0xtx", blockNumber: 123, topics: [], data: "0x" }];
+    });
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+        <Consumer />
+      </FeedProvider>
+    );
+
+    // Initial refresh starts on mount and should be blocked on mintedPromise.
+    await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
+    // Trigger a refresh while the initial one is still in-flight. This should hit the queued branch
+    // with a nullish account, and then await the in-flight refresh.
+    const queuedRefresh = exposedFeed!.refreshFeed();
+    expect(readContract.queryFilter).toHaveBeenCalledTimes(1);
+
+    // Now force the in-flight refresh to fail so the queued refresh hits the catch path.
+    await act(async () => {
+      rejectMinted?.(new Error("minted fail"));
+    });
+
+    await queuedRefresh;
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(expect.stringContaining("minted fail")));
   });
 
   it("reacts to walletEpoch + account changes", async () => {

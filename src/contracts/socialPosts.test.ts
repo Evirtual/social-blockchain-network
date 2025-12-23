@@ -23,12 +23,17 @@ describe("socialPosts contract helpers", () => {
     const author = "0x000000000000000000000000000000000000bEEF";
     const tokenURI = "ipfs://QmX";
 
-    const { data, topics } = iface.encodeEventLog(iface.getEvent("PostMinted"), [author, tokenId, tokenURI]);
-    const parsed = socialInterface.parseLog({ data, topics });
+    const minted = iface.getEvent("PostMinted");
+    expect(minted).not.toBeNull();
 
-    expect(parsed.name).toBe("PostMinted");
-    expect(parsed.args[0]).toBe(author);
-    expect((parsed.args[1] as bigint).toString()).toBe("123");
-    expect(parsed.args[2]).toBe(tokenURI);
+    const { data, topics } = iface.encodeEventLog(minted!, [author, tokenId, tokenURI]);
+    const parsed = socialInterface.parseLog({ data, topics });
+    expect(parsed).not.toBeNull();
+
+    const desc = parsed!;
+    expect(desc.name).toBe("PostMinted");
+    expect(desc.args[0]).toBe(author);
+    expect((desc.args[1] as bigint).toString()).toBe("123");
+    expect(desc.args[2]).toBe(tokenURI);
   });
 });

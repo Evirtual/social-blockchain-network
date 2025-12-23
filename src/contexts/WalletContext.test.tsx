@@ -1,4 +1,3 @@
-import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
@@ -386,8 +385,10 @@ describe("WalletContext", () => {
     // Let bootstrap complete, but block the *refresh* network call.
     getNetworkMock.mockResolvedValueOnce({ chainId: 1n, name: "mainnet" });
 
-    let resolve: ((v: any) => void) | null = null;
-    const pending = new Promise<any>((r) => (resolve = r));
+    let resolve!: (v: any) => void;
+    const pending = new Promise<any>((r) => {
+      resolve = r;
+    });
     getBalanceMock.mockResolvedValue(1n);
 
     render(
@@ -413,7 +414,7 @@ describe("WalletContext", () => {
     expect(getNetworkMock).toHaveBeenCalledTimes(1);
     expect(getBalanceMock).toHaveBeenCalledTimes(1);
 
-    resolve?.({ chainId: 1n, name: "mainnet" });
+    resolve({ chainId: 1n, name: "mainnet" });
     await act(async () => {
       await pending;
     });

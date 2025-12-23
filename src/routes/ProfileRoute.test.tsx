@@ -6,7 +6,7 @@ import { ProfileRoute } from "./ProfileRoute";
 const mocks = vi.hoisted(() => {
   return {
     app: {
-      walletAddress: "0xme",
+      walletAddress: "0xme" as string | null,
       profilesByAddress: { "0xme": { name: "Me", bio: "", avatarUrl: "" } } as any,
       isFollowingByAddress: {} as any,
       posts: [{ tokenId: "1", title: "", body: "", image: "", metadataURI: "", author: "0xme", likes: 0, comments: 0, shares: 0, tipsWei: 0n }],
