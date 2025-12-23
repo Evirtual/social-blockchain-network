@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { IconMoon, IconPlus, IconSun } from "./icons";
 
 type Props = {
   theme: "light" | "dark";
@@ -21,19 +22,25 @@ export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, o
         </div>
       </Link>
       <div className="topbar-actions">
-        <button className="primary iconButton" type="button" onClick={onOpenComposer} aria-label="Create post">
-          +
-        </button>
-        <button className="ghost" type="button" onClick={onToggleTheme}>
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
-        {walletAddress ? (
-          rightSlot ?? null
-        ) : (
-          <button className="primary" onClick={onConnectWallet}>
-            Connect
+        <Link className="topbarLogo" to="/" aria-label="Home">
+          <div className="brand-mark" />
+        </Link>
+
+        <div className="topbarControls">
+          <button className="primary iconButton" type="button" onClick={onOpenComposer} aria-label="Create post">
+            <IconPlus size={18} />
           </button>
-        )}
+          <button className="ghost iconButton" type="button" onClick={onToggleTheme} aria-label="Toggle theme">
+            {theme === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
+          </button>
+          {walletAddress ? (
+            rightSlot ?? null
+          ) : (
+            <button className="primary" onClick={onConnectWallet}>
+              Connect
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -11,15 +11,19 @@
   -moz-osx-font-smoothing: grayscale;
 
   --bg: #070b16;
-  --surface: rgba(255, 255, 255, 0.07);
-  --surface-2: rgba(255, 255, 255, 0.24);
-  --border: rgba(255, 255, 255, 0.05);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
   --text: rgba(255, 255, 255, 0.95);
   --muted: rgba(255, 255, 255, 0.74);
   --muted-2: rgba(255, 255, 255, 0.6);
   --link: rgba(165, 185, 255, 1);
   --danger: rgba(255, 120, 120, 1);
-  --shadow: 0 1.25rem 4.375rem rgba(0, 0, 0, 0.55);
+  --shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.28);
+  --overlay: rgba(0, 0, 0, 0.20);
+
+  --accent: rgba(120, 140, 255, 0.95);
+  --accent-contrast: #0b1020;
 
   --tx-tint-pending: rgba(255, 215, 120, 0.22);
   --tx-tint-confirmed: rgba(90, 255, 190, 0.18);
@@ -36,15 +40,19 @@
 
 html[data-theme="light"] {
   --bg: #eef3ff;
-  --surface: rgba(255, 255, 255, 0.62);
-  --surface-2: rgba(255, 255, 255, 0.82);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(255, 255, 255, 0.92);
   --border: rgba(25, 40, 70, 0.14);
   --text: rgba(10, 16, 28, 0.92);
   --muted: rgba(10, 16, 28, 0.7);
   --muted-2: rgba(10, 16, 28, 0.55);
   --link: rgba(45, 91, 255, 1);
   --danger: rgba(180, 30, 30, 1);
-  --shadow: 0 1.25rem 4.375rem rgba(17, 25, 40, 0.18);
+  --shadow: 0 0.75rem 2.5rem rgba(17, 25, 40, 0.12);
+  --overlay: rgba(10, 16, 28, 0.10);
+
+  --accent: rgba(45, 91, 255, 0.92);
+  --accent-contrast: rgba(255, 255, 255, 0.98);
 
   --tx-tint-pending: rgba(255, 200, 70, 0.22);
   --tx-tint-confirmed: rgba(40, 200, 120, 0.18);
@@ -61,46 +69,12 @@ body {
   margin: 0;
   min-width: 20rem;
   min-height: 100vh;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.035) 0,
-      rgba(255, 255, 255, 0.035) 0.0625rem,
-      transparent 0.0625rem,
-      transparent 3.25rem
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.035) 0,
-      rgba(255, 255, 255, 0.035) 0.0625rem,
-      transparent 0.0625rem,
-      transparent 3.25rem
-    ),
-    radial-gradient(75rem 37.5rem at 20% -10%, rgba(120, 140, 255, 0.32), transparent 60%),
-    radial-gradient(56.25rem 31.25rem at 100% 10%, rgba(100, 255, 200, 0.16), transparent 55%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
 }
 
 html[data-theme="light"] body {
-  background:
-    repeating-linear-gradient(
-      0deg,
-      rgba(10, 16, 28, 0.05) 0,
-      rgba(10, 16, 28, 0.05) 0.0625rem,
-      transparent 0.0625rem,
-      transparent 3.25rem
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(10, 16, 28, 0.05) 0,
-      rgba(10, 16, 28, 0.05) 0.0625rem,
-      transparent 0.0625rem,
-      transparent 3.25rem
-    ),
-    radial-gradient(75rem 37.5rem at 20% -10%, rgba(120, 140, 255, 0.22), transparent 60%),
-    radial-gradient(56.25rem 31.25rem at 100% 10%, rgba(60, 240, 190, 0.12), transparent 55%),
-    var(--bg);
+  background: var(--bg);
 }
 
 #root {

@@ -8,6 +8,11 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract SocialPosts is ERC721URIStorage, Ownable {
     uint256 private _nextTokenId;
 
+    uint256 public constant MAX_NAME_LENGTH = 64;
+    uint256 public constant MAX_BIO_LENGTH = 280;
+    uint256 public constant MAX_AVATAR_LENGTH = 512;
+    uint256 public constant MAX_COMMENT_LENGTH = 280;
+
     struct Profile {
         string name;
         string bio;
@@ -28,24 +33,33 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     mapping(uint256 => mapping(address => bool)) private _hasLiked;
     mapping(uint256 => mapping(address => bool)) private _hasShared;
 
+    mapping(address => mapping(address => bool)) private _isFollowing;
+
+    mapping(uint256 => bool) private _postFrozen;
+
     event PostMinted(address indexed author, uint256 indexed tokenId, string tokenURI);
     event ProfileUpdated(address indexed account, string name, string bio, string avatar);
     event PostLiked(address indexed liker, uint256 indexed tokenId);
     event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment);
     event PostShared(address indexed sharer, uint256 indexed tokenId);
+    event PostUnliked(address indexed unliker, uint256 indexed tokenId);
+    event PostUnshared(address indexed unsharer, uint256 indexed tokenId);
+    event Followed(address indexed follower, address indexed followee);
+    event Unfollowed(address indexed follower, address indexed followee);
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
     event TipsWithdrawn(address indexed author, uint256 amountWei);
     event PostUpdated(address indexed author, uint256 indexed tokenId, string tokenURI);
     event PostBurned(address indexed author, uint256 indexed tokenId);
+    event PostFrozen(address indexed author, uint256 indexed tokenId);
 
     constructor() ERC721("Minted Social Posts", "MSP") Ownable(msg.sender) {
         _nextTokenId = 1;
     }
 
     function setProfile(string calldata name, string calldata bio, string calldata avatar) external {
-        require(bytes(name).length <= 64, "Name too long");
-        require(bytes(bio).length <= 280, "Bio too long");
-        require(bytes(avatar).length <= 512, "Avatar too long");
+        require(bytes(name).length <= MAX_NAME_LENGTH, "Name too long");
+        require(bytes(bio).length <= MAX_BIO_LENGTH, "Bio too long");
+        require(bytes(avatar).length <= MAX_AVATAR_LENGTH, "Avatar too long");
 
         _profiles[msg.sender] = Profile({name: name, bio: bio, avatar: avatar});
         emit ProfileUpdated(msg.sender, name, bio, avatar);
@@ -82,9 +96,24 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     function updatePostURI(uint256 tokenId, string calldata tokenUri) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(_author[tokenId] == msg.sender, "Only author");
+        require(!_postFrozen[tokenId], "Post frozen");
 
         _setTokenURI(tokenId, tokenUri);
         emit PostUpdated(msg.sender, tokenId, tokenUri);
+    }
+
+    function freezePost(uint256 tokenId) external {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(_author[tokenId] == msg.sender, "Only author");
+        require(!_postFrozen[tokenId], "Post already frozen");
+
+        _postFrozen[tokenId] = true;
+        emit PostFrozen(msg.sender, tokenId);
+    }
+
+    function isPostFrozen(uint256 tokenId) external view returns (bool) {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        return _postFrozen[tokenId];
     }
 
     function burnPost(uint256 tokenId) external {
@@ -98,6 +127,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _comments[tokenId];
         delete _shares[tokenId];
         delete _tipsWei[tokenId];
+        delete _postFrozen[tokenId];
 
         emit PostBurned(msg.sender, tokenId);
     }
@@ -112,9 +142,22 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit PostLiked(msg.sender, tokenId);
     }
 
+    function unlikePost(uint256 tokenId) external {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(_hasLiked[tokenId][msg.sender], "Not liked");
+
+        _hasLiked[tokenId][msg.sender] = false;
+        if (_likes[tokenId] > 0) {
+            _likes[tokenId] -= 1;
+        }
+
+        emit PostUnliked(msg.sender, tokenId);
+    }
+
     function commentPost(uint256 tokenId, string calldata comment) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(bytes(comment).length > 0, "Empty comment");
+        require(bytes(comment).length <= MAX_COMMENT_LENGTH, "Comment too long");
 
         _comments[tokenId] += 1;
         emit PostCommented(msg.sender, tokenId, comment);
@@ -128,6 +171,39 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         _shares[tokenId] += 1;
 
         emit PostShared(msg.sender, tokenId);
+    }
+
+    function unsharePost(uint256 tokenId) external {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(_hasShared[tokenId][msg.sender], "Not shared");
+
+        _hasShared[tokenId][msg.sender] = false;
+        if (_shares[tokenId] > 0) {
+            _shares[tokenId] -= 1;
+        }
+
+        emit PostUnshared(msg.sender, tokenId);
+    }
+
+    function follow(address followee) external {
+        require(followee != address(0), "Invalid followee");
+        require(followee != msg.sender, "Cannot follow self");
+        require(!_isFollowing[msg.sender][followee], "Already following");
+
+        _isFollowing[msg.sender][followee] = true;
+        emit Followed(msg.sender, followee);
+    }
+
+    function unfollow(address followee) external {
+        require(followee != address(0), "Invalid followee");
+        require(_isFollowing[msg.sender][followee], "Not following");
+
+        _isFollowing[msg.sender][followee] = false;
+        emit Unfollowed(msg.sender, followee);
+    }
+
+    function isFollowing(address follower, address followee) external view returns (bool) {
+        return _isFollowing[follower][followee];
     }
 
     function tipPost(uint256 tokenId) external payable {

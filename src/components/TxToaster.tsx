@@ -1,4 +1,5 @@
 import { useTxNotifications, formatTxState } from "../contexts/TxNotificationsContext";
+import { IconX } from "./icons";
 
 export function TxToaster() {
   const { txNotices, dismiss } = useTxNotifications();
@@ -28,7 +29,7 @@ export function TxToaster() {
                     aria-label="Dismiss"
                     onClick={() => dismiss(tx.hash)}
                   >
-                    ×
+                    <IconX size={16} />
                   </button>
                 ) : null}
               </span>

@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { ProfileCard, WalletCard, type Sidebar } from "../components/Sidebar";
 import { Feed } from "../components/Feed";
 import type { Draft, Post } from "../types";
+import { useMemo, useState } from "react";
 
 type Props = {
   sidebar: ComponentProps<typeof Sidebar>;
@@ -10,6 +11,8 @@ type Props = {
   isFeedLoading: boolean;
 
   posts: Post[];
+  savedPosts: Post[];
+  isLoadingSaved: boolean;
   chainId: string | null;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
@@ -30,9 +33,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment") => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
   onTip: (tokenId: string) => void;
   onBurn: (tokenId: string) => void;
+  onFreezePost: (tokenId: string) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -41,6 +45,34 @@ type Props = {
 };
 
 export function AccountPage(props: Props) {
+  const [view, setView] = useState<"all" | "saved">("all");
+
+  const activePosts =
+    view === "saved"
+      ? props.savedPosts.map((p) => ({ ...p, contextTag: "saved" as const }))
+      : props.posts.map((p) => ({ ...p, contextTag: undefined }));
+  const activeLoading = view === "saved" ? props.isLoadingSaved : props.isFeedLoading;
+  const activeTitle = view === "saved" ? "Saved" : "Your Posts";
+  const activePill =
+    view === "saved" ? `${props.savedPosts.length} saved` : `${props.posts.length} posts • ${props.savedPosts.length} saved`;
+
+  const headerAction = useMemo(() => {
+    return (
+      <div className="row" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <button className={view === "all" ? "btn secondary" : "btn ghost"} type="button" onClick={() => setView("all")}>
+          All
+        </button>
+        <button
+          className={view === "saved" ? "btn secondary" : "btn ghost"}
+          type="button"
+          onClick={() => setView("saved")}
+        >
+          Saved
+        </button>
+      </div>
+    );
+  }, [view]);
+
   return (
     <main className="profileLayout">
       <section className="profileTop">
@@ -50,6 +82,11 @@ export function AccountPage(props: Props) {
           profileBio={props.sidebar.profileBio}
           profileAvatarUrl={props.sidebar.profileAvatarUrl}
           myPostsCount={props.sidebar.myPostsCount}
+          followerCount={props.sidebar.followerCount}
+          followers={props.sidebar.followers}
+          following={props.sidebar.following}
+          isLoadingFollowers={props.sidebar.isLoadingFollowers}
+          isLoadingFollowing={props.sidebar.isLoadingFollowing}
           onDisconnectWallet={props.sidebar.onDisconnectWallet}
           isEditingProfile={props.sidebar.isEditingProfile}
           profileDraftName={props.sidebar.profileDraftName}
@@ -87,11 +124,12 @@ export function AccountPage(props: Props) {
 
       <section className="content">
         <Feed
-          title="Your Posts"
-          pillText={`${props.posts.length} posts`}
-          isLoading={props.isFeedLoading}
+          title={activeTitle}
+          pillText={activePill}
+          headerAction={headerAction}
+          isLoading={activeLoading}
           loadingText={props.status}
-          posts={props.posts}
+          posts={activePosts}
           chainId={props.chainId}
           walletAddress={props.walletAddress}
           authorIdentity={props.authorIdentity}
@@ -111,6 +149,7 @@ export function AccountPage(props: Props) {
           onAction={props.onAction}
           onTip={props.onTip}
           onBurn={props.onBurn}
+          onFreezePost={props.onFreezePost}
           shortAddress={props.shortAddress}
           stableHueFromSeed={props.stableHueFromSeed}
           getNativeSymbol={props.getNativeSymbol}

@@ -4,18 +4,39 @@ export const SOCIAL_ABI = [
   "event ProfileUpdated(address indexed account, string name, string bio, string avatar)",
   "event PostMinted(address indexed author, uint256 indexed tokenId, string tokenURI)",
   "event PostLiked(address indexed liker, uint256 indexed tokenId)",
+  "event PostUnliked(address indexed unliker, uint256 indexed tokenId)",
   "event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment)",
   "event PostShared(address indexed sharer, uint256 indexed tokenId)",
+  "event PostUnshared(address indexed unsharer, uint256 indexed tokenId)",
+  "event Followed(address indexed follower, address indexed followee)",
+  "event Unfollowed(address indexed follower, address indexed followee)",
   "event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei)",
   "event TipsWithdrawn(address indexed author, uint256 amountWei)",
   "event PostUpdated(address indexed author, uint256 indexed tokenId, string tokenURI)",
   "event PostBurned(address indexed author, uint256 indexed tokenId)",
+  "event PostFrozen(address indexed author, uint256 indexed tokenId)",
+
+  "function MAX_NAME_LENGTH() external view returns (uint256)",
+  "function MAX_BIO_LENGTH() external view returns (uint256)",
+  "function MAX_AVATAR_LENGTH() external view returns (uint256)",
+  "function MAX_COMMENT_LENGTH() external view returns (uint256)",
+
   "function setProfile(string name, string bio, string avatar) external",
   "function profileOf(address account) external view returns (string name, string bio, string avatar)",
   "function mintPost(string tokenUri) external returns (uint256 tokenId)",
   "function likePost(uint256 tokenId) external",
+  "function unlikePost(uint256 tokenId) external",
   "function commentPost(uint256 tokenId, string comment) external",
   "function sharePost(uint256 tokenId) external",
+  "function unsharePost(uint256 tokenId) external",
+
+  "function follow(address followee) external",
+  "function unfollow(address followee) external",
+  "function isFollowing(address follower, address followee) external view returns (bool)",
+
+  "function freezePost(uint256 tokenId) external",
+  "function isPostFrozen(uint256 tokenId) external view returns (bool)",
+
   "function tipPost(uint256 tokenId) external payable",
   "function withdrawTips() external",
   "function updatePostURI(uint256 tokenId, string tokenUri) external",
@@ -25,7 +46,10 @@ export const SOCIAL_ABI = [
   "function sharesOf(uint256 tokenId) external view returns (uint256)",
   "function tipsOf(uint256 tokenId) external view returns (uint256)",
   "function withdrawableOf(address account) external view returns (uint256)",
+  "function authorOf(uint256 tokenId) external view returns (address)",
   "function exists(uint256 tokenId) external view returns (bool)",
+  "function hasLiked(uint256 tokenId, address account) external view returns (bool)",
+  "function hasShared(uint256 tokenId, address account) external view returns (bool)",
   "function tokenURI(uint256 tokenId) external view returns (string)"
 ] as const;
 

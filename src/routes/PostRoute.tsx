@@ -52,6 +52,7 @@ export function PostRoute() {
       onAction={app.handleAction}
       onTip={app.handleTip}
       onBurn={app.burnPost}
+      onFreezePost={app.freezePost}
       shortAddress={app.shortAddress}
       stableHueFromSeed={app.stableHueFromSeed}
       getNativeSymbol={app.getNativeSymbol}

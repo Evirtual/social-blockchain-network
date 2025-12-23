@@ -20,6 +20,31 @@ A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 5. Start the frontend
    - `npm run dev`
 
+## Testing
+
+### Contracts (Hardhat)
+
+- Run contract tests:
+   - `npm run test:contracts`
+
+### Frontend (Vitest)
+
+- Run frontend unit tests:
+   - `npm run test:frontend`
+
+### Run everything
+
+- Run both contract + frontend tests:
+   - `npm test`
+
+## CI
+
+GitHub Actions runs on every PR and push to `main`:
+
+- Contract tests
+- Frontend tests
+- Production build
+
 ## Deploying to Ethereum + Base
 
 GitHub Pages (or any static host) can host the frontend, but the contract must be deployed to each chain separately.

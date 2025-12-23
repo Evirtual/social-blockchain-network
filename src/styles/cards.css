@@ -6,7 +6,7 @@
 
 .cardHeader {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.625rem;
   margin-bottom: 0.625rem;
@@ -16,9 +16,17 @@
   margin-bottom: 0;
 }
 
+.cardHeaderPills {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .profileHeader {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
   gap: 0.625rem;
   align-items: center;
 }
@@ -29,7 +37,6 @@
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  grid-column: 1 / -1;
 }
 
 .avatar {
@@ -48,12 +55,22 @@
   border-radius: 0.75rem;
 }
 
+.avatar.tiny {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.625rem;
+}
+
 .profileMain {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .profileName {
   font-weight: 700;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -62,6 +79,7 @@
 .profileMeta {
   color: var(--muted);
   font-size: 0.9rem;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -76,15 +94,109 @@
   gap: 0.5rem;
 }
 
-.walletGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.625rem;
+/* Mobile dropdown cards (Profile + Wallet) */
+.cardDropdown {
+  padding: 0;
 }
 
-.walletGrid > div {
+.cardDropdownSummary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  padding: var(--pad);
+}
+
+.cardDropdownSummary::-webkit-details-marker {
+  display: none;
+}
+
+.cardDropdownSummary::marker {
+  content: "";
+}
+
+.cardDropdownMeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
 }
+
+.cardDropdownBody {
+  padding: 0 var(--pad) var(--pad) var(--pad);
+}
+
+.cardDropdown[open] .cardDropdownSummary {
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+@media (min-width: 32.5rem) {
+  .cardDropdown {
+    padding: var(--pad);
+  }
+
+  .cardDropdownSummary {
+    display: none;
+  }
+
+  .cardDropdownBody {
+    padding: 0;
+  }
+}
+
+.walletRows {
+  display: flex;
+  flex-direction: column;
+}
+
+.walletRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.25rem;
+  row-gap: 0;
+  align-items: start;
+}
+
+.walletRow + .walletRow {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 0.0625rem solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+
+.walletContractRow {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.walletContractActions {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.walletField {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.walletActions {
+  margin-top: 0.5rem;
+}
+
+.walletRow .value {
+  font-variant-numeric: tabular-nums;
+}
+
 
 .value {
   white-space: nowrap;
@@ -94,16 +206,47 @@
 
 @media (max-width: 32.5rem) {
   .profileHeader {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 0.75rem;
   }
 
   .profileActions {
     grid-column: 1 / -1;
-    justify-content: flex-end;
+    justify-content: center;
   }
 
-  .walletGrid {
+  .profileDropdown .cardHeader {
+    justify-content: center;
+  }
+
+  .profileDropdown .cardHeaderPills {
+    justify-content: center;
+  }
+
+  .walletRow {
     grid-template-columns: 1fr;
+    row-gap: 0.5rem;
+  }
+
+  .walletContractRow {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .walletContractActions {
+    justify-content: center;
+    margin-top: 0.375rem;
+  }
+
+  /* When using dropdown cards on mobile, avoid repeated titles */
+  .profileDropdown .cardHeader .cardTitle {
+    display: none;
+  }
+
+  .walletDropdown .cardHeader {
+    display: none;
   }
 }
 
@@ -221,7 +364,6 @@
   align-items: center;
   gap: 0.625rem;
   padding: 0.625rem 0;
-  border-bottom: 0.0625rem solid var(--border);
 }
 
 .feedHeaderTitle {
@@ -289,6 +431,67 @@
   font-weight: 650;
 }
 
+.pillButton {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  box-shadow: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
+}
+
+.pillButton:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pillButton:active:not(:disabled) {
+  transform: translateY(0.03125rem);
+}
+
+.pillButton:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+.pillButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.listRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.listRow:hover {
+  background: var(--surface-2);
+}
+
 .posts {
   column-count: 1;
   column-gap: 0.75rem;
@@ -323,7 +526,7 @@
   display: flex;
   gap: 0.625rem;
   padding: 0.875rem 0.875rem 0 0.875rem;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .postHeadMain {
@@ -386,6 +589,13 @@
 .badge.networkBadge {
   margin-left: 0.375rem;
   font-size: 0.75rem;
+}
+
+.badge.savedBadge {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--link);
+  gap: 0.25rem;
 }
 
 .postTitleLine {
@@ -478,6 +688,11 @@
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 650;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
 }
 
 .statPill.statButton {
@@ -485,6 +700,43 @@
   -webkit-appearance: none;
   cursor: pointer;
   font: inherit;
+}
+
+.statPill.statButton:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.statPill.statButton:active {
+  transform: translateY(0.03125rem);
+}
+
+.statPill.statButton svg {
+  display: block;
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.statPill.statButton:hover svg {
+  transform: translateY(-0.03125rem);
+}
+
+.statValue {
+  min-width: 0;
+}
+
+.statPill.statButton.isActive {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.statPill.statButton.isActive.isLike {
+  color: var(--danger);
+}
+
+.statPill.statButton.isActive.isSaved {
+  color: var(--link);
 }
 
 .statPill.statButton:focus-visible {
@@ -547,6 +799,97 @@
 
   .postFormRow button {
     width: 100%;
+  }
+
+  /* Mobile post layout: cleaner wrapping + tighter spacing */
+  .postHead {
+    padding: 0.75rem 0.75rem 0 0.75rem;
+    align-items: flex-start;
+  }
+
+  .postHeadTop {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.5rem;
+    row-gap: 0.375rem;
+    align-items: center;
+  }
+
+  .postAuthor {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .postAuthor a {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+  }
+
+  .postHead .badge {
+    margin-left: 0.375rem;
+  }
+
+  .postTokenArea {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+    max-width: 100%;
+  }
+
+  .postTokenActions {
+    margin-left: 0.25rem;
+    flex: 0 0 auto;
+  }
+
+  .postTokenLink {
+    order: 1;
+  }
+
+  .postTokenArea .savedBadge {
+    order: 2;
+  }
+
+  .postTokenActions {
+    order: 3;
+  }
+
+  .postImage {
+    margin-top: 0.625rem;
+  }
+
+  .postFooter {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .postStats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .postStats .statPill {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .postStats .statPill.statTip {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .postStats .statPill .statValue {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -666,33 +1009,58 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.125rem;
   z-index: 50;
-  backdrop-filter: blur(0.875rem);
-  -webkit-backdrop-filter: blur(0.875rem);
-}
-
-html[data-theme="light"] .modalOverlay {
-  background: rgba(10, 16, 28, 0.18);
+  backdrop-filter: blur(0.95rem) saturate(0.8);
+  -webkit-backdrop-filter: blur(0.95rem) saturate(0.8);
 }
 
 .modalContent {
   width: 100%;
   max-width: 36.25rem;
-  border: 0.0625rem solid var(--border);
-  background: var(--surface-2);
+  border: 0.025rem solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface-2));
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(0.875rem);
-  -webkit-backdrop-filter: blur(0.875rem);
+  box-shadow: var(--shadow), 0 0 0 0.025rem var(--border);
   overflow: hidden;
   max-height: calc(100vh - 2.25rem);
   display: flex;
   flex-direction: column;
+}
+
+/* Modal form consistency (Composer + any future forms) */
+.modalBody .composer {
+  gap: 0.75rem;
+}
+
+.modalBody .composerHeader {
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  border-color: var(--border);
+  padding: 0.875rem;
+  gap: 0.75rem;
+}
+
+.modalBody .composer .input,
+.modalBody .composer .textarea,
+.modalBody .composer .file-input {
+  background: color-mix(in srgb, var(--bg) 72%, var(--surface-2));
+}
+
+.modalBody .row.fileRow {
+  gap: 0.75rem;
+}
+
+.modalBody .rowActions {
+  margin-top: 0.25rem;
+  gap: 0.625rem;
+}
+
+.modalBody .image-preview {
+  margin-top: 0.75rem;
 }
 
 .modalHeader {
@@ -702,6 +1070,7 @@ html[data-theme="light"] .modalOverlay {
   gap: 0.75rem;
   padding: 0.875rem 0.875rem;
   border-bottom: 0.0625rem solid var(--border);
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
 }
 
 .modalTitle {
@@ -711,6 +1080,6 @@ html[data-theme="light"] .modalOverlay {
 }
 
 .modalBody {
-  padding: 1rem;
+  padding: 1.125rem;
   overflow: auto;
 }

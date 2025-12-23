@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "../types";
 import { ipfsToHttp } from "../ipfs";
+import { IconBookmark, IconCoin, IconEdit, IconFlame, IconHeart, IconMessage } from "./icons";
 
 export type PostPanel = "comment" | "tip";
 
@@ -36,9 +37,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment", postChainId?: string | null) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
   onTip: (tokenId: string, postChainId?: string | null) => void;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
   getNativeSymbol: (chainId: string | null) => string;
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
@@ -88,6 +90,12 @@ export function PostCard(props: Props) {
               <Link className="postTokenLink" to={`/post/${tokenId}`} state={{ from: props.from }}>
                 Token #{tokenId}
               </Link>
+              {props.post.contextTag === "saved" ? (
+                <span className="badge savedBadge">
+                  <IconBookmark size={14} filled />
+                  <span>Saved</span>
+                </span>
+              ) : null}
               {props.isMine && props.editingTokenId !== tokenId ? (
                 <span className="postTokenActions">
                   <button
@@ -97,7 +105,7 @@ export function PostCard(props: Props) {
                     aria-label="Edit post"
                     title="Edit"
                   >
-                    ✎
+                    <IconEdit size={16} />
                   </button>
                   <button
                     className="danger iconButton"
@@ -106,7 +114,7 @@ export function PostCard(props: Props) {
                     aria-label="Burn post"
                     title="Burn"
                   >
-                    🔥
+                    <IconFlame size={16} />
                   </button>
                 </span>
               ) : null}
@@ -138,7 +146,7 @@ export function PostCard(props: Props) {
             <input
               className="file-input"
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={(e) => props.onEditSelectFile(e.target.files?.[0] ?? null)}
             />
             <button className="secondary" type="button" onClick={props.onEditClearImage}>
@@ -150,7 +158,16 @@ export function PostCard(props: Props) {
             <img className="image-preview" src={props.editDraft.imageDataUrl} alt="Edit preview" />
           )}
 
+          {props.editDraft.imageDataUrl.startsWith("blob:") && (
+            <video className="image-preview" src={props.editDraft.imageDataUrl} controls playsInline preload="metadata" />
+          )}
+
           <div className="rowActions">
+            {props.isMine ? (
+              <button className="danger" type="button" onClick={() => props.onFreezePost(tokenId)}>
+                Freeze
+              </button>
+            ) : null}
             <button className="secondary" type="button" onClick={props.onCancelEditPost}>
               Cancel
             </button>
@@ -161,19 +178,47 @@ export function PostCard(props: Props) {
         </div>
       ) : (
         <>
-          {!!props.post.image && (
+          {!!props.post.animationUrl ? (
+            <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
+              <video
+                className="postImage"
+                src={ipfsToHttp(props.post.animationUrl)}
+                poster={props.post.image ? ipfsToHttp(props.post.image) : undefined}
+                controls
+                playsInline
+                preload="metadata"
+              />
+            </Link>
+          ) : props.post.image ? (
             <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
               <img className="postImage" src={ipfsToHttp(props.post.image)} alt="Post image" loading="lazy" />
             </Link>
-          )}
-          {props.post.image ? null : <div className="post-body">{description}</div>}
+          ) : null}
+
+          {props.post.image || props.post.animationUrl ? null : <div className="post-body">{description}</div>}
         </>
       )}
 
       <div className="postFooter">
         <div className="postStats">
-          <button className="statPill statButton" type="button" onClick={() => props.onAction(tokenId, "like")} aria-label="Like">
-            ❤ {props.post.likes}
+          <button
+            className={`statPill statButton ${props.post.likedByMe ? "isActive isLike" : ""}`}
+            type="button"
+            onClick={() => props.onAction(tokenId, "like")}
+            aria-label="Like"
+          >
+            <IconHeart size={18} filled={!!props.post.likedByMe} />
+            <span className="statValue">{props.post.likes}</span>
+          </button>
+
+          <button
+            className={`statPill statButton ${props.post.repostedByMe ? "isActive isSaved" : ""}`}
+            type="button"
+            onClick={() => props.onAction(tokenId, "share")}
+            aria-label="Save"
+          >
+            <IconBookmark size={18} filled={!!props.post.repostedByMe} />
+            <span className="statValue">{props.post.shares}</span>
           </button>
 
           <button
@@ -184,18 +229,22 @@ export function PostCard(props: Props) {
             aria-expanded={props.openPanel === "comment"}
             aria-controls={`comment-${tokenId}`}
           >
-            💬 {props.post.comments}
+            <IconMessage size={18} />
+            <span className="statValue">{props.post.comments}</span>
           </button>
 
           <button
-            className="statPill statButton"
+            className="statPill statButton statTip"
             type="button"
             onClick={() => props.onTogglePanel("tip")}
             aria-label="Tip"
             aria-expanded={props.openPanel === "tip"}
             aria-controls={`tip-${tokenId}`}
           >
-            ⟠ {Number(ethers.formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(props.chainId)}
+            <IconCoin size={18} />
+            <span className="statValue">
+              {Number(ethers.formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(props.chainId)}
+            </span>
           </button>
         </div>
 

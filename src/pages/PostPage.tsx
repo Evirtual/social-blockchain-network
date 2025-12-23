@@ -29,9 +29,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment") => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
   onTip: (tokenId: string) => void;
   onBurn: (tokenId: string) => void;
+  onFreezePost: (tokenId: string) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -90,6 +91,7 @@ export function PostPage(props: Props) {
               onAction={props.onAction}
               onTip={props.onTip}
               onBurn={props.onBurn}
+              onFreezePost={props.onFreezePost}
               shortAddress={props.shortAddress}
               stableHueFromSeed={props.stableHueFromSeed}
               getNativeSymbol={props.getNativeSymbol}

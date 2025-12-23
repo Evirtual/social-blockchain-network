@@ -33,9 +33,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment") => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
   onTip: (tokenId: string) => void;
   onBurn: (tokenId: string) => void;
+  onFreezePost: (tokenId: string) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -71,6 +72,7 @@ export function Feed({
   onAction,
   onTip,
   onBurn,
+  onFreezePost,
   shortAddress,
   stableHueFromSeed,
   getNativeSymbol,
@@ -86,7 +88,9 @@ export function Feed({
         <div className="feed-header">
           <h2 className="feedHeaderTitle">{title ?? "Chain Feed"}</h2>
           {headerAction ? <div className="feedHeaderAction">{headerAction}</div> : null}
-          <span className="pill feedHeaderPill">{pillText ?? `${posts.length} minted posts`}</span>
+          {pillText === "" ? null : (
+            <span className="pill feedHeaderPill">{pillText ?? `${posts.length} minted posts`}</span>
+          )}
         </div>
       )}
 
@@ -106,10 +110,11 @@ export function Feed({
           const authorAvatarUrl = info?.avatarUrl;
           const isMine = !!walletAddress && !!post.author && walletAddress.toLowerCase() === post.author.toLowerCase();
           const openPanel = getPanel(post.tokenId);
+          const compositeKey = `${post.tokenId}:${post.contextTag ?? "post"}:${index}`;
 
           return (
             <PostCard
-              key={post.tokenId}
+              key={compositeKey}
               post={post}
               animationDelayMs={index * 80}
               from={from}
@@ -137,6 +142,7 @@ export function Feed({
               onAction={onAction}
               onTip={onTip}
               onBurn={onBurn}
+              onFreezePost={onFreezePost}
               getNativeSymbol={getNativeSymbol}
               getExplorerTxUrl={getExplorerTxUrl}
             />

@@ -45,7 +45,7 @@ export function ComposerCard({
           className="input"
           value={draft.imageUrl}
           onChange={(event) => onImageUrlChange(event.target.value)}
-          placeholder="Image URL (or upload below)"
+          placeholder="Media URL (image or video) (or upload below)"
         />
       </div>
 
@@ -53,7 +53,7 @@ export function ComposerCard({
         <input
           className="file-input"
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
         />
         <button type="button" className="secondary" onClick={onClearImage}>
@@ -63,6 +63,10 @@ export function ComposerCard({
 
       {draft.imageDataUrl.startsWith("data:image/") && (
         <img className="image-preview" src={draft.imageDataUrl} alt="Selected upload" />
+      )}
+
+      {draft.imageDataUrl.startsWith("blob:") && (
+        <video className="image-preview" src={draft.imageDataUrl} controls playsInline preload="metadata" />
       )}
 
       <div className="rowActions">

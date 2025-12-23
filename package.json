@@ -6,6 +6,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test": "npm run test:contracts && npm run test:frontend",
+    "test:contracts": "hardhat test",
+    "test:frontend": "vitest run",
     "chain": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:eth": "hardhat run scripts/deploy.js --network ethereum",
@@ -26,13 +29,18 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.0.2",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",
     "dotenv": "^16.4.5",
     "hardhat": "^2.22.18",
+    "jsdom": "^26.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
-    "vite": "^5.2.10"
+    "vite": "^5.2.10",
+    "vitest": "^3.2.4"
   }
 }

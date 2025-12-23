@@ -4,6 +4,7 @@ export type Post = {
   title: string;
   body: string;
   image: string;
+  animationUrl?: string;
   metadataURI: string;
   author?: string;
   mintTxHash?: string;
@@ -13,6 +14,9 @@ export type Post = {
   comments: number;
   shares: number;
   tipsWei: bigint;
+  likedByMe?: boolean;
+  repostedByMe?: boolean;
+  contextTag?: "saved";
 };
 
 export type TxState = "signing" | "pending" | "confirmed" | "failed" | "cancelled";
@@ -37,6 +41,7 @@ export type TokenMetadata = {
   name?: string;
   description?: string;
   image?: string;
+  animation_url?: string;
 };
 
 export type PostComment = {

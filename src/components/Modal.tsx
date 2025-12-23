@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { IconX } from "./icons";
 
 type Props = {
   open: boolean;
@@ -9,8 +11,25 @@ type Props = {
 };
 
 export function Modal({ open, title, onClose, children }: Props) {
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    if (typeof document === "undefined") return;
 
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -27,7 +46,7 @@ export function Modal({ open, title, onClose, children }: Props) {
         <div className="modalHeader">
           <div className="modalTitle">{title}</div>
           <button className="ghost iconButton" type="button" onClick={onClose} aria-label="Close">
-            ×
+            <IconX size={16} />
           </button>
         </div>
         <div className="modalBody">{children}</div>

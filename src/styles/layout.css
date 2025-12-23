@@ -2,7 +2,8 @@
   width: 100%;
   max-width: 65rem;
   margin: 0 auto;
-  padding: var(--pad-lg);
+  --app-pad: var(--pad-lg);
+  padding: var(--app-pad);
 }
 
 .topbar {
@@ -10,6 +11,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
   padding: var(--pad-sm);
   border: 0.0625rem solid var(--border);
   background: var(--surface);
@@ -18,7 +20,7 @@
   position: sticky;
   top: 0.75rem;
   z-index: 10;
-  backdrop-filter: blur(0.875rem);
+  backdrop-filter: blur(0.625rem);
 }
 
 .brand {
@@ -56,10 +58,24 @@
   gap: 0.625rem;
   align-items: center;
   flex: 0 0 auto;
+  margin-left: auto;
   padding: 0.25rem;
   border-radius: 62.4375rem;
   border: 0.0625rem solid var(--border);
-  background: var(--surface-2);
+  background: transparent;
+}
+
+.topbarLogo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.topbarControls {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
 }
 
 .topbar-actions button,
@@ -138,32 +154,69 @@
   }
 
   .topbar {
-    position: static;
+    position: sticky;
+    top: var(--app-pad);
   }
 
+  /* Keep the brand subtext visible on mobile/tablet */
   .brand-sub {
-    display: none;
+    display: block;
   }
+
 }
 
 @media (max-width: 40rem) {
   .topbar {
-    flex-direction: column;
-    align-items: stretch;
     gap: 0.625rem;
+    flex-wrap: nowrap;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
+  /* Mobile: logo-only on the left */
+  .brand {
+    display: none;
+  }
+
+  .topbarLogo {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .topbarLogo .brand-mark {
+    width: 2.375rem;
+    height: 2.375rem;
+  }
+
+  /* Mobile: remove the big capsule; keep controls on the right */
   .topbar-actions {
-    justify-content: flex-end;
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.25rem;
+    border: 0.0625rem solid var(--border);
+    background: var(--bg);
+    border-radius: var(--radius-md);
+    gap: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+
+  .topbarControls {
+    margin-left: auto;
     flex-wrap: wrap;
     gap: 0.5rem;
-    border-radius: var(--radius-lg);
+    justify-content: flex-end;
   }
 }
 
 @media (max-width: 32.5rem) {
   .app {
-    padding: 0.75rem;
+    --app-pad: var(--pad-sm);
+    padding: var(--app-pad);
   }
 
   .brand {
@@ -177,7 +230,7 @@
   border-radius: var(--radius-lg);
   padding: var(--pad);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(0.875rem);
+  backdrop-filter: blur(0.625rem);
 }
 
 .cardTitle {

@@ -5,13 +5,18 @@ export type PinataPinResponse = {
 };
 
 export const getIpfsGatewayBase = () => {
-  const gw = (import.meta.env.VITE_IPFS_GATEWAY as string | undefined) ?? "https://ipfs.io/ipfs/";
+  // Default to Pinata public gateway for better large-media reliability.
+  // Can be overridden via VITE_IPFS_GATEWAY.
+  const gw =
+    (import.meta.env.VITE_IPFS_GATEWAY as string | undefined) ?? "https://gateway.pinata.cloud/ipfs/";
   return gw.endsWith("/") ? gw : `${gw}/`;
 };
 
 export const ipfsToHttp = (uri: string) => {
   if (uri.startsWith("ipfs://")) {
-    const path = uri.replace("ipfs://", "");
+    let path = uri.replace("ipfs://", "");
+    // Common variants: ipfs://<CID> and ipfs://ipfs/<CID>
+    if (path.startsWith("ipfs/")) path = path.slice("ipfs/".length);
     return `${getIpfsGatewayBase()}${path}`;
   }
   return uri;

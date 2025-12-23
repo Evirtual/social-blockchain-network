@@ -20,6 +20,26 @@ export function ProfileRoute() {
     void app.loadProfile(address);
   }, [app, address]);
 
+  useEffect(() => {
+    if (!app.walletAddress) return;
+    if (isSelf) return;
+    void app.loadIsFollowing(address);
+  }, [address, app.walletAddress, app.loadIsFollowing, isSelf]);
+
+  useEffect(() => {
+    if (!app.walletAddress) return;
+    if (!isSelf) return;
+    void app.loadRepostsForAddress(address);
+  }, [address, app.loadRepostsForAddress, app.walletAddress, isSelf]);
+
+  useEffect(() => {
+    if (!app.walletAddress) return;
+    if (!isSelf) return;
+    void app.loadFollowerCountForAddress(address);
+    void app.loadFollowersForAddress(address);
+    void app.loadFollowingForAddress(address);
+  }, [address, app.walletAddress, app.loadFollowerCountForAddress, app.loadFollowersForAddress, app.loadFollowingForAddress, isSelf]);
+
   const profile = key ? app.profilesByAddress[key] : undefined;
   const name = profile?.name ?? "";
   const bio = profile?.bio ?? "";
@@ -28,26 +48,38 @@ export function ProfileRoute() {
   const filtered = app.posts.filter((p) => p.author?.toLowerCase() === key);
 
   if (isSelf) {
+    const selfKey = app.walletAddress?.toLowerCase() ?? "";
+
+    const savedTokenIds = selfKey ? app.repostTokenIdsByAddress[selfKey] ?? [] : [];
+    const savedPosts = savedTokenIds
+      .map((tokenId) => app.posts.find((p) => p.tokenId === tokenId))
+      .filter((p): p is NonNullable<typeof p> => !!p);
+
     return (
       <AccountPage
         sidebar={{
           walletAddress: app.walletAddress,
           displayName: app.displayName,
           profileBio: app.profileBio,
-            profileAvatarUrl: app.profileAvatarUrl,
+          profileAvatarUrl: app.profileAvatarUrl,
           myPostsCount: app.myPostsCount,
+          followerCount: selfKey ? app.followerCountByAddress[selfKey] : undefined,
+          followers: selfKey ? app.followersByAddress[selfKey] ?? null : null,
+          following: selfKey ? app.followingByAddress[selfKey] ?? null : null,
+          isLoadingFollowers: selfKey ? !!app.isLoadingFollowersByAddress[selfKey] : false,
+          isLoadingFollowing: selfKey ? !!app.isLoadingFollowingByAddress[selfKey] : false,
           onDisconnectWallet: app.disconnectWallet,
           isEditingProfile: app.isEditingProfile,
           profileDraftName: app.profileDraftName,
           profileDraftBio: app.profileDraftBio,
-            profileDraftAvatarUrl: app.profileDraftAvatarUrl,
-            profileDraftAvatarDataUrl: app.profileDraftAvatarDataUrl,
-            isProfileAvatarLoading: app.isProfileAvatarLoading,
+          profileDraftAvatarUrl: app.profileDraftAvatarUrl,
+          profileDraftAvatarDataUrl: app.profileDraftAvatarDataUrl,
+          isProfileAvatarLoading: app.isProfileAvatarLoading,
           onProfileDraftNameChange: app.setProfileDraftName,
           onProfileDraftBioChange: app.setProfileDraftBio,
-            onProfileDraftAvatarUrlChange: app.setProfileDraftAvatarUrl,
-            onSelectProfileAvatarFile: app.onSelectProfileAvatarFile,
-            onClearProfileAvatar: app.onClearProfileAvatar,
+          onProfileDraftAvatarUrlChange: app.setProfileDraftAvatarUrl,
+          onSelectProfileAvatarFile: app.onSelectProfileAvatarFile,
+          onClearProfileAvatar: app.onClearProfileAvatar,
           onStartEditProfile: app.startEditProfile,
           onCancelEditProfile: app.cancelEditProfile,
           onSaveProfile: app.saveProfile,
@@ -67,6 +99,8 @@ export function ProfileRoute() {
         status={app.status}
         isFeedLoading={app.isFeedLoading}
         posts={filtered}
+        savedPosts={savedPosts}
+        isLoadingSaved={selfKey ? !!app.isLoadingRepostsByAddress[selfKey] : false}
         chainId={app.chainId}
         walletAddress={app.walletAddress}
         authorIdentity={app.authorIdentity}
@@ -86,6 +120,7 @@ export function ProfileRoute() {
         onAction={app.handleAction}
         onTip={app.handleTip}
         onBurn={app.burnPost}
+        onFreezePost={app.freezePost}
         shortAddress={app.shortAddress}
         stableHueFromSeed={app.stableHueFromSeed}
         getNativeSymbol={app.getNativeSymbol}
@@ -101,6 +136,8 @@ export function ProfileRoute() {
       bio={bio}
       avatarHue={app.stableHueFromSeed(key || "guest")}
       avatarUrl={avatarUrl}
+      isFollowing={key ? app.isFollowingByAddress[key] : undefined}
+      onToggleFollow={() => app.toggleFollow(address)}
       posts={filtered}
       chainId={app.chainId}
       status={app.status}
@@ -123,6 +160,7 @@ export function ProfileRoute() {
       onAction={app.handleAction}
       onTip={app.handleTip}
       onBurn={app.burnPost}
+      onFreezePost={app.freezePost}
       shortAddress={app.shortAddress}
       stableHueFromSeed={app.stableHueFromSeed}
       getNativeSymbol={app.getNativeSymbol}

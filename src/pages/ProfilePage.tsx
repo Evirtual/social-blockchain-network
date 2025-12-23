@@ -9,6 +9,9 @@ type Props = {
   avatarHue: number;
   avatarUrl?: string;
 
+  isFollowing: boolean | undefined;
+  onToggleFollow: () => void;
+
   posts: Post[];
   chainId: string | null;
   status: string;
@@ -32,9 +35,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment") => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
   onTip: (tokenId: string) => void;
   onBurn: (tokenId: string) => void;
+  onFreezePost: (tokenId: string) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -44,6 +48,13 @@ type Props = {
 
 export function ProfilePage(props: Props) {
   const addressLabel = props.shortAddress(props.address);
+  const canFollow =
+    !!props.walletAddress && props.walletAddress.toLowerCase() !== props.address.toLowerCase();
+
+  const activePosts = props.posts.map((p) => ({ ...p, contextTag: undefined }));
+  const activeLoading = props.isFeedLoading;
+  const activeTitle = "Profile Feed";
+  const activePill = "";
   const avatarStyle = props.avatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
     : { background: `hsl(${props.avatarHue} 75% 55%)` };
@@ -54,7 +65,16 @@ export function ProfilePage(props: Props) {
         <div className="card">
           <div className="cardHeader">
             <div className="cardTitle">Profile</div>
-            <span className="pill">{props.posts.length} posts</span>
+            {canFollow ? (
+              <button
+                className="secondary"
+                type="button"
+                onClick={props.onToggleFollow}
+                disabled={typeof props.isFollowing !== "boolean"}
+              >
+                {props.isFollowing ? "Unfollow" : "Follow"}
+              </button>
+            ) : null}
           </div>
 
           <div className="profileHeader">
@@ -73,11 +93,11 @@ export function ProfilePage(props: Props) {
 
       <section className="content">
         <Feed
-          title="Profile Feed"
-          pillText={`${props.posts.length} posts`}
-          isLoading={props.isFeedLoading}
+          title={activeTitle}
+          pillText={activePill}
+          isLoading={activeLoading}
           loadingText={props.status}
-          posts={props.posts}
+          posts={activePosts}
           chainId={props.chainId}
           walletAddress={props.walletAddress}
           authorIdentity={props.authorIdentity}
@@ -97,6 +117,7 @@ export function ProfilePage(props: Props) {
           onAction={props.onAction}
           onTip={props.onTip}
           onBurn={props.onBurn}
+          onFreezePost={props.onFreezePost}
           shortAddress={props.shortAddress}
           stableHueFromSeed={props.stableHueFromSeed}
           getNativeSymbol={props.getNativeSymbol}
