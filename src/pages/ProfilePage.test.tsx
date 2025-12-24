@@ -13,11 +13,15 @@ vi.mock("../ipfs", () => ({
 describe("ProfilePage", () => {
   function makeProps(overrides: Partial<any> = {}) {
     return {
+      isOwner: false,
       address: "0xabc",
       name: "",
       bio: "",
       avatarHue: 123,
       avatarUrl: "",
+      onAdminSetPosterAllowed: vi.fn(),
+      onAdminDeleteAll: vi.fn(),
+      onAdminSetProfile: vi.fn(),
       isFollowing: undefined as boolean | undefined,
       onToggleFollow: vi.fn(),
       posts: [],

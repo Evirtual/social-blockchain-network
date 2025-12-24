@@ -55,6 +55,7 @@ describe("HomePage", () => {
     authorIdentity.set("0xbbb", { name: "Bob", hue: 1 });
 
     return {
+      isOwner: false,
       selfAvatarHue: 1,
       ipfsConfigured: true,
       onOpenComposer: vi.fn(),

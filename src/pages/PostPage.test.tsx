@@ -10,6 +10,7 @@ vi.mock("../components/Feed", () => ({
 describe("PostPage", () => {
   function makeProps(overrides: Partial<any> = {}) {
     return {
+      isOwner: false,
       tokenId: "1",
       post: {
         tokenId: "1",

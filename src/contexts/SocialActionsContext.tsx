@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { ethers } from "ethers";
 import type { Draft, Post } from "../types";
 import { createMetadataUri } from "../lib/metadata";
