@@ -3,6 +3,7 @@ import { Feed } from "../components/Feed";
 import { useMemo, useState } from "react";
 
 type Props = {
+  isOwner: boolean;
   selfAvatarHue: number;
   ipfsConfigured: boolean;
   onOpenComposer: () => void;
@@ -131,6 +132,7 @@ export function HomePage(props: Props) {
         isLoading={props.isFeedLoading}
         loadingText={props.status}
         posts={filteredPosts}
+        isOwner={props.isOwner}
         chainId={props.chainId}
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}

@@ -6,6 +6,7 @@ export function HomeRoute() {
 
   return (
     <HomePage
+      isOwner={app.isOwner}
       selfAvatarHue={app.selfAvatarHue}
       ipfsConfigured={app.ipfsConfigured}
       onOpenComposer={app.openComposer}

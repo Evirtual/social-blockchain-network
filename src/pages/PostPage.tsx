@@ -3,6 +3,7 @@ import { Feed } from "../components/Feed";
 import { Link, useLocation } from "react-router-dom";
 
 type Props = {
+  isOwner: boolean;
   tokenId: string;
   post: Post | null;
   comments: PostComment[];
@@ -72,6 +73,7 @@ export function PostPage(props: Props) {
               hideHeader
               singleColumn
               posts={[props.post]}
+              isOwner={props.isOwner}
               chainId={props.chainId}
               walletAddress={props.walletAddress}
               authorIdentity={props.authorIdentity}

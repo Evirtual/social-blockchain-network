@@ -23,7 +23,12 @@ const mocks = vi.hoisted(() => {
       onComposerImageUrlChange: vi.fn(),
       onSelectComposerFile: vi.fn(),
       onComposerClearImage: vi.fn(),
-      mintPost: vi.fn()
+      mintPost: vi.fn(),
+
+      approvalRequired: false,
+      approvalRequested: false,
+      requestApproval: vi.fn(),
+      dismissApproval: vi.fn()
     }
   };
 });

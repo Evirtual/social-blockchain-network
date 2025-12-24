@@ -18,6 +18,27 @@ vi.mock("../contexts/AppContext", () => {
   };
 });
 
+vi.mock("../contexts/ContractContext", () => {
+  return {
+    useContract: () => ({
+      getReadContract: async () => ({ owner: async () => "0xOWNER" }),
+      getWriteContract: async () => ({ setPosterAllowed: async () => ({ wait: async () => ({}) }) }),
+      ensureContractDeployedOnCurrentNetwork: async () => undefined
+    })
+  };
+});
+
+vi.mock("../contexts/useContractTx", () => {
+  return {
+    useContractTx: () => ({
+      runContractTx: async (_label: string, send: () => Promise<any>) => {
+        await send();
+        return undefined;
+      }
+    })
+  };
+});
+
 function setMatchMedia({ matches, modern }: { matches: boolean; modern: boolean }) {
   const listeners = new Set<(ev?: any) => void>();
 

@@ -84,6 +84,20 @@ vi.mock("../contexts/AppContext", () => ({
   useApp: () => mocks.app
 }));
 
+vi.mock("../contexts/useContractTx", () => ({
+  useContractTx: () => ({
+    runContractTx: vi.fn(async (_label: string, send: () => Promise<any>) => await send())
+  })
+}));
+
+vi.mock("../contexts/ContractContext", () => ({
+  useContract: () => ({
+    ensureContractDeployedOnCurrentNetwork: vi.fn(async () => undefined),
+    getReadContract: vi.fn(async () => ({})),
+    getWriteContract: vi.fn(async () => ({}))
+  })
+}));
+
 vi.mock("../pages/AccountPage", () => ({
   AccountPage: (props: any) => (
     <div

@@ -5,6 +5,7 @@ import type { Draft, Post } from "../types";
 import { useMemo, useState } from "react";
 
 type Props = {
+  isOwner: boolean;
   sidebar: ComponentProps<typeof Sidebar>;
 
   status: string;
@@ -130,6 +131,7 @@ export function AccountPage(props: Props) {
           isLoading={activeLoading}
           loadingText={props.status}
           posts={activePosts}
+          isOwner={props.isOwner}
           chainId={props.chainId}
           walletAddress={props.walletAddress}
           authorIdentity={props.authorIdentity}

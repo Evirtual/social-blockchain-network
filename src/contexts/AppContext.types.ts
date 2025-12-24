@@ -37,6 +37,11 @@ export type AppContextValue = {
   onSelectComposerFile: (file: File | null) => Promise<void>;
   mintPost: () => Promise<void>;
 
+  approvalRequired: boolean;
+  approvalRequested: boolean;
+  requestApproval: () => Promise<void>;
+  dismissApproval: () => void;
+
   // Feed + posts
   posts: Post[];
   refreshFeed: () => Promise<void>;
@@ -129,4 +134,7 @@ export type AppContextValue = {
   stableHueFromSeed: (seed: string) => number;
   getNativeSymbol: (chainId: string | null) => string;
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
+
+  // Owner/admin UX
+  isOwner: boolean;
 };

@@ -2,7 +2,11 @@ import { ethers } from "ethers";
 
 export const SOCIAL_ABI = [
   "event ProfileUpdated(address indexed account, string name, string bio, string avatar)",
+  "event ProfileModerated(address indexed admin, address indexed account, string name, string bio, string avatar)",
+  "event ProfileClearedByAdmin(address indexed admin, address indexed account)",
   "event PostMinted(address indexed author, uint256 indexed tokenId, string tokenURI)",
+  "event PosterAllowed(address indexed account, bool allowed)",
+  "event PosterApprovalRequested(address indexed account)",
   "event PostLiked(address indexed liker, uint256 indexed tokenId)",
   "event PostUnliked(address indexed unliker, uint256 indexed tokenId)",
   "event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment)",
@@ -13,7 +17,9 @@ export const SOCIAL_ABI = [
   "event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei)",
   "event TipsWithdrawn(address indexed author, uint256 amountWei)",
   "event PostUpdated(address indexed author, uint256 indexed tokenId, string tokenURI)",
+  "event PostUpdatedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId, string tokenURI)",
   "event PostBurned(address indexed author, uint256 indexed tokenId)",
+  "event PostBurnedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId)",
   "event PostFrozen(address indexed author, uint256 indexed tokenId)",
 
   "function MAX_NAME_LENGTH() external view returns (uint256)",
@@ -22,7 +28,18 @@ export const SOCIAL_ABI = [
   "function MAX_COMMENT_LENGTH() external view returns (uint256)",
 
   "function setProfile(string name, string bio, string avatar) external",
+  "function adminSetProfile(address account, string name, string bio, string avatar) external",
+  "function adminClearProfile(address account) external",
   "function profileOf(address account) external view returns (string name, string bio, string avatar)",
+  "function owner() external view returns (address)",
+  "function setPosterAllowed(address account, bool allowed) external",
+  "function isPosterAllowed(address account) external view returns (bool)",
+  "function hasPosterRequested(address account) external view returns (bool)",
+  "function wasPosterDisapproved(address account) external view returns (bool)",
+
+  // Ownable
+  "function owner() external view returns (address)",
+  "function requestPosterApproval() external",
   "function mintPost(string tokenUri) external returns (uint256 tokenId)",
   "function likePost(uint256 tokenId) external",
   "function unlikePost(uint256 tokenId) external",
@@ -40,7 +57,9 @@ export const SOCIAL_ABI = [
   "function tipPost(uint256 tokenId) external payable",
   "function withdrawTips() external",
   "function updatePostURI(uint256 tokenId, string tokenUri) external",
+  "function adminUpdatePostURI(uint256 tokenId, string tokenUri) external",
   "function burnPost(uint256 tokenId) external",
+  "function adminBurnPost(uint256 tokenId) external",
   "function likesOf(uint256 tokenId) external view returns (uint256)",
   "function commentsOf(uint256 tokenId) external view returns (uint256)",
   "function sharesOf(uint256 tokenId) external view returns (uint256)",

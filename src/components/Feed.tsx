@@ -13,6 +13,7 @@ type Props = {
   isLoading?: boolean;
   loadingText?: string;
   posts: Post[];
+  isOwner?: boolean;
   chainId: string | null;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
@@ -53,6 +54,7 @@ export function Feed({
   isLoading,
   loadingText,
   posts,
+  isOwner,
   chainId,
   walletAddress,
   authorIdentity,
@@ -109,6 +111,7 @@ export function Feed({
           const authorHue = info?.hue ?? stableHueFromSeed("guest");
           const authorAvatarUrl = info?.avatarUrl;
           const isMine = !!walletAddress && !!post.author && walletAddress.toLowerCase() === post.author.toLowerCase();
+          const canModerate = !!isOwner;
           const openPanel = getPanel(post.tokenId);
           const compositeKey = `${post.tokenId}:${post.contextTag ?? "post"}:${index}`;
 
@@ -124,6 +127,7 @@ export function Feed({
               authorHue={authorHue}
               authorAvatarUrl={authorAvatarUrl}
               isMine={isMine}
+              canModerate={canModerate}
               editingTokenId={editingTokenId}
               editDraft={editDraft}
               isEditImageLoading={isEditImageLoading}

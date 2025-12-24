@@ -5,6 +5,8 @@ import { Modal } from "./Modal";
 import { useState } from "react";
 import { useApp } from "../contexts/AppContext";
 import { useEffect } from "react";
+import { useContract } from "../contexts/ContractContext";
+import { useContractTx } from "../contexts/useContractTx";
 
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(() => {
@@ -105,6 +107,8 @@ type ProfileCardProps = Pick<
 
 export function ProfileCard(props: ProfileCardProps) {
   const app = useApp();
+  const contract = useContract();
+  const { runContractTx } = useContractTx();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
 
@@ -120,6 +124,275 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
+
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!props.walletAddress) {
+      setOwnerAddress(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const readContract = await contract.getReadContract();
+        const o = (await (readContract as any).owner()) as string;
+        if (!cancelled) setOwnerAddress(o);
+      } catch {
+        if (!cancelled) setOwnerAddress(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [contract, props.walletAddress]);
+
+  const isOwner =
+    !!props.walletAddress && !!ownerAddress && props.walletAddress.toLowerCase() === ownerAddress.toLowerCase();
+
+  const PENDING_APPROVALS_KEY = "pendingPosterApprovals";
+  function readPendingApprovals(): string[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(PENDING_APPROVALS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim());
+    } catch {
+      return [];
+    }
+  }
+
+  function writePendingApprovals(next: string[]) {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(PENDING_APPROVALS_KEY, JSON.stringify(next));
+  }
+
+  const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => readPendingApprovals());
+  const [pendingInput, setPendingInput] = useState("");
+  const [approvalsError, setApprovalsError] = useState<string | null>(null);
+  const [onChainRequests, setOnChainRequests] = useState<string[]>([]);
+  const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
+  const [posterDisapprovedEverByAddress, setPosterDisapprovedEverByAddress] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!isApprovalsOpen) return;
+    setPendingApprovals(readPendingApprovals());
+  }, [isApprovalsOpen]);
+
+  useEffect(() => {
+    if (!isApprovalsOpen) return;
+    if (!isOwner) {
+      setOnChainRequests([]);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const readContract = await contract.getReadContract();
+        const runner: any = (readContract as any).runner;
+        const provider: any = runner?.provider ?? runner;
+        const latest = (await provider?.getBlockNumber?.()) ?? 0;
+        const fromBlock = Math.max(0, Number(latest) - 200_000);
+
+        const logs = (await (readContract as any).queryFilter(
+          (readContract as any).filters.PosterApprovalRequested(),
+          fromBlock,
+          latest
+        )) as any[];
+
+        const uniq: string[] = [];
+        const seen = new Set<string>();
+        for (const l of logs) {
+          const addr = (l?.args?.[0] as string | undefined) ?? "";
+          if (!addr) continue;
+          const key = addr.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push(addr);
+          if (uniq.length >= 50) break;
+        }
+
+        if (!cancelled) setOnChainRequests(uniq);
+      } catch {
+        if (!cancelled) setOnChainRequests([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contract, isApprovalsOpen, isOwner]);
+
+  useEffect(() => {
+    if (!isApprovalsOpen) return;
+    if (!isOwner) return;
+
+    const byKey = new Map<string, string>();
+    for (const a of [...pendingApprovals, ...onChainRequests]) {
+      const raw = (a ?? "").trim();
+      if (!raw) continue;
+      if (!ethers.isAddress(raw)) continue;
+      const key = raw.toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, raw);
+    }
+
+    const addrs = Array.from(byKey.values());
+    if (addrs.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const readContract = await contract.getReadContract();
+        const checks = await Promise.all(
+          addrs.map(async (a) => {
+            try {
+              const allowed = (await (readContract as any).isPosterAllowed(a)) as boolean;
+              const disapprovedEver = (await (readContract as any).wasPosterDisapproved(a)) as boolean;
+              return { a, allowed, disapprovedEver };
+            } catch {
+              return { a, allowed: false, disapprovedEver: false };
+            }
+          })
+        );
+
+        if (cancelled) return;
+        setPosterAllowedByAddress((prev) => {
+          const next = { ...prev };
+          for (const c of checks) next[c.a.toLowerCase()] = c.allowed;
+          return next;
+        });
+
+        setPosterDisapprovedEverByAddress((prev) => {
+          const next = { ...prev };
+          for (const c of checks) next[c.a.toLowerCase()] = c.disapprovedEver;
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contract, isApprovalsOpen, isOwner, pendingApprovals, onChainRequests]);
+
+  function addPendingApproval(raw: string) {
+    const addr = raw.trim();
+    if (!ethers.isAddress(addr)) {
+      setApprovalsError("Invalid address");
+      return;
+    }
+    const nextLower = addr.toLowerCase();
+    const existing = pendingApprovals.map((a) => a.toLowerCase());
+    if (existing.includes(nextLower)) {
+      setApprovalsError("Already in list");
+      return;
+    }
+    const next = [addr, ...pendingApprovals];
+    setApprovalsError(null);
+    setPendingApprovals(next);
+    writePendingApprovals(next);
+    setPendingInput("");
+  }
+
+  async function approvePending(addr: string) {
+    setApprovalsError(null);
+    await runContractTx("Approve poster", async () => {
+      const writeContract = await contract.getWriteContract();
+      return (writeContract as any).setPosterAllowed(addr, true);
+    });
+
+    setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
+  }
+
+  async function disapprovePending(addr: string) {
+    setApprovalsError(null);
+    await runContractTx("Disapprove poster", async () => {
+      const writeContract = await contract.getWriteContract();
+      return (writeContract as any).setPosterAllowed(addr, false);
+    });
+
+    setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: false }));
+    setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
+  }
+
+  async function deleteAllAndBlock(addr: string) {
+    const normalized = addr.trim();
+    if (!ethers.isAddress(normalized)) {
+      setApprovalsError("Invalid address");
+      return;
+    }
+
+    setApprovalsError(null);
+
+    try {
+      await runContractTx("Block poster", async () => {
+        const writeContract = await contract.getWriteContract();
+        return (writeContract as any).setPosterAllowed(normalized, false);
+      });
+    } catch {
+      return;
+    }
+
+    setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
+    setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: true }));
+
+    // Best-effort: clear profile and burn posts. If one step fails, the others can still proceed.
+    try {
+      await runContractTx("Clear profile", async () => {
+        const writeContract = await contract.getWriteContract();
+        return (writeContract as any).adminClearProfile(normalized);
+      });
+    } catch {
+      // ignore
+    }
+
+    let tokenIds: bigint[] = [];
+    try {
+      const readContract = await contract.getReadContract();
+      const runner: any = (readContract as any).runner;
+      const provider: any = runner?.provider ?? runner;
+      const latest = (await provider?.getBlockNumber?.()) ?? 0;
+
+      const logs = (await (readContract as any).queryFilter(
+        (readContract as any).filters.PostMinted(normalized),
+        0,
+        latest
+      )) as any[];
+
+      const uniq = new Set<string>();
+      for (const l of logs) {
+        const id = l?.args?.[1] as bigint | undefined;
+        if (typeof id !== "bigint") continue;
+        uniq.add(id.toString());
+      }
+      tokenIds = Array.from(uniq).map((s) => BigInt(s));
+    } catch {
+      setApprovalsError("Blocked user, but failed to load their posts for deletion.");
+      tokenIds = [];
+    }
+
+    for (const tokenId of tokenIds) {
+      try {
+        await runContractTx(`Delete post #${tokenId.toString()}`, async () => {
+          const writeContract = await contract.getWriteContract();
+          return (writeContract as any).adminBurnPost(tokenId);
+        });
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  function removePending(addr: string) {
+    const next = pendingApprovals.filter((a) => a.toLowerCase() !== addr.toLowerCase());
+    setPendingApprovals(next);
+    writePendingApprovals(next);
+  }
 
   useEffect(() => {
     if (!isFollowersOpen) return;
@@ -209,12 +482,101 @@ export function ProfileCard(props: ProfileCardProps) {
             <button className="secondary" type="button" onClick={props.onStartEditProfile}>
               Edit profile
             </button>
+            {isOwner ? (
+              <button className="secondary" type="button" onClick={() => setIsApprovalsOpen(true)}>
+                Approvals
+              </button>
+            ) : null}
             <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
               Disconnect
             </button>
           </div>
         ) : null}
       </div>
+
+      <Modal open={isApprovalsOpen} title="Approvals" onClose={() => setIsApprovalsOpen(false)}>
+        <div className="composer">
+          <div className="muted">Approve wallets that are allowed to mint posts during testing.</div>
+
+          <div className="row">
+            <input
+              className="input"
+              value={pendingInput}
+              onChange={(e) => setPendingInput(e.target.value)}
+              placeholder="0x... wallet address"
+            />
+            <button className="secondary" type="button" onClick={() => addPendingApproval(pendingInput)}>
+              Add
+            </button>
+          </div>
+
+          {approvalsError ? <div className="muted">{approvalsError}</div> : null}
+
+          <div className="list">
+            {pendingApprovals.length === 0 ? null : (
+              pendingApprovals.map((addr) => (
+                <div key={addr} className="listRow" role="listitem">
+                  <span className="listRowLeft">
+                    <span className="value">{props.shortAddress(addr)}</span>
+                    {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
+                  </span>
+                  <span className="rowActions">
+                    <button className="secondary" type="button" onClick={() => removePending(addr)}>
+                      Remove
+                    </button>
+                    {posterAllowedByAddress[addr.toLowerCase()] ? null : (
+                      <button className="primary" type="button" onClick={() => void approvePending(addr)}>
+                        Approve
+                      </button>
+                    )}
+                    {posterAllowedByAddress[addr.toLowerCase()] ? (
+                      <button className="secondary" type="button" onClick={() => void disapprovePending(addr)}>
+                        Disapprove
+                      </button>
+                    ) : null}
+                    <button className="secondary" type="button" onClick={() => void deleteAllAndBlock(addr)}>
+                      Delete all
+                    </button>
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {onChainRequests.length ? (
+            <>
+              <div className="muted">
+                Requests from chain
+              </div>
+              <div className="list">
+                {onChainRequests.map((addr) => (
+                  <div key={addr} className="listRow" role="listitem">
+                    <span className="listRowLeft">
+                      <span className="value">{props.shortAddress(addr)}</span>
+                      {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
+                    </span>
+                    <span className="rowActions">
+                      {posterAllowedByAddress[addr.toLowerCase()] ? null : (
+                        <button className="primary" type="button" onClick={() => void approvePending(addr)}>
+                          Approve
+                        </button>
+                      )}
+                      {posterAllowedByAddress[addr.toLowerCase()] ? (
+                        <button className="secondary" type="button" onClick={() => void disapprovePending(addr)}>
+                          Disapprove
+                        </button>
+                      ) : null}
+                      <button className="secondary" type="button" onClick={() => void deleteAllAndBlock(addr)}>
+                        Delete all
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </Modal>
 
       <Modal open={props.isEditingProfile} title="Edit profile" onClose={props.onCancelEditProfile}>
         <div className="composer">

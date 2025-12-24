@@ -37,8 +37,18 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(uint256 => bool) private _postFrozen;
 
+    mapping(address => bool) private _posterAllowed;
+
+    mapping(address => bool) private _posterRequested;
+
+    mapping(address => bool) private _posterDisapprovedEver;
+
     event PostMinted(address indexed author, uint256 indexed tokenId, string tokenURI);
+    event PosterAllowed(address indexed account, bool allowed);
+    event PosterApprovalRequested(address indexed account);
     event ProfileUpdated(address indexed account, string name, string bio, string avatar);
+    event ProfileModerated(address indexed admin, address indexed account, string name, string bio, string avatar);
+    event ProfileClearedByAdmin(address indexed admin, address indexed account);
     event PostLiked(address indexed liker, uint256 indexed tokenId);
     event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment);
     event PostShared(address indexed sharer, uint256 indexed tokenId);
@@ -49,20 +59,81 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
     event TipsWithdrawn(address indexed author, uint256 amountWei);
     event PostUpdated(address indexed author, uint256 indexed tokenId, string tokenURI);
+    event PostUpdatedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId, string tokenURI);
     event PostBurned(address indexed author, uint256 indexed tokenId);
+    event PostBurnedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId);
     event PostFrozen(address indexed author, uint256 indexed tokenId);
 
     constructor() ERC721("Minted Social Posts", "MSP") Ownable(msg.sender) {
         _nextTokenId = 1;
+        _posterAllowed[msg.sender] = true;
+        emit PosterAllowed(msg.sender, true);
     }
 
-    function setProfile(string calldata name, string calldata bio, string calldata avatar) external {
+    modifier onlyAllowedPoster() {
+        require(msg.sender == owner() || _posterAllowed[msg.sender], "Poster not allowed");
+        _;
+    }
+
+    function setPosterAllowed(address account, bool allowed) external onlyOwner {
+        require(account != address(0), "Invalid account");
+        _posterAllowed[account] = allowed;
+        if (allowed) {
+            _posterRequested[account] = false;
+        } else {
+            _posterDisapprovedEver[account] = true;
+        }
+        emit PosterAllowed(account, allowed);
+    }
+
+    function isPosterAllowed(address account) external view returns (bool) {
+        return account == owner() || _posterAllowed[account];
+    }
+
+    function hasPosterRequested(address account) external view returns (bool) {
+        return _posterRequested[account];
+    }
+
+    function wasPosterDisapproved(address account) external view returns (bool) {
+        return _posterDisapprovedEver[account];
+    }
+
+    function requestPosterApproval() external {
+        require(msg.sender != address(0), "Invalid account");
+        require(msg.sender != owner(), "Owner already allowed");
+        require(!_posterAllowed[msg.sender], "Already allowed");
+        require(!_posterRequested[msg.sender], "Already requested");
+
+        _posterRequested[msg.sender] = true;
+        emit PosterApprovalRequested(msg.sender);
+    }
+
+    function setProfile(string calldata name, string calldata bio, string calldata avatar) external onlyAllowedPoster {
         require(bytes(name).length <= MAX_NAME_LENGTH, "Name too long");
         require(bytes(bio).length <= MAX_BIO_LENGTH, "Bio too long");
         require(bytes(avatar).length <= MAX_AVATAR_LENGTH, "Avatar too long");
 
         _profiles[msg.sender] = Profile({name: name, bio: bio, avatar: avatar});
         emit ProfileUpdated(msg.sender, name, bio, avatar);
+    }
+
+    function adminSetProfile(address account, string calldata name, string calldata bio, string calldata avatar) external onlyOwner {
+        require(account != address(0), "Invalid account");
+        require(bytes(name).length <= MAX_NAME_LENGTH, "Name too long");
+        require(bytes(bio).length <= MAX_BIO_LENGTH, "Bio too long");
+        require(bytes(avatar).length <= MAX_AVATAR_LENGTH, "Avatar too long");
+
+        _profiles[account] = Profile({name: name, bio: bio, avatar: avatar});
+        emit ProfileUpdated(account, name, bio, avatar);
+        emit ProfileModerated(msg.sender, account, name, bio, avatar);
+    }
+
+    function adminClearProfile(address account) external onlyOwner {
+        require(account != address(0), "Invalid account");
+
+        delete _profiles[account];
+        emit ProfileUpdated(account, "", "", "");
+        emit ProfileClearedByAdmin(msg.sender, account);
     }
 
     function profileOf(
@@ -72,7 +143,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return (p.name, p.bio, p.avatar);
     }
 
-    function mintPost(string calldata tokenUri) external returns (uint256 tokenId) {
+    function mintPost(string calldata tokenUri) external onlyAllowedPoster returns (uint256 tokenId) {
         tokenId = _nextTokenId;
         _nextTokenId += 1;
 
@@ -100,6 +171,14 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
         _setTokenURI(tokenId, tokenUri);
         emit PostUpdated(msg.sender, tokenId, tokenUri);
+    }
+
+    function adminUpdatePostURI(uint256 tokenId, string calldata tokenUri) external onlyOwner {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        address author = _author[tokenId];
+
+        _setTokenURI(tokenId, tokenUri);
+        emit PostUpdatedByAdmin(msg.sender, author, tokenId, tokenUri);
     }
 
     function freezePost(uint256 tokenId) external {
@@ -130,6 +209,22 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _postFrozen[tokenId];
 
         emit PostBurned(msg.sender, tokenId);
+    }
+
+    function adminBurnPost(uint256 tokenId) external onlyOwner {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        address author = _author[tokenId];
+
+        _burn(tokenId);
+
+        delete _author[tokenId];
+        delete _likes[tokenId];
+        delete _comments[tokenId];
+        delete _shares[tokenId];
+        delete _tipsWei[tokenId];
+        delete _postFrozen[tokenId];
+
+        emit PostBurnedByAdmin(msg.sender, author, tokenId);
     }
 
     function likePost(uint256 tokenId) external {

@@ -42,6 +42,22 @@ export function AppShell() {
         />
       </Modal>
 
+      <Modal open={app.approvalRequired} title="Request posting approval" onClose={app.dismissApproval}>
+        <div className="composer">
+          <div className="muted">
+            Posting is in closed beta. Request approval, then wait for an admin to approve your wallet.
+          </div>
+          <div className="rowActions">
+            <button className="secondary" type="button" onClick={app.dismissApproval}>
+              Close
+            </button>
+            <button className="primary" type="button" onClick={app.requestApproval}>
+              {app.approvalRequested ? "Requested" : "Request approval"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/post/:tokenId" element={<PostRoute />} />

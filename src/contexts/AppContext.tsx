@@ -210,6 +210,11 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       onSelectComposerFile: composer.onSelectComposerFile,
       mintPost: composer.mintPost,
 
+      approvalRequired: composer.approvalRequired,
+      approvalRequested: composer.approvalRequested,
+      requestApproval: composer.requestApproval,
+      dismissApproval: composer.dismissApproval,
+
       // Feed + posts
       posts: feed.posts,
       refreshFeed,
@@ -295,7 +300,10 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       shortAddress,
       stableHueFromSeed,
       getNativeSymbol,
-      getExplorerTxUrl
+      getExplorerTxUrl,
+
+      // Owner/admin UX
+      isOwner: contract.isOwner
     }),
     [
       theme.theme,
@@ -324,6 +332,10 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       composer.onComposerClearImage,
       composer.onSelectComposerFile,
       composer.mintPost,
+      composer.approvalRequired,
+      composer.approvalRequested,
+      composer.requestApproval,
+      composer.dismissApproval,
       feed.posts,
       refreshFeed,
       profile.authorIdentity,
@@ -384,7 +396,8 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       follow.loadFollowersForAddress,
       follow.followingByAddress,
       follow.isLoadingFollowingByAddress,
-      follow.loadFollowingForAddress
+      follow.loadFollowingForAddress,
+      contract.isOwner
     ]
   );
 

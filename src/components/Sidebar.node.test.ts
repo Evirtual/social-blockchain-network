@@ -15,6 +15,27 @@ vi.mock("../contexts/AppContext", () => {
   };
 });
 
+vi.mock("../contexts/ContractContext", () => {
+  return {
+    useContract: () => ({
+      getReadContract: async () => ({ owner: async () => "0xOWNER" }),
+      getWriteContract: async () => ({ setPosterAllowed: async () => ({ wait: async () => ({}) }) }),
+      ensureContractDeployedOnCurrentNetwork: async () => undefined
+    })
+  };
+});
+
+vi.mock("../contexts/useContractTx", () => {
+  return {
+    useContractTx: () => ({
+      runContractTx: async (_label: string, send: () => Promise<any>) => {
+        await send();
+        return undefined;
+      }
+    })
+  };
+});
+
 describe("Sidebar (node)", () => {
   it("can server-render when window is undefined", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});

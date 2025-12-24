@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ethers } from "ethers";
 import type { Draft, Post } from "../types";
 import { createMetadataUri } from "../lib/metadata";
@@ -12,6 +12,8 @@ import { useWallet } from "./WalletContext";
 import { useContractTx } from "./useContractTx";
 
 export type SocialActionsContextValue = {
+  isOwner: boolean;
+
   // Per-post UI state + actions
   editingTokenId: string | null;
   editDraft: Draft;
@@ -54,6 +56,8 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
   const ipfsConfigured = useMemo(() => hasPinata(), []);
 
+  const isOwner = contract.isOwner;
+
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>({ title: "", body: "", imageUrl: "", imageDataUrl: "" });
   const [editUploadedImageBlob, setEditUploadedImageBlob] = useState<Blob | null>(null);
@@ -78,7 +82,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         try {
           const readContract = await getReadContract();
           const frozen = (await (readContract as any).isPostFrozen(BigInt(post.tokenId))) as boolean;
-          if (frozen) {
+          if (frozen && !isOwner) {
             setStatus("This post is frozen and can no longer be edited.");
             return;
           }
@@ -92,7 +96,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         setEditUploadedImageFilename("");
       })();
     },
-    [getReadContract, setStatus]
+    [getReadContract, isOwner, setStatus]
   );
 
   const cancelEditPost = useCallback(() => {
@@ -277,13 +281,20 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         }
       }
 
-      await runContractTx("Edit post", () => writeContract.updatePostURI(tokenIdBig, tokenUri));
+      const post = feed.posts.find((p) => p.tokenId === editingTokenId);
+      const author = post?.author;
+      const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
+      const send = isOwner && !isMine
+        ? () => (writeContract as any).adminUpdatePostURI(tokenIdBig, tokenUri)
+        : () => (writeContract as any).updatePostURI(tokenIdBig, tokenUri);
+
+      await runContractTx("Edit post", send);
       cancelEditPost();
       await feed.refreshFeed();
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus]);
+  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus]);
 
   const burnPost = useCallback(async (tokenId: string) => {
     try {
@@ -294,7 +305,14 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(tokenId);
-      await runContractTx("Burn post", () => writeContract.burnPost(tokenIdBig));
+      const post = feed.posts.find((p) => p.tokenId === tokenId);
+      const author = post?.author;
+      const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
+      const send = isOwner && !isMine
+        ? () => (writeContract as any).adminBurnPost(tokenIdBig)
+        : () => (writeContract as any).burnPost(tokenIdBig);
+
+      await runContractTx("Burn post", send);
 
       if (editingTokenId === tokenId) {
         cancelEditPost();
@@ -321,7 +339,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, getWriteContract, runContractTx, editingTokenId, cancelEditPost, feed, setStatus]);
+  }, [walletAddress, isOwner, getWriteContract, runContractTx, editingTokenId, cancelEditPost, feed, setStatus]);
 
   const handleTip = useCallback(async (tokenId: string) => {
     try {
@@ -438,6 +456,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
   const value = useMemo<SocialActionsContextValue>(
     () => ({
+      isOwner,
       editingTokenId,
       editDraft,
       isEditImageLoading,
@@ -458,6 +477,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       withdrawTips
     }),
     [
+      isOwner,
       editingTokenId,
       editDraft,
       isEditImageLoading,

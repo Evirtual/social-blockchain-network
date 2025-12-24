@@ -36,7 +36,12 @@ const mocks = vi.hoisted(() => {
       dismiss: vi.fn()
     },
     writeContract: {
-      mintPost: vi.fn().mockResolvedValue({})
+      mintPost: vi.fn().mockResolvedValue({}),
+      requestPosterApproval: vi.fn().mockResolvedValue({})
+    } as any,
+    readContract: {
+      isPosterAllowed: vi.fn().mockResolvedValue(true),
+      hasPosterRequested: vi.fn().mockResolvedValue(false)
     } as any,
     feedState,
     setPosts: vi.fn((updater: any) => {
@@ -80,7 +85,8 @@ vi.mock("./TxNotificationsContext", () => ({
 
 vi.mock("./ContractContext", () => ({
   useContract: () => ({
-    getWriteContract: async () => mocks.writeContract
+    getWriteContract: async () => mocks.writeContract,
+    getReadContract: async () => mocks.readContract
   })
 }));
 
@@ -120,6 +126,11 @@ beforeEach(() => {
   mocks.setStatus.mockClear();
   mocks.runContractTx.mockClear();
   mocks.writeContract.mintPost.mockClear();
+  mocks.writeContract.requestPosterApproval.mockClear();
+  mocks.readContract.isPosterAllowed.mockClear();
+  mocks.readContract.isPosterAllowed.mockResolvedValue(true);
+  mocks.readContract.hasPosterRequested.mockClear();
+  mocks.readContract.hasPosterRequested.mockResolvedValue(false);
   mocks.feedState.posts = [];
 
   mocks.parseLog.mockReset();

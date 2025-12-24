@@ -17,6 +17,7 @@ type Props = {
   authorHue: number;
   authorAvatarUrl?: string;
   isMine: boolean;
+  canModerate?: boolean;
 
   editingTokenId: string | null;
   editDraft: Draft;
@@ -98,7 +99,7 @@ export function PostCard(props: Props) {
                   <span>Saved</span>
                 </span>
               ) : null}
-              {props.isMine && props.editingTokenId !== tokenId ? (
+              {(props.isMine || props.canModerate) && props.editingTokenId !== tokenId ? (
                 <span className="postTokenActions">
                   <button
                     className="ghost iconButton"

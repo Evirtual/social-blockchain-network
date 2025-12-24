@@ -44,6 +44,9 @@ export type ContractContextValue = {
   contractDeployed: boolean | null;
   withdrawableTipsWei: bigint;
 
+  ownerAddress: string | null;
+  isOwner: boolean;
+
   requireContractAddress: () => string;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: () => Promise<ReturnType<typeof getSocialContract>>;
@@ -60,6 +63,7 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
 
   const [contractDeployed, setContractDeployed] = useState<boolean | null>(null);
   const [withdrawableTipsWei, setWithdrawableTipsWei] = useState<bigint>(0n);
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
 
   const chainIdNumberRef = useRef<number | null>(null);
 
@@ -108,6 +112,30 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
     return getSocialContract(address, provider);
   }, [provider, requireContractAddress]);
 
+  const refreshOwner = useCallback(async () => {
+    if (!provider) {
+      setOwnerAddress(null);
+      return;
+    }
+
+    const addr = contractAddress;
+    if (!addr) {
+      setOwnerAddress(null);
+      return;
+    }
+
+    try {
+      const readContract = getSocialContract(addr, provider);
+      const o = (await (readContract as any).owner()) as string;
+      setOwnerAddress(o);
+    } catch {
+      setOwnerAddress(null);
+    }
+  }, [provider, contractAddress]);
+
+  const isOwner =
+    !!walletAddress && !!ownerAddress && walletAddress.toLowerCase() === ownerAddress.toLowerCase();
+
   const refreshContractState = useCallback(async () => {
     if (!provider) return;
 
@@ -150,6 +178,11 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
     void refreshContractState();
   }, [refreshContractState]);
 
+  // Keep owner in sync with wallet/provider/contract changes.
+  useEffect(() => {
+    void refreshOwner();
+  }, [refreshOwner]);
+
   // Friendly hint when wallet connects but contract address is missing.
   useEffect(() => {
     if (!walletAddress) return;
@@ -164,6 +197,10 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       contractAddress,
       contractDeployed,
       withdrawableTipsWei,
+
+      ownerAddress,
+      isOwner,
+
       requireContractAddress,
       ensureContractDeployedOnCurrentNetwork,
       getReadContract,
@@ -174,6 +211,10 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       contractAddress,
       contractDeployed,
       withdrawableTipsWei,
+
+      ownerAddress,
+      isOwner,
+
       requireContractAddress,
       ensureContractDeployedOnCurrentNetwork,
       getReadContract,

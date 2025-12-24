@@ -28,6 +28,7 @@ export function PostRoute() {
 
   return (
     <PostPage
+      isOwner={app.isOwner}
       tokenId={tokenId}
       post={post}
       comments={app.postComments[tokenId] ?? []}

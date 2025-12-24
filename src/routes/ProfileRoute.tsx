@@ -1,11 +1,17 @@
 import { Navigate, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AccountPage } from "../pages/AccountPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { useApp } from "../contexts/AppContext";
+import { useContractTx } from "../contexts/useContractTx";
+import { useContract } from "../contexts/ContractContext";
+import { ethers } from "ethers";
+import { hasPinata, pinataPinFile } from "../ipfs";
 
 export function ProfileRoute() {
   const app = useApp();
+  const contract = useContract();
+  const { runContractTx } = useContractTx();
   const params = useParams();
   const address = typeof params.address === "string" ? params.address : "";
 
@@ -48,6 +54,35 @@ export function ProfileRoute() {
 
   const filtered = app.posts.filter((p) => p.author?.toLowerCase() === key);
 
+  const [isPosterAllowed, setIsPosterAllowed] = useState<boolean | undefined>(undefined);
+  const [wasPosterDisapprovedEver, setWasPosterDisapprovedEver] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    if (!app.isOwner) return;
+    if (!ethers.isAddress(address)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await contract.ensureContractDeployedOnCurrentNetwork();
+        const readContract = await contract.getReadContract();
+        const allowed = (await (readContract as any).isPosterAllowed(address)) as boolean;
+        const disapprovedEver = (await (readContract as any).wasPosterDisapproved(address)) as boolean;
+        if (cancelled) return;
+        setIsPosterAllowed(allowed);
+        setWasPosterDisapprovedEver(disapprovedEver);
+      } catch {
+        if (cancelled) return;
+        setIsPosterAllowed(undefined);
+        setWasPosterDisapprovedEver(undefined);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, contract, app.isOwner]);
+
   if (isSelf) {
     const selfKey = app.walletAddress!.toLowerCase();
 
@@ -58,6 +93,7 @@ export function ProfileRoute() {
 
     return (
       <AccountPage
+        isOwner={app.isOwner}
         sidebar={{
           walletAddress: app.walletAddress,
           displayName: app.displayName,
@@ -132,6 +168,9 @@ export function ProfileRoute() {
 
   return (
     <ProfilePage
+      isOwner={app.isOwner}
+      isPosterAllowed={isPosterAllowed}
+      wasPosterDisapprovedEver={wasPosterDisapprovedEver}
       address={address}
       name={name}
       bio={bio}
@@ -139,6 +178,116 @@ export function ProfileRoute() {
       avatarUrl={avatarUrl}
       isFollowing={app.isFollowingByAddress[key]}
       onToggleFollow={() => app.toggleFollow(address)}
+      onAdminSetPosterAllowed={async (allowed) => {
+        if (!app.isOwner) return;
+        if (!ethers.isAddress(address)) return;
+
+        await runContractTx(allowed ? "Approve poster" : "Disapprove poster", async () => {
+          const writeContract = await contract.getWriteContract();
+          return (writeContract as any).setPosterAllowed(address, allowed);
+        });
+
+        setIsPosterAllowed(allowed);
+        if (!allowed) setWasPosterDisapprovedEver(true);
+      }}
+      onAdminDeleteAll={async () => {
+        if (!app.isOwner) return;
+        const normalized = address.trim();
+        if (!ethers.isAddress(normalized)) return;
+
+        // Same behavior as Approvals modal: block, clear profile, burn posts.
+        try {
+          await runContractTx("Block poster", async () => {
+            const writeContract = await contract.getWriteContract();
+            return (writeContract as any).setPosterAllowed(normalized, false);
+          });
+        } catch {
+          return;
+        }
+
+        setIsPosterAllowed(false);
+        setWasPosterDisapprovedEver(true);
+
+        try {
+          await runContractTx("Clear profile", async () => {
+            const writeContract = await contract.getWriteContract();
+            return (writeContract as any).adminClearProfile(normalized);
+          });
+        } catch {
+          // ignore
+        }
+
+        try {
+          await app.loadProfile(normalized);
+        } catch {
+          // ignore
+        }
+
+        let tokenIds: bigint[] = [];
+        try {
+          const readContract = await contract.getReadContract();
+          const runner: any = (readContract as any).runner;
+          const provider: any = runner?.provider ?? runner;
+          const latest = (await provider?.getBlockNumber?.()) ?? 0;
+
+          const logs = (await (readContract as any).queryFilter(
+            (readContract as any).filters.PostMinted(normalized),
+            0,
+            latest
+          )) as any[];
+
+          const uniq = new Set<string>();
+          for (const l of logs) {
+            const id = l?.args?.[1] as bigint | undefined;
+            if (typeof id !== "bigint") continue;
+            uniq.add(id.toString());
+          }
+          tokenIds = Array.from(uniq).map((s) => BigInt(s));
+        } catch {
+          tokenIds = [];
+        }
+
+        for (const tokenId of tokenIds) {
+          try {
+            await runContractTx(`Delete post #${tokenId.toString()}`, async () => {
+              const writeContract = await contract.getWriteContract();
+              return (writeContract as any).adminBurnPost(tokenId);
+            });
+          } catch {
+            // continue
+          }
+        }
+
+        try {
+          await app.refreshFeed();
+        } catch {
+          // ignore
+        }
+      }}
+      onAdminSetProfile={async (next) => {
+        if (!app.isOwner) return;
+        if (!ethers.isAddress(address)) return;
+
+        const name = next.name.trim();
+        const bio = next.bio.trim();
+        let avatar = next.avatarUrl.trim();
+
+        if (next.avatarFile) {
+          if (hasPinata()) {
+            const pinned = await pinataPinFile(next.avatarFile, next.avatarFilename || "avatar.png");
+            avatar = `ipfs://${pinned.IpfsHash}`;
+          } else {
+            avatar = next.avatarDataUrl || "";
+          }
+        }
+
+        await runContractTx("Admin set profile", async () => {
+          const writeContract = await contract.getWriteContract();
+          return (writeContract as any).adminSetProfile(address, name, bio, avatar);
+        });
+
+        await app.loadProfile(address);
+      }}
       posts={filtered}
       chainId={app.chainId}
       status={app.status}

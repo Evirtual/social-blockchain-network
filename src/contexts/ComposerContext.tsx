@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { hasPinata, ipfsToHttp } from "../ipfs";
 import type { Draft, Post } from "../types";
 import { socialInterface } from "../contracts/socialPosts";
@@ -26,6 +26,11 @@ export type ComposerContextValue = {
   onComposerClearImage: () => void;
   onSelectComposerFile: (file: File | null) => Promise<void>;
   mintPost: () => Promise<void>;
+
+  approvalRequired: boolean;
+  approvalRequested: boolean;
+  requestApproval: () => Promise<void>;
+  dismissApproval: () => void;
 };
 
 const ComposerContext = createContext<ComposerContextValue | null>(null);
@@ -48,10 +53,72 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
+  const [approvalRequired, setApprovalRequired] = useState(false);
+  const [approvalRequested, setApprovalRequested] = useState(false);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    if (!approvalRequested) return;
+
+    let cancelled = false;
+    const t = window.setInterval(() => {
+      void (async () => {
+        try {
+          const readContract = await contract.getReadContract();
+          const allowed = (await (readContract as any).isPosterAllowed(walletAddress)) as boolean;
+          if (!allowed) return;
+          if (cancelled) return;
+          setApprovalRequired(false);
+          setApprovalRequested(false);
+          setStatus("You’ve been approved. You can post now.");
+        } catch {
+          // ignore
+        }
+      })();
+    }, 3500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [walletAddress, approvalRequested, contract, setStatus]);
+
   const ipfsConfigured = useMemo(() => hasPinata(), []);
 
   const openComposer = useCallback(() => setIsComposerOpen(true), []);
   const closeComposer = useCallback(() => setIsComposerOpen(false), []);
+
+  const dismissApproval = useCallback(() => {
+    setApprovalRequired(false);
+    setApprovalRequested(false);
+  }, []);
+
+  const requestApproval = useCallback(async () => {
+    if (!walletAddress) {
+      setStatus("Connect your wallet first.");
+      return;
+    }
+
+    if (approvalRequested) {
+      setStatus("Approval already requested. Please wait for an admin to approve your wallet.");
+      return;
+    }
+
+    try {
+      await runContractTx("Request posting approval", async () => {
+        const writeContract = await contract.getWriteContract();
+        return (writeContract as any).requestPosterApproval();
+      });
+    } catch {
+      return;
+    }
+
+    // Success: keep the modal open so the user sees confirmation,
+    // but keep polling until approved.
+    setApprovalRequired(true);
+    setApprovalRequested(true);
+    setStatus("Approval requested. An admin must approve your wallet before you can post.");
+  }, [walletAddress, approvalRequested, runContractTx, contract, setStatus]);
 
   const handleDraftChange = useCallback((field: keyof Draft, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
@@ -240,6 +307,28 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setStatus("Connect your wallet first.");
         return;
       }
+
+      try {
+        const readContract = await contract.getReadContract();
+        const allowed = (await (readContract as any).isPosterAllowed(walletAddress)) as boolean;
+        if (!allowed) {
+          const requested = (await (readContract as any).hasPosterRequested(walletAddress)) as boolean;
+          setApprovalRequired(true);
+          setApprovalRequested(Boolean(requested));
+          setIsComposerOpen(false);
+          setStatus(
+            requested
+              ? "Posting is in closed beta. Approval requested — wait for an admin to approve your wallet."
+              : "Posting is in closed beta. Request approval to post."
+          );
+          return;
+        }
+
+        setApprovalRequired(false);
+        setApprovalRequested(false);
+      } catch {
+        // If the pre-check fails, let the mint attempt proceed and surface the revert.
+      }
       if (isImageLoading) {
         setStatus("Please wait for the uploaded image to finish processing.");
         return;
@@ -365,7 +454,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, isImageLoading, draft, getWriteContract, ipfsConfigured, uploadedImageBlob, uploadedImageFilename, feed, runContractTx, setStatus, txNotifications]);
+  }, [walletAddress, contract, isImageLoading, draft, getWriteContract, ipfsConfigured, uploadedImageBlob, uploadedImageFilename, feed, runContractTx, setStatus, txNotifications]);
 
   const value = useMemo<ComposerContextValue>(
     () => ({
@@ -379,7 +468,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       onComposerImageUrlChange,
       onComposerClearImage,
       onSelectComposerFile,
-      mintPost
+      mintPost,
+      approvalRequired,
+      approvalRequested,
+      requestApproval,
+      dismissApproval
     }),
     [
       isComposerOpen,
@@ -392,7 +485,11 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       onComposerImageUrlChange,
       onComposerClearImage,
       onSelectComposerFile,
-      mintPost
+      mintPost,
+      approvalRequired,
+      approvalRequested,
+      requestApproval,
+      dismissApproval
     ]
   );
 

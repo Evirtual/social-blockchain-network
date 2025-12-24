@@ -14,6 +14,34 @@ describe("SocialPosts", () => {
     return { contract, author, other, tipper };
   }
 
+  it("blocks minting for non-allowed wallets unless owner approves", async () => {
+    const { contract, author, other } = await deploy();
+
+    await expect(contract.connect(other).mintPost("ipfs://post-x")).to.be.revertedWith("Poster not allowed");
+
+    await expect(contract.connect(author).setPosterAllowed(other.address, true))
+      .to.emit(contract, "PosterAllowed")
+      .withArgs(other.address, true);
+
+    await expect(contract.connect(other).mintPost("ipfs://post-x"))
+      .to.emit(contract, "PostMinted")
+      .withArgs(other.address, 1n, "ipfs://post-x");
+  });
+
+  it("allows users to request approval once, and clears request on approval", async () => {
+    const { contract, author, other } = await deploy();
+
+    await expect(contract.connect(other).requestPosterApproval())
+      .to.emit(contract, "PosterApprovalRequested")
+      .withArgs(other.address);
+
+    expect(await contract.hasPosterRequested(other.address)).to.equal(true);
+    await expect(contract.connect(other).requestPosterApproval()).to.be.revertedWith("Already requested");
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    expect(await contract.hasPosterRequested(other.address)).to.equal(false);
+  });
+
   it("mints a post and records author", async () => {
     const { contract, author } = await deploy();
 
@@ -89,6 +117,82 @@ describe("SocialPosts", () => {
 
     expect(await contract.exists(1n)).to.equal(false);
     await expect(contract.authorOf(1n)).to.be.revertedWith("Post does not exist");
+  });
+
+  it("owner can clear or override a user's profile", async () => {
+    const { contract, author, other } = await deploy();
+
+    await expect(contract.connect(author).adminSetProfile(other.address, "bad", "bio", "avatar")).to.emit(
+      contract,
+      "ProfileModerated"
+    );
+    expect(await contract.profileOf(other.address)).to.deep.equal(["bad", "bio", "avatar"]);
+
+    await expect(contract.connect(other).adminClearProfile(other.address)).to.be.reverted;
+
+    await expect(contract.connect(author).adminClearProfile(other.address))
+      .to.emit(contract, "ProfileClearedByAdmin")
+      .withArgs(author.address, other.address);
+    expect(await contract.profileOf(other.address)).to.deep.equal(["", "", ""]);
+
+    await expect(contract.connect(author).adminSetProfile(other.address, "clean", "", ""))
+      .to.emit(contract, "ProfileModerated")
+      .withArgs(author.address, other.address, "clean", "", "");
+    expect(await contract.profileOf(other.address)).to.deep.equal(["clean", "", ""]);
+  });
+
+  it("owner can burn any post (moderation)", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).mintPost("ipfs://post-1");
+    await expect(contract.connect(other).adminBurnPost(1n)).to.be.reverted;
+
+    await expect(contract.connect(author).adminBurnPost(1n))
+      .to.emit(contract, "PostBurnedByAdmin")
+      .withArgs(author.address, author.address, 1n);
+
+    expect(await contract.exists(1n)).to.equal(false);
+  });
+
+  it("blocks profile edits for non-approved wallets", async () => {
+    const { contract, author, other } = await deploy();
+
+    await expect(contract.connect(other).setProfile("name", "bio", "avatar")).to.be.revertedWith("Poster not allowed");
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    await expect(contract.connect(other).setProfile("name", "bio", "avatar")).to.emit(contract, "ProfileUpdated");
+  });
+
+  it("tracks whether a wallet was ever disapproved", async () => {
+    const { contract, author, other } = await deploy();
+
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(false);
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(false);
+
+    await contract.connect(author).setPosterAllowed(other.address, false);
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(true);
+
+    // Should remain flagged even if later re-approved.
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(true);
+  });
+
+  it("owner can edit any post (moderation)", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    await contract.connect(other).mintPost("ipfs://post-1");
+
+    await expect(contract.connect(other).adminUpdatePostURI(1n, "ipfs://mod"))
+      .to.be.reverted;
+
+    await expect(contract.connect(author).adminUpdatePostURI(1n, "ipfs://mod"))
+      .to.emit(contract, "PostUpdatedByAdmin")
+      .withArgs(author.address, other.address, 1n, "ipfs://mod");
+
+    expect(await contract.tokenURI(1n)).to.equal("ipfs://mod");
   });
 
   it("setProfile enforces limits and emits", async () => {
@@ -199,11 +303,13 @@ describe("SocialPosts", () => {
   });
 
   it("withdrawTips reverts when recipient rejects ETH (no state loss)", async () => {
-    const { contract, tipper } = await deploy();
+    const { contract, author, tipper } = await deploy();
 
     const Reject = await ethers.getContractFactory("RejectEtherAuthor");
     const reject = await Reject.deploy(await contract.getAddress());
     await reject.waitForDeployment();
+
+    await contract.connect(author).setPosterAllowed(await reject.getAddress(), true);
 
     await reject.mint("ipfs://post-1");
 
