@@ -1,6 +1,7 @@
 import type { Draft, Post } from "../types";
 import { Feed } from "../components/Feed";
 import { useMemo, useState } from "react";
+import { ChainLogo } from "../components/ChainLogos";
 
 type Props = {
   isOwner: boolean;
@@ -17,6 +18,9 @@ type Props = {
 
   posts: Post[];
   chainId: string | null;
+  networkName?: string | null;
+  contractAddress?: string;
+  contractDeployed?: boolean | null;
   status: string;
   isFeedLoading: boolean;
   walletAddress: string | null;
@@ -49,6 +53,21 @@ type Props = {
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
+type SupportedNetwork = {
+  chainId: number;
+  name: string;
+  description: string;
+};
+
+function getSupportedNetworks(): SupportedNetwork[] {
+  // UX requirement: show only mainnets (no chainId display), as pills with logo + name.
+  return [
+    { chainId: 8453, name: "Base", description: "" },
+    { chainId: 1, name: "Ethereum", description: "" },
+    { chainId: 56, name: "BSC", description: "" }
+  ];
+}
+
 export function HomePage(props: Props) {
   const [isHeroDismissed, setIsHeroDismissed] = useState<boolean>(() => {
     try {
@@ -59,6 +78,14 @@ export function HomePage(props: Props) {
   });
 
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("socialBlockchainNetwork.supportedNetworksDismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -83,38 +110,100 @@ export function HomePage(props: Props) {
     ? `${filteredPosts.length} / ${props.posts.length} posts`
     : `${props.posts.length} posts`;
 
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
+  const isDisconnected = !props.walletAddress;
+  const isWrongNetwork =
+    !!props.walletAddress && (props.contractAddress == null || props.contractDeployed === false);
+  const showNetworkCard = (isDisconnected || isWrongNetwork) && !isSupportedNetworksDismissed;
+
+  const showIntroHero = !isHeroDismissed;
+  const heroCount = (showIntroHero ? 1 : 0) + (showNetworkCard ? 1 : 0);
+
+  const currentNetworkLabel = useMemo(() => {
+    if (!props.walletAddress) return "";
+    if (props.networkName && props.networkName.trim()) return props.networkName;
+    if (props.chainId) return `chainId ${props.chainId}`;
+    return "";
+  }, [props.walletAddress, props.networkName, props.chainId]);
+
   return (
     <main className="home">
-      {!isHeroDismissed && (
-        <section className="card hero">
-          <button
-            className="iconButton ghost heroClose"
-            type="button"
-            aria-label="Dismiss intro"
-            onClick={() => {
-              setIsHeroDismissed(true);
-              try {
-                localStorage.setItem("socialBlockchainNetwork.heroDismissed", "1");
-              } catch {
-                // ignore write failures (e.g. private browsing)
-              }
-            }}
-          >
-            ×
-          </button>
+      {showIntroHero || showNetworkCard ? (
+        <div className={heroCount === 1 ? "homeHeroRow homeHeroRowSingle" : "homeHeroRow"}>
+          {showIntroHero ? (
+            <section className="card hero">
+              <button
+                className="iconButton ghost heroClose"
+                type="button"
+                aria-label="Dismiss intro"
+                onClick={() => {
+                  setIsHeroDismissed(true);
+                  try {
+                    localStorage.setItem("socialBlockchainNetwork.heroDismissed", "1");
+                  } catch {
+                    // ignore write failures (e.g. private browsing)
+                  }
+                }}
+              >
+                ×
+              </button>
 
-          <div className="heroTitle">A social blockchain network where posts are NFTs</div>
-          <div className="heroSub muted">
-            Mint posts on-chain. Likes and comments are wallet-signed interactions. Tips go directly to creators.
-          </div>
-          <div className="heroBullets">
-            <div className="pill">On-chain posts</div>
-            <div className="pill">Signed reactions</div>
-            <div className="pill">Creator tips</div>
-            <div className="pill">IPFS media</div>
-          </div>
-        </section>
-      )}
+              <div className="heroTitle">A social blockchain network where posts are NFTs</div>
+              <div className="heroSub muted">
+                Mint posts on-chain. Likes and comments are wallet-signed interactions. Tips go directly to creators.
+              </div>
+              <div className="heroBullets">
+                <div className="pill">On-chain posts</div>
+                <div className="pill">Signed reactions</div>
+                <div className="pill">Creator tips</div>
+                <div className="pill">IPFS media</div>
+              </div>
+            </section>
+          ) : null}
+
+          {showNetworkCard ? (
+            <section className="card hero supportedNetworksHero">
+              <button
+                className="iconButton ghost heroClose"
+                type="button"
+                aria-label="Dismiss supported networks"
+                onClick={() => {
+                  setIsSupportedNetworksDismissed(true);
+                  try {
+                    localStorage.setItem("socialBlockchainNetwork.supportedNetworksDismissed", "1");
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                ×
+              </button>
+
+              <div className="heroTitle">Supported networks</div>
+              <div className="heroSub muted">
+                {isDisconnected
+                  ? "Connect your wallet on the supported mainnet to post, react, and tip."
+                  : "Your wallet is connected, but this app isn’t configured for the current network."}
+              </div>
+              {isWrongNetwork && currentNetworkLabel ? (
+                <div className="pill">Current: {currentNetworkLabel}</div>
+              ) : null}
+
+              <div className="heroBullets" role="list">
+                {supportedNetworks.map((n) => (
+                  <div key={n.chainId} className="pill" role="listitem" aria-label={n.name}>
+                    <span className="pillIcon" aria-hidden="true">
+                      <ChainLogo chainId={n.chainId} size={16} />
+                    </span>
+                    {n.name}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
 
       <Feed
         title="Main Feed"

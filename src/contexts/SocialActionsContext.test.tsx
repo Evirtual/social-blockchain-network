@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     walletAddress: "0x000000000000000000000000000000000000bEEF" as string | null,
+    isOwner: false,
     refreshWalletPanel: vi.fn(),
     setStatus: vi.fn(),
 
@@ -40,7 +41,9 @@ const mocks = vi.hoisted(() => {
     writeContract: {
       freezePost: vi.fn().mockResolvedValue({}),
       updatePostURI: vi.fn().mockResolvedValue({}),
+      adminUpdatePostURI: vi.fn().mockResolvedValue({}),
       burnPost: vi.fn().mockResolvedValue({}),
+      adminBurnPost: vi.fn().mockResolvedValue({}),
       tipPost: vi.fn().mockResolvedValue({}),
       withdrawTips: vi.fn().mockResolvedValue({}),
       commentPost: vi.fn().mockResolvedValue({}),
@@ -98,6 +101,7 @@ vi.mock("./StatusContext", () => ({
 
 vi.mock("./ContractContext", () => ({
   useContract: () => ({
+    isOwner: mocks.isOwner,
     getReadContract: async () => mocks.readContract,
     getWriteContract: async () => mocks.writeContract
   })
@@ -138,6 +142,7 @@ function grabCtx() {
 
 beforeEach(() => {
   mocks.walletAddress = "0x000000000000000000000000000000000000bEEF";
+  mocks.isOwner = false;
   mocks.setStatus.mockClear();
   mocks.refreshWalletPanel.mockClear();
   mocks.runContractTx.mockClear();
@@ -606,6 +611,41 @@ describe("SocialActionsContext transactions", () => {
     expect(mocks.refreshFeed).toHaveBeenCalled();
   });
 
+  it("saveEditedPost uses adminUpdatePostURI when owner edits someone else's post", async () => {
+    mocks.isOwner = true;
+    mocks.walletAddress = "0x000000000000000000000000000000000000bEEF";
+    mocks.feedState.posts[0].author = "0x000000000000000000000000000000000000dEaD";
+    const get = grabCtx();
+
+    await act(async () => {
+      get().startEditPost(mocks.feedState.posts[0] as any);
+    });
+    await waitFor(() => expect(get().editingTokenId).toBe("1"));
+
+    await act(async () => {
+      get().setEditDraft((prev: any) => ({ ...prev, body: "Updated", imageUrl: "https://example.com/new.png" }));
+    });
+
+    await act(async () => {
+      await get().saveEditedPost();
+    });
+
+    expect(mocks.writeContract.adminUpdatePostURI).toHaveBeenCalledWith(1n, mocks.metadataUri);
+    expect(mocks.writeContract.updatePostURI).not.toHaveBeenCalled();
+  });
+  it("burnPost uses adminBurnPost when owner burns someone else's post", async () => {
+    mocks.isOwner = true;
+    mocks.walletAddress = "0x000000000000000000000000000000000000bEEF";
+    mocks.feedState.posts[0].author = "0x000000000000000000000000000000000000dEaD";
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().burnPost("1");
+    });
+
+    expect(mocks.writeContract.adminBurnPost).toHaveBeenCalledWith(1n);
+    expect(mocks.writeContract.burnPost).not.toHaveBeenCalled();
+  });
   it("burnPost no-ops deletions when drafts/comments do not exist", async () => {
     const get = grabCtx();
     mocks.feedState.postComments = {};

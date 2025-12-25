@@ -320,7 +320,7 @@ export function ProfileCard(props: ProfileCardProps) {
     setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
   }
 
-  async function deleteAllAndBlock(addr: string) {
+  async function resetAllAndBlock(addr: string) {
     const normalized = addr.trim();
     if (!ethers.isAddress(normalized)) {
       setApprovalsError("Invalid address");
@@ -534,8 +534,8 @@ export function ProfileCard(props: ProfileCardProps) {
                         Disapprove
                       </button>
                     ) : null}
-                    <button className="secondary" type="button" onClick={() => void deleteAllAndBlock(addr)}>
-                      Delete all
+                    <button className="secondary" type="button" onClick={() => void resetAllAndBlock(addr)}>
+                      Reset
                     </button>
                   </span>
                 </div>
@@ -566,8 +566,8 @@ export function ProfileCard(props: ProfileCardProps) {
                           Disapprove
                         </button>
                       ) : null}
-                      <button className="secondary" type="button" onClick={() => void deleteAllAndBlock(addr)}>
-                        Delete all
+                      <button className="secondary" type="button" onClick={() => void resetAllAndBlock(addr)}>
+                        Reset
                       </button>
                     </span>
                   </div>

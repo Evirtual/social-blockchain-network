@@ -6,6 +6,8 @@
     "noUnusedParameters": false
   },
   "include": [
+    "src/**/*.d.ts",
+    "src/vite-env.d.ts",
     "src/**/*.test.*",
     "src/**/*.spec.*",
     "src/**/__tests__/**/*",

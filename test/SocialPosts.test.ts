@@ -28,6 +28,16 @@ describe("SocialPosts", () => {
       .withArgs(other.address, 1n, "ipfs://post-x");
   });
 
+  it("reports whether a poster is allowed", async () => {
+    const { contract, author, other } = await deploy();
+
+    expect(await contract.isPosterAllowed(author.address)).to.equal(true);
+    expect(await contract.isPosterAllowed(other.address)).to.equal(false);
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    expect(await contract.isPosterAllowed(other.address)).to.equal(true);
+  });
+
   it("allows users to request approval once, and clears request on approval", async () => {
     const { contract, author, other } = await deploy();
 

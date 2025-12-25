@@ -145,6 +145,336 @@ beforeEach(() => {
 });
 
 describe("ComposerContext transactions", () => {
+  it("requestApproval requires wallet connection", async () => {
+    mocks.walletAddress = null;
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    expect(mocks.setStatus).toHaveBeenCalledWith("Connect your wallet first.");
+  });
+
+  it("requestApproval sets approvalRequested and prevents duplicate requests", async () => {
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    expect(mocks.runContractTx).toHaveBeenCalledWith("Request posting approval", expect.any(Function));
+    expect(get().approvalRequired).toBe(true);
+    expect(get().approvalRequested).toBe(true);
+    expect(mocks.setStatus).toHaveBeenCalledWith(
+      "Approval requested. An admin must approve your wallet before you can post."
+    );
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    expect(mocks.setStatus).toHaveBeenCalledWith(
+      "Approval already requested. Please wait for an admin to approve your wallet."
+    );
+  });
+
+  it("dismissApproval stops polling (clears interval)", async () => {
+    vi.useFakeTimers();
+
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    await act(async () => {
+      get().dismissApproval();
+    });
+
+    expect(clearSpy).toHaveBeenCalled();
+
+    clearSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it("approval polling returns early when still not allowed", async () => {
+    vi.useFakeTimers();
+
+    mocks.readContract.isPosterAllowed.mockResolvedValue(false);
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3500);
+    });
+
+    expect(get().approvalRequested).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("approval polling ignores errors", async () => {
+    vi.useFakeTimers();
+
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    mocks.readContract.isPosterAllowed.mockRejectedValueOnce(new Error("fail"));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3500);
+    });
+
+    // Still in requested state; polling error is swallowed.
+    expect(get().approvalRequested).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("requestApproval returns early when tx fails", async () => {
+    const get = grabCtx();
+    mocks.runContractTx.mockRejectedValueOnce(new Error("tx failed"));
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+
+    expect(get().approvalRequired).toBe(false);
+    expect(get().approvalRequested).toBe(false);
+  });
+
+  it("dismissApproval clears approval flags", async () => {
+    const get = grabCtx();
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+    expect(get().approvalRequired).toBe(true);
+    expect(get().approvalRequested).toBe(true);
+
+    await act(async () => {
+      get().dismissApproval();
+    });
+
+    expect(get().approvalRequired).toBe(false);
+    expect(get().approvalRequested).toBe(false);
+  });
+
+  it("cleans up approval polling interval on unmount", async () => {
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(window, "clearInterval");
+
+    let ctx: any;
+    function Grabber() {
+      ctx = useComposer();
+      return null;
+    }
+
+    const { unmount } = render(
+      <ComposerProvider>
+        <Grabber />
+      </ComposerProvider>
+    );
+
+    await act(async () => {
+      await ctx.requestApproval();
+    });
+
+    unmount();
+    expect(clearSpy).toHaveBeenCalled();
+
+    clearSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it("polls until wallet is approved after requesting approval", async () => {
+    vi.useFakeTimers();
+    const get = grabCtx();
+
+    let calls = 0;
+    mocks.readContract.isPosterAllowed.mockImplementation(async () => {
+      calls += 1;
+      return calls >= 2;
+    });
+
+    await act(async () => {
+      await get().requestApproval();
+    });
+    expect(get().approvalRequested).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+
+    expect(get().approvalRequested).toBe(false);
+    expect(get().approvalRequired).toBe(false);
+    expect(mocks.setStatus).toHaveBeenCalledWith("You’ve been approved. You can post now.");
+
+    vi.useRealTimers();
+  });
+
+  it("polling does nothing if unmounted before isPosterAllowed resolves (cancelled)", async () => {
+    vi.useFakeTimers();
+
+    let resolveAllowed: ((v: boolean) => void) | null = null;
+    mocks.readContract.isPosterAllowed.mockImplementation(
+      async () =>
+        await new Promise<boolean>((resolve) => {
+          resolveAllowed = resolve;
+        })
+    );
+
+    let ctx: any;
+    function Grabber() {
+      ctx = useComposer();
+      return null;
+    }
+
+    const { unmount } = render(
+      <ComposerProvider>
+        <Grabber />
+      </ComposerProvider>
+    );
+
+    await act(async () => {
+      await ctx.requestApproval();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3500);
+    });
+
+    unmount();
+
+    await act(async () => {
+      resolveAllowed?.(true);
+    });
+
+    expect(mocks.setStatus).not.toHaveBeenCalledWith("You’ve been approved. You can post now.");
+    vi.useRealTimers();
+  });
+
+  it("mintPost proceeds when closed-beta precheck throws", async () => {
+    const get = grabCtx();
+    mocks.readContract.isPosterAllowed.mockImplementationOnce(async () => {
+      throw new Error("precheck failed");
+    });
+
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 99n] });
+    mocks.receipt = { hash: "0xhash", logs: [{ topics: ["t"], data: "0x01" }] };
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.writeContract.mintPost).toHaveBeenCalled();
+  });
+
+  it("poll interval does not update state after unmount (cancelled)", async () => {
+    vi.useFakeTimers();
+    let resolveAllowed: ((v: boolean) => void) | null = null;
+    mocks.readContract.isPosterAllowed.mockImplementation(
+      async () =>
+        await new Promise<boolean>((resolve) => {
+          resolveAllowed = resolve;
+        })
+    );
+
+    let ctx: any;
+    function Grabber() {
+      ctx = useComposer();
+      return null;
+    }
+
+    const { unmount } = render(
+      <ComposerProvider>
+        <Grabber />
+      </ComposerProvider>
+    );
+
+    await act(async () => {
+      await ctx.requestApproval();
+      await vi.advanceTimersByTimeAsync(3500);
+      unmount();
+      resolveAllowed?.(true);
+    });
+
+    expect(mocks.setStatus).not.toHaveBeenCalledWith("You’ve been approved. You can post now.");
+    vi.useRealTimers();
+  });
+
+  it("mintPost emits a 'Preparing post…' pending toast when Pinata is configured", async () => {
+    mocks.hasPinata = true;
+    mocks.buildIpfsTokenUri.mockRejectedValueOnce(new Error("fail"));
+
+    const get = grabCtx();
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.txNotifications.notifyPending).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "Preparing post…" })
+    );
+  });
+
+  it("mintPost shows closed beta message when not allowed and not requested", async () => {
+    const get = grabCtx();
+    mocks.readContract.isPosterAllowed.mockResolvedValue(false);
+    mocks.readContract.hasPosterRequested.mockResolvedValue(false);
+
+    await act(async () => {
+      get().openComposer();
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(get().isComposerOpen).toBe(false);
+    expect(get().approvalRequired).toBe(true);
+    expect(get().approvalRequested).toBe(false);
+    expect(mocks.setStatus).toHaveBeenCalledWith("Posting is in closed beta. Request approval to post.");
+  });
+
+  it("mintPost shows requested message when not allowed but already requested", async () => {
+    const get = grabCtx();
+    mocks.readContract.isPosterAllowed.mockResolvedValue(false);
+    mocks.readContract.hasPosterRequested.mockResolvedValue(true);
+
+    await act(async () => {
+      get().openComposer();
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(get().approvalRequired).toBe(true);
+    expect(get().approvalRequested).toBe(true);
+    expect(mocks.setStatus).toHaveBeenCalledWith(
+      "Posting is in closed beta. Approval requested — wait for an admin to approve your wallet."
+    );
+  });
+
   it("openComposer and closeComposer toggles open state", async () => {
     const get = grabCtx();
     expect(get().isComposerOpen).toBe(false);

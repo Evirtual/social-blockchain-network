@@ -190,7 +190,7 @@ export function ProfileRoute() {
         setIsPosterAllowed(allowed);
         if (!allowed) setWasPosterDisapprovedEver(true);
       }}
-      onAdminDeleteAll={async () => {
+      onAdminReset={async () => {
         if (!app.isOwner) return;
         const normalized = address.trim();
         if (!ethers.isAddress(normalized)) return;

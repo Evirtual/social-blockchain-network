@@ -1,41 +1,58 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { ProfileCard, Sidebar, WalletCard } from "./Sidebar";
+
+let ProfileCard: typeof import("./Sidebar").ProfileCard;
+let Sidebar: typeof import("./Sidebar").Sidebar;
+let WalletCard: typeof import("./Sidebar").WalletCard;
 
 const loadProfileMock = vi.fn(async () => undefined);
 
+const ensureContractDeployedOnCurrentNetworkMock = vi.fn(async () => undefined);
+const getReadContractMock = vi.fn(async () => ({ owner: async () => "0xOWNER" }));
+const getWriteContractMock = vi.fn(async () => ({} as any));
+
+// Important: keep mocked hook return values referentially stable.
+// If we return a new object on every render, React effects that depend on that
+// object will re-run every render and can create update loops (and cleanup hangs).
+const appApi = {
+  loadProfile: loadProfileMock,
+  profilesByAddress: {
+    "0xaaa": { name: "A", bio: "", avatarUrl: "ipfs://avatar" },
+    "0xccc": { name: "C", bio: "", avatarUrl: "ipfs://avatar2" }
+  },
+  stableHueFromSeed: (seed: string) => (seed.length * 13) % 360
+};
+
+const contractApi = {
+  getReadContract: (...args: any[]) => (getReadContractMock as any)(...args),
+  getWriteContract: (...args: any[]) => (getWriteContractMock as any)(...args),
+  ensureContractDeployedOnCurrentNetwork: (...args: any[]) =>
+    (ensureContractDeployedOnCurrentNetworkMock as any)(...args)
+};
+
+const contractTxApi = {
+  runContractTx: async (_label: string, send: () => Promise<any>) => {
+    await send();
+    return undefined;
+  }
+};
+
 vi.mock("../contexts/AppContext", () => {
   return {
-    useApp: () => ({
-      loadProfile: loadProfileMock,
-      profilesByAddress: {
-        "0xaaa": { name: "A", bio: "", avatarUrl: "ipfs://avatar" },
-        "0xccc": { name: "C", bio: "", avatarUrl: "ipfs://avatar2" }
-      },
-      stableHueFromSeed: (seed: string) => (seed.length * 13) % 360
-    })
+    useApp: () => appApi
   };
 });
 
 vi.mock("../contexts/ContractContext", () => {
   return {
-    useContract: () => ({
-      getReadContract: async () => ({ owner: async () => "0xOWNER" }),
-      getWriteContract: async () => ({ setPosterAllowed: async () => ({ wait: async () => ({}) }) }),
-      ensureContractDeployedOnCurrentNetwork: async () => undefined
-    })
+    useContract: () => contractApi
   };
 });
 
 vi.mock("../contexts/useContractTx", () => {
   return {
-    useContractTx: () => ({
-      runContractTx: async (_label: string, send: () => Promise<any>) => {
-        await send();
-        return undefined;
-      }
-    })
+    useContractTx: () => contractTxApi
   };
 });
 
@@ -74,7 +91,1125 @@ function setMatchMedia({ matches, modern }: { matches: boolean; modern: boolean 
   };
 }
 
+async function flushMicrotasks(n = 5) {
+  for (let i = 0; i < n; i++) await Promise.resolve();
+}
+
+async function waitForUi(predicate: () => boolean, timeoutMs = 2000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      if (predicate()) return;
+    } catch {
+      // ignore
+    }
+
+    const isFake = (vi as any).isFakeTimers?.() === true;
+    if (isFake) {
+      (vi as any).advanceTimersByTime?.(1);
+      await flushMicrotasks(1);
+    } else {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  throw new Error("Timed out waiting for UI");
+}
+
 describe("Sidebar/ProfileCard/WalletCard", () => {
+  beforeAll(async () => {
+    ({ ProfileCard, Sidebar, WalletCard } = await import("./Sidebar"));
+  });
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+    getReadContractMock.mockReset();
+    getWriteContractMock.mockReset();
+    ensureContractDeployedOnCurrentNetworkMock.mockClear();
+    loadProfileMock.mockClear();
+
+    // Restore sensible defaults after mockReset so subsequent calls don't return undefined.
+    getReadContractMock.mockImplementation(async () => ({ owner: async () => "0xOWNER" }));
+    getWriteContractMock.mockImplementation(async () => ({} as any));
+  });
+
+  it("owner can open Approvals and add/validate pending wallets", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    localStorage.removeItem("pendingPosterApprovals");
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    // Wait for the async owner() effect to set isOwner and render the button.
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: "not-an-address" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByText("Invalid address")).toBeTruthy();
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: addr }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(localStorage.getItem("pendingPosterApprovals") ?? "").toContain("BEEF");
+    expect(screen.getByText("0x0000")).toBeTruthy();
+
+    // Duplicate
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: addr }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(screen.getByText("Already in list")).toBeTruthy();
+  });
+
+  it("does not show Approvals when wallet is disconnected", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress={undefined as any}
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole("button", { name: "Approvals" })).toBeNull();
+  });
+
+  it("hides Approvals when owner() read fails", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    getReadContractMock.mockResolvedValueOnce({
+      owner: async () => {
+        throw new Error("fail");
+      }
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => screen.queryByRole("button", { name: "Approvals" }) === null);
+  });
+
+  it("Approvals: ignores pending approvals when localStorage JSON is not an array", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify({ nope: true }));
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+    expect(screen.queryAllByRole("listitem").length).toBe(0);
+  });
+
+  it("Approvals: ignores pending approvals when localStorage JSON is invalid", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    localStorage.setItem("pendingPosterApprovals", "{not-json");
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+    expect(screen.queryAllByRole("listitem").length).toBe(0);
+  });
+
+  it("Approvals: reads pending approvals array from localStorage and trims/filter strings", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    localStorage.setItem(
+      "pendingPosterApprovals",
+      // mix valid string, whitespace, empty string, and non-string entries
+      JSON.stringify([`  ${addr}  `, "", "   ", 5, null])
+    );
+
+    getReadContractMock.mockResolvedValue({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+
+    const items = screen.getAllByRole("listitem");
+    expect(items.length).toBe(1);
+    expect(screen.getByText("0x0000")).toBeTruthy();
+  });
+
+  it("Approvals: remove button updates pending list and localStorage", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+    getReadContractMock.mockResolvedValue({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+
+    const row = await screen.findByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
+
+    await waitForUi(() => screen.queryAllByRole("listitem").length === 0);
+    expect(localStorage.getItem("pendingPosterApprovals")).toBe("[]");
+  });
+
+  it("Approvals: shows Flagged based on wasPosterDisapproved contract check", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+
+    getReadContractMock.mockResolvedValue({
+      owner: async () => "0xOWNER",
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => true
+    } as any);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => !!screen.queryByText("Flagged"));
+    expect(screen.getByText("Flagged")).toBeTruthy();
+  });
+
+  it("Approvals: on-chain request approve calls setPosterAllowed on write contract", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    const setPosterAllowed = vi.fn(async () => ({}));
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue({ setPosterAllowed });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+    const row = screen
+      .getAllByRole("listitem")
+      .find((el) => within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Approve" }));
+    if (!row) throw new Error("Expected on-chain request row");
+
+    fireEvent.click(within(row).getByRole("button", { name: "Approve" }));
+
+    await waitForUi(() => setPosterAllowed.mock.calls.length === 1);
+    expect(setPosterAllowed).toHaveBeenCalledWith(addr, true);
+  });
+
+  it("Approvals: on-chain request shows Disapprove after approve, and disapprove calls setPosterAllowed(false)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    const setPosterAllowed = vi.fn(async () => ({}));
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue({ setPosterAllowed } as any);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+
+    const approveRow = screen
+      .getAllByRole("listitem")
+      .find((el) => within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Approve" }));
+    if (!approveRow) throw new Error("Expected on-chain request row");
+
+    fireEvent.click(within(approveRow).getByRole("button", { name: "Approve" }));
+    await waitForUi(() => setPosterAllowed.mock.calls.length === 1);
+    expect(setPosterAllowed).toHaveBeenCalledWith(addr, true);
+
+    await waitForUi(() => {
+      const rows = screen.getAllByRole("listitem");
+      return rows.some((el) => within(el).queryByRole("button", { name: "Disapprove" }));
+    });
+
+    const disapproveRow = screen
+      .getAllByRole("listitem")
+      .find((el) => within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Disapprove" }));
+    if (!disapproveRow) throw new Error("Expected disapprove button row");
+
+    fireEvent.click(within(disapproveRow).getByRole("button", { name: "Disapprove" }));
+    await waitForUi(() => setPosterAllowed.mock.calls.length === 2);
+    expect(setPosterAllowed).toHaveBeenLastCalledWith(addr, false);
+  });
+
+  it("Approvals: when not owner, does not query chain requests", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: ["0x000000000000000000000000000000000000BEEF"] }])
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xNOTOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    // Approvals button should not be shown when not owner.
+    expect(screen.queryByRole("button", { name: "Approvals" })).toBeNull();
+
+    // The chain request query must not run.
+    await flushMicrotasks(10);
+    expect(readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("Approvals: if owner becomes non-owner while open, clears chain requests", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    const { rerender, unmount } = render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+
+    // Switch wallet (becomes non-owner) while modal remains open.
+    rerender(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xNOTOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !screen.queryByText(/Requests from chain/i));
+
+    // Close modal to ensure Modal effect cleanup runs.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await flushMicrotasks(10);
+
+    unmount();
+  });
+
+  it("Approvals: ignores errors while checking allowed/disapproved status", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+
+    // Owner check uses getReadContract once, chain-requests effect uses it again,
+    // and allowed/disapproved status check uses it a third time.
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+    getReadContractMock.mockResolvedValueOnce({
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [])
+    } as any);
+    getReadContractMock.mockRejectedValueOnce(new Error("fail"));
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => !!screen.queryByRole("dialog", { name: "Approvals" }));
+    expect(screen.getByRole("dialog", { name: "Approvals" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await flushMicrotasks(5);
+    unmount();
+  });
+
+  it("Approvals: reset validates address from localStorage list", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify(["lol"]));
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => !!screen.queryByRole("dialog", { name: "Approvals" }));
+    const row = screen.getByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Reset" }));
+
+    await waitForUi(() => !!screen.queryByText("Invalid address"));
+    expect(screen.getByText("Invalid address")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await flushMicrotasks(5);
+    unmount();
+  });
+
+  it("Approvals: reset skips non-bigint ids and continues after burn tx failure", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const adminBurnPost = vi.fn(async () => {
+      throw new Error("fail burn");
+    });
+    const adminClearProfile = vi.fn(async () => ({}));
+    const setPosterAllowed = vi.fn(async () => ({}));
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 3 } },
+      filters: {
+        PosterApprovalRequested: () => ({}),
+        PostMinted: (a: string) => ({ addr: a })
+      },
+      queryFilter: vi.fn(async (filter: any) => {
+        if (!filter?.addr) return [];
+        return [{ args: [addr, "nope"] }, { args: [addr, 2n] }];
+      }),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), { target: { value: addr } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const row = await screen.findByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Reset" }));
+
+    await waitForUi(() => adminClearProfile.mock.calls.length >= 1 && adminBurnPost.mock.calls.length >= 1);
+    expect(adminClearProfile).toHaveBeenCalled();
+    // Attempted to burn only the bigint id (2n), and burn failure is swallowed.
+    expect(adminBurnPost).toHaveBeenCalledTimes(1);
+    expect(adminBurnPost).toHaveBeenCalledWith(2n);
+  });
+
+  it("Approvals: queryFilter failure does not show on-chain requests", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => {
+        throw new Error("fail");
+      })
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
+    expect(screen.queryByText(/Requests from chain/i)).toBeNull();
+  });
+
+  it("Approvals: on-chain request shows Flagged when wasPosterDisapproved is true", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => true
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    expect((await screen.findAllByText("Flagged")).length).toBeGreaterThan(0);
+  });
+
+  it("Approvals: reset returns early when block poster tx fails", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 0 } },
+      filters: {
+        PosterApprovalRequested: () => ({}),
+        PostMinted: (a: string) => ({ addr: a })
+      },
+      queryFilter: vi.fn(async () => []),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    const adminClearProfile = vi.fn(async () => ({}));
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue({
+      setPosterAllowed: vi.fn(async () => {
+        throw new Error("fail");
+      }),
+      adminClearProfile,
+      adminBurnPost: vi.fn(async () => ({}))
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: addr }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const row = await screen.findByRole("listitem");
+    fireEvent.click(within(row).getByRole("button", { name: "Reset" }));
+
+    await flushMicrotasks(10);
+    expect(adminClearProfile).not.toHaveBeenCalled();
+  });
+
   it("renders profile and loads follower profiles when opened (modern matchMedia)", async () => {
     setMatchMedia({ matches: false, modern: true });
 
@@ -127,11 +1262,250 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(screen.getAllByText("Open profile").length).toBeGreaterThan(0);
 
     // loadProfile should be called for the first 24 followers.
-    await waitFor(() => {
-      expect(loadProfileMock).toHaveBeenCalledWith("0xAAA");
-      expect(loadProfileMock).toHaveBeenCalledWith("0xBBB");
+    await waitForUi(() => {
+      const calls = (loadProfileMock.mock.calls as unknown as Array<[string]>);
+      return calls.some(([a]) => a === "0xAAA") && calls.some(([a]) => a === "0xBBB");
+    });
+    expect(loadProfileMock).toHaveBeenCalledWith("0xAAA");
+    expect(loadProfileMock).toHaveBeenCalledWith("0xBBB");
+
+  });
+
+  it("Approvals: approve/disapprove toggles buttons and shows Flagged", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+
+    let allowed = false;
+    let disapprovedEver = false;
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 0 } },
+      filters: {
+        PosterApprovalRequested: () => ({}),
+        PostMinted: (a: string) => ({ addr: a })
+      },
+      queryFilter: vi.fn(async () => []),
+      isPosterAllowed: async () => allowed,
+      wasPosterDisapproved: async () => disapprovedEver
+    };
+
+    const writeContract: any = {
+      setPosterAllowed: vi.fn(async (_addr: string, nextAllowed: boolean) => {
+        allowed = nextAllowed;
+        if (!nextAllowed) disapprovedEver = true;
+        return {};
+      })
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue(writeContract);
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: addr }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    // Initially should show Approve.
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitForUi(() => screen.queryByRole("button", { name: "Approve" }) === null);
+
+    // Now Disapprove should be visible.
+    expect(await screen.findByRole("button", { name: "Disapprove" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Disapprove" }));
+    await waitForUi(() => !!screen.queryByText("Flagged"));
+    expect(screen.getByText("Flagged")).toBeTruthy();
+  });
+
+  it("Approvals: shows on-chain requests list and can reset (failure path shows error)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: {
+        PosterApprovalRequested: () => ({}),
+        PostMinted: (a: string) => ({ addr: a })
+      },
+      queryFilter: vi.fn(async (filter: any) => {
+        if (filter?.addr) throw new Error("no logs");
+        return [{ args: [addr] }];
+      }),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValueOnce({
+      setPosterAllowed: vi.fn(async () => ({})),
+      adminClearProfile: vi.fn(async () => ({})),
+      adminBurnPost: vi.fn(async () => ({}))
     });
 
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+
+    // Trigger reset on-chain request; PostMinted queryFilter throws => error shown.
+    const resets = screen.getAllByRole("button", { name: "Reset" });
+    fireEvent.click(resets[0]);
+
+    expect(await screen.findByText("Blocked user, but failed to load their posts for deletion.")).toBeTruthy();
+  });
+
+  it("Approvals: reset burns unique minted posts (success path)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const adminBurnPost = vi.fn(async () => ({}));
+    const adminClearProfile = vi.fn(async () => ({}));
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 3 } },
+      filters: {
+        PosterApprovalRequested: () => ({}),
+        PostMinted: (a: string) => ({ addr: a })
+      },
+      queryFilter: vi.fn(async (filter: any) => {
+        if (!filter?.addr) return [];
+        return [{ args: [addr, 1n] }, { args: [addr, 2n] }, { args: [addr, 2n] }];
+      }),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+    getWriteContractMock.mockResolvedValue({
+      setPosterAllowed: vi.fn(async () => ({})),
+      adminClearProfile,
+      adminBurnPost
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    // Add as pending, then reset.
+    fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
+      target: { value: addr }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const row = await screen.findByRole("listitem");
+    const reset = within(row).getByRole("button", { name: "Reset" });
+    fireEvent.click(reset);
+
+    await waitForUi(() => adminClearProfile.mock.calls.length === 1 && adminBurnPost.mock.calls.length === 2);
+    expect(adminClearProfile).toHaveBeenCalledTimes(1);
+    expect(adminBurnPost).toHaveBeenCalledTimes(2);
   });
 
   it("loads following profiles when opened", async () => {
@@ -176,9 +1550,11 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "View following" }));
     expect(await screen.findByText("Following")).toBeTruthy();
 
-    await waitFor(() => {
-      expect(loadProfileMock).toHaveBeenCalledWith("0xCCC");
+    await waitForUi(() => {
+      const calls = (loadProfileMock.mock.calls as unknown as Array<[string]>);
+      return calls.some(([a]) => a === "0xCCC");
     });
+    expect(loadProfileMock).toHaveBeenCalledWith("0xCCC");
 
     // Following list avatar should use backgroundImage if profile exists.
     const avatars = document.querySelectorAll(".avatar.tiny");
@@ -416,9 +1792,8 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const file = new File(["x"], "a.png", { type: "image/png" });
     fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
 
-    await waitFor(() => {
-      expect(onSelectProfileAvatarFile).toHaveBeenCalled();
-    });
+    await waitForUi(() => onSelectProfileAvatarFile.mock.calls.length >= 1);
+    expect(onSelectProfileAvatarFile).toHaveBeenCalled();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Clear" }));
     expect(onClearProfileAvatar).toHaveBeenCalled();
@@ -473,24 +1848,20 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     details.open = false;
     fireEvent(details, new Event("toggle"));
 
-    await waitFor(() => {
+    await waitForUi(() => {
       const next = document.querySelector("details.profileDropdown") as HTMLDetailsElement | null;
-      expect(next?.open).toBe(false);
+      return next?.open === false;
     });
 
     fireEvent.click(screen.getByRole("button", { name: "View followers" }));
     expect(await screen.findByRole("dialog", { name: "Followers" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Followers" })).toBeNull();
-    });
+    await waitForUi(() => screen.queryByRole("dialog", { name: "Followers" }) === null);
 
     fireEvent.click(screen.getByRole("button", { name: "View following" }));
     expect(await screen.findByRole("dialog", { name: "Following" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Following" })).toBeNull();
-    });
+    await waitForUi(() => screen.queryByRole("dialog", { name: "Following" }) === null);
   });
 
   it("shows empty follower/following states and loading ellipsis", async () => {
@@ -821,9 +2192,9 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     details.open = false;
     fireEvent(details, new Event("toggle"));
 
-    await waitFor(() => {
+    await waitForUi(() => {
       const next = document.querySelector("details.walletDropdown") as HTMLDetailsElement | null;
-      expect(next?.open).toBe(false);
+      return next?.open === false;
     });
   });
 

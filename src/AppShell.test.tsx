@@ -73,6 +73,10 @@ describe("AppShell", () => {
   beforeEach(() => {
     mocks.app.profileLink = "/profile/0x123";
     mocks.app.isComposerOpen = true;
+    mocks.app.approvalRequired = false;
+    mocks.app.approvalRequested = false;
+    mocks.app.requestApproval.mockClear();
+    mocks.app.dismissApproval.mockClear();
   });
 
   it("renders topbar slot, composer modal, and toaster", async () => {
@@ -131,5 +135,39 @@ describe("AppShell", () => {
 
     expect(screen.queryByTestId("modal")).toBeNull();
     expect(screen.queryByTestId("composer")).toBeNull();
+  });
+
+  it("renders approval modal and wires actions", () => {
+    mocks.app.isComposerOpen = false;
+    mocks.app.approvalRequired = true;
+    mocks.app.approvalRequested = false;
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppShell />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/Posting is in closed beta/i)).toBeInTheDocument();
+
+    screen.getByRole("button", { name: "Close" }).click();
+    expect(mocks.app.dismissApproval).toHaveBeenCalledTimes(1);
+
+    screen.getByRole("button", { name: "Request approval" }).click();
+    expect(mocks.app.requestApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Requested label when approval already requested", () => {
+    mocks.app.isComposerOpen = false;
+    mocks.app.approvalRequired = true;
+    mocks.app.approvalRequested = true;
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppShell />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("button", { name: "Requested" })).toBeInTheDocument();
   });
 });

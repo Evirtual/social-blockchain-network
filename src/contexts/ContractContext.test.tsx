@@ -69,6 +69,73 @@ describe("ContractContext", () => {
     expect(screen.getByTestId("tips")).toHaveTextContent("5");
   });
 
+  it("sets ownerAddress to null when contract address is missing", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
+
+    const setStatus = vi.fn();
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
+
+    const provider = {
+      getNetwork: async () => ({ chainId: 31337n }),
+      getCode: async (_addr: string) => "0x"
+    };
+
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    function Consumer() {
+      const c = useContract();
+      return <div data-testid="owner">{String(c.ownerAddress)}</div>;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("owner")).toHaveTextContent("null"));
+    expect(setStatus).toHaveBeenCalled();
+  });
+
+  it("sets ownerAddress when owner() succeeds", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
+
+    const provider = {};
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+
+    vi.doMock("../contracts/socialPosts", () => ({
+      getSocialContract: () => ({ owner: async () => "0x000000000000000000000000000000000000BEEF" })
+    }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    function Consumer() {
+      const c = useContract();
+      return <div data-testid="owner">{String(c.ownerAddress)}</div>;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("owner")).toHaveTextContent("0x000000000000000000000000000000000000BEEF")
+    );
+  });
+
   it("requireContractAddress throws when missing", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", undefined);

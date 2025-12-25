@@ -19,6 +19,9 @@ export function HomeRoute() {
       onPost={app.mintPost}
       posts={app.posts}
       chainId={app.chainId}
+      networkName={app.networkName}
+      contractAddress={app.contractAddress}
+      contractDeployed={app.contractDeployed}
       status={app.status}
       isFeedLoading={app.isFeedLoading}
       walletAddress={app.walletAddress}

@@ -144,8 +144,27 @@
   padding-bottom: 1.5rem;
 }
 
+.homeHeroRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.875rem;
+  align-items: stretch;
+}
+
+.homeHeroRowSingle > * {
+  grid-column: 1 / -1;
+}
+
+.homeHeroRow > * {
+  min-width: 0;
+}
+
 @media (max-width: 56.25rem) {
   .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .homeHeroRow {
     grid-template-columns: 1fr;
   }
 

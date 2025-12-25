@@ -21,6 +21,7 @@ describe("HomePage", () => {
   beforeEach(() => {
     feedSpy.mockClear();
     localStorage.removeItem("socialBlockchainNetwork.heroDismissed");
+    localStorage.removeItem("socialBlockchainNetwork.supportedNetworksDismissed");
   });
 
   function makeProps(overrides: Partial<any> = {}) {
@@ -177,5 +178,117 @@ describe("HomePage", () => {
     expect(screen.queryByText(/A social blockchain network/i)).toBeNull();
 
     setSpy.mockRestore();
+  });
+
+  it("shows supported networks pills when disconnected", () => {
+    render(<HomePage {...makeProps()} />);
+
+    expect(screen.getByText("Supported networks")).toBeInTheDocument();
+    expect(screen.getByLabelText("Base")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ethereum")).toBeInTheDocument();
+    expect(screen.getByLabelText("BSC")).toBeInTheDocument();
+
+    // Both hero cards visible => not single.
+    const row = document.querySelector(".homeHeroRow");
+    expect(row?.classList.contains("homeHeroRowSingle")).toBe(false);
+  });
+
+  it("can dismiss supported networks (persisting to localStorage)", () => {
+    render(<HomePage {...makeProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss supported networks" }));
+    expect(screen.queryByText("Supported networks")).toBeNull();
+    expect(localStorage.getItem("socialBlockchainNetwork.supportedNetworksDismissed")).toBe("1");
+  });
+
+  it("can dismiss supported networks even when localStorage write throws", () => {
+    const setSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+
+    render(<HomePage {...makeProps()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss supported networks" }));
+    expect(screen.queryByText("Supported networks")).toBeNull();
+
+    setSpy.mockRestore();
+  });
+
+  it("shows current network label when connected on wrong network (uses networkName)", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          contractAddress: undefined,
+          contractDeployed: false,
+          networkName: "My Network"
+        })}
+      />
+    );
+
+    expect(screen.getByText("Current: My Network")).toBeInTheDocument();
+  });
+
+  it("treats network as wrong when contractAddress exists but contractDeployed is false", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          contractAddress: "0x123",
+          contractDeployed: false,
+          networkName: "My Network"
+        })}
+      />
+    );
+
+    expect(screen.getByText("Supported networks")).toBeInTheDocument();
+    expect(screen.getByText("Current: My Network")).toBeInTheDocument();
+  });
+
+  it("shows current network label when connected on wrong network (falls back to chainId)", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          contractAddress: undefined,
+          contractDeployed: false,
+          networkName: "   ",
+          chainId: "31337"
+        })}
+      />
+    );
+
+    expect(screen.getByText("Current: chainId 31337")).toBeInTheDocument();
+  });
+
+  it("does not show current network pill when no label is available", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          contractAddress: undefined,
+          contractDeployed: false,
+          networkName: "",
+          chainId: null
+        })}
+      />
+    );
+
+    expect(screen.queryByText(/^Current:/)).toBeNull();
+  });
+
+  it("uses single-width hero row when only one hero is visible", () => {
+    localStorage.setItem("socialBlockchainNetwork.heroDismissed", "1");
+    render(<HomePage {...makeProps()} />);
+
+    const row = document.querySelector(".homeHeroRow");
+    expect(row?.classList.contains("homeHeroRowSingle")).toBe(true);
+  });
+
+  it("does not render the hero row when both hero cards are dismissed", () => {
+    localStorage.setItem("socialBlockchainNetwork.heroDismissed", "1");
+    localStorage.setItem("socialBlockchainNetwork.supportedNetworksDismissed", "1");
+
+    render(<HomePage {...makeProps()} />);
+    expect(document.querySelector(".homeHeroRow")).toBeNull();
   });
 });

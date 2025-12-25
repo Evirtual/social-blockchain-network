@@ -15,7 +15,7 @@ type Props = {
   isPosterAllowed?: boolean;
   wasPosterDisapprovedEver?: boolean;
   onAdminSetPosterAllowed: (allowed: boolean) => void;
-  onAdminDeleteAll: () => void;
+  onAdminReset: () => void;
   onAdminSetProfile: (next: {
     name: string;
     bio: string;
@@ -108,14 +108,20 @@ export function ProfilePage(props: Props) {
       setAdminAvatarFilename(file.name || "avatar.png");
 
       const reader = new FileReader();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(new Error("Failed to read file."));
-        reader.readAsDataURL(file);
-      });
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Failed to read file."));
+          reader.readAsDataURL(file);
+        });
 
-      setAdminAvatarUrl("");
-      setAdminAvatarDataUrl(dataUrl);
+        setAdminAvatarUrl("");
+        setAdminAvatarDataUrl(dataUrl);
+      } catch {
+        setAdminAvatarFile(null);
+        setAdminAvatarFilename("");
+        setAdminAvatarDataUrl("");
+      }
     } finally {
       setIsAdminAvatarLoading(false);
     }
@@ -158,8 +164,8 @@ export function ProfilePage(props: Props) {
                       Approve
                     </button>
                   )}
-                  <button className="secondary" type="button" onClick={props.onAdminDeleteAll}>
-                    Delete All
+                  <button className="secondary" type="button" onClick={props.onAdminReset}>
+                    Reset
                   </button>
                 </>
               ) : null}
