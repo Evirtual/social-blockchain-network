@@ -127,6 +127,79 @@ describe("HomePage", () => {
     expect(screen.getByTestId("feed-pill").textContent).toBe("2 posts");
   });
 
+  it("filters posts by selected network(s) and updates pillText", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          posts: [
+            {
+              tokenId: "1",
+              chainId: "11155111",
+              title: "Hello",
+              body: "eth post",
+              image: "",
+              metadataURI: "",
+              author: "0xaaa",
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              tipsWei: 0n
+            },
+            {
+              tokenId: "2",
+              chainId: "84532",
+              title: "World",
+              body: "base post",
+              image: "",
+              metadataURI: "",
+              author: "0xbbb",
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              tipsWei: 0n
+            },
+            {
+              tokenId: "3",
+              chainId: undefined,
+              title: "No Chain",
+              body: "missing chainId",
+              image: "",
+              metadataURI: "",
+              author: "0xccc",
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              tipsWei: 0n
+            }
+          ]
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("feed-pill").textContent).toBe("3 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("3");
+
+    const eth = screen.getByRole("checkbox", { name: "Ethereum testnet" });
+    const base = screen.getByRole("checkbox", { name: "Base testnet" });
+
+    // Select Base via click (reliably triggers React's checkbox onChange).
+    fireEvent.click(base);
+    expect(screen.getByTestId("feed-pill").textContent).toBe("1 / 3 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("1");
+
+    fireEvent.click(eth);
+    expect(screen.getByTestId("feed-pill").textContent).toBe("2 / 3 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("2");
+
+    fireEvent.click(eth);
+    expect(screen.getByTestId("feed-pill").textContent).toBe("1 / 3 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("1");
+
+    fireEvent.click(base);
+    expect(screen.getByTestId("feed-pill").textContent).toBe("3 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("3");
+  });
+
   it("search filtering handles posts with missing author", () => {
     render(
       <HomePage
@@ -184,9 +257,9 @@ describe("HomePage", () => {
     render(<HomePage {...makeProps()} />);
 
     expect(screen.getByText("Supported networks")).toBeInTheDocument();
-    expect(screen.getByLabelText("Base testnet")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ethereum testnet")).toBeInTheDocument();
-    expect(screen.getByLabelText("BSC testnet")).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Base testnet" })).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "Ethereum testnet" })).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { name: "BSC testnet" })).toBeInTheDocument();
 
     // Both hero cards visible => not single.
     const row = document.querySelector(".homeHeroRow");

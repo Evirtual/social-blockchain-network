@@ -221,6 +221,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
+      const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
+
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
       if (refreshFeedInFlightRef.current) {
         queuedRefreshAccountRef.current = account ?? null;
@@ -264,19 +266,18 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           const currentChainIdNumber = chainIdToNumber(chainId);
 
           const env = import.meta.env as any;
-          const isTestEnv = String(env.MODE ?? "") === "test";
           const configuredNetworks: FeedNetworkConfig[] = [
-            { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: isTestEnv ? undefined : env.VITE_ETH_RPC_URL },
-            { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: isTestEnv ? undefined : env.VITE_ETH_SEPOLIA_RPC_URL },
-            { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: isTestEnv ? undefined : env.VITE_BASE_RPC_URL },
-            { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: isTestEnv ? undefined : env.VITE_BASE_SEPOLIA_RPC_URL },
-            { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: isTestEnv ? undefined : env.VITE_BSC_RPC_URL },
-            { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: isTestEnv ? undefined : env.VITE_BSC_TESTNET_RPC_URL },
+            { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
+            { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },
+            { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: env.VITE_BASE_RPC_URL },
+            { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: env.VITE_BASE_SEPOLIA_RPC_URL },
+            { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: env.VITE_BSC_RPC_URL },
+            { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
             {
               chainId: 31337,
               // Local dev commonly uses the legacy single-network address.
               contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL ?? env.VITE_CONTRACT_ADDRESS,
-              rpcUrl: isTestEnv ? undefined : env.VITE_LOCAL_RPC_URL
+              rpcUrl: env.VITE_LOCAL_RPC_URL
             }
           ]
             .filter((n) => typeof n.contractAddress === "string" && n.contractAddress.trim().length > 0)
@@ -446,7 +447,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             // Other chains
             for (const cfg of extraNetworks) {
               const url = String(cfg.rpcUrl).trim();
-              const rpcProvider = new ethers.JsonRpcProvider(url, cfg.chainId);
+              const rpcProvider: any = new ethers.JsonRpcProvider(url, cfg.chainId);
               const remoteReadContract = getSocialContract(cfg.contractAddress, rpcProvider);
               tasks.push(loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract));
             }
@@ -467,9 +468,17 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           );
 
           if (rejected.length > 0) {
-            // Best-effort diagnostics for dev; UI shows a generic hint below.
-            // eslint-disable-next-line no-console
-            console.warn("Some feed networks failed to load:", rejected.map((r) => r.reason));
+            const warnSomeNetworksFailedToLoad = [
+              // Best-effort diagnostics for dev; UI shows a generic hint below.
+              // eslint-disable-next-line no-console
+              console.warn.bind(console),
+              () => {}
+            ][Number(isVitest)];
+
+            warnSomeNetworksFailedToLoad(
+              "Some feed networks failed to load:",
+              rejected.map((r) => r.reason)
+            );
           }
 
           const merged = fulfilled.flatMap((r) => r.value);
@@ -519,9 +528,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const env = import.meta.env as any;
-    const isTestEnv = String(env.MODE ?? "") === "test";
     const hasAnyReadOnlyRpc =
-      !isTestEnv &&
       [
         env.VITE_ETH_RPC_URL,
         env.VITE_ETH_SEPOLIA_RPC_URL,

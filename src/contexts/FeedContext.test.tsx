@@ -5,6 +5,33 @@ import { FeedProvider, useFeed, type FeedContextValue } from "./FeedContext";
 import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { fetchTokenMetadata } from "../lib/metadata";
 
+// Mock ethers JsonRpcProvider so no real network calls or startup retry logs happen.
+vi.mock("ethers", () => {
+  class FakeJsonRpcProvider {
+    url: string;
+    chainId: number;
+
+    constructor(url: string, chainId: number) {
+      this.url = url;
+      this.chainId = chainId;
+    }
+
+    async getBlockNumber() {
+      return 10;
+    }
+
+    async getBlock() {
+      return { timestamp: 123 } as any;
+    }
+  }
+
+  return {
+    ethers: {
+      JsonRpcProvider: FakeJsonRpcProvider
+    }
+  };
+});
+
 const setStatus = vi.fn();
 
 const walletState: {
@@ -117,6 +144,24 @@ function ExposeFeed({ onFeed }: { onFeed: (feed: FeedContextValue) => void }) {
 describe("FeedContext", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+
+    // Make tests deterministic even if a developer has network env vars set locally.
+    // By default, tests should exercise only the connected-wallet provider path.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
+    vi.stubEnv("VITE_ETH_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE", "");
+    vi.stubEnv("VITE_BASE_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE_SEPOLIA", "");
+    vi.stubEnv("VITE_BASE_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC", "");
+    vi.stubEnv("VITE_BSC_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
+    vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
 
     walletState.provider = null;
     walletState.walletAddress = "0xabc";

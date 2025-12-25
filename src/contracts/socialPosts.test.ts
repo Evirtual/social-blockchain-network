@@ -12,7 +12,7 @@ describe("socialPosts contract helpers", () => {
   });
 
   it("getSocialContract constructs an ethers.Contract", () => {
-    const runner = new ethers.JsonRpcProvider("http://localhost:8545");
+    const runner = {} as any;
     const c = getSocialContract("0x000000000000000000000000000000000000dEaD", runner);
     expect(typeof (c as any).getAddress).toBe("function");
   });

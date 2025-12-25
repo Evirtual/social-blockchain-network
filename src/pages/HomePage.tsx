@@ -78,6 +78,7 @@ export function HomePage(props: Props) {
   });
 
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedNetworkChainIds, setSelectedNetworkChainIds] = useState<string[]>([]);
 
   const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = useState<boolean>(() => {
     try {
@@ -87,11 +88,23 @@ export function HomePage(props: Props) {
     }
   });
 
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return props.posts;
 
-    return props.posts.filter((post) => {
+    const selectedSet = new Set(selectedNetworkChainIds);
+    const byNetwork = selectedSet.size
+      ? props.posts.filter((post) => {
+          const id = post.chainId ?? null;
+          if (!id) return false;
+          return selectedSet.has(String(id));
+        })
+      : props.posts;
+
+    if (!q) return byNetwork;
+
+    return byNetwork.filter((post) => {
       const author = post.author ?? "";
       const authorKey = author.toLowerCase();
       const identityName = authorKey ? props.authorIdentity.get(authorKey)?.name ?? "" : "";
@@ -104,13 +117,10 @@ export function HomePage(props: Props) {
 
       return haystack.includes(q);
     });
-  }, [props.posts, props.authorIdentity, props.shortAddress, searchQuery]);
+  }, [props.posts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
 
-  const pillText = searchQuery.trim()
-    ? `${filteredPosts.length} / ${props.posts.length} posts`
-    : `${props.posts.length} posts`;
-
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+  const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
+  const pillText = hasAnyFilter ? `${filteredPosts.length} / ${props.posts.length} posts` : `${props.posts.length} posts`;
 
   const isDisconnected = !props.walletAddress;
   const isWrongNetwork =
@@ -211,14 +221,43 @@ export function HomePage(props: Props) {
         title="Main Feed"
         pillText={pillText}
         headerAction={
-          <input
-            className="input feedSearch"
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search posts or accounts"
-            aria-label="Search posts or accounts"
-          />
+          <div className="feedHeaderControls">
+            <input
+              className="input feedSearch"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search posts or accounts"
+              aria-label="Search posts or accounts"
+            />
+
+            <details className="feedNetworkFilter">
+              <summary className="input feedNetworkFilterSummary" aria-label="Filter networks">
+                Networks {selectedNetworkChainIds.length ? `(${selectedNetworkChainIds.length})` : "(All)"}
+              </summary>
+              <div className="feedNetworkFilterMenu" role="group" aria-label="Network filters">
+                {supportedNetworks.map((n) => {
+                  const value = String(n.chainId);
+                  const checked = selectedNetworkChainIds.includes(value);
+                  return (
+                    <label key={value} className="feedNetworkFilterOption">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setSelectedNetworkChainIds((prev) => {
+                            if (e.target.checked) return Array.from(new Set([...prev, value]));
+                            return prev.filter((x) => x !== value);
+                          });
+                        }}
+                      />
+                      {n.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </details>
+          </div>
         }
         isLoading={props.isFeedLoading}
         posts={filteredPosts}
