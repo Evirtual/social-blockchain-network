@@ -42,10 +42,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
-  onTip: (tokenId: string) => void;
-  onBurn: (tokenId: string) => void;
-  onFreezePost: (tokenId: string) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -60,11 +60,11 @@ type SupportedNetwork = {
 };
 
 function getSupportedNetworks(): SupportedNetwork[] {
-  // UX requirement: show only mainnets (no chainId display), as pills with logo + name.
+  // UX requirement: show supported networks as pills with logo + name.
   return [
-    { chainId: 8453, name: "Base", description: "" },
-    { chainId: 1, name: "Ethereum", description: "" },
-    { chainId: 56, name: "BSC", description: "" }
+    { chainId: 84532, name: "Base testnet", description: "" },
+    { chainId: 11155111, name: "Ethereum testnet", description: "" },
+    { chainId: 97, name: "BSC testnet", description: "" }
   ];
 }
 
@@ -115,7 +115,7 @@ export function HomePage(props: Props) {
   const isDisconnected = !props.walletAddress;
   const isWrongNetwork =
     !!props.walletAddress && (props.contractAddress == null || props.contractDeployed === false);
-  const showNetworkCard = (isDisconnected || isWrongNetwork) && !isSupportedNetworksDismissed;
+  const showNetworkCard = !isSupportedNetworksDismissed;
 
   const showIntroHero = !isHeroDismissed;
   const heroCount = (showIntroHero ? 1 : 0) + (showNetworkCard ? 1 : 0);
@@ -183,8 +183,10 @@ export function HomePage(props: Props) {
               <div className="heroTitle">Supported networks</div>
               <div className="heroSub muted">
                 {isDisconnected
-                  ? "Connect your wallet on the supported mainnet to post, react, and tip."
-                  : "Your wallet is connected, but this app isn’t configured for the current network."}
+                  ? "Connect your wallet on a supported testnet to post, react, and tip."
+                  : isWrongNetwork
+                    ? "Your wallet is connected, but this app isn’t configured for the current network."
+                    : "Use one of these testnets to post, react, and tip."}
               </div>
               {isWrongNetwork && currentNetworkLabel ? (
                 <div className="pill">Current: {currentNetworkLabel}</div>
@@ -219,7 +221,6 @@ export function HomePage(props: Props) {
           />
         }
         isLoading={props.isFeedLoading}
-        loadingText={props.status}
         posts={filteredPosts}
         isOwner={props.isOwner}
         chainId={props.chainId}

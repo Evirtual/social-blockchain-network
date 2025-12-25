@@ -24,10 +24,10 @@ export function getNativeSymbol(chainId: string | null) {
 export function getNetworkBadgeLabel(chainId: string | null) {
   const id = Number(chainId);
   if (id === 1) return "ETH";
-  if (id === 11155111) return "SEP";
+  if (id === 11155111) return "eth-test";
   if (id === 8453) return "BASE";
-  if (id === 84532) return "BASE-SEP";
+  if (id === 84532) return "base-test";
   if (id === 56) return "BSC";
-  if (id === 97) return "BSC-T";
+  if (id === 97) return "bsc-test";
   return chainId ? `#${id}` : "";
 }

@@ -1,10 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Draft, Post } from "../types";
 import { PostCard } from "./PostCard";
 
 describe("PostCard", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   const baseDraft: Draft = {
     title: "",
     body: "",
@@ -254,8 +257,652 @@ describe("PostCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Like" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(onAction).toHaveBeenCalledWith("1", "like");
-    expect(onAction).toHaveBeenCalledWith("1", "share");
+    expect(onAction).toHaveBeenCalledWith("1", "like", undefined);
+    expect(onAction).toHaveBeenCalledWith("1", "share", undefined);
+  });
+
+  it("disables interactions when viewing a different/unknown network", () => {
+    const post: Post = {
+      ...basePost,
+      chainId: "999999"
+    };
+
+    render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"1"}
+          walletAddress={"0xme"}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const like = screen.getByRole("button", { name: "Like" });
+    expect(like).toBeDisabled();
+    expect(like).toHaveAttribute("title", expect.stringContaining("Switch to #999999"));
+  });
+
+  it("falls back to ipfs.io gateway for video when the primary gateway errors", async () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://gateway.pinata.cloud/ipfs/");
+
+    const post: Post = {
+      ...basePost,
+      image: "ipfs://bafy-img",
+      animationUrl: "ipfs://bafy-video"
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const video = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(video).toBeTruthy();
+
+    expect(video?.getAttribute("src") ?? "").not.toContain("ipfs.io/ipfs/");
+
+    // Trigger the fallback handler.
+    fireEvent.error(video as any);
+
+    // In jsdom, src can be resolved; assert on attribute to avoid base URL differences.
+    await waitFor(() => expect(video?.getAttribute("src") ?? "").toContain("ipfs.io/ipfs/"));
+  });
+
+  it("does not fall back for non-IPFS video URLs", () => {
+    const post: Post = {
+      ...basePost,
+      animationUrl: "https://example.com/video.mp4",
+      image: ""
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const video = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(video).toBeTruthy();
+
+    const before = video?.getAttribute("src") ?? "";
+    fireEvent.error(video as any);
+    const after = video?.getAttribute("src") ?? "";
+
+    expect(after).toBe(before);
+    expect(after).not.toContain("ipfs.io/ipfs/");
+  });
+
+  it("does not refallback if the video is already on the fallback gateway", () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://ipfs.io/ipfs/");
+
+    const post: Post = {
+      ...basePost,
+      image: "ipfs://bafy-img",
+      animationUrl: "ipfs://bafy-video"
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const video = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(video).toBeTruthy();
+
+    const before = video?.getAttribute("src") ?? "";
+    fireEvent.error(video as any);
+    const after = video?.getAttribute("src") ?? "";
+
+    expect(before).toContain("ipfs.io/ipfs/");
+    expect(after).toBe(before);
+  });
+
+  it("falls back to ipfs.io gateway for image when the primary gateway errors", async () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://gateway.pinata.cloud/ipfs/");
+
+    const post: Post = {
+      ...basePost,
+      image: "ipfs://bafy-img-only",
+      animationUrl: undefined
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const img = container.querySelector("img.postImage") as HTMLImageElement | null;
+    expect(img).toBeTruthy();
+
+    expect(img?.getAttribute("src") ?? "").not.toContain("ipfs.io/ipfs/");
+
+    fireEvent.error(img as any);
+    await waitFor(() => expect(img?.getAttribute("src") ?? "").toContain("ipfs.io/ipfs/"));
+  });
+
+  it("does not fall back for non-IPFS image URLs", () => {
+    const post: Post = {
+      ...basePost,
+      image: "https://example.com/img.png",
+      animationUrl: undefined
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const img = container.querySelector("img.postImage") as HTMLImageElement | null;
+    expect(img).toBeTruthy();
+
+    const before = img?.getAttribute("src") ?? "";
+    fireEvent.error(img as any);
+    const after = img?.getAttribute("src") ?? "";
+
+    expect(after).toBe(before);
+    expect(after).not.toContain("ipfs.io/ipfs/");
+  });
+
+  it("does not refallback if the image is already on the fallback gateway", () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://ipfs.io/ipfs/");
+
+    const post: Post = {
+      ...basePost,
+      image: "ipfs://bafy-img-only",
+      animationUrl: undefined
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const img = container.querySelector("img.postImage") as HTMLImageElement | null;
+    expect(img).toBeTruthy();
+
+    const before = img?.getAttribute("src") ?? "";
+    fireEvent.error(img as any);
+    const after = img?.getAttribute("src") ?? "";
+
+    expect(before).toContain("ipfs.io/ipfs/");
+    expect(after).toBe(before);
+  });
+
+  it("updates media src when post media changes", () => {
+    const postA: Post = {
+      ...basePost,
+      image: "ipfs://bafy-img-a",
+      animationUrl: "ipfs://bafy-vid-a"
+    };
+    const postB: Post = {
+      ...basePost,
+      tokenId: "1",
+      image: "ipfs://bafy-img-b",
+      animationUrl: "ipfs://bafy-vid-b"
+    };
+
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <PostCard
+          post={postA}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const videoA = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(videoA?.getAttribute("src") ?? "").toContain("bafy-vid-a");
+
+    rerender(
+      <MemoryRouter>
+        <PostCard
+          post={postB}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const videoB = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(videoB?.getAttribute("src") ?? "").toContain("bafy-vid-b");
+  });
+
+  it("does not overwrite blob animationSrc when post animationUrl changes", () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://gateway.pinata.cloud/ipfs/");
+
+    const postA: Post = {
+      ...basePost,
+      animationUrl: "blob:video-preview",
+      image: ""
+    };
+
+    const postB: Post = {
+      ...basePost,
+      animationUrl: "ipfs://bafy-video-b",
+      image: "ipfs://bafy-img-b"
+    };
+
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <PostCard
+          post={postA}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const video = container.querySelector("video.postImage") as HTMLVideoElement | null;
+    expect(video?.getAttribute("src")).toBe("blob:video-preview");
+
+    rerender(
+      <MemoryRouter>
+        <PostCard
+          post={postB}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    // Blob should remain unchanged by sync effect.
+    expect(video?.getAttribute("src")).toBe("blob:video-preview");
+  });
+
+  it("does not overwrite blob imageSrc when post image changes", () => {
+    vi.stubEnv("VITE_IPFS_GATEWAY", "https://gateway.pinata.cloud/ipfs/");
+
+    const postA: Post = {
+      ...basePost,
+      animationUrl: undefined,
+      image: "blob:image-preview"
+    };
+
+    const postB: Post = {
+      ...basePost,
+      animationUrl: undefined,
+      image: "ipfs://bafy-img-b"
+    };
+
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <PostCard
+          post={postA}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const img = container.querySelector("img.postImage") as HTMLImageElement | null;
+    expect(img?.getAttribute("src")).toBe("blob:image-preview");
+
+    rerender(
+      <MemoryRouter>
+        <PostCard
+          post={postB}
+          from="/"
+          chainId={"8453"}
+          walletAddress={null}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    expect(img?.getAttribute("src")).toBe("blob:image-preview");
   });
 
   it("does not throw if clipboard is unavailable when explorer URL is unavailable", () => {
@@ -413,7 +1060,7 @@ describe("PostCard", () => {
     expect(onStartEditPost).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Burn post" }));
-    expect(onBurn).toHaveBeenCalledWith("1");
+    expect(onBurn).toHaveBeenCalledWith("1", undefined);
 
     fireEvent.click(screen.getByRole("button", { name: "Tip" }));
     expect(onTogglePanel).toHaveBeenCalledWith("tip");
@@ -463,7 +1110,7 @@ describe("PostCard", () => {
 
     expect(screen.getByAltText("Edit preview")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Freeze" }));
-    expect(onFreezePost).toHaveBeenCalledWith("1");
+    expect(onFreezePost).toHaveBeenCalledWith("1", undefined);
 
     const textarea = screen.getByPlaceholderText("Post text");
     fireEvent.change(textarea, { target: { value: "new" } });
@@ -843,7 +1490,7 @@ describe("PostCard", () => {
     const tipRow = tipInput.parentElement;
     if (!tipRow) throw new Error("Expected tip input to have a parent element");
     fireEvent.click(within(tipRow).getByRole("button", { name: "Tip" }));
-    expect(onTip).toHaveBeenCalledWith("1");
+    expect(onTip).toHaveBeenCalledWith("1", undefined);
 
     // Switch to comment panel by re-rendering.
     render(
@@ -885,6 +1532,6 @@ describe("PostCard", () => {
     fireEvent.change(commentInput, { target: { value: "ok" } });
     expect(onCommentDraftChange).toHaveBeenCalledWith("1", "ok");
     fireEvent.click(screen.getByRole("button", { name: "Sign" }));
-    expect(onAction).toHaveBeenCalledWith("1", "comment");
+    expect(onAction).toHaveBeenCalledWith("1", "comment", undefined);
   });
 });

@@ -30,6 +30,26 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   const composer = useComposer();
   const social = useSocialActions();
 
+  const [connectNudge, setConnectNudge] = useState(false);
+  const connectNudgeTimeoutRef = useRef<number | null>(null);
+
+  const nudgeConnectWallet = useCallback(() => {
+    setConnectNudge(true);
+    if (connectNudgeTimeoutRef.current !== null) {
+      window.clearTimeout(connectNudgeTimeoutRef.current);
+    }
+    connectNudgeTimeoutRef.current = window.setTimeout(() => {
+      setConnectNudge(false);
+      connectNudgeTimeoutRef.current = null;
+    }, 1400);
+  }, []);
+
+  const requireConnectedWallet = useCallback(() => {
+    if (wallet.walletAddress) return true;
+    nudgeConnectWallet();
+    return false;
+  }, [wallet.walletAddress, nudgeConnectWallet]);
+
   // Reposts live here for now (not yet extracted into its own context).
   const [repostTokenIdsByAddress, setRepostTokenIdsByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingRepostsByAddress, setIsLoadingRepostsByAddress] = useState<Record<string, boolean>>({});
@@ -59,6 +79,51 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   const refreshFeed = useCallback(async () => {
     await feed.refreshFeed();
   }, [feed]);
+
+  const withdrawTips = useCallback(async () => {
+    if (!requireConnectedWallet()) return;
+    await social.withdrawTips();
+  }, [requireConnectedWallet, social]);
+
+  const handleAction = useCallback(
+    async (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => {
+      if (!requireConnectedWallet()) return;
+      await social.handleAction(tokenId, action, postChainId);
+    },
+    [requireConnectedWallet, social]
+  );
+
+  const handleTip = useCallback(
+    async (tokenId: string, postChainId?: string | null) => {
+      if (!requireConnectedWallet()) return;
+      await social.handleTip(tokenId, postChainId);
+    },
+    [requireConnectedWallet, social]
+  );
+
+  const burnPost = useCallback(
+    async (tokenId: string, postChainId?: string | null) => {
+      if (!requireConnectedWallet()) return;
+      await social.burnPost(tokenId, postChainId);
+    },
+    [requireConnectedWallet, social]
+  );
+
+  const freezePost = useCallback(
+    async (tokenId: string, postChainId?: string | null) => {
+      if (!requireConnectedWallet()) return;
+      await social.freezePost(tokenId, postChainId);
+    },
+    [requireConnectedWallet, social]
+  );
+
+  const toggleFollow = useCallback(
+    async (followee: string) => {
+      if (!requireConnectedWallet()) return;
+      await follow.toggleFollow(followee);
+    },
+    [requireConnectedWallet, follow]
+  );
 
   const loadRepostsForAddress = useCallback(
     async (address: string) => {
@@ -178,6 +243,9 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       theme: theme.theme,
       toggleTheme: theme.toggleTheme,
 
+      // UI
+      connectNudge,
+
       // Wallet + chain
       walletAddress: wallet.walletAddress,
       chainId: wallet.chainId,
@@ -191,7 +259,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       connectWallet,
       disconnectWallet: wallet.disconnectWallet,
       refreshWalletPanel: wallet.refreshWalletPanel,
-      withdrawTips: social.withdrawTips,
+      withdrawTips,
 
       // Feed loading
       isFeedLoading: feed.isFeedLoading,
@@ -263,10 +331,10 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       startEditPost: social.startEditPost,
       cancelEditPost: social.cancelEditPost,
       saveEditedPost: social.saveEditedPost,
-      burnPost: social.burnPost,
-      handleAction: social.handleAction,
-      handleTip: social.handleTip,
-      freezePost: social.freezePost,
+      handleAction,
+      handleTip,
+      burnPost,
+      freezePost,
 
       // Comments
       postComments: feed.postComments,
@@ -276,7 +344,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       // Follow graph (cache)
       isFollowingByAddress: follow.isFollowingByAddress,
       loadIsFollowing: follow.loadIsFollowing,
-      toggleFollow: follow.toggleFollow,
+      toggleFollow,
 
       // Reposts (shares)
       repostTokenIdsByAddress,
@@ -308,6 +376,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
     [
       theme.theme,
       theme.toggleTheme,
+      connectNudge,
       wallet.walletAddress,
       wallet.chainId,
       wallet.networkName,
@@ -319,7 +388,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       contract.withdrawableTipsWei,
       status,
       connectWallet,
-      social.withdrawTips,
+      withdrawTips,
       feed.isFeedLoading,
       composer.isComposerOpen,
       composer.openComposer,
@@ -375,16 +444,16 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       social.startEditPost,
       social.cancelEditPost,
       social.saveEditedPost,
-      social.burnPost,
-      social.handleAction,
-      social.handleTip,
-      social.freezePost,
+      handleAction,
+      handleTip,
+      burnPost,
+      freezePost,
       feed.postComments,
       feed.isLoadingPostComments,
       feed.loadCommentsForPost,
       follow.isFollowingByAddress,
       follow.loadIsFollowing,
-      follow.toggleFollow,
+      toggleFollow,
       repostTokenIdsByAddress,
       isLoadingRepostsByAddress,
       loadRepostsForAddress,

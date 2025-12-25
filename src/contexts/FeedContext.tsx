@@ -1,11 +1,32 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ethers } from "ethers";
 import type { Post, PostComment } from "../types";
-import { socialInterface } from "../contracts/socialPosts";
+import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { getErrorMessage } from "../lib/errors";
 import { fetchTokenMetadata } from "../lib/metadata";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
 import { useWallet } from "./WalletContext";
+
+type FeedNetworkConfig = {
+  chainId: number;
+  contractAddress: string;
+  rpcUrl?: string;
+};
+
+function chainIdToNumber(chainId: string | null): number | null {
+  if (!chainId) return null;
+  if (chainId.startsWith("0x") || chainId.startsWith("0X")) {
+    const n = Number.parseInt(chainId, 16);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number.parseInt(chainId, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function postKey(p: Pick<Post, "tokenId" | "chainId">) {
+  return `${p.chainId ?? ""}:${p.tokenId}`;
+}
 
 export type FeedContextValue = {
   posts: Post[];
@@ -109,7 +130,15 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       if (!provider) return;
       if (!tokenIds.length) return;
 
-      const existing = new Set(posts.map((p) => p.tokenId));
+      const currentChainId = chainIdToNumber(chainId);
+      const existing = new Set(
+        posts
+          .filter((p) => {
+            const pChain = chainIdToNumber(p.chainId ?? null);
+            return currentChainId == null || pChain == null || pChain === currentChainId;
+          })
+          .map((p) => p.tokenId)
+      );
       const missing = Array.from(new Set(tokenIds)).filter((id) => id && !existing.has(id));
       if (missing.length === 0) return;
 
@@ -161,6 +190,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         const meta = await fetchTokenMetadata(tokenUri);
         const post: Post = {
           tokenId: id,
+          chainId: currentChainId != null ? String(currentChainId) : undefined,
           title: meta?.name ?? `Token #${id}`,
           body: meta?.description ?? "",
           image: meta?.image ?? "",
@@ -181,18 +211,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       if (toAdd.length === 0) return;
 
       setPosts((prev) => {
-        const byId = new Map(prev.map((p) => [p.tokenId, p] as const));
-        for (const p of toAdd) byId.set(p.tokenId, p);
+        const byId = new Map(prev.map((p) => [postKey(p), p] as const));
+        for (const p of toAdd) byId.set(postKey(p), p);
         return Array.from(byId.values());
       });
     },
-    [provider, posts, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress]
+    [provider, posts, chainId, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress]
   );
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
-      if (!provider) return;
-
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
       if (refreshFeedInFlightRef.current) {
         queuedRefreshAccountRef.current = account ?? null;
@@ -231,90 +259,242 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       const task = (async () => {
         try {
           setIsFeedLoading(true);
-          await ensureContractDeployedOnCurrentNetwork();
-          const readContract = await getReadContract();
           setStatus("Loading posts... (this can take a few seconds on testnets)");
 
-          // Some RPC providers may fail when querying logs from block 0 to latest.
-          // Fetch logs in an adaptive window.
-          const fetchMintedEvents = async () => {
-            const latest = await provider.getBlockNumber();
+          const currentChainIdNumber = chainIdToNumber(chainId);
 
-            let windowSize = 200_000;
-            const maxWindowSize = Math.max(windowSize, latest);
-            const minWindowSize = 2_000;
+          const env = import.meta.env as any;
+          const isTestEnv = String(env.MODE ?? "") === "test";
+          const configuredNetworks: FeedNetworkConfig[] = [
+            { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: isTestEnv ? undefined : env.VITE_ETH_RPC_URL },
+            { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: isTestEnv ? undefined : env.VITE_ETH_SEPOLIA_RPC_URL },
+            { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: isTestEnv ? undefined : env.VITE_BASE_RPC_URL },
+            { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: isTestEnv ? undefined : env.VITE_BASE_SEPOLIA_RPC_URL },
+            { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: isTestEnv ? undefined : env.VITE_BSC_RPC_URL },
+            { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: isTestEnv ? undefined : env.VITE_BSC_TESTNET_RPC_URL },
+            {
+              chainId: 31337,
+              // Local dev commonly uses the legacy single-network address.
+              contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL ?? env.VITE_CONTRACT_ADDRESS,
+              rpcUrl: isTestEnv ? undefined : env.VITE_LOCAL_RPC_URL
+            }
+          ]
+            .filter((n) => typeof n.contractAddress === "string" && n.contractAddress.trim().length > 0)
+            .map((n) => ({ ...n, contractAddress: String(n.contractAddress).trim() }));
 
-            while (true) {
-              const fromBlock = Math.max(0, latest - windowSize);
+          // Only include additional networks if a public RPC URL is configured.
+          const extraNetworks = configuredNetworks.filter(
+            (n) =>
+              typeof n.rpcUrl === "string" &&
+              n.rpcUrl.trim().length > 0 &&
+              (currentChainIdNumber == null || n.chainId !== currentChainIdNumber)
+          );
+
+          // If there's no connected wallet provider and no read-only networks are configured,
+          // keep the previous behavior (no-op) to avoid spurious status churn.
+          if (!provider && extraNetworks.length === 0) return;
+
+          const getNetworkTasks = async () => {
+            // Current network uses the connected wallet provider to preserve existing behavior.
+            const tasks: Array<Promise<Post[]>> = [];
+
+            const loadFromProvider = async (
+              chainIdNum: number | null,
+              networkProvider: any,
+              readContract: any
+            ): Promise<Post[]> => {
+              const queryPostMintedPaged = async (fromBlock: number, toBlock: number) => {
+                const filter = readContract.filters.PostMinted();
+                const logs: any[] = [];
+
+                // Many public RPCs enforce limits on eth_getLogs response size and/or block range.
+                // Paginate the query by block range and shrink chunk size on failure.
+                let chunkSize = 5_000;
+                const minChunkSize = 100;
+
+                let start = fromBlock;
+                while (start <= toBlock) {
+                  const end = Math.min(toBlock, start + chunkSize - 1);
+                  try {
+                    const part = await readContract.queryFilter(filter, start, end);
+                    logs.push(...part);
+                    start = end + 1;
+                  } catch (err) {
+                    if (chunkSize <= minChunkSize) throw err;
+                    chunkSize = Math.max(minChunkSize, Math.floor(chunkSize / 2));
+                  }
+                }
+
+                return logs;
+              };
+
+              // Some RPC providers may fail when querying logs from block 0 to latest.
+              // Fetch logs in an adaptive window.
+              const fetchMintedEvents = async () => {
+                const latest = await networkProvider.getBlockNumber();
+
+                let windowSize = 50_000;
+                const maxWindowSize = Math.max(windowSize, latest);
+                const minWindowSize = 2_000;
+
+                while (true) {
+                  const fromBlock = Math.max(0, latest - windowSize);
+                  try {
+                    const events = await queryPostMintedPaged(fromBlock, latest);
+                    if (events.length > 0 || fromBlock === 0) return events;
+
+                    windowSize = Math.min(maxWindowSize, windowSize * 2);
+                  } catch (err) {
+                    if (windowSize <= minWindowSize) throw err;
+                    windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+                  }
+                }
+              };
+
+              const mintedEvents = await fetchMintedEvents();
+              const eventsNewestFirst = mintedEvents.slice().reverse();
+
+              const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
+                const anyEvent = event as any;
+                const args = anyEvent.args as any[] | undefined;
+                const author = args?.[0] as string | undefined;
+                const tokenIdBig = args?.[1] as bigint | undefined;
+                if (!tokenIdBig) return null;
+
+                const exists = (await readContract.exists(tokenIdBig)) as boolean;
+                if (!exists) return null;
+
+                const tokenId = tokenIdBig.toString();
+
+                const blockNumber = Number(anyEvent.blockNumber ?? 0) || undefined;
+                const txHash = (anyEvent.transactionHash as string | undefined) ?? undefined;
+
+                let mintTimestamp: number | undefined;
+                if (blockNumber && typeof networkProvider.getBlock === "function") {
+                  try {
+                    const block = await networkProvider.getBlock(blockNumber);
+                    const ts = Number((block as any)?.timestamp ?? 0);
+                    if (Number.isFinite(ts) && ts > 0) mintTimestamp = ts;
+                  } catch {
+                    // ignore
+                  }
+                }
+
+                let tokenUri = "";
+                let likesRaw = 0n;
+                let commentsRaw = 0n;
+                let sharesRaw = 0n;
+                let tipsWei = 0n;
+                let likedByMe: boolean | undefined;
+                let repostedByMe: boolean | undefined;
+                try {
+                  [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei, likedByMe, repostedByMe] = await Promise.all([
+                    readContract.tokenURI(tokenIdBig) as Promise<string>,
+                    readContract.likesOf(tokenIdBig) as Promise<bigint>,
+                    readContract.commentsOf(tokenIdBig) as Promise<bigint>,
+                    readContract.sharesOf(tokenIdBig) as Promise<bigint>,
+                    readContract.tipsOf(tokenIdBig) as Promise<bigint>,
+                    account
+                      ? ((readContract as any).hasLiked(tokenIdBig, account) as Promise<boolean>)
+                      : Promise.resolve(undefined),
+                    account
+                      ? ((readContract as any).hasShared(tokenIdBig, account) as Promise<boolean>)
+                      : Promise.resolve(undefined)
+                  ]);
+                } catch {
+                  return null;
+                }
+
+                const meta = await fetchTokenMetadata(tokenUri);
+
+                const post: Post = {
+                  tokenId,
+                  chainId: chainIdNum != null ? String(chainIdNum) : undefined,
+                  title: meta?.name ?? `Token #${tokenId}`,
+                  body: meta?.description ?? "",
+                  image: meta?.image ?? "",
+                  animationUrl: meta?.animation_url,
+                  metadataURI: tokenUri,
+                  author,
+                  mintTxHash: txHash,
+                  mintBlockNumber: blockNumber,
+                  mintTimestamp,
+                  likes: Number(likesRaw),
+                  comments: Number(commentsRaw),
+                  shares: Number(sharesRaw),
+                  tipsWei,
+                  likedByMe,
+                  repostedByMe
+                };
+                return post;
+              });
+
+              return minted.filter((p): p is Post => p != null);
+            };
+
+            // Current chain
+            if (provider) {
               try {
-                const events = await readContract.queryFilter(readContract.filters.PostMinted(), fromBlock, latest);
-                if (events.length > 0 || fromBlock === 0) return events;
-
-                windowSize = Math.min(maxWindowSize, windowSize * 2);
-              } catch (err) {
-                if (windowSize <= minWindowSize) throw err;
-                windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+                await ensureContractDeployedOnCurrentNetwork();
+                const currentReadContract = await getReadContract();
+                tasks.push(loadFromProvider(currentChainIdNumber, provider, currentReadContract));
+              } catch {
+                // If the connected network isn't configured, still try any configured read-only networks.
               }
             }
-          };
 
-          const mintedEvents = await fetchMintedEvents();
-
-          const eventsNewestFirst = mintedEvents.slice().reverse();
-          const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
-            const anyEvent = event as any;
-            const args = anyEvent.args as any[] | undefined;
-            const author = args?.[0] as string | undefined;
-            const tokenIdBig = args?.[1] as bigint | undefined;
-            if (!tokenIdBig) return null;
-
-            const exists = (await readContract.exists(tokenIdBig)) as boolean;
-            if (!exists) return null;
-
-            let tokenUri = "";
-            let likesRaw = 0n;
-            let commentsRaw = 0n;
-            let sharesRaw = 0n;
-            let tipsWei = 0n;
-            let likedByMe: boolean | undefined;
-            let repostedByMe: boolean | undefined;
-            try {
-              [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei, likedByMe, repostedByMe] = await Promise.all([
-                readContract.tokenURI(tokenIdBig) as Promise<string>,
-                readContract.likesOf(tokenIdBig) as Promise<bigint>,
-                readContract.commentsOf(tokenIdBig) as Promise<bigint>,
-                readContract.sharesOf(tokenIdBig) as Promise<bigint>,
-                readContract.tipsOf(tokenIdBig) as Promise<bigint>,
-                account ? ((readContract as any).hasLiked(tokenIdBig, account) as Promise<boolean>) : Promise.resolve(undefined),
-                account ? ((readContract as any).hasShared(tokenIdBig, account) as Promise<boolean>) : Promise.resolve(undefined)
-              ]);
-            } catch {
-              return null;
+            // Other chains
+            for (const cfg of extraNetworks) {
+              const url = String(cfg.rpcUrl).trim();
+              const rpcProvider = new ethers.JsonRpcProvider(url, cfg.chainId);
+              const remoteReadContract = getSocialContract(cfg.contractAddress, rpcProvider);
+              tasks.push(loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract));
             }
 
-            const tokenId = tokenIdBig.toString();
-            const meta = await fetchTokenMetadata(tokenUri);
+            return tasks;
+          };
 
-            const post: Post = {
-              tokenId,
-              title: meta?.name ?? `Token #${tokenId}`,
-              body: meta?.description ?? "",
-              image: meta?.image ?? "",
-              animationUrl: meta?.animation_url,
-              metadataURI: tokenUri,
-              author,
-              likes: Number(likesRaw),
-              comments: Number(commentsRaw),
-              shares: Number(sharesRaw),
-              tipsWei,
-              likedByMe,
-              repostedByMe
-            };
-            return post;
+          const networkTasks = await getNetworkTasks();
+
+          // IMPORTANT: In browsers, some public RPC endpoints fail due to CORS or rate limits.
+          // We still want to show posts from any networks that *do* succeed.
+          const settled = await Promise.allSettled(networkTasks);
+          const fulfilled = settled.filter(
+            (r): r is PromiseFulfilledResult<Post[]> => r.status === "fulfilled"
+          );
+          const rejected = settled.filter(
+            (r): r is PromiseRejectedResult => r.status === "rejected"
+          );
+
+          if (rejected.length > 0) {
+            // Best-effort diagnostics for dev; UI shows a generic hint below.
+            // eslint-disable-next-line no-console
+            console.warn("Some feed networks failed to load:", rejected.map((r) => r.reason));
+          }
+
+          const merged = fulfilled.flatMap((r) => r.value);
+
+          // If *everything* failed, surface the first error.
+          if (merged.length === 0 && rejected.length > 0) {
+            throw rejected[0].reason;
+          }
+
+          merged.sort((a, b) => {
+            const at = a.mintTimestamp ?? 0;
+            const bt = b.mintTimestamp ?? 0;
+            if (at !== bt) return bt - at;
+            const ab = a.mintBlockNumber ?? 0;
+            const bb = b.mintBlockNumber ?? 0;
+            if (ab !== bb) return bb - ab;
+            return postKey(b).localeCompare(postKey(a));
           });
 
-          setPosts(minted.filter((post): post is Post => post != null));
-          setStatus("Feed loaded.");
+          // Deduplicate by (chainId, tokenId)
+          const byKey = new Map<string, Post>();
+          for (const p of merged) byKey.set(postKey(p), p);
+          setPosts(Array.from(byKey.values()));
+
+          setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");
         } catch (err) {
           setStatus(getErrorMessage(err));
           throw err;
@@ -338,28 +518,38 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    if (!provider) return;
+    const env = import.meta.env as any;
+    const isTestEnv = String(env.MODE ?? "") === "test";
+    const hasAnyReadOnlyRpc =
+      !isTestEnv &&
+      [
+        env.VITE_ETH_RPC_URL,
+        env.VITE_ETH_SEPOLIA_RPC_URL,
+        env.VITE_BASE_RPC_URL,
+        env.VITE_BASE_SEPOLIA_RPC_URL,
+        env.VITE_BSC_RPC_URL,
+        env.VITE_BSC_TESTNET_RPC_URL,
+        env.VITE_LOCAL_RPC_URL
+      ].some((v) => typeof v === "string" && v.trim().length > 0);
+
+    if (!provider && !hasAnyReadOnlyRpc) return;
     if (walletEpoch === lastWalletEpochRef.current) return;
     lastWalletEpochRef.current = walletEpoch;
 
     const chainChanged = lastChainIdRef.current !== chainId;
-    const accountChanged = lastWalletAddressRef.current !== walletAddress;
     lastChainIdRef.current = chainId;
     lastWalletAddressRef.current = walletAddress;
 
     if (chainChanged) {
-      setStatus("Network changed. Loading posts for the new network... (testnets can be slow)");
       setIsFeedLoading(true);
       setPosts([]);
       setPostComments({});
       setIsLoadingPostComments({});
-    } else if (accountChanged) {
-      setStatus(walletAddress ? "Wallet connected." : "Wallet disconnected");
     }
 
-      void refreshFeed(walletAddress).catch(() => {
-        // refreshFeed already reports status; avoid unhandled rejections
-      });
+    void refreshFeed(walletAddress).catch(() => {
+      // refreshFeed already reports status; avoid unhandled rejections
+    });
   }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, setStatus]);
 
   const value = useMemo<FeedContextValue>(

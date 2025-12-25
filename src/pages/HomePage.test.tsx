@@ -184,13 +184,28 @@ describe("HomePage", () => {
     render(<HomePage {...makeProps()} />);
 
     expect(screen.getByText("Supported networks")).toBeInTheDocument();
-    expect(screen.getByLabelText("Base")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ethereum")).toBeInTheDocument();
-    expect(screen.getByLabelText("BSC")).toBeInTheDocument();
+    expect(screen.getByLabelText("Base testnet")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ethereum testnet")).toBeInTheDocument();
+    expect(screen.getByLabelText("BSC testnet")).toBeInTheDocument();
 
     // Both hero cards visible => not single.
     const row = document.querySelector(".homeHeroRow");
     expect(row?.classList.contains("homeHeroRowSingle")).toBe(false);
+  });
+
+  it("keeps supported networks hero visible when connected (until dismissed)", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          contractAddress: "0x123",
+          contractDeployed: true,
+          networkName: "Base"
+        })}
+      />
+    );
+
+    expect(screen.getByText("Supported networks")).toBeInTheDocument();
   });
 
   it("can dismiss supported networks (persisting to localStorage)", () => {

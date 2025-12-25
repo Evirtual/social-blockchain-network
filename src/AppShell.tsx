@@ -4,6 +4,7 @@ import { Modal } from "./components/Modal";
 import { Topbar } from "./components/Topbar";
 import { TxToaster } from "./components/TxToaster";
 import { useApp } from "./contexts/AppContext";
+import { getNetworkBadgeLabel } from "./lib/chain";
 import { HomeRoute } from "./routes/HomeRoute";
 import { PostRoute } from "./routes/PostRoute";
 import { ProfileRoute } from "./routes/ProfileRoute";
@@ -15,6 +16,7 @@ export function AppShell() {
     <div className="app">
       <Topbar
         theme={app.theme}
+        connectNudge={app.connectNudge}
         walletAddress={app.walletAddress}
         onToggleTheme={app.toggleTheme}
         onConnectWallet={app.connectWallet}
@@ -22,7 +24,16 @@ export function AppShell() {
         rightSlot={
           app.profileLink ? (
             <Link className="btn secondary" to={app.profileLink}>
-              {app.walletAddress ? app.shortAddress(app.walletAddress) : ""}
+              {app.walletAddress ? (
+                <>
+                  {app.shortAddress(app.walletAddress)}
+                  {typeof app.chainId === "string" && app.chainId ? (
+                    <span className="badge">{getNetworkBadgeLabel(app.chainId)}</span>
+                  ) : null}
+                </>
+              ) : (
+                ""
+              )}
             </Link>
           ) : null
         }

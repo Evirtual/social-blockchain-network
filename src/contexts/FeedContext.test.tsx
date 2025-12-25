@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
-import { FeedProvider, useFeed } from "./FeedContext";
-import { socialInterface } from "../contracts/socialPosts";
+import { FeedProvider, useFeed, type FeedContextValue } from "./FeedContext";
+import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { fetchTokenMetadata } from "../lib/metadata";
 
 const setStatus = vi.fn();
@@ -40,6 +40,9 @@ const readContract: any = {
   hasShared: vi.fn(async (_: bigint, __: string) => false)
 };
 
+const ensureContractDeployedOnCurrentNetwork = vi.fn(async () => undefined);
+const getReadContract = vi.fn(async () => readContract);
+
 vi.mock("./WalletContext", () => ({
   useWallet: () => walletState
 }));
@@ -50,8 +53,8 @@ vi.mock("./StatusContext", () => ({
 
 vi.mock("./ContractContext", () => ({
   useContract: () => ({
-    ensureContractDeployedOnCurrentNetwork: vi.fn(async () => undefined),
-    getReadContract: vi.fn(async () => readContract)
+    ensureContractDeployedOnCurrentNetwork,
+    getReadContract
   })
 }));
 
@@ -64,6 +67,7 @@ vi.mock("../lib/metadata", () => ({
 }));
 
 vi.mock("../contracts/socialPosts", () => ({
+  getSocialContract: vi.fn(() => readContract),
   socialInterface: {
     parseLog: vi.fn(() => ({
       args: { commenter: "0xC", comment: "Nice" }
@@ -102,7 +106,7 @@ function Consumer() {
   );
 }
 
-function ExposeFeed({ onFeed }: { onFeed: (feed: ReturnType<typeof useFeed>) => void }) {
+function ExposeFeed({ onFeed }: { onFeed: (feed: FeedContextValue) => void }) {
   const feed = useFeed();
   useEffect(() => {
     onFeed(feed);
@@ -112,12 +116,21 @@ function ExposeFeed({ onFeed }: { onFeed: (feed: ReturnType<typeof useFeed>) => 
 
 describe("FeedContext", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
+
     walletState.provider = null;
     walletState.walletAddress = "0xabc";
     walletState.chainId = "1";
     walletState.walletEpoch = 0;
 
     setStatus.mockClear();
+
+  (getSocialContract as any).mockClear?.();
+
+  ensureContractDeployedOnCurrentNetwork.mockReset();
+  ensureContractDeployedOnCurrentNetwork.mockResolvedValue(undefined);
+  getReadContract.mockReset();
+  getReadContract.mockResolvedValue(readContract);
 
     readContract.queryFilter.mockReset();
     readContract.queryFilter.mockImplementation(async (filter: string) => {
@@ -153,6 +166,127 @@ describe("FeedContext", () => {
     readContract.hasShared.mockImplementation(async (_: bigint, __: string) => false);
   });
 
+  it("derives mintTimestamp using timestamp ?? 0 when block has no timestamp", async () => {
+    const provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({}))
+    };
+    walletState.provider = provider;
+    walletState.walletEpoch = 1;
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [
+          {
+            args: ["0xAuthor", 1n],
+            blockNumber: 7,
+            transactionHash: "0xtx"
+          }
+        ];
+      }
+      return [{ transactionHash: "0xtx", blockNumber: 123, topics: [], data: "0x" }];
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(provider.getBlock).toHaveBeenCalledWith(7);
+  });
+
+  it("sorts posts by mintTimestamp when timestamps differ", async () => {
+    const provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async (n: number) => ({ timestamp: n === 8 ? 200 : 100 }))
+    };
+    walletState.provider = provider;
+    walletState.walletEpoch = 1;
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [
+          { args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx1" },
+          { args: ["0xAuthor", 2n], blockNumber: 8, transactionHash: "0xtx2" }
+        ];
+      }
+      return [{ transactionHash: "0xtx", blockNumber: 123, topics: [], data: "0x" }];
+    });
+
+    type CapturedFeed = { posts: Array<{ tokenId: string }> };
+    let captured!: CapturedFeed;
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(f) => (captured = f as unknown as CapturedFeed)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(captured.posts.length).toBe(2));
+    expect(captured.posts[0]?.tokenId).toBe("2");
+    expect(captured.posts[1]?.tokenId).toBe("1");
+  });
+
+  it("sets partial-success status when an extra network fails", async () => {
+    vi.stubEnv("MODE", "development");
+
+    // Ensure this test is deterministic even if a developer has other networks
+    // configured in their local env (which would otherwise add extraNetworks).
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
+    vi.stubEnv("VITE_ETH_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE", "");
+    vi.stubEnv("VITE_BASE_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE_SEPOLIA", "");
+    vi.stubEnv("VITE_BASE_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC", "");
+    vi.stubEnv("VITE_BSC_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
+    vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "0x0000000000000000000000000000000000000001");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "http://example.invalid");
+
+    const provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.provider = provider;
+    walletState.walletEpoch = 1;
+
+    const badContract: any = {
+      filters: { PostMinted: () => "PostMintedFilter" },
+      queryFilter: vi.fn(async () => {
+        throw new Error("rpc down");
+      })
+    };
+
+    (getSocialContract as any).mockImplementation((addr: string) => {
+      if (addr === "0x0000000000000000000000000000000000000001") return badContract;
+      return readContract;
+    });
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [{ args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx" }];
+      }
+      return [{ transactionHash: "0xtx", blockNumber: 123, topics: [], data: "0x" }];
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    await waitFor(() =>
+      expect(setStatus).toHaveBeenCalledWith("Feed loaded (some networks failed).")
+    );
+  });
+
   it("loads posts by token IDs and ignores duplicates/existing", async () => {
     walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
 
@@ -173,6 +307,225 @@ describe("FeedContext", () => {
     });
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("2"));
+  });
+
+  it("parses uppercase 0X chainId values", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.chainId = "0X1";
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+  });
+
+  it("returns null for invalid decimal chainId values", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.chainId = "not-a-number";
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+  });
+
+  it("loadPostsByTokenIds uses undefined chainId when current chainId cannot be parsed", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.chainId = "0xZZ";
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
+    // Initial refresh should store posts without a chainId when chainId can't be parsed.
+    expect(exposedFeed!.posts[0]?.chainId).toBeUndefined();
+
+    readContract.exists.mockImplementation(async (id: bigint) => id === 2n);
+
+    await act(async () => {
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
+    });
+
+    await waitFor(() => {
+      const loaded = exposedFeed!.posts.find((p) => p.tokenId === "2");
+      expect(loaded).toBeTruthy();
+      expect(loaded?.chainId).toBeUndefined();
+    });
+  });
+
+  it("loadPostsByTokenIds does not treat posts from other chains as existing", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.chainId = "1";
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
+    await act(async () => {
+      exposedFeed!.setPosts((prev) => [
+        ...prev,
+        {
+          tokenId: "2",
+          chainId: "8453",
+          title: "Other",
+          body: "",
+          image: "",
+          metadataURI: "ipfs://meta",
+          author: "0xAuthor",
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          tipsWei: 0n
+        } as any
+      ]);
+    });
+
+    readContract.exists.mockImplementation(async (id: bigint) => id === 2n);
+
+    await act(async () => {
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
+    });
+
+    // Should now have both the other-chain version and the current-chain loaded version.
+    const other = exposedFeed!.posts.find((p) => p.tokenId === "2" && p.chainId === "8453");
+    const current = exposedFeed!.posts.find((p) => p.tokenId === "2" && p.chainId === "1");
+    expect(other).toBeTruthy();
+    expect(current).toBeTruthy();
+  });
+
+  it("sorts merged posts by timestamp, then block, then postKey", async () => {
+    walletState.provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async (_n: number) => ({ timestamp: 1 }))
+    };
+
+    // Same timestamp, different block numbers -> block desc.
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [
+          { args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx1" },
+          { args: ["0xAuthor", 2n], blockNumber: 9, transactionHash: "0xtx2" },
+          // Same timestamp + same block -> postKey tie-breaker.
+          { args: ["0xAuthor", 3n], blockNumber: 7, transactionHash: "0xtx3" }
+        ];
+      }
+      return [];
+    });
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+    await waitFor(() => expect(exposedFeed!.posts.length).toBe(3));
+
+    // Block 9 first.
+    expect(exposedFeed!.posts[0]?.tokenId).toBe("2");
+
+    // Between tokenId 1 and 3 (same ts+block), postKey tie-breaker puts 3 before 1.
+    const idx1 = exposedFeed!.posts.findIndex((p) => p.tokenId === "1");
+    const idx3 = exposedFeed!.posts.findIndex((p) => p.tokenId === "3");
+    expect(idx3).toBeLessThan(idx1);
+  });
+
+  it("sorts merged posts by mintTimestamp when timestamps differ", async () => {
+    walletState.provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async (n: number) => ({ timestamp: n }))
+    };
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [
+          { args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx1" },
+          { args: ["0xAuthor", 2n], blockNumber: 9, transactionHash: "0xtx2" }
+        ];
+      }
+      return [];
+    });
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+    await waitFor(() => expect(exposedFeed!.posts.length).toBe(2));
+
+    // Timestamp from block 9 should sort first.
+    expect(exposedFeed!.posts[0]?.tokenId).toBe("2");
+  });
+
+  it("does not set mintTimestamp when getBlock returns an object without timestamp", async () => {
+    walletState.provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({}))
+    };
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [{ args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx" }];
+      }
+      return [];
+    });
+
+    let exposedFeed: ReturnType<typeof useFeed> | null = null;
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(feed) => (exposedFeed = feed)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+    await waitFor(() => expect(exposedFeed!.posts.length).toBe(1));
+    expect(exposedFeed!.posts[0]?.mintTimestamp).toBeUndefined();
+  });
+
+  it("grows the log window when an initial query returns empty results", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 100_000) };
+
+    // Return no events unless the query starts at block 0.
+    readContract.queryFilter.mockImplementation(async (filter: string, from?: number) => {
+      if (filter !== "PostMintedFilter") return [];
+      if ((from ?? 0) > 0) return [];
+      return [];
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    // Successful refresh with no events.
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
 
   it("loads posts on mount and on refresh", async () => {
@@ -362,6 +715,9 @@ describe("FeedContext", () => {
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
+  // Clear initial refresh status calls so we only assert the rerender-triggered refresh.
+  setStatus.mockClear();
+
     walletState.walletAddress = null;
     walletState.walletEpoch = 1;
 
@@ -371,7 +727,9 @@ describe("FeedContext", () => {
       </FeedProvider>
     );
 
-    await waitFor(() => expect(setStatus).toHaveBeenCalledWith("Wallet disconnected"));
+    await waitFor(() =>
+      expect(setStatus).toHaveBeenCalledWith(expect.stringContaining("Loading posts"))
+    );
   });
 
   it("refreshFeed shrinks log window on provider errors", async () => {
@@ -394,6 +752,35 @@ describe("FeedContext", () => {
     );
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+  });
+
+  it("refreshFeed paginates log queries when RPC limits large ranges", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 500_000) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = "0xabc";
+
+    // Simulate an RPC that rejects large eth_getLogs ranges.
+    readContract.queryFilter.mockImplementation(async (_filter: any, fromBlock?: number, toBlock?: number) => {
+      const from = Number(fromBlock ?? 0);
+      const to = Number(toBlock ?? from);
+      if (to - from > 10_000) {
+        const err: any = new Error("Request exceeds defined limit");
+        err.code = -32005;
+        throw err;
+      }
+      // Return a single minted event in the chunk.
+      return [{ args: ["0xAuthor", 1n] }];
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(readContract.queryFilter.mock.calls.length).toBeGreaterThan(1);
   });
 
   it("refreshFeed returns empty when no minted events are found up to block 0", async () => {
@@ -671,7 +1058,7 @@ describe("FeedContext", () => {
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
 
-  it("sets status to Wallet connected when account changes to a value", async () => {
+  it("triggers a feed refresh when the account changes to a value", async () => {
     walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
     walletState.walletEpoch = 0;
     walletState.walletAddress = null;
@@ -695,7 +1082,9 @@ describe("FeedContext", () => {
       </FeedProvider>
     );
 
-    await waitFor(() => expect(setStatus).toHaveBeenCalledWith("Wallet connected."));
+    await waitFor(() =>
+      expect(setStatus).toHaveBeenCalledWith(expect.stringContaining("Loading posts"))
+    );
   });
 
   it("throws when useFeed is used outside provider", () => {
@@ -773,6 +1162,44 @@ describe("FeedContext", () => {
     });
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("2"));
+  });
+
+  it("ignores getBlock failures when deriving mintTimestamp", async () => {
+    walletState.provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => {
+        throw new Error("block fail");
+      })
+    };
+
+    readContract.queryFilter.mockImplementation(async (filter: string) => {
+      if (filter === "PostMintedFilter") {
+        return [{ args: ["0xAuthor", 1n], blockNumber: 7, transactionHash: "0xtx" }];
+      }
+      return [{ transactionHash: "0xtx", blockNumber: 123, topics: [], data: "0x" }];
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect((walletState.provider as any).getBlock).toHaveBeenCalled();
+  });
+
+  it("continues when the connected network contract is not deployed/configured", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    ensureContractDeployedOnCurrentNetwork.mockRejectedValueOnce(new Error("not deployed"));
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith("Feed loaded."));
   });
 
   it("refreshFeed returns early when provider is missing", async () => {

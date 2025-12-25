@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "../types";
-import { ipfsToHttp } from "../ipfs";
+import { ipfsToHttp, ipfsToHttpWithGateway } from "../ipfs";
+import { getNetworkBadgeLabel } from "../lib/chain";
 import { IconBookmark, IconCoin, IconEdit, IconFlame, IconHeart, IconMessage } from "./icons";
 
 export type PostPanel = "comment" | "tip";
@@ -54,6 +56,13 @@ export function PostCard(props: Props) {
     ? { backgroundImage: `url(${ipfsToHttp(props.authorAvatarUrl)})` }
     : { background: `hsl(${props.authorHue} 75% 55%)` };
 
+  const postNetworkLabel = props.post.chainId ? getNetworkBadgeLabel(props.post.chainId) : "";
+  const requiresNetworkSwitch =
+    !!props.walletAddress && !!props.chainId && !!props.post.chainId && props.post.chainId !== props.chainId;
+  const interactionDisabledTitle = requiresNetworkSwitch
+    ? `Switch to ${postNetworkLabel} to interact with this post.`
+    : undefined;
+
   const description = (
     <>
       <div className="postText">
@@ -79,6 +88,24 @@ export function PostCard(props: Props) {
     </>
   );
 
+  const fallbackGateway = "https://ipfs.io/ipfs/";
+
+  const animationPrimaryUrl = props.post.animationUrl ? ipfsToHttp(props.post.animationUrl) : "";
+  const imagePrimaryUrl = props.post.image ? ipfsToHttp(props.post.image) : "";
+
+  const [animationSrc, setAnimationSrc] = useState<string>(animationPrimaryUrl);
+  const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
+
+  // Keep state in sync if the post changes.
+  // Use effects so user-driven state (like IPFS gateway fallback) isn't overwritten.
+  useEffect(() => {
+    setAnimationSrc((prev) => (prev.startsWith("blob:") ? prev : animationPrimaryUrl));
+  }, [animationPrimaryUrl]);
+
+  useEffect(() => {
+    setImageSrc((prev) => (prev.startsWith("blob:") ? prev : imagePrimaryUrl));
+  }, [imagePrimaryUrl]);
+
   return (
     <article key={tokenId} className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
       <div className="postHead">
@@ -90,9 +117,14 @@ export function PostCard(props: Props) {
               {props.isMine ? <span className="badge">You</span> : null}
             </div>
             <div className="postTokenArea">
-              <Link className="postTokenLink" to={`/post/${tokenId}`} state={{ from: props.from }}>
+              <Link
+                className="postTokenLink"
+                to={`/post/${tokenId}`}
+                state={{ from: props.from, chainId: props.post.chainId ?? null }}
+              >
                 Token #{tokenId}
               </Link>
+              {postNetworkLabel ? <span className="badge networkBadge">{postNetworkLabel}</span> : null}
               {props.post.contextTag === "saved" ? (
                 <span className="badge savedBadge">
                   <IconBookmark size={14} filled />
@@ -107,15 +139,17 @@ export function PostCard(props: Props) {
                     onClick={() => props.onStartEditPost(props.post)}
                     aria-label="Edit post"
                     title="Edit"
+                    disabled={requiresNetworkSwitch}
                   >
                     <IconEdit size={16} />
                   </button>
                   <button
                     className="danger iconButton"
                     type="button"
-                    onClick={() => props.onBurn(tokenId)}
+                    onClick={() => props.onBurn(tokenId, props.post.chainId)}
                     aria-label="Burn post"
                     title="Burn"
+                    disabled={requiresNetworkSwitch}
                   >
                     <IconFlame size={16} />
                   </button>
@@ -167,7 +201,13 @@ export function PostCard(props: Props) {
 
           <div className="rowActions">
             {props.isMine ? (
-              <button className="danger" type="button" onClick={() => props.onFreezePost(tokenId)}>
+              <button
+                className="danger"
+                type="button"
+                onClick={() => props.onFreezePost(tokenId, props.post.chainId)}
+                disabled={requiresNetworkSwitch}
+                title={interactionDisabledTitle}
+              >
                 Freeze
               </button>
             ) : null}
@@ -185,16 +225,34 @@ export function PostCard(props: Props) {
             <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
               <video
                 className="postImage"
-                src={ipfsToHttp(props.post.animationUrl)}
-                poster={props.post.image ? ipfsToHttp(props.post.image) : undefined}
+                src={animationSrc}
+                poster={imageSrc || undefined}
                 controls
                 playsInline
                 preload="metadata"
+                onError={() => {
+                  // Only attempt fallback for IPFS URIs and only if we aren't already on fallback.
+                  if (!props.post.animationUrl?.startsWith("ipfs://")) return;
+                  if (animationSrc.startsWith(fallbackGateway)) return;
+                  const next = ipfsToHttpWithGateway(props.post.animationUrl, fallbackGateway);
+                  setAnimationSrc(next);
+                }}
               />
             </Link>
           ) : props.post.image ? (
             <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
-              <img className="postImage" src={ipfsToHttp(props.post.image)} alt="Post image" loading="lazy" />
+              <img
+                className="postImage"
+                src={imageSrc}
+                alt="Post image"
+                loading="lazy"
+                onError={() => {
+                  if (!props.post.image?.startsWith("ipfs://")) return;
+                  if (imageSrc.startsWith(fallbackGateway)) return;
+                  const next = ipfsToHttpWithGateway(props.post.image, fallbackGateway);
+                  setImageSrc(next);
+                }}
+              />
             </Link>
           ) : null}
 
@@ -207,8 +265,10 @@ export function PostCard(props: Props) {
           <button
             className={`statPill statButton ${props.post.likedByMe ? "isActive isLike" : ""}`}
             type="button"
-            onClick={() => props.onAction(tokenId, "like")}
+            onClick={() => props.onAction(tokenId, "like", props.post.chainId)}
             aria-label="Like"
+            disabled={requiresNetworkSwitch}
+            title={interactionDisabledTitle}
           >
             <IconHeart size={18} filled={!!props.post.likedByMe} />
             <span className="statValue">{props.post.likes}</span>
@@ -217,8 +277,10 @@ export function PostCard(props: Props) {
           <button
             className={`statPill statButton ${props.post.repostedByMe ? "isActive isSaved" : ""}`}
             type="button"
-            onClick={() => props.onAction(tokenId, "share")}
+            onClick={() => props.onAction(tokenId, "share", props.post.chainId)}
             aria-label="Save"
+            disabled={requiresNetworkSwitch}
+            title={interactionDisabledTitle}
           >
             <IconBookmark size={18} filled={!!props.post.repostedByMe} />
             <span className="statValue">{props.post.shares}</span>
@@ -230,7 +292,9 @@ export function PostCard(props: Props) {
             onClick={() => props.onTogglePanel("comment")}
             aria-label="Comment"
             aria-expanded={props.openPanel === "comment"}
-            aria-controls={`comment-${tokenId}`}
+            aria-controls={`comment-${props.post.chainId ?? ""}-${tokenId}`}
+            disabled={requiresNetworkSwitch}
+            title={interactionDisabledTitle}
           >
             <IconMessage size={18} />
             <span className="statValue">{props.post.comments}</span>
@@ -242,7 +306,9 @@ export function PostCard(props: Props) {
             onClick={() => props.onTogglePanel("tip")}
             aria-label="Tip"
             aria-expanded={props.openPanel === "tip"}
-            aria-controls={`tip-${tokenId}`}
+            aria-controls={`tip-${props.post.chainId ?? ""}-${tokenId}`}
+            disabled={requiresNetworkSwitch}
+            title={interactionDisabledTitle}
           >
             <IconCoin size={18} />
             <span className="statValue">
@@ -252,7 +318,7 @@ export function PostCard(props: Props) {
         </div>
 
         {props.openPanel === "tip" ? (
-          <div className="postForm" id={`tip-${tokenId}`}>
+          <div className="postForm" id={`tip-${props.post.chainId ?? ""}-${tokenId}`}>
             <div className="postFormRow">
               <input
                 className="postField"
@@ -260,8 +326,15 @@ export function PostCard(props: Props) {
                 value={props.tipDrafts[tokenId] || ""}
                 onChange={(event) => props.onTipDraftChange(tokenId, event.target.value)}
                 placeholder={`Tip amount in ${props.getNativeSymbol(props.chainId)} (e.g. 0.001)`}
+                disabled={requiresNetworkSwitch}
               />
-              <button className="primary" type="button" onClick={() => props.onTip(tokenId)}>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => props.onTip(tokenId, props.post.chainId)}
+                disabled={requiresNetworkSwitch}
+                title={interactionDisabledTitle}
+              >
                 Tip
               </button>
             </div>
@@ -269,7 +342,7 @@ export function PostCard(props: Props) {
         ) : null}
 
         {props.openPanel === "comment" ? (
-          <div className="postForm" id={`comment-${tokenId}`}>
+          <div className="postForm" id={`comment-${props.post.chainId ?? ""}-${tokenId}`}>
             <div className="postFormRow">
               <input
                 className="postField"
@@ -277,8 +350,15 @@ export function PostCard(props: Props) {
                 value={props.commentDrafts[tokenId] || ""}
                 onChange={(event) => props.onCommentDraftChange(tokenId, event.target.value)}
                 placeholder="Write a comment to sign"
+                disabled={requiresNetworkSwitch}
               />
-              <button className="secondary" type="button" onClick={() => props.onAction(tokenId, "comment")}>
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => props.onAction(tokenId, "comment", props.post.chainId)}
+                disabled={requiresNetworkSwitch}
+                title={interactionDisabledTitle}
+              >
                 Sign
               </button>
             </div>

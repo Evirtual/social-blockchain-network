@@ -30,6 +30,7 @@ export const SOCIAL_ABI = [
   "function setProfile(string name, string bio, string avatar) external",
   "function adminSetProfile(address account, string name, string bio, string avatar) external",
   "function adminClearProfile(address account) external",
+  "function adminResetAccount(address account, uint256[] tokenIds) external",
   "function profileOf(address account) external view returns (string name, string bio, string avatar)",
   "function owner() external view returns (address)",
   "function setPosterAllowed(address account, bool allowed) external",

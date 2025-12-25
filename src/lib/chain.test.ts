@@ -19,11 +19,11 @@ describe("chain", () => {
 
   it("getNetworkBadgeLabel maps common ids", () => {
     expect(getNetworkBadgeLabel("1")).toBe("ETH");
-    expect(getNetworkBadgeLabel("11155111")).toBe("SEP");
+    expect(getNetworkBadgeLabel("11155111")).toBe("eth-test");
     expect(getNetworkBadgeLabel("8453")).toBe("BASE");
-    expect(getNetworkBadgeLabel("84532")).toBe("BASE-SEP");
+    expect(getNetworkBadgeLabel("84532")).toBe("base-test");
     expect(getNetworkBadgeLabel("56")).toBe("BSC");
-    expect(getNetworkBadgeLabel("97")).toBe("BSC-T");
+    expect(getNetworkBadgeLabel("97")).toBe("bsc-test");
     expect(getNetworkBadgeLabel("999")).toBe("#999");
     expect(getNetworkBadgeLabel(null)).toBe("");
   });

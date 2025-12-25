@@ -9,9 +9,10 @@ type Props = {
   onConnectWallet: () => void;
   onOpenComposer: () => void;
   rightSlot?: ReactNode;
+  connectNudge?: boolean;
 };
 
-export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, onOpenComposer, rightSlot }: Props) {
+export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, onOpenComposer, rightSlot, connectNudge }: Props) {
   return (
     <header className="topbar">
       <Link className="brand" to="/">
@@ -27,19 +28,26 @@ export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, o
         </Link>
 
         <div className="topbarControls">
-          <button className="primary iconButton" type="button" onClick={onOpenComposer} aria-label="Create post">
-            <IconPlus size={18} />
-          </button>
-          <button className="ghost iconButton" type="button" onClick={onToggleTheme} aria-label="Toggle theme">
-            {theme === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
-          </button>
+          {walletAddress ? (
+            <button className="primary iconButton" type="button" onClick={onOpenComposer} aria-label="Create post">
+              <IconPlus size={18} />
+            </button>
+          ) : null}
           {walletAddress ? (
             rightSlot ?? null
           ) : (
-            <button className="primary" onClick={onConnectWallet}>
+            <button className={`primary ${connectNudge ? "connectNudge" : ""}`} onClick={onConnectWallet}>
               Connect
             </button>
           )}
+          <button
+            className={`ghost iconButton themeToggle ${theme === "dark" ? "themeToggleSun" : "themeToggleMoon"}`}
+            type="button"
+            onClick={onToggleTheme}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
+          </button>
         </div>
       </div>
     </header>

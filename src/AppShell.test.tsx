@@ -80,6 +80,8 @@ describe("AppShell", () => {
   });
 
   it("renders topbar slot, composer modal, and toaster", async () => {
+    (mocks.app as any).chainId = "11155111";
+
     render(
       <MemoryRouter initialEntries={["/"]}>
         <AppShell />
@@ -93,6 +95,21 @@ describe("AppShell", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
 
     expect(screen.getByTestId("toaster")).toBeInTheDocument();
+    expect(screen.getByText(/eth-test/i)).toBeInTheDocument();
+  });
+
+  it("does not render a chain badge when chainId is empty", () => {
+    (mocks.app as any).chainId = "";
+    mocks.app.walletAddress = "0x1234567890abcdef1234567890abcdef12345678" as any;
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <AppShell />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("link")).toHaveAttribute("href", mocks.app.profileLink);
+    expect(screen.queryByText(/eth-test/i)).toBeNull();
   });
 
   it("renders no profile link when profileLink is null", () => {

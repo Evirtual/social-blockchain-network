@@ -34,10 +34,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
-  onTip: (tokenId: string) => void;
-  onBurn: (tokenId: string) => void;
-  onFreezePost: (tokenId: string) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -112,8 +112,9 @@ export function Feed({
           const authorAvatarUrl = info?.avatarUrl;
           const isMine = !!walletAddress && !!post.author && walletAddress.toLowerCase() === post.author.toLowerCase();
           const canModerate = !!isOwner;
-          const openPanel = getPanel(post.tokenId);
-          const compositeKey = `${post.tokenId}:${post.contextTag ?? "post"}:${index}`;
+          const panelKey = `${post.chainId ?? ""}:${post.tokenId}`;
+          const openPanel = getPanel(panelKey);
+          const compositeKey = `${panelKey}:${post.contextTag ?? "post"}:${index}`;
 
           return (
             <PostCard
@@ -134,7 +135,7 @@ export function Feed({
               tipDrafts={tipDrafts}
               commentDrafts={commentDrafts}
               openPanel={openPanel}
-              onTogglePanel={(panel) => togglePanel(post.tokenId, panel)}
+              onTogglePanel={(panel) => togglePanel(panelKey, panel)}
               onSetEditDraft={onSetEditDraft}
               onTipDraftChange={onTipDraftChange}
               onCommentDraftChange={onCommentDraftChange}

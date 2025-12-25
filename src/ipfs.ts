@@ -12,14 +12,19 @@ export const getIpfsGatewayBase = () => {
   return gw.endsWith("/") ? gw : `${gw}/`;
 };
 
-export const ipfsToHttp = (uri: string) => {
+export const ipfsToHttpWithGateway = (uri: string, gatewayBase: string) => {
+  const base = gatewayBase.endsWith("/") ? gatewayBase : `${gatewayBase}/`;
   if (uri.startsWith("ipfs://")) {
     let path = uri.replace("ipfs://", "");
     // Common variants: ipfs://<CID> and ipfs://ipfs/<CID>
     if (path.startsWith("ipfs/")) path = path.slice("ipfs/".length);
-    return `${getIpfsGatewayBase()}${path}`;
+    return `${base}${path}`;
   }
   return uri;
+};
+
+export const ipfsToHttp = (uri: string) => {
+  return ipfsToHttpWithGateway(uri, getIpfsGatewayBase());
 };
 
 export const hasPinata = () => Boolean(import.meta.env.VITE_PINATA_JWT);

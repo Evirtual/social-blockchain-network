@@ -3,6 +3,7 @@ import {
   getIpfsGatewayBase,
   hasPinata,
   ipfsToHttp,
+  ipfsToHttpWithGateway,
   pinataPinFile,
   pinataPinJson
 } from "./ipfs";
@@ -36,6 +37,12 @@ describe("ipfs", () => {
     expect(ipfsToHttp("ipfs://bafy123")).toBe("https://gw.example/ipfs/bafy123");
     expect(ipfsToHttp("ipfs://ipfs/bafy456")).toBe("https://gw.example/ipfs/bafy456");
     expect(ipfsToHttp("https://site.example/x")).toBe("https://site.example/x");
+  });
+
+  it("normalizes gateway base without trailing slash", () => {
+    expect(ipfsToHttpWithGateway("ipfs://bafy789", "https://gw.example/ipfs")).toBe(
+      "https://gw.example/ipfs/bafy789"
+    );
   });
 
   it("detects pinata auth via env", () => {

@@ -340,14 +340,12 @@ describe("ProfileRoute", () => {
     expect(mocks.contract.getWriteContract).not.toHaveBeenCalled();
   });
 
-  it("admin reset blocks, clears profile, burns unique posts, and refreshes feed", async () => {
+  it("admin reset calls adminResetAccount with unique minted posts and refreshes feed", async () => {
     mocks.app.walletAddress = "0xme";
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
-    const adminBurnPost = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       isPosterAllowed: async () => false,
@@ -357,7 +355,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [{ args: [addr, 1n] }, { args: [addr, 2n] }, { args: [addr, 2n] }])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.loadProfile.mockClear();
     mocks.app.refreshFeed.mockClear();
@@ -373,9 +371,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalledWith(addr, false);
-      expect(adminClearProfile).toHaveBeenCalledWith(addr);
-      expect(adminBurnPost).toHaveBeenCalledTimes(2);
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, [1n, 2n]);
       expect(mocks.app.loadProfile).toHaveBeenCalledWith(addr);
       expect(mocks.app.refreshFeed).toHaveBeenCalledTimes(1);
     });
@@ -386,9 +382,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
-    const adminBurnPost = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       isPosterAllowed: async () => false,
@@ -398,7 +392,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [{ args: [addr, 1] }, { args: [addr, 2n] }, { args: [addr, 2n] }])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.refreshFeed.mockClear();
 
@@ -413,8 +407,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(adminBurnPost).toHaveBeenCalledTimes(1);
-      expect(adminBurnPost).toHaveBeenCalledWith(2n);
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, [2n]);
       expect(mocks.app.refreshFeed).toHaveBeenCalledTimes(1);
     });
   });
@@ -457,16 +450,15 @@ describe("ProfileRoute", () => {
     });
   });
 
-  it("admin reset stops when block poster tx fails", async () => {
+  it("admin reset stops when reset tx fails", async () => {
     mocks.app.walletAddress = "0xme";
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => {
+    const adminResetAccount = vi.fn(async () => {
       throw new Error("fail");
     });
-    const adminClearProfile = vi.fn(async () => ({}));
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     render(
       <MemoryRouter initialEntries={[`/profile/${addr}`]}>
@@ -479,8 +471,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalled();
-      expect(adminClearProfile).not.toHaveBeenCalled();
+      expect(adminResetAccount).toHaveBeenCalled();
       expect(mocks.app.refreshFeed).not.toHaveBeenCalled();
     });
   });
@@ -490,9 +481,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
-    const adminBurnPost = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       isPosterAllowed: async () => false,
@@ -504,7 +493,7 @@ describe("ProfileRoute", () => {
       })
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.refreshFeed.mockClear();
 
@@ -519,30 +508,27 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalledWith(addr, false);
-      expect(adminClearProfile).toHaveBeenCalledWith(addr);
-      expect(adminBurnPost).not.toHaveBeenCalled();
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, []);
       expect(mocks.app.refreshFeed).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("admin reset ignores clear profile failure and continues", async () => {
+  it("admin reset ignores token discovery failure and continues", async () => {
     mocks.app.walletAddress = "0xme";
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => {
-      throw new Error("fail");
-    });
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       runner: { provider: { getBlockNumber: async () => 0 } },
       filters: { PostMinted: (a: string) => ({ addr: a }) },
-      queryFilter: vi.fn(async () => [])
+      queryFilter: vi.fn(async () => {
+        throw new Error("fail");
+      })
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.refreshFeed.mockClear();
 
@@ -557,8 +543,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalledWith(addr, false);
-      expect(adminClearProfile).toHaveBeenCalled();
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, []);
       expect(mocks.app.refreshFeed).toHaveBeenCalledTimes(1);
     });
   });
@@ -568,8 +553,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       runner: { provider: { getBlockNumber: async () => 0 } },
@@ -577,7 +561,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     // ProfileRoute calls loadProfile on mount; we want the reset-path call to fail.
     mocks.app.loadProfile.mockResolvedValueOnce(undefined);
@@ -604,8 +588,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       runner: { provider: { getBlockNumber: async () => 0 } },
@@ -613,7 +596,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.refreshFeed.mockImplementationOnce(async () => {
       throw new Error("fail");
@@ -630,20 +613,16 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalledWith(addr, false);
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, []);
     });
   });
 
-  it("admin reset continues when a burn tx fails", async () => {
+  it("admin reset burns discovered tokenIds in a single call", async () => {
     mocks.app.walletAddress = "0xme";
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
-    const adminBurnPost = vi.fn(async () => {
-      throw new Error("fail burn");
-    });
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       runner: { provider: { getBlockNumber: async () => 1 } },
@@ -651,7 +630,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [{ args: [addr, 1n] }])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     mocks.app.refreshFeed.mockClear();
 
@@ -666,7 +645,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(adminBurnPost).toHaveBeenCalledWith(1n);
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, [1n]);
       expect(mocks.app.refreshFeed).toHaveBeenCalledTimes(1);
     });
   });
@@ -778,8 +757,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const queryFilter = vi.fn(async () => []);
     const readContract: any = {
@@ -788,7 +766,7 @@ describe("ProfileRoute", () => {
       queryFilter
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     render(
       <MemoryRouter initialEntries={[`/profile/${addr}`]}>
@@ -810,8 +788,7 @@ describe("ProfileRoute", () => {
     mocks.app.isOwner = true as any;
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const setPosterAllowed = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       runner: { provider: { getBlockNumber: async () => 0 } },
@@ -819,7 +796,7 @@ describe("ProfileRoute", () => {
       queryFilter: vi.fn(async () => [])
     };
     mocks.contract.getReadContract.mockResolvedValue(readContract);
-    mocks.contract.getWriteContract.mockResolvedValue({ setPosterAllowed, adminClearProfile } as any);
+    mocks.contract.getWriteContract.mockResolvedValue({ adminResetAccount } as any);
 
     // Encode spaces around the address; react-router params decode them.
     render(
@@ -833,8 +810,7 @@ describe("ProfileRoute", () => {
     screen.getByText("admin-reset").click();
 
     await waitFor(() => {
-      expect(setPosterAllowed).toHaveBeenCalledWith(addr, false);
-      expect(adminClearProfile).toHaveBeenCalledWith(addr);
+      expect(adminResetAccount).toHaveBeenCalledWith(addr, []);
     });
   });
 

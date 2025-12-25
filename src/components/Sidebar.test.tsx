@@ -117,6 +117,10 @@ async function waitForUi(predicate: () => boolean, timeoutMs = 2000) {
 
 describe("Sidebar/ProfileCard/WalletCard", () => {
   beforeAll(async () => {
+    // When running the full test suite, another test file may have already
+    // imported "./Sidebar" in the same worker before this file's mocks apply.
+    // Resetting modules here ensures our `vi.mock(...)` hooks are honored.
+    vi.resetModules();
     ({ ProfileCard, Sidebar, WalletCard } = await import("./Sidebar"));
   });
 
@@ -609,21 +613,78 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(setPosterAllowed).toHaveBeenCalledWith(addr, true);
   });
 
+  it("Approvals: account address links to profile", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          walletAddress="0xOWNER"
+          displayName="Me"
+          profileBio="Bio"
+          profileAvatarUrl=""
+          myPostsCount={0}
+          followerCount={0}
+          followers={[]}
+          following={[]}
+          isLoadingFollowers={false}
+          isLoadingFollowing={false}
+          onDisconnectWallet={vi.fn()}
+          isEditingProfile={false}
+          profileDraftName=""
+          profileDraftBio=""
+          profileDraftAvatarUrl=""
+          profileDraftAvatarDataUrl=""
+          isProfileAvatarLoading={false}
+          onProfileDraftNameChange={() => undefined}
+          onProfileDraftBioChange={() => undefined}
+          onProfileDraftAvatarUrlChange={() => undefined}
+          onSelectProfileAvatarFile={async () => undefined}
+          onClearProfileAvatar={() => undefined}
+          onStartEditProfile={() => undefined}
+          onCancelEditProfile={() => undefined}
+          onSaveProfile={() => undefined}
+          selfAvatarHue={123}
+          shortAddress={(a) => a.slice(0, 6)}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => {
+      const row = screen.getAllByRole("listitem").find((el) => within(el).queryByText("0x0000"));
+      if (!row) return false;
+      const link = within(row).queryByRole("link");
+      return Boolean(link && link.getAttribute("href") === `/profile/${addr}`);
+    });
+  });
+
   it("Approvals: on-chain request shows Disapprove after approve, and disapprove calls setPosterAllowed(false)", async () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
+
+    let allowed = false;
 
     const readContract: any = {
       owner: async () => "0xOWNER",
       runner: { provider: { getBlockNumber: async () => 100 } },
       filters: { PosterApprovalRequested: () => ({}) },
       queryFilter: vi.fn(async () => [{ args: [addr] }]),
-      isPosterAllowed: async () => false,
+      isPosterAllowed: vi.fn(async () => allowed),
       wasPosterDisapproved: async () => false
     };
 
-    const setPosterAllowed = vi.fn(async () => ({}));
+    const setPosterAllowed = vi.fn(async (_addr: string, next: boolean) => {
+      allowed = next;
+      return {};
+    });
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({ setPosterAllowed } as any);
 
@@ -663,6 +724,10 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+
+  // Wait for the initial effect that queries on-chain allowed/disapproved status to settle.
+  // Otherwise an in-flight response can overwrite the optimistic UI state after we approve.
+  await waitForUi(() => (readContract.isPosterAllowed as any).mock.calls.length >= 1);
 
     const approveRow = screen
       .getAllByRole("listitem")
@@ -959,11 +1024,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const adminBurnPost = vi.fn(async () => {
-      throw new Error("fail burn");
-    });
-    const adminClearProfile = vi.fn(async () => ({}));
-    const setPosterAllowed = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       owner: async () => "0xOWNER",
@@ -981,7 +1042,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     };
 
     getReadContractMock.mockResolvedValue(readContract);
-    getWriteContractMock.mockResolvedValue({ setPosterAllowed, adminClearProfile, adminBurnPost } as any);
+    getWriteContractMock.mockResolvedValue({ adminResetAccount } as any);
 
     render(
       <MemoryRouter>
@@ -1024,11 +1085,9 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const row = await screen.findByRole("listitem");
     fireEvent.click(within(row).getByRole("button", { name: "Reset" }));
 
-    await waitForUi(() => adminClearProfile.mock.calls.length >= 1 && adminBurnPost.mock.calls.length >= 1);
-    expect(adminClearProfile).toHaveBeenCalled();
-    // Attempted to burn only the bigint id (2n), and burn failure is swallowed.
-    expect(adminBurnPost).toHaveBeenCalledTimes(1);
-    expect(adminBurnPost).toHaveBeenCalledWith(2n);
+    await waitForUi(() => adminResetAccount.mock.calls.length >= 1);
+    // Only bigint ids are included.
+    expect(adminResetAccount).toHaveBeenCalledWith(addr, [2n]);
   });
 
   it("Approvals: queryFilter failure does not show on-chain requests", async () => {
@@ -1156,11 +1215,10 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const adminClearProfile = vi.fn(async () => ({}));
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({
-      setPosterAllowed: vi.fn(async () => {
+      adminResetAccount: vi.fn(async () => {
         throw new Error("fail");
       }),
-      adminClearProfile,
-      adminBurnPost: vi.fn(async () => ({}))
+      adminClearProfile
     });
 
     render(
@@ -1379,9 +1437,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValueOnce({
-      setPosterAllowed: vi.fn(async () => ({})),
-      adminClearProfile: vi.fn(async () => ({})),
-      adminBurnPost: vi.fn(async () => ({}))
+      adminResetAccount: vi.fn(async () => ({}))
     });
 
     render(
@@ -1432,8 +1488,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    const adminBurnPost = vi.fn(async () => ({}));
-    const adminClearProfile = vi.fn(async () => ({}));
+    const adminResetAccount = vi.fn(async () => ({}));
 
     const readContract: any = {
       owner: async () => "0xOWNER",
@@ -1452,9 +1507,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({
-      setPosterAllowed: vi.fn(async () => ({})),
-      adminClearProfile,
-      adminBurnPost
+      adminResetAccount
     });
 
     render(
@@ -1503,9 +1556,9 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const reset = within(row).getByRole("button", { name: "Reset" });
     fireEvent.click(reset);
 
-    await waitForUi(() => adminClearProfile.mock.calls.length === 1 && adminBurnPost.mock.calls.length === 2);
-    expect(adminClearProfile).toHaveBeenCalledTimes(1);
-    expect(adminBurnPost).toHaveBeenCalledTimes(2);
+    await waitForUi(() => adminResetAccount.mock.calls.length === 1);
+    // Deduped tokenIds.
+    expect(adminResetAccount).toHaveBeenCalledWith(addr, [1n, 2n]);
   });
 
   it("loads following profiles when opened", async () => {

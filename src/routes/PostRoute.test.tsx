@@ -95,4 +95,53 @@ describe("PostRoute", () => {
     expect(screen.getByTestId("post-page")).toHaveAttribute("data-has-post", "no");
     expect(mocks.app.loadCommentsForPost).toHaveBeenCalledWith("999");
   });
+
+  it("does not load comments when route state chainId mismatches the connected chain", () => {
+    mocks.app.loadCommentsForPost.mockClear();
+    mocks.app.chainId = "31337";
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/post/123",
+            state: { chainId: "11155111" }
+          } as any
+        ]}
+      >
+        <Routes>
+          <Route path="/post/:tokenId" element={<PostRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("post-page").textContent).toBe("123");
+    expect(mocks.app.loadCommentsForPost).not.toHaveBeenCalled();
+  });
+
+  it("selects the post matching the route state chainId", () => {
+    mocks.app.loadCommentsForPost.mockClear();
+    mocks.app.chainId = "11155111";
+    mocks.app.posts = [
+      { tokenId: "123", chainId: "31337", title: "a", body: "b", image: "", metadataURI: "", likes: 0, comments: 0, shares: 0, tipsWei: 0n },
+      { tokenId: "123", chainId: "11155111", title: "c", body: "d", image: "", metadataURI: "", likes: 0, comments: 0, shares: 0, tipsWei: 0n }
+    ] as any;
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/post/123",
+            state: { chainId: "11155111" }
+          } as any
+        ]}
+      >
+        <Routes>
+          <Route path="/post/:tokenId" element={<PostRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("post-page")).toHaveAttribute("data-has-post", "yes");
+  });
 });

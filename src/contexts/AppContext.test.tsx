@@ -167,9 +167,29 @@ function Consumer() {
     <div>
       <div data-testid="theme">{app.theme}</div>
       <div data-testid="addr">{app.walletAddress ?? "none"}</div>
+      <div data-testid="connectNudge">{app.connectNudge ? "yes" : "no"}</div>
       <div data-testid="saved">{JSON.stringify(app.repostTokenIdsByAddress[(app.walletAddress ?? "").toLowerCase()] ?? [])}</div>
       <button type="button" onClick={() => app.connectWallet()}>
         connect
+      </button>
+      <button type="button" onClick={() => app.handleAction("1", "like", null)}>
+        like
+      </button>
+      <button type="button" onClick={() => app.handleTip("1", null)}>
+        tip
+      </button>
+      <button type="button" onClick={() => app.burnPost("1", null)}>
+        burn
+      </button>
+      <button type="button" onClick={() => app.freezePost("1", null)}>
+        freeze
+      </button>
+      <button type="button" onClick={() => app.withdrawTips()}>
+        withdraw
+      </button>
+      <button type="button" onClick={() => app.toggleFollow("0xdef")}
+      >
+        follow
       </button>
       <button type="button" onClick={() => app.loadRepostsForAddress("0xabc")}>
         reposts
@@ -212,6 +232,140 @@ describe("AppContext", () => {
     expect(contract.ensureContractDeployedOnCurrentNetwork).toHaveBeenCalled();
     expect(wallet.refreshWalletPanel).toHaveBeenCalled();
     expect(feed.refreshFeed).toHaveBeenCalled();
+  });
+
+  it("nudges connect when social actions are triggered while disconnected", async () => {
+    vi.useFakeTimers();
+    const prevAddress = wallet.walletAddress;
+    try {
+      wallet.walletAddress = null;
+      social.handleAction.mockClear();
+
+      render(
+        <AppProvider>
+          <Consumer />
+        </AppProvider>
+      );
+
+      expect(screen.getByTestId("connectNudge").textContent).toBe("no");
+
+      await act(async () => {
+        screen.getByText("like").click();
+      });
+
+      expect(social.handleAction).not.toHaveBeenCalled();
+      expect(screen.getByTestId("connectNudge").textContent).toBe("yes");
+
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      expect(screen.getByTestId("connectNudge").textContent).toBe("no");
+    } finally {
+      wallet.walletAddress = prevAddress;
+      vi.useRealTimers();
+    }
+  });
+
+  it("repeated disconnected actions clear the prior nudge timer", async () => {
+    const prevAddress = wallet.walletAddress;
+    try {
+      wallet.walletAddress = null;
+      vi.useFakeTimers();
+      const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+
+      render(
+        <AppProvider>
+          <Consumer />
+        </AppProvider>
+      );
+
+      await act(async () => {
+        screen.getByText("like").click();
+        screen.getByText("like").click();
+      });
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+    } finally {
+      wallet.walletAddress = prevAddress;
+      vi.useRealTimers();
+    }
+  });
+
+  it("nudges connect for all guarded actions when disconnected", async () => {
+    vi.useFakeTimers();
+    const prevAddress = wallet.walletAddress;
+    try {
+      wallet.walletAddress = null;
+      social.handleTip.mockClear();
+      social.burnPost.mockClear();
+      social.freezePost.mockClear();
+      social.withdrawTips.mockClear();
+      follow.toggleFollow.mockClear();
+
+      render(
+        <AppProvider>
+          <Consumer />
+        </AppProvider>
+      );
+
+      await act(async () => {
+        screen.getByText("tip").click();
+        screen.getByText("burn").click();
+        screen.getByText("freeze").click();
+        screen.getByText("withdraw").click();
+        screen.getByText("follow").click();
+      });
+
+      expect(screen.getByTestId("connectNudge").textContent).toBe("yes");
+      expect(social.handleTip).not.toHaveBeenCalled();
+      expect(social.burnPost).not.toHaveBeenCalled();
+      expect(social.freezePost).not.toHaveBeenCalled();
+      expect(social.withdrawTips).not.toHaveBeenCalled();
+      expect(follow.toggleFollow).not.toHaveBeenCalled();
+    } finally {
+      wallet.walletAddress = prevAddress;
+      vi.useRealTimers();
+    }
+  });
+
+  it("connected social actions call underlying handlers without nudging", async () => {
+    const prevAddress = wallet.walletAddress;
+    try {
+      wallet.walletAddress = "0xabc";
+      social.handleAction.mockClear();
+      social.handleTip.mockClear();
+      social.burnPost.mockClear();
+      social.freezePost.mockClear();
+      social.withdrawTips.mockClear();
+      follow.toggleFollow.mockClear();
+
+      render(
+        <AppProvider>
+          <Consumer />
+        </AppProvider>
+      );
+
+      await act(async () => {
+        screen.getByText("like").click();
+        screen.getByText("tip").click();
+        screen.getByText("burn").click();
+        screen.getByText("freeze").click();
+        screen.getByText("withdraw").click();
+        screen.getByText("follow").click();
+      });
+
+      expect(screen.getByTestId("connectNudge").textContent).toBe("no");
+      expect(social.handleAction).toHaveBeenCalledWith("1", "like", null);
+      expect(social.handleTip).toHaveBeenCalledWith("1", null);
+      expect(social.burnPost).toHaveBeenCalledWith("1", null);
+      expect(social.freezePost).toHaveBeenCalledWith("1", null);
+      expect(social.withdrawTips).toHaveBeenCalledTimes(1);
+      expect(follow.toggleFollow).toHaveBeenCalledWith("0xdef");
+    } finally {
+      wallet.walletAddress = prevAddress;
+    }
   });
 
   it("loadRepostsForAddress early-exits and also runs empty-path", async () => {

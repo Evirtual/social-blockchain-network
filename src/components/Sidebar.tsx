@@ -329,29 +329,8 @@ export function ProfileCard(props: ProfileCardProps) {
 
     setApprovalsError(null);
 
-    try {
-      await runContractTx("Block poster", async () => {
-        const writeContract = await contract.getWriteContract();
-        return (writeContract as any).setPosterAllowed(normalized, false);
-      });
-    } catch {
-      return;
-    }
-
-    setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
-    setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: true }));
-
-    // Best-effort: clear profile and burn posts. If one step fails, the others can still proceed.
-    try {
-      await runContractTx("Clear profile", async () => {
-        const writeContract = await contract.getWriteContract();
-        return (writeContract as any).adminClearProfile(normalized);
-      });
-    } catch {
-      // ignore
-    }
-
     let tokenIds: bigint[] = [];
+    let tokenDiscoveryFailed = false;
     try {
       const readContract = await contract.getReadContract();
       const runner: any = (readContract as any).runner;
@@ -372,19 +351,24 @@ export function ProfileCard(props: ProfileCardProps) {
       }
       tokenIds = Array.from(uniq).map((s) => BigInt(s));
     } catch {
-      setApprovalsError("Blocked user, but failed to load their posts for deletion.");
+      tokenDiscoveryFailed = true;
       tokenIds = [];
     }
 
-    for (const tokenId of tokenIds) {
-      try {
-        await runContractTx(`Delete post #${tokenId.toString()}`, async () => {
-          const writeContract = await contract.getWriteContract();
-          return (writeContract as any).adminBurnPost(tokenId);
-        });
-      } catch {
-        // continue
-      }
+    try {
+      await runContractTx("Reset account", async () => {
+        const writeContract = await contract.getWriteContract();
+        return (writeContract as any).adminResetAccount(normalized, tokenIds);
+      });
+    } catch {
+      return;
+    }
+
+    setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
+    setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: true }));
+
+    if (tokenDiscoveryFailed) {
+      setApprovalsError("Blocked user, but failed to load their posts for deletion.");
     }
   }
 
@@ -517,7 +501,9 @@ export function ProfileCard(props: ProfileCardProps) {
               pendingApprovals.map((addr) => (
                 <div key={addr} className="listRow" role="listitem">
                   <span className="listRowLeft">
-                    <span className="value">{props.shortAddress(addr)}</span>
+                    <Link className="value" to={`/profile/${addr}`}>
+                      {props.shortAddress(addr)}
+                    </Link>
                     {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
                   </span>
                   <span className="rowActions">
@@ -552,7 +538,9 @@ export function ProfileCard(props: ProfileCardProps) {
                 {onChainRequests.map((addr) => (
                   <div key={addr} className="listRow" role="listitem">
                     <span className="listRowLeft">
-                      <span className="value">{props.shortAddress(addr)}</span>
+                      <Link className="value" to={`/profile/${addr}`}>
+                        {props.shortAddress(addr)}
+                      </Link>
                       {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
                     </span>
                     <span className="rowActions">

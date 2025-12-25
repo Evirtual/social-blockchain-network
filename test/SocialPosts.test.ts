@@ -164,6 +164,28 @@ describe("SocialPosts", () => {
     expect(await contract.exists(1n)).to.equal(false);
   });
 
+  it("owner can reset an account in a single call (block + clear + burn)", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    await contract.connect(other).setProfile("name", "bio", "avatar");
+    await contract.connect(other).mintPost("ipfs://post-1");
+
+    expect(await contract.isPosterAllowed(other.address)).to.equal(true);
+    expect(await contract.profileOf(other.address)).to.deep.equal(["name", "bio", "avatar"]);
+    expect(await contract.exists(1n)).to.equal(true);
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(false);
+
+    await expect(contract.connect(author).adminResetAccount(other.address, [1n, 999n]))
+      .to.emit(contract, "PosterAllowed")
+      .withArgs(other.address, false);
+
+    expect(await contract.isPosterAllowed(other.address)).to.equal(false);
+    expect(await contract.wasPosterDisapproved(other.address)).to.equal(true);
+    expect(await contract.profileOf(other.address)).to.deep.equal(["", "", ""]);
+    expect(await contract.exists(1n)).to.equal(false);
+  });
+
   it("blocks profile edits for non-approved wallets", async () => {
     const { contract, author, other } = await deploy();
 

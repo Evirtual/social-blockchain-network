@@ -195,34 +195,6 @@ export function ProfileRoute() {
         const normalized = address.trim();
         if (!ethers.isAddress(normalized)) return;
 
-        // Same behavior as Approvals modal: block, clear profile, burn posts.
-        try {
-          await runContractTx("Block poster", async () => {
-            const writeContract = await contract.getWriteContract();
-            return (writeContract as any).setPosterAllowed(normalized, false);
-          });
-        } catch {
-          return;
-        }
-
-        setIsPosterAllowed(false);
-        setWasPosterDisapprovedEver(true);
-
-        try {
-          await runContractTx("Clear profile", async () => {
-            const writeContract = await contract.getWriteContract();
-            return (writeContract as any).adminClearProfile(normalized);
-          });
-        } catch {
-          // ignore
-        }
-
-        try {
-          await app.loadProfile(normalized);
-        } catch {
-          // ignore
-        }
-
         let tokenIds: bigint[] = [];
         try {
           const readContract = await contract.getReadContract();
@@ -247,15 +219,22 @@ export function ProfileRoute() {
           tokenIds = [];
         }
 
-        for (const tokenId of tokenIds) {
-          try {
-            await runContractTx(`Delete post #${tokenId.toString()}`, async () => {
-              const writeContract = await contract.getWriteContract();
-              return (writeContract as any).adminBurnPost(tokenId);
-            });
-          } catch {
-            // continue
-          }
+        try {
+          await runContractTx("Reset account", async () => {
+            const writeContract = await contract.getWriteContract();
+            return (writeContract as any).adminResetAccount(normalized, tokenIds);
+          });
+        } catch {
+          return;
+        }
+
+        setIsPosterAllowed(false);
+        setWasPosterDisapprovedEver(true);
+
+        try {
+          await app.loadProfile(normalized);
+        } catch {
+          // ignore
         }
 
         try {

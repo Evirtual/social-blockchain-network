@@ -5,6 +5,7 @@ import { createMetadataUri } from "../lib/metadata";
 import { getErrorMessage } from "../lib/errors";
 import { hasPinata } from "../ipfs";
 import { buildIpfsTokenUri } from "../lib/ipfsTokenUri";
+import { getNetworkBadgeLabel } from "../lib/chain";
 import { useContract } from "./ContractContext";
 import { useFeed } from "./FeedContext";
 import { useStatus } from "./StatusContext";
@@ -33,11 +34,11 @@ export type SocialActionsContextValue = {
   cancelEditPost: () => void;
   saveEditedPost: () => Promise<void>;
 
-  burnPost: (tokenId: string) => Promise<void>;
-  freezePost: (tokenId: string) => Promise<void>;
+  burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
+  freezePost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
-  handleAction: (tokenId: string, action: "like" | "comment" | "share") => Promise<void>;
-  handleTip: (tokenId: string) => Promise<void>;
+  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<void>;
+  handleTip: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
   withdrawTips: () => Promise<void>;
 };
@@ -45,7 +46,7 @@ export type SocialActionsContextValue = {
 const SocialActionsContext = createContext<SocialActionsContextValue | null>(null);
 
 export function SocialActionsProvider({ children }: { children: React.ReactNode }) {
-  const { walletAddress, refreshWalletPanel } = useWallet();
+  const { walletAddress, chainId, refreshWalletPanel } = useWallet();
   const { setStatus } = useStatus();
   const contract = useContract();
   const feed = useFeed();
@@ -67,6 +68,20 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
   const [tipDrafts, setTipDrafts] = useState<Record<string, string>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+
+  const ensureMatchingNetwork = useCallback(
+    (postChainId?: string | null) => {
+      if (!postChainId) return true;
+      if (!chainId) return true;
+      if (postChainId === chainId) return true;
+
+      setStatus(
+        `Wrong network. Switch to ${getNetworkBadgeLabel(postChainId)} to interact with this post.`
+      );
+      return false;
+    },
+    [chainId, setStatus]
+  );
 
   const onTipDraftChange = useCallback((tokenId: string, value: string) => {
     setTipDrafts((prev) => ({ ...prev, [tokenId]: value }));
@@ -108,12 +123,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const freezePost = useCallback(
-    async (tokenId: string) => {
+    async (tokenId: string, postChainId?: string | null) => {
       try {
         if (!walletAddress) {
           setStatus("Connect your wallet first.");
           return;
         }
+        if (!ensureMatchingNetwork(postChainId)) return;
 
         const writeContract = await getWriteContract();
         const ok = await runContractTx<boolean>(
@@ -129,7 +145,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         setStatus(getErrorMessage(error));
       }
     },
-    [walletAddress, getWriteContract, runContractTx, cancelEditPost, setStatus]
+    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, cancelEditPost, setStatus]
   );
 
   const onEditSelectFile = useCallback(
@@ -296,12 +312,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     }
   }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus]);
 
-  const burnPost = useCallback(async (tokenId: string) => {
+  const burnPost = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
         return;
       }
+      if (!ensureMatchingNetwork(postChainId)) return;
 
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(tokenId);
@@ -318,7 +335,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         cancelEditPost();
       }
 
-      feed.setPosts((prev) => prev.filter((p) => p.tokenId !== tokenId));
+      feed.setPosts((prev) =>
+        prev.filter((p) => {
+          if (p.tokenId !== tokenId) return true;
+          if (postChainId && p.chainId && p.chainId !== postChainId) return true;
+          return false;
+        })
+      );
       feed.setPostComments((prev) => {
         if (!(tokenId in prev)) return prev;
         const { [tokenId]: _, ...rest } = prev;
@@ -339,14 +362,15 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, isOwner, getWriteContract, runContractTx, editingTokenId, cancelEditPost, feed, setStatus]);
+  }, [walletAddress, ensureMatchingNetwork, isOwner, getWriteContract, runContractTx, editingTokenId, cancelEditPost, feed, setStatus]);
 
-  const handleTip = useCallback(async (tokenId: string) => {
+  const handleTip = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
         return;
       }
+      if (!ensureMatchingNetwork(postChainId)) return;
 
       const raw = (tipDrafts[tokenId] ?? "").trim();
       const amount = raw.length ? Number(raw) : 0;
@@ -361,13 +385,19 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
       await runContractTx("Tip", () => writeContract.tipPost(tokenIdBig, { value: valueWei }));
 
-      feed.setPosts((prev) => prev.map((p) => (p.tokenId === tokenId ? { ...p, tipsWei: p.tipsWei + valueWei } : p)));
+      feed.setPosts((prev) =>
+        prev.map((p) => {
+          if (p.tokenId !== tokenId) return p;
+          if (postChainId && p.chainId && p.chainId !== postChainId) return p;
+          return { ...p, tipsWei: p.tipsWei + valueWei };
+        })
+      );
       setTipDrafts((prev) => ({ ...prev, [tokenId]: "" }));
       void refreshWalletPanel();
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, tipDrafts, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]);
+  }, [walletAddress, ensureMatchingNetwork, tipDrafts, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]);
 
   const withdrawTips = useCallback(async () => {
     try {
@@ -385,12 +415,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   }, [walletAddress, getWriteContract, runContractTx, refreshWalletPanel, setStatus]);
 
   const handleAction = useCallback(
-    async (tokenId: string, action: "like" | "comment" | "share") => {
+    async (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => {
       try {
         if (!walletAddress) {
           setStatus("Connect your wallet first.");
           return;
         }
+        if (!ensureMatchingNetwork(postChainId)) return;
 
         const writeContract = await getWriteContract();
         const tokenIdBig = BigInt(tokenId);
@@ -404,7 +435,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           const ok = await runContractTx<boolean>("Comment", () => writeContract.commentPost(tokenIdBig, comment), () => true);
           if (!ok) return;
 
-          feed.setPosts((prev) => prev.map((post) => (post.tokenId === tokenId ? { ...post, comments: post.comments + 1 } : post)));
+          feed.setPosts((prev) =>
+            prev.map((post) => {
+              if (post.tokenId !== tokenId) return post;
+              if (postChainId && post.chainId && post.chainId !== postChainId) return post;
+              return { ...post, comments: post.comments + 1 };
+            })
+          );
           setCommentDrafts((prev) => ({ ...prev, [tokenId]: "" }));
           void feed.loadCommentsForPost(tokenId);
           return;
@@ -422,6 +459,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           feed.setPosts((prev) =>
             prev.map((post) => {
               if (post.tokenId !== tokenId) return post;
+              if (postChainId && post.chainId && post.chainId !== postChainId) return post;
               const next = already ? Math.max(0, post.likes - 1) : post.likes + 1;
               return { ...post, likes: next, likedByMe: !already };
             })
@@ -441,6 +479,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           feed.setPosts((prev) =>
             prev.map((post) => {
               if (post.tokenId !== tokenId) return post;
+              if (postChainId && post.chainId && post.chainId !== postChainId) return post;
               const next = already ? Math.max(0, post.shares - 1) : post.shares + 1;
               return { ...post, shares: next, repostedByMe: !already };
             })
@@ -451,7 +490,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         setStatus(getErrorMessage(error));
       }
     },
-    [walletAddress, getWriteContract, runContractTx, commentDrafts, feed, setStatus]
+    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, commentDrafts, feed, setStatus]
   );
 
   const value = useMemo<SocialActionsContextValue>(

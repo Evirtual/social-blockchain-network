@@ -1,17 +1,20 @@
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { PostPage } from "../pages/PostPage";
 import { useApp } from "../contexts/AppContext";
 
 export function PostRoute() {
   const app = useApp();
   const params = useParams();
+  const location = useLocation();
   const tokenId = params.tokenId as string | undefined;
+  const postChainId = (location.state as { chainId?: string | null } | null)?.chainId ?? null;
 
   useEffect(() => {
     if (!tokenId) return;
+    if (postChainId && app.chainId && postChainId !== app.chainId) return;
     void app.loadCommentsForPost(tokenId);
-  }, [tokenId, app.loadCommentsForPost]);
+  }, [tokenId, postChainId, app.chainId, app.loadCommentsForPost]);
 
   if (!tokenId) {
     return (
@@ -24,7 +27,8 @@ export function PostRoute() {
     );
   }
 
-  const post = app.posts.find((p) => p.tokenId === tokenId) ?? null;
+  const post =
+    app.posts.find((p) => p.tokenId === tokenId && (postChainId ? p.chainId === postChainId : true)) ?? null;
 
   return (
     <PostPage

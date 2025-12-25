@@ -51,10 +51,10 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share") => void;
-  onTip: (tokenId: string) => void;
-  onBurn: (tokenId: string) => void;
-  onFreezePost: (tokenId: string) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -156,7 +156,11 @@ export function ProfilePage(props: Props) {
                     {isAdminEditing ? "Close" : "Edit Profile"}
                   </button>
                   {isAllowed ? (
-                    <button className="secondary" type="button" onClick={() => props.onAdminSetPosterAllowed(false)}>
+                    <button
+                      className="secondary"
+                      type="button"
+                      onClick={() => props.onAdminSetPosterAllowed(false)}
+                    >
                       Disapprove
                     </button>
                   ) : (

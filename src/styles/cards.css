@@ -863,11 +863,11 @@
   }
 
   .postHeadTop {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 0.5rem;
-    row-gap: 0.375rem;
-    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: baseline;
+    flex-wrap: wrap;
   }
 
   .postAuthor {
@@ -891,9 +891,7 @@
   }
 
   .postTokenArea {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    justify-self: end;
+    flex-wrap: nowrap;
     max-width: 100%;
   }
 
@@ -902,17 +900,7 @@
     flex: 0 0 auto;
   }
 
-  .postTokenLink {
-    order: 1;
-  }
-
-  .postTokenArea .savedBadge {
-    order: 2;
-  }
-
-  .postTokenActions {
-    order: 3;
-  }
+  /* Keep the token/network row consistent with desktop (DOM order). */
 
   .postImage {
     margin-top: 0.625rem;

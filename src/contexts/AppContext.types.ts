@@ -5,6 +5,9 @@ export type AppContextValue = {
   theme: "light" | "dark";
   toggleTheme: () => void;
 
+  // UI
+  connectNudge: boolean;
+
   // Wallet + chain
   walletAddress: string | null;
   chainId: string | null;
@@ -93,9 +96,9 @@ export type AppContextValue = {
   cancelEditPost: () => void;
   saveEditedPost: () => Promise<void>;
 
-  burnPost: (tokenId: string) => Promise<void>;
-  handleAction: (tokenId: string, action: "like" | "comment" | "share") => Promise<void>;
-  handleTip: (tokenId: string) => Promise<void>;
+  burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
+  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<void>;
+  handleTip: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
   // Follow graph (cache)
   isFollowingByAddress: Record<string, boolean | undefined>;
@@ -103,7 +106,7 @@ export type AppContextValue = {
   toggleFollow: (followee: string) => Promise<void>;
 
   // Post admin actions
-  freezePost: (tokenId: string) => Promise<void>;
+  freezePost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
   // Comments
   postComments: Record<string, PostComment[]>;

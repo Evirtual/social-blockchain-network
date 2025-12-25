@@ -136,6 +136,42 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit ProfileClearedByAdmin(msg.sender, account);
     }
 
+    // Admin multicall: block poster, clear profile, and burn selected posts.
+    // This is intended to reduce moderation/reset flows to a single transaction.
+    function adminResetAccount(address account, uint256[] calldata tokenIds) external onlyOwner {
+        require(account != address(0), "Invalid account");
+
+        // Block poster (mirrors setPosterAllowed(account, false) side effects).
+        _posterAllowed[account] = false;
+        _posterRequested[account] = false;
+        _posterDisapprovedEver[account] = true;
+        emit PosterAllowed(account, false);
+
+        // Clear profile.
+        delete _profiles[account];
+        emit ProfileUpdated(account, "", "", "");
+        emit ProfileClearedByAdmin(msg.sender, account);
+
+        // Burn all posts that currently exist and belong to the account.
+        // Unknown / already-burned / non-matching tokenIds are ignored.
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            if (_ownerOf(tokenId) == address(0)) continue;
+            if (_author[tokenId] != account) continue;
+
+            _burn(tokenId);
+
+            delete _author[tokenId];
+            delete _likes[tokenId];
+            delete _comments[tokenId];
+            delete _shares[tokenId];
+            delete _tipsWei[tokenId];
+            delete _postFrozen[tokenId];
+
+            emit PostBurnedByAdmin(msg.sender, account, tokenId);
+        }
+    }
+
     function profileOf(
         address account
     ) external view returns (string memory name, string memory bio, string memory avatar) {
