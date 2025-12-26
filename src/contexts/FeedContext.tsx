@@ -337,7 +337,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             // Current network uses the connected wallet provider to preserve existing behavior.
             const tasks: Array<Promise<Post[]>> = [];
 
-            const taskTimeoutMs = 15_000;
+            const taskTimeoutMs = 8_000;
 
             const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
               if (cfg.chainId !== 31337) return cfg.contractAddress;
@@ -530,9 +530,14 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               // When disconnected, prefer a public RPC for reads.
               if (!walletAddress && currentCfg && currentRpcUrl) {
                 const rpcProvider: any = new ethers.JsonRpcProvider(currentRpcUrl, currentCfg.chainId);
-                const addr = await resolveRpcContractAddress(currentCfg, rpcProvider);
-                const remoteReadContract = getSocialContract(addr, rpcProvider);
-                enqueueLoad(`Feed network ${currentCfg.chainId}`, loadFromProvider(currentCfg.chainId, rpcProvider, remoteReadContract));
+                enqueueLoad(
+                  `Feed network ${currentCfg.chainId}`,
+                  (async () => {
+                    const addr = await resolveRpcContractAddress(currentCfg, rpcProvider);
+                    const remoteReadContract = getSocialContract(addr, rpcProvider);
+                    return loadFromProvider(currentCfg.chainId, rpcProvider, remoteReadContract);
+                  })()
+                );
               } else if (provider) {
                 try {
                   await ensureContractDeployedOnCurrentNetwork();
@@ -557,9 +562,14 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             for (const cfg of extraNetworks) {
               const url = String(cfg.rpcUrl).trim();
               const rpcProvider: any = new ethers.JsonRpcProvider(url, cfg.chainId);
-              const addr = await resolveRpcContractAddress(cfg, rpcProvider);
-              const remoteReadContract = getSocialContract(addr, rpcProvider);
-              enqueueLoad(`Feed network ${cfg.chainId}`, loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract));
+              enqueueLoad(
+                `Feed network ${cfg.chainId}`,
+                (async () => {
+                  const addr = await resolveRpcContractAddress(cfg, rpcProvider);
+                  const remoteReadContract = getSocialContract(addr, rpcProvider);
+                  return loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract);
+                })()
+              );
             }
 
             return tasks;
