@@ -1,4 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+// Utility to normalize chainId (hex or decimal string to decimal string, or null for invalid)
+export function normalizeChainId(chainId: string | number | null | undefined): string | null {
+  if (chainId == null || chainId === "") return null;
+  if (typeof chainId === "number") return String(chainId);
+  if (typeof chainId === "string") {
+    if (/^0x[0-9a-f]+$/i.test(chainId)) {
+      try {
+        return String(parseInt(chainId, 16));
+      } catch {
+        return null;
+      }
+    }
+    if (/^\d+$/.test(chainId)) return chainId;
+  }
+  return null;
+}
 import { hasPinata, ipfsToHttp } from "../ipfs";
 import type { Draft, Post } from "../types";
 import { socialInterface } from "../contracts/socialPosts";
@@ -247,15 +263,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const mintPost = useCallback(async () => {
-    const normalizeChainId = (id: string | null): string | null => {
-      if (!id) return null;
-      if (id.startsWith("0x") || id.startsWith("0X")) {
-        const n = Number.parseInt(id, 16);
-        return Number.isFinite(n) ? String(n) : null;
-      }
-      const n = Number.parseInt(id, 10);
-      return Number.isFinite(n) ? String(n) : null;
-    };
+
 
     const makeLocalNoticeId = () => `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));

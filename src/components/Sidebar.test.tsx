@@ -137,45 +137,51 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     getWriteContractMock.mockImplementation(async () => ({} as any));
   });
 
+  // Helper to render ProfileCard with default props, allowing overrides
+  function renderProfileCard(overrides = {}) {
+    const defaultProps = {
+      walletAddress: "0xOWNER",
+      displayName: "Me",
+      profileBio: "Bio",
+      profileAvatarUrl: "",
+      myPostsCount: 0,
+      followerCount: 0,
+      followers: [],
+      following: [],
+      isLoadingFollowers: false,
+      isLoadingFollowing: false,
+      onDisconnectWallet: vi.fn(),
+      isEditingProfile: false,
+      profileDraftName: "",
+      profileDraftBio: "",
+      profileDraftAvatarUrl: "",
+      profileDraftAvatarDataUrl: "",
+      isProfileAvatarLoading: false,
+      onProfileDraftNameChange: () => undefined,
+      onProfileDraftBioChange: () => undefined,
+      onProfileDraftAvatarUrlChange: () => undefined,
+      onSelectProfileAvatarFile: async () => undefined,
+      onClearProfileAvatar: () => undefined,
+      onStartEditProfile: () => undefined,
+      onCancelEditProfile: () => undefined,
+      onSaveProfile: () => undefined,
+      selfAvatarHue: 123,
+      shortAddress: (a: string) => a.slice(0, 6),
+    };
+    return render(
+      <MemoryRouter>
+        <ProfileCard {...defaultProps} {...overrides} />
+      </MemoryRouter>
+    );
+  }
+
   it("owner can open Approvals and add/validate pending wallets", async () => {
     setMatchMedia({ matches: false, modern: true });
 
     localStorage.removeItem("pendingPosterApprovals");
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     // Wait for the async owner() effect to set isOwner and render the button.
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
@@ -209,39 +215,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("does not show Approvals when wallet is disconnected", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress={undefined as any}
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: undefined });
 
     expect(screen.queryByRole("button", { name: "Approvals" })).toBeNull();
   });
@@ -255,39 +229,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
       }
     });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => screen.queryByRole("button", { name: "Approvals" }) === null);
   });
@@ -298,39 +240,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     localStorage.setItem("pendingPosterApprovals", JSON.stringify({ nope: true }));
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
 
@@ -345,39 +255,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     localStorage.setItem("pendingPosterApprovals", "{not-json");
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -398,39 +276,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     getReadContractMock.mockResolvedValue({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -448,39 +294,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
     getReadContractMock.mockResolvedValue({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -505,39 +319,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
       wasPosterDisapproved: async () => true
     } as any);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -564,39 +346,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({ setPosterAllowed });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -621,39 +371,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
 
@@ -688,39 +406,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({ setPosterAllowed } as any);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
@@ -764,39 +450,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     };
     getReadContractMock.mockResolvedValue(readContract);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xNOTOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xNOTOWNER" });
 
     // Approvals button should not be shown when not owner.
     expect(screen.queryByRole("button", { name: "Approvals" })).toBeNull();
@@ -820,39 +474,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     };
     getReadContractMock.mockResolvedValue(readContract);
 
-    const { rerender, unmount } = render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    const { rerender, unmount } = renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -862,35 +484,35 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     // Switch wallet (becomes non-owner) while modal remains open.
     rerender(
       <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xNOTOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
+        <ProfileCard {...{
+          walletAddress: "0xNOTOWNER",
+          displayName: "Me",
+          profileBio: "Bio",
+          profileAvatarUrl: "",
+          myPostsCount: 0,
+          followerCount: 0,
+          followers: [],
+          following: [],
+          isLoadingFollowers: false,
+          isLoadingFollowing: false,
+          onDisconnectWallet: vi.fn(),
+          isEditingProfile: false,
+          profileDraftName: "",
+          profileDraftBio: "",
+          profileDraftAvatarUrl: "",
+          profileDraftAvatarDataUrl: "",
+          isProfileAvatarLoading: false,
+          onProfileDraftNameChange: () => undefined,
+          onProfileDraftBioChange: () => undefined,
+          onProfileDraftAvatarUrlChange: () => undefined,
+          onSelectProfileAvatarFile: async () => undefined,
+          onClearProfileAvatar: () => undefined,
+          onStartEditProfile: () => undefined,
+          onCancelEditProfile: () => undefined,
+          onSaveProfile: () => undefined,
+          selfAvatarHue: 123,
+          shortAddress: (a) => a.slice(0, 6),
+        }} />
       </MemoryRouter>
     );
 
@@ -920,39 +542,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     } as any);
     getReadContractMock.mockRejectedValueOnce(new Error("fail"));
 
-    const { unmount } = render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    const { unmount } = renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -971,39 +561,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     localStorage.setItem("pendingPosterApprovals", JSON.stringify(["lol"]));
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
-    const { unmount } = render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    const { unmount } = renderProfileCard();
 
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
@@ -1044,39 +602,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue({ adminResetAccount } as any);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), { target: { value: addr } });
@@ -1103,39 +629,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     };
     getReadContractMock.mockResolvedValue(readContract);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
@@ -1157,39 +651,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     getReadContractMock.mockResolvedValue(readContract);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
@@ -1221,39 +683,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
       adminClearProfile
     });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     fireEvent.change(screen.getByPlaceholderText("0x... wallet address"), {
@@ -1276,39 +706,15 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const onDisconnectWallet = vi.fn();
     const onStartEditProfile = vi.fn();
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={2}
-          followerCount={2}
-          followers={["0xAAA", "0xBBB"]}
-          following={["0xCCC"]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={onDisconnectWallet}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={onStartEditProfile}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({
+      walletAddress: "0xAAA",
+      myPostsCount: 2,
+      followerCount: 2,
+      followers: ["0xAAA", "0xBBB"],
+      following: ["0xCCC"],
+      onDisconnectWallet,
+      onStartEditProfile,
+    });
 
     expect(screen.getAllByText("Profile").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Edit profile" })).toBeTruthy();
@@ -1360,39 +766,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     getReadContractMock.mockResolvedValue(readContract);
     getWriteContractMock.mockResolvedValue(writeContract);
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
@@ -1440,39 +814,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
       adminResetAccount: vi.fn(async () => ({}))
     });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
@@ -1510,39 +852,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
       adminResetAccount
     });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xOWNER"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
 
@@ -1566,39 +876,13 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     loadProfileMock.mockClear();
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={2}
-          followerCount={0}
-          followers={[]}
-          following={["0xCCC"]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({
+      walletAddress: "0xAAA",
+      myPostsCount: 2,
+      followerCount: 0,
+      followers: [],
+      following: ["0xCCC"],
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "View following" }));
     expect(await screen.findByText("Following")).toBeTruthy();
@@ -1620,39 +904,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("evaluates header pill operands and omits followers pill when followerCount is undefined", () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={undefined}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", followerCount: undefined });
 
     // Should not render followers pill when followerCount isn't a number.
     expect(screen.queryByRole("button", { name: "View followers" })).toBeNull();
@@ -1661,39 +913,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("renders header pills when only following length is available", () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={undefined}
-          followerCount={undefined}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", myPostsCount: undefined, followerCount: undefined });
 
     // Pills should render due to `following?.length` being a number.
     expect(screen.getByRole("button", { name: "View following" })).toBeTruthy();
@@ -1702,39 +922,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("uses fallback avatar background in following modal when profile has no avatar", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={1}
-          followerCount={0}
-          followers={[]}
-          following={["0xDDD"]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", myPostsCount: 1, followerCount: 0, following: ["0xDDD"] });
 
     fireEvent.click(screen.getByRole("button", { name: "View following" }));
     expect(await screen.findByText("Following")).toBeTruthy();
@@ -1747,39 +935,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("renders avatar preview when editing and draft data URL is an image", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={true}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl="data:image/png;base64,aaa"
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", isEditingProfile: true, profileDraftAvatarDataUrl: "data:image/png;base64,aaa" });
 
     expect(await screen.findByAltText("Avatar preview")).toBeInTheDocument();
   });
@@ -1795,39 +951,18 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     const onCancelEditProfile = vi.fn();
     const onSaveProfile = vi.fn();
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={true}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={onProfileDraftNameChange}
-          onProfileDraftBioChange={onProfileDraftBioChange}
-          onProfileDraftAvatarUrlChange={onProfileDraftAvatarUrlChange}
-          onSelectProfileAvatarFile={onSelectProfileAvatarFile}
-          onClearProfileAvatar={onClearProfileAvatar}
-          onStartEditProfile={vi.fn()}
-          onCancelEditProfile={onCancelEditProfile}
-          onSaveProfile={onSaveProfile}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({
+      walletAddress: "0xAAA",
+      isEditingProfile: true,
+      onProfileDraftNameChange,
+      onProfileDraftBioChange,
+      onProfileDraftAvatarUrlChange,
+      onSelectProfileAvatarFile,
+      onClearProfileAvatar,
+      onStartEditProfile: vi.fn(),
+      onCancelEditProfile,
+      onSaveProfile,
+    });
 
     const dialog = screen.getByRole("dialog", { name: "Edit profile" });
 
@@ -1861,39 +996,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("closes follower/following modals and toggles details", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={1}
-          followers={["0xAAA"]}
-          following={["0xCCC"]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", followerCount: 1, followers: ["0xAAA"], following: ["0xCCC"] });
 
     const details = document.querySelector("details.profileDropdown") as HTMLDetailsElement | null;
     expect(details).toBeTruthy();
@@ -1920,39 +1023,17 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("shows empty follower/following states and loading ellipsis", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio=""
-          profileAvatarUrl="ipfs://avatar"
-          myPostsCount={undefined}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={true}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({
+      walletAddress: "0xAAA",
+      profileBio: "",
+      profileAvatarUrl: "ipfs://avatar",
+      myPostsCount: undefined,
+      followerCount: 0,
+      followers: [],
+      following: [],
+      isLoadingFollowers: false,
+      isLoadingFollowing: true,
+    });
 
     // Avatar uses backgroundImage when url is present.
     const avatar = document.querySelector(".avatar") as HTMLDivElement | null;
@@ -1972,39 +1053,16 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("shows empty following modal when not loading", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio=""
-          profileAvatarUrl=""
-          myPostsCount={undefined}
-          followerCount={0}
-          followers={[]}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({
+      walletAddress: "0xAAA",
+      profileBio: "",
+      myPostsCount: undefined,
+      followerCount: 0,
+      followers: [],
+      following: [],
+      isLoadingFollowers: false,
+      isLoadingFollowing: false,
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "View following" }));
     expect(await screen.findByText("Not following anyone yet.")).toBeTruthy();
@@ -2014,39 +1072,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     setMatchMedia({ matches: false, modern: true });
     loadProfileMock.mockClear();
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={null}
-          following={[]}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", followers: null });
 
     fireEvent.click(screen.getByRole("button", { name: "View followers" }));
     expect(await screen.findByText("No followers yet.")).toBeTruthy();
@@ -2056,39 +1082,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("renders 0 following when following is null", () => {
     setMatchMedia({ matches: false, modern: true });
 
-    render(
-      <MemoryRouter>
-        <ProfileCard
-          walletAddress="0xAAA"
-          displayName="Me"
-          profileBio="Bio"
-          profileAvatarUrl=""
-          myPostsCount={0}
-          followerCount={0}
-          followers={[]}
-          following={null}
-          isLoadingFollowers={false}
-          isLoadingFollowing={false}
-          onDisconnectWallet={vi.fn()}
-          isEditingProfile={false}
-          profileDraftName=""
-          profileDraftBio=""
-          profileDraftAvatarUrl=""
-          profileDraftAvatarDataUrl=""
-          isProfileAvatarLoading={false}
-          onProfileDraftNameChange={() => undefined}
-          onProfileDraftBioChange={() => undefined}
-          onProfileDraftAvatarUrlChange={() => undefined}
-          onSelectProfileAvatarFile={async () => undefined}
-          onClearProfileAvatar={() => undefined}
-          onStartEditProfile={() => undefined}
-          onCancelEditProfile={() => undefined}
-          onSaveProfile={() => undefined}
-          selfAvatarHue={123}
-          shortAddress={(a) => a.slice(0, 6)}
-        />
-      </MemoryRouter>
-    );
+    renderProfileCard({ walletAddress: "0xAAA", following: null });
 
     const followingBtn = screen.getByRole("button", { name: "View following" });
     expect(followingBtn.textContent).toContain("0 following");

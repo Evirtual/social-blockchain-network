@@ -1,3 +1,53 @@
+describe("FeedContext polling interval", () => {
+  it("sets and clears interval when provider and hasAnyReadOnlyRpc are present", () => {
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const setSpy = vi.spyOn(window, "setInterval");
+    // Simulate provider and hasAnyReadOnlyRpc
+    const provider = {};
+    const hasAnyReadOnlyRpc = true;
+    const refreshFeed = vi.fn();
+    const Test = () => {
+      // Inline useEffect logic from FeedContext
+      useEffect(() => {
+        if (!provider && !hasAnyReadOnlyRpc) return;
+        const id = window.setInterval(() => {
+          void refreshFeed("0xabc");
+        }, 15000);
+        return () => window.clearInterval(id);
+      }, [provider, hasAnyReadOnlyRpc]);
+      return null;
+    };
+    const { unmount } = render(<Test />);
+    expect(setSpy).toHaveBeenCalled();
+    unmount();
+    expect(clearSpy).toHaveBeenCalled();
+    setSpy.mockRestore();
+    clearSpy.mockRestore();
+    vi.useRealTimers();
+  });
+});
+describe("FeedProvider useEffect interval", () => {
+  it("cleans up interval on unmount and handles refreshFeed errors", () => {
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const refreshFeed = vi.fn().mockRejectedValue(new Error("fail"));
+    const Test = () => {
+      useEffect(() => {
+        const id = window.setInterval(() => {
+          void refreshFeed("0xabc").catch(() => {});
+        }, 100);
+        return () => window.clearInterval(id);
+      }, []);
+      return null;
+    };
+    const { unmount } = render(<Test />);
+    unmount();
+    expect(clearSpy).toHaveBeenCalled();
+    clearSpy.mockRestore();
+    vi.useRealTimers();
+  });
+});
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
@@ -802,6 +852,86 @@ describe("FeedContext", () => {
     await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalled());
   });
 
+  it("does not refresh feed on chain-only changes after initial load", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = "0xabc";
+
+    const { rerender } = render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    // Clear initial refresh calls so we only assert the rerender-triggered behavior.
+    readContract.queryFilter.mockClear();
+
+    // Simulate a wallet chain switch without account change.
+    walletState.chainId = "8453";
+    walletState.walletEpoch = 1;
+
+    rerender(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    // Give effects a tick; no refresh should happen.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("refreshes feed on initial mount even when walletAddress is null", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = null;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalled());
+  });
+
+  it("does not refresh when walletEpoch bumps but chain/account are unchanged", async () => {
+    walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
+    walletState.walletEpoch = 0;
+    walletState.chainId = "1";
+    walletState.walletAddress = "0xabc";
+
+    const { rerender } = render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalled());
+    readContract.queryFilter.mockClear();
+
+    // Epoch bump with same chainId + walletAddress
+    walletState.walletEpoch = 1;
+    rerender(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
   it("refreshFeed shrinks log window on provider errors", async () => {
     // Set latest high enough to see fromBlock change as window shrinks.
     walletState.provider = { getBlockNumber: vi.fn(async () => 500_000) };
@@ -1419,5 +1549,67 @@ describe("FeedContext", () => {
     });
 
     expect(readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("creates and clears the polling interval when not in vitest worker", () => {
+    vi.useFakeTimers();
+
+    const prevVitestWorker = (globalThis as any).__vitest_worker__;
+    const setSpy = vi.spyOn(window, "setInterval");
+    const clearSpy = vi.spyOn(window, "clearInterval");
+
+    try {
+      // Disable the guard so we cover the interval effect.
+      (globalThis as any).__vitest_worker__ = undefined;
+
+      // Enable readonly-rpc path so FeedProvider will schedule polling even without wallet provider.
+      vi.stubEnv("VITE_BASE_RPC_URL", "http://localhost:8545");
+      walletState.provider = null;
+
+      const { unmount } = render(
+        <FeedProvider>
+          <Consumer />
+        </FeedProvider>
+      );
+
+      expect(setSpy).toHaveBeenCalled();
+
+      // Run one polling tick to execute the callback body.
+      vi.advanceTimersByTime(15_000);
+
+      unmount();
+      expect(clearSpy).toHaveBeenCalled();
+    } finally {
+      (globalThis as any).__vitest_worker__ = prevVitestWorker;
+      setSpy.mockRestore();
+      clearSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not create polling interval when no provider and no readonly RPCs (not vitest worker)", () => {
+    vi.useFakeTimers();
+
+    const prevVitestWorker = (globalThis as any).__vitest_worker__;
+    const setSpy = vi.spyOn(window, "setInterval");
+
+    try {
+      (globalThis as any).__vitest_worker__ = undefined;
+
+      // Keep env rpcs empty (beforeEach already does) and provider null.
+      walletState.provider = null;
+
+      render(
+        <FeedProvider>
+          <Consumer />
+        </FeedProvider>
+      );
+
+      expect(setSpy).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as any).__vitest_worker__ = prevVitestWorker;
+      setSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

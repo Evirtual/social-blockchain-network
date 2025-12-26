@@ -1,3 +1,23 @@
+import { normalizeChainId } from "../contexts/ComposerContext";
+
+describe("normalizeChainId", () => {
+  it("returns null for null or empty input", () => {
+    expect(normalizeChainId(null)).toBeNull();
+    expect(normalizeChainId(undefined as any)).toBeNull();
+    expect(normalizeChainId("")).toBeNull();
+  });
+
+  it("parses hex and decimal strings", () => {
+    expect(normalizeChainId("0x10")).toBe("16");
+    expect(normalizeChainId("0X10")).toBe("16");
+    expect(normalizeChainId("42")).toBe("42");
+  });
+
+  it("returns null for invalid input", () => {
+    expect(normalizeChainId("0xZZ")).toBeNull();
+    expect(normalizeChainId("notanumber")).toBeNull();
+  });
+});
 import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,6 +25,7 @@ const mocks = vi.hoisted(() => {
   const feedState = { posts: [] as any[] };
   return {
     walletAddress: "0x000000000000000000000000000000000000bEEF" as string | null,
+    chainId: "84532" as string | null | undefined,
     hasPinata: false,
     setStatus: vi.fn(),
     parseLog: vi.fn() as any,
@@ -72,7 +93,7 @@ vi.mock("../lib/ipfsTokenUri", () => ({
 }));
 
 vi.mock("./WalletContext", () => ({
-  useWallet: () => ({ walletAddress: mocks.walletAddress, chainId: "84532" })
+  useWallet: () => ({ walletAddress: mocks.walletAddress, chainId: mocks.chainId })
 }));
 
 vi.mock("./StatusContext", () => ({
@@ -639,6 +660,183 @@ describe("ComposerContext transactions", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith("Mint confirmed, but tokenId could not be parsed. Reloading feed...");
     expect(mocks.refreshFeed).toHaveBeenCalled();
     expect(mocks.txNotifications.dismiss).toHaveBeenCalled();
+  });
+
+  it("mintPost dismisses local toast when tokenId not parsed and ipfsConfigured", async () => {
+    mocks.hasPinata = true;
+    const get = grabCtx();
+
+    // Ensure receipt logs don't parse into PostMinted
+    mocks.receipt = { hash: "0xhash", logs: [{ topics: ["t"], data: "0xnope" }] };
+    mocks.parseLog.mockReturnValue({ name: "OtherEvent", args: [] });
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello chain");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.txNotifications.dismiss).toHaveBeenCalledWith(expect.stringContaining("local-"));
+    expect(mocks.refreshFeed).toHaveBeenCalled();
+  });
+
+  it("mintPost runs the IPFS finalization block on successful ipfs:// metadata", async () => {
+    mocks.hasPinata = true;
+    const get = grabCtx();
+
+    mocks.receipt = {
+      hash: "0xhash",
+      logs: [{ topics: ["t"], data: "0xok" }]
+    };
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 123n] });
+
+    mocks.buildIpfsTokenUri.mockResolvedValue({ tokenUri: "ipfs://meta", imageRef: "ipfs://img", animationRef: "" });
+    mocks.fetchTokenMetadata.mockResolvedValue({ name: "n", description: "d", image: "ipfs://img", animation_url: "" });
+
+    const originalFetch = globalThis.fetch;
+    const fetchSpy = vi.fn(async () => ({ ok: true, blob: async () => new Blob() })) as any;
+
+    try {
+      vi.stubGlobal("fetch", fetchSpy);
+
+      await act(async () => {
+        get().openComposer();
+        get().handleDraftChange("body", "Hello chain");
+        get().onComposerImageUrlChange("https://example.com/a.png");
+      });
+
+      await act(async () => {
+        await get().mintPost();
+      });
+
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(mocks.feedState.posts[0]?.tokenId).toBe("123");
+      expect(mocks.feedState.posts[0]?.metadataURI).toBe("ipfs://meta");
+    } finally {
+      vi.stubGlobal("fetch", originalFetch as any);
+    }
+  });
+
+  it("mintPost sets newPost.chainId to undefined when wallet chainId is invalid", async () => {
+    mocks.hasPinata = false;
+    mocks.chainId = "notanumber";
+    const get = grabCtx();
+
+    mocks.receipt = {
+      hash: "0xhash",
+      logs: [{ topics: ["t"], data: "0xok" }]
+    };
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 123n] });
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello chain");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.feedState.posts[0]?.chainId).toBeUndefined();
+  });
+
+  it("mintPost finalization does not probe non-ipfs mediaRef", async () => {
+    mocks.hasPinata = true;
+    mocks.chainId = "84532";
+    const get = grabCtx();
+
+    mocks.receipt = {
+      hash: "0xhash",
+      logs: [{ topics: ["t"], data: "0xok" }]
+    };
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 123n] });
+
+    mocks.buildIpfsTokenUri.mockResolvedValue({ tokenUri: "ipfs://meta", imageRef: "ipfs://img", animationRef: "" });
+    mocks.fetchTokenMetadata.mockResolvedValue({
+      name: "n",
+      description: "d",
+      image: "https://example.com/img.png",
+      animation_url: ""
+    });
+
+    const originalFetch = globalThis.fetch;
+    const fetchSpy = vi.fn(async () => ({ ok: true, blob: async () => new Blob() })) as any;
+
+    try {
+      vi.stubGlobal("fetch", fetchSpy);
+
+      await act(async () => {
+        get().openComposer();
+        get().handleDraftChange("body", "Hello chain");
+        get().onComposerImageUrlChange("https://example.com/a.png");
+      });
+
+      await act(async () => {
+        await get().mintPost();
+      });
+
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalledWith("https://example.com/img.png", expect.anything());
+    } finally {
+      vi.stubGlobal("fetch", originalFetch as any);
+    }
+  });
+
+  it("mintPost refreshes feed when runContractTx returns undefined", async () => {
+    mocks.hasPinata = true;
+    const get = grabCtx();
+
+    mocks.buildIpfsTokenUri.mockResolvedValue({ tokenUri: "ipfs://meta", imageRef: "ipfs://img", animationRef: "" });
+    mocks.runContractTx.mockResolvedValueOnce(undefined as any);
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello chain");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.setStatus).toHaveBeenCalledWith("Mint confirmed, but tokenId could not be parsed. Reloading feed...");
+    expect(mocks.refreshFeed).toHaveBeenCalled();
+  });
+
+  it("mintPost skips IPFS finalization block when tokenUri is not ipfs://", async () => {
+    mocks.hasPinata = true;
+    const get = grabCtx();
+
+    mocks.receipt = {
+      hash: "0xhash",
+      logs: [{ topics: ["t"], data: "0xok" }]
+    };
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 123n] });
+
+    // ipfsConfigured true (hasPinata), but tokenUri isn't ipfs:// so the finalization branch is skipped.
+    mocks.buildIpfsTokenUri.mockResolvedValue({
+      tokenUri: "data:application/json;base64,AAAA",
+      imageRef: "",
+      animationRef: ""
+    });
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello chain");
+      get().onComposerImageUrlChange("https://example.com/a.png");
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.feedState.posts[0]?.tokenId).toBe("123");
+    expect(mocks.feedState.posts[0]?.metadataURI).toBe("data:application/json;base64,AAAA");
   });
 
   it("mintPost IPFS path uploads and finalizes media when tokenUri is ipfs://", async () => {
