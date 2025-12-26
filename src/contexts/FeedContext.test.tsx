@@ -10,7 +10,7 @@ const dismiss = vi.fn();
 
 // Mock ethers JsonRpcProvider so no real network calls or startup retry logs happen.
 vi.mock("ethers", () => {
-  const rpcGetCodeMock = vi.fn(async () => "0x1234");
+  const rpcGetCodeMock = vi.fn(async (_address: string) => "0x1234");
 
   class FakeJsonRpcProvider {
     url: string;
@@ -128,6 +128,7 @@ function Consumer() {
     <div>
       <div data-testid="count">{feed.posts.length}</div>
       <div data-testid="comments">{(feed.postComments["1"] ?? []).length}</div>
+      <div data-testid="chainId0">{first?.chainId ?? ""}</div>
       <div data-testid="title0">{first?.title ?? ""}</div>
       <div data-testid="body0">{first?.body ?? ""}</div>
       <div data-testid="image0">{first?.image ?? ""}</div>
@@ -1263,16 +1264,14 @@ describe("FeedContext", () => {
     walletState.chainId = null;
     walletState.walletEpoch = 1;
 
-    let exposedFeed: FeedContextValue | null = null;
-
     render(
       <FeedProvider>
-        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+        <Consumer />
       </FeedProvider>
     );
 
-    await waitFor(() => expect(exposedFeed?.posts.length).toBe(1));
-    expect(exposedFeed?.posts[0]?.chainId ?? null).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(screen.getByTestId("chainId0")).toHaveTextContent("");
   });
 
   it("resolves chainId from getNetwork when chainId is not provided", async () => {
@@ -1285,16 +1284,14 @@ describe("FeedContext", () => {
     walletState.chainId = null;
     walletState.walletEpoch = 1;
 
-    let exposedFeed: FeedContextValue | null = null;
-
     render(
       <FeedProvider>
-        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+        <Consumer />
       </FeedProvider>
     );
 
-    await waitFor(() => expect(exposedFeed?.posts.length).toBe(1));
-    expect(exposedFeed?.posts[0]?.chainId).toBe("1");
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(screen.getByTestId("chainId0")).toHaveTextContent("1");
   });
 
   it("throws when useFeed is used outside provider", () => {

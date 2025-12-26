@@ -7,7 +7,7 @@ const dismiss = vi.fn();
 
 // Mock ethers JsonRpcProvider so no real network calls happen.
 vi.mock("ethers", () => {
-  const rpcGetCodeMock = vi.fn(async () => "0x1234");
+  const rpcGetCodeMock = vi.fn(async (_address: string) => "0x1234");
 
   class FakeJsonRpcProvider {
     url: string;

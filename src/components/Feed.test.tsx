@@ -150,14 +150,16 @@ describe("Feed", () => {
     expect(screen.getByLabelText("Loading posts")).toBeInTheDocument();
   });
 
-  it("does not show skeletons when posts already exist", () => {
+  it("keeps showing skeletons while loading even when posts already exist", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Feed {...makeProps({ isLoading: true })} />
       </MemoryRouter>
     );
 
-    expect(screen.queryByLabelText("Loading posts")).toBeNull();
+    expect(screen.getByTestId("post-1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading posts")).toBeInTheDocument();
+    expect(document.querySelectorAll(".postSkeleton").length).toBeGreaterThan(0);
   });
 
   it("computes authorLabel from identity or shortAddress and isMine", () => {
