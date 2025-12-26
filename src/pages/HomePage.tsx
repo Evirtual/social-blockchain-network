@@ -1,6 +1,6 @@
 import type { Draft, Post } from "../types";
 import { Feed } from "../components/Feed";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ChainLogo } from "../components/ChainLogos";
 
 type Props = {
@@ -61,11 +61,18 @@ type SupportedNetwork = {
 
 function getSupportedNetworks(): SupportedNetwork[] {
   // UX requirement: show supported networks as pills with logo + name.
-  return [
+  const networks: SupportedNetwork[] = [
     { chainId: 84532, name: "Base testnet", description: "" },
     { chainId: 11155111, name: "Ethereum testnet", description: "" },
     { chainId: 97, name: "BSC testnet", description: "" }
   ];
+
+  const localAddr = (import.meta.env.VITE_CONTRACT_ADDRESS_LOCAL || "").trim();
+  if (localAddr) {
+    networks.unshift({ chainId: 31337, name: "Local", description: "" });
+  }
+
+  return networks;
 }
 
 export function HomePage(props: Props) {
@@ -89,6 +96,37 @@ export function HomePage(props: Props) {
   });
 
   const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
+  const requestWalletNetworkSwitch = useCallback(
+    async (targetChainId: number) => {
+      const eth = window.ethereum as
+        | {
+            request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+          }
+        | undefined;
+      if (!eth?.request) return;
+      if (props.chainId && props.chainId === String(targetChainId)) return;
+
+      try {
+        await eth.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: `0x${targetChainId.toString(16)}` }]
+        });
+      } catch {
+        // Ignore (user rejection, wallet missing chain, etc.)
+      }
+    },
+    [props.chainId]
+  );
+
+  const canSwitchNetwork = useMemo(() => {
+    const eth = window.ethereum as
+      | {
+          request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+        }
+      | undefined;
+    return !!eth?.request;
+  }, []);
 
   const filteredPosts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -204,12 +242,24 @@ export function HomePage(props: Props) {
 
               <div className="heroBullets" role="list">
                 {supportedNetworks.map((n) => (
-                  <div key={n.chainId} className="pill" role="listitem" aria-label={n.name}>
+                  <button
+                    key={n.chainId}
+                    className={`pill pillButton ${props.chainId === String(n.chainId) ? "isCurrentNetwork" : ""}`}
+                    type="button"
+                    role="listitem"
+                    aria-label={n.name}
+                    aria-current={props.chainId === String(n.chainId) ? "true" : undefined}
+                    onClick={() => {
+                      void requestWalletNetworkSwitch(n.chainId);
+                    }}
+                    disabled={!canSwitchNetwork}
+                    title={!canSwitchNetwork ? "Connect a wallet to switch networks" : undefined}
+                  >
                     <span className="pillIcon" aria-hidden="true">
                       <ChainLogo chainId={n.chainId} size={16} />
                     </span>
                     {n.name}
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { HomePage } from "./HomePage";
 
 const feedSpy = vi.fn();
@@ -22,6 +22,12 @@ describe("HomePage", () => {
     feedSpy.mockClear();
     localStorage.removeItem("socialBlockchainNetwork.heroDismissed");
     localStorage.removeItem("socialBlockchainNetwork.supportedNetworksDismissed");
+
+    // Ensure deterministic wallet-provider presence across tests.
+    delete (window as any).ethereum;
+
+    // Keep tests deterministic even if a developer has local env vars set.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
   });
 
   function makeProps(overrides: Partial<any> = {}) {
@@ -264,6 +270,117 @@ describe("HomePage", () => {
     // Both hero cards visible => not single.
     const row = document.querySelector(".homeHeroRow");
     expect(row?.classList.contains("homeHeroRowSingle")).toBe(false);
+  });
+
+  it("includes Local in supported networks when VITE_CONTRACT_ADDRESS_LOCAL is set", () => {
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    render(<HomePage {...makeProps()} />);
+
+    expect(screen.getByRole("listitem", { name: "Local" })).toBeInTheDocument();
+
+    // Dropdown filter option (checkboxes are present in the DOM even if <details> isn't opened)
+    expect(screen.getByRole("checkbox", { name: "Local" })).toBeInTheDocument();
+  });
+
+  it("highlights the current network in the supported networks list", () => {
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          chainId: "11155111",
+          contractAddress: "0x123",
+          contractDeployed: true
+        })}
+      />
+    );
+
+    const eth = screen.getByRole("listitem", { name: "Ethereum testnet" });
+    expect(eth.getAttribute("aria-current")).toBe("true");
+    expect(eth.classList.contains("isCurrentNetwork")).toBe(true);
+  });
+
+  it("clicking a supported network requests wallet_switchEthereumChain", async () => {
+    const request = vi.fn(async () => undefined);
+    (window as any).ethereum = { request };
+
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          chainId: "11155111",
+          contractAddress: "0x123",
+          contractDeployed: true
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("listitem", { name: "Base testnet" }));
+    expect(request).toHaveBeenCalledWith({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0x14a34" }]
+    });
+  });
+
+  it("does not request a switch when already on that network", () => {
+    const request = vi.fn(async () => undefined);
+    (window as any).ethereum = { request };
+
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          chainId: "84532",
+          contractAddress: "0x123",
+          contractDeployed: true
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("listitem", { name: "Base testnet" }));
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("ignores switch requests when wallet provider is missing request()", () => {
+    const request = vi.fn(async () => undefined);
+    (window as any).ethereum = { request };
+
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          chainId: "11155111",
+          contractAddress: "0x123",
+          contractDeployed: true
+        })}
+      />
+    );
+
+    // Provider disappears after render but before click.
+    (window as any).ethereum = {};
+    fireEvent.click(screen.getByRole("listitem", { name: "Base testnet" }));
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("handles wallet_switchEthereumChain failures without throwing", async () => {
+    const request = vi.fn(async () => {
+      throw new Error("rejected");
+    });
+    (window as any).ethereum = { request };
+
+    render(
+      <HomePage
+        {...makeProps({
+          walletAddress: "0xabc",
+          chainId: "11155111",
+          contractAddress: "0x123",
+          contractDeployed: true
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("listitem", { name: "Base testnet" }));
+    await waitFor(() => expect(request).toHaveBeenCalled());
   });
 
   it("keeps supported networks hero visible when connected (until dismissed)", () => {

@@ -72,6 +72,52 @@ describe("PostCard", () => {
     expect(screen.getByText(/Token #1/i)).toBeInTheDocument();
   });
 
+  it("highlights the post network when it matches the current wallet network", () => {
+    const post: Post = {
+      ...basePost,
+      chainId: "11155111"
+    };
+
+    render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          from="/"
+          chainId={"11155111"}
+          walletAddress={"0xme"}
+          authorLabel="Alice"
+          authorHue={120}
+          isMine={false}
+          editingTokenId={null}
+          editDraft={baseDraft}
+          isEditImageLoading={false}
+          tipDrafts={{}}
+          commentDrafts={{}}
+          openPanel={null}
+          onTogglePanel={() => {}}
+          onSetEditDraft={() => {}}
+          onTipDraftChange={() => {}}
+          onCommentDraftChange={() => {}}
+          onStartEditPost={() => {}}
+          onCancelEditPost={() => {}}
+          onSaveEditedPost={() => {}}
+          onEditSelectFile={() => {}}
+          onEditClearImage={() => {}}
+          onAction={() => {}}
+          onTip={() => {}}
+          onBurn={() => {}}
+          onFreezePost={() => {}}
+          getNativeSymbol={() => "ETH"}
+          getExplorerTxUrl={() => null}
+        />
+      </MemoryRouter>
+    );
+
+    const badge = document.querySelector(".badge.networkBadge") as HTMLSpanElement | null;
+    expect(badge).toBeTruthy();
+    expect(badge?.classList.contains("isCurrentNetwork")).toBe(true);
+  });
+
   it("uses backgroundImage avatar when authorAvatarUrl is provided", () => {
     render(
       <MemoryRouter>

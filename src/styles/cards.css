@@ -575,6 +575,12 @@
   font-weight: 650;
 }
 
+.pill.isCurrentNetwork {
+  border-color: var(--link);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .pillIcon {
   display: inline-flex;
   align-items: center;
@@ -799,6 +805,12 @@
 .badge.networkBadge {
   margin-left: 0.375rem;
   font-size: 0.75rem;
+}
+
+.badge.networkBadge.isCurrentNetwork {
+  border-color: var(--link);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .badge.savedBadge {

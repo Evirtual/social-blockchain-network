@@ -57,6 +57,8 @@ export function PostCard(props: Props) {
     : { background: `hsl(${props.authorHue} 75% 55%)` };
 
   const postNetworkLabel = props.post.chainId ? getNetworkBadgeLabel(props.post.chainId) : "";
+  const isCurrentNetworkPost =
+    !!props.chainId && !!props.post.chainId && props.post.chainId === props.chainId;
   const requiresNetworkSwitch =
     !!props.walletAddress && !!props.chainId && !!props.post.chainId && props.post.chainId !== props.chainId;
   const interactionDisabledTitle = requiresNetworkSwitch
@@ -124,7 +126,11 @@ export function PostCard(props: Props) {
               >
                 Token #{tokenId}
               </Link>
-              {postNetworkLabel ? <span className="badge networkBadge">{postNetworkLabel}</span> : null}
+              {postNetworkLabel ? (
+                <span className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}>
+                  {postNetworkLabel}
+                </span>
+              ) : null}
               {props.post.contextTag === "saved" ? (
                 <span className="badge savedBadge">
                   <IconBookmark size={14} filled />
