@@ -674,6 +674,64 @@
   width: 100%;
 }
 
+.postSkeleton {
+  user-select: none;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 85%, var(--border) 15%);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface-2) 65%, var(--text) 10%),
+    transparent
+  );
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.skeletonLine {
+  position: relative;
+  height: 0.75rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 85%, var(--border) 15%);
+}
+
+.skeletonLine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface-2) 65%, var(--text) 10%),
+    transparent
+  );
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.postSkeleton .post-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .postHead {
   display: flex;
   gap: 0.625rem;

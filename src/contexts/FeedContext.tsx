@@ -6,6 +6,7 @@ import { getErrorMessage } from "../lib/errors";
 import { fetchTokenMetadata } from "../lib/metadata";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
+import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";
 
 type FeedNetworkConfig = {
@@ -48,6 +49,7 @@ const FeedContext = createContext<FeedContextValue | null>(null);
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId, walletEpoch } = useWallet();
   const { setStatus } = useStatus();
+  const txNotifications = useTxNotifications();
   const contract = useContract();
 
   const ensureContractDeployedOnCurrentNetwork = contract.ensureContractDeployedOnCurrentNetwork;
@@ -258,10 +260,46 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return results;
       };
 
+      const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        const timeout = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+        });
+        try {
+          return await Promise.race([promise, timeout]);
+        } finally {
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+      };
+
+      const sortPostsNewestFirst = (items: Post[]) => {
+        items.sort((a, b) => {
+          const at = a.mintTimestamp ?? 0;
+          const bt = b.mintTimestamp ?? 0;
+          if (at !== bt) return bt - at;
+          const ab = a.mintBlockNumber ?? 0;
+          const bb = b.mintBlockNumber ?? 0;
+          if (ab !== bb) return bb - ab;
+          return postKey(b).localeCompare(postKey(a));
+        });
+      };
+
+      const mergePosts = (prev: Post[], incoming: Post[]) => {
+        if (!incoming.length) return prev;
+        const byKey = new Map(prev.map((p) => [postKey(p), p] as const));
+        for (const p of incoming) byKey.set(postKey(p), p);
+        const merged = Array.from(byKey.values());
+        sortPostsNewestFirst(merged);
+        return merged;
+      };
+
+      const FEED_TOAST_HASH = "feed-refresh";
+
       const task = (async () => {
         try {
           setIsFeedLoading(true);
-          setStatus("Loading posts... (this can take a few seconds on testnets)");
+          // Non-disruptive UX: show progress via toaster.
+          txNotifications.notifyPending({ hash: FEED_TOAST_HASH, label: "Loading posts", explorerUrl: null });
 
           const currentChainIdNumber = chainIdToNumber(chainId);
 
@@ -299,11 +337,53 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             // Current network uses the connected wallet provider to preserve existing behavior.
             const tasks: Array<Promise<Post[]>> = [];
 
+            const taskTimeoutMs = 15_000;
+
+            const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
+              if (cfg.chainId !== 31337) return cfg.contractAddress;
+
+              const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) ?? "").trim();
+              const local = String((env.VITE_CONTRACT_ADDRESS_LOCAL as string | undefined) ?? "").trim();
+
+              const candidates = Array.from(
+                new Set([cfg.contractAddress, local, legacy].map((x) => String(x).trim()).filter(Boolean))
+              );
+
+              const isSocialPostsAt = async (address: string) => {
+                try {
+                  const code = await withTimeout(rpcProvider.getCode(address), 3_000, `code ${cfg.chainId}`);
+                  if (!code || code === "0x") return false;
+                  const c = getSocialContract(address, rpcProvider);
+                  await withTimeout((c as any).exists(1n) as Promise<boolean>, 3_000, `probe ${cfg.chainId}`);
+                  return true;
+                } catch {
+                  return false;
+                }
+              };
+
+              for (const addr of candidates) {
+                if (await isSocialPostsAt(addr)) return addr;
+              }
+
+              return cfg.contractAddress;
+            };
+
             const loadFromProvider = async (
               chainIdNum: number | null,
               networkProvider: any,
               readContract: any
             ): Promise<Post[]> => {
+              let resolvedChainIdNum: number | null = chainIdNum;
+              if (resolvedChainIdNum == null && typeof networkProvider?.getNetwork === "function") {
+                try {
+                  const net = await withTimeout(networkProvider.getNetwork(), 3_000, "feed getNetwork");
+                  const n = Number((net as any)?.chainId);
+                  resolvedChainIdNum = Number.isFinite(n) ? n : null;
+                } catch {
+                  resolvedChainIdNum = null;
+                }
+              }
+
               const queryPostMintedPaged = async (fromBlock: number, toBlock: number) => {
                 const filter = readContract.filters.PostMinted();
                 const logs: any[] = [];
@@ -410,7 +490,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
                 const post: Post = {
                   tokenId,
-                  chainId: chainIdNum != null ? String(chainIdNum) : undefined,
+                  chainId: resolvedChainIdNum != null ? String(resolvedChainIdNum) : undefined,
                   title: meta?.name ?? `Token #${tokenId}`,
                   body: meta?.description ?? "",
                   image: meta?.image ?? "",
@@ -433,14 +513,43 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               return minted.filter((p): p is Post => p != null);
             };
 
+            const enqueueLoad = (label: string, promise: Promise<Post[]>) => {
+              tasks.push(
+                withTimeout(promise, taskTimeoutMs, label).then((loaded) => {
+                  setPosts((prev) => mergePosts(prev, loaded));
+                  return loaded;
+                })
+              );
+            };
+
             // Current chain
-            if (provider) {
+            if (currentChainIdNumber != null) {
+              const currentCfg = configuredNetworks.find((n) => n.chainId === currentChainIdNumber);
+              const currentRpcUrl = typeof currentCfg?.rpcUrl === "string" ? currentCfg.rpcUrl.trim() : "";
+
+              // When disconnected, prefer a public RPC for reads.
+              if (!walletAddress && currentCfg && currentRpcUrl) {
+                const rpcProvider: any = new ethers.JsonRpcProvider(currentRpcUrl, currentCfg.chainId);
+                const addr = await resolveRpcContractAddress(currentCfg, rpcProvider);
+                const remoteReadContract = getSocialContract(addr, rpcProvider);
+                enqueueLoad(`Feed network ${currentCfg.chainId}`, loadFromProvider(currentCfg.chainId, rpcProvider, remoteReadContract));
+              } else if (provider) {
+                try {
+                  await ensureContractDeployedOnCurrentNetwork();
+                  const currentReadContract = await getReadContract();
+                  enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, provider, currentReadContract));
+                } catch {
+                  // If the connected network isn't configured, still try any configured read-only networks.
+                }
+              }
+            } else if (provider) {
+              // ChainId not resolved yet; fall back to injected provider.
               try {
                 await ensureContractDeployedOnCurrentNetwork();
                 const currentReadContract = await getReadContract();
-                tasks.push(loadFromProvider(currentChainIdNumber, provider, currentReadContract));
+                enqueueLoad("Feed current network", loadFromProvider(currentChainIdNumber, provider, currentReadContract));
               } catch {
-                // If the connected network isn't configured, still try any configured read-only networks.
+                // ignore
               }
             }
 
@@ -448,8 +557,9 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             for (const cfg of extraNetworks) {
               const url = String(cfg.rpcUrl).trim();
               const rpcProvider: any = new ethers.JsonRpcProvider(url, cfg.chainId);
-              const remoteReadContract = getSocialContract(cfg.contractAddress, rpcProvider);
-              tasks.push(loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract));
+              const addr = await resolveRpcContractAddress(cfg, rpcProvider);
+              const remoteReadContract = getSocialContract(addr, rpcProvider);
+              enqueueLoad(`Feed network ${cfg.chainId}`, loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract));
             }
 
             return tasks;
@@ -467,9 +577,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             (r): r is PromiseRejectedResult => r.status === "rejected"
           );
 
-          if (rejected.length > 0) {
+          const anyFulfilled = fulfilled.some((r) => r.value.length > 0);
+          if (!anyFulfilled && rejected.length > 0) {
             const warnSomeNetworksFailedToLoad = [
-              // Best-effort diagnostics for dev; UI shows a generic hint below.
+              // Best-effort diagnostics for dev; only warn when the whole feed fails.
               // eslint-disable-next-line no-console
               console.warn.bind(console),
               () => {}
@@ -479,35 +590,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               "Some feed networks failed to load:",
               rejected.map((r) => r.reason)
             );
-          }
 
-          const merged = fulfilled.flatMap((r) => r.value);
-
-          // If *everything* failed, surface the first error.
-          if (merged.length === 0 && rejected.length > 0) {
             throw rejected[0].reason;
           }
-
-          merged.sort((a, b) => {
-            const at = a.mintTimestamp ?? 0;
-            const bt = b.mintTimestamp ?? 0;
-            if (at !== bt) return bt - at;
-            const ab = a.mintBlockNumber ?? 0;
-            const bb = b.mintBlockNumber ?? 0;
-            if (ab !== bb) return bb - ab;
-            return postKey(b).localeCompare(postKey(a));
-          });
-
-          // Deduplicate by (chainId, tokenId)
-          const byKey = new Map<string, Post>();
-          for (const p of merged) byKey.set(postKey(p), p);
-          setPosts(Array.from(byKey.values()));
 
           setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");
         } catch (err) {
           setStatus(getErrorMessage(err));
           throw err;
         } finally {
+          txNotifications.dismiss(FEED_TOAST_HASH);
           setIsFeedLoading(false);
         }
       })();
@@ -523,7 +615,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         lastRefreshedAccountRef.current = account ?? null;
       }
     },
-    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, setStatus]
+    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, chainId, setStatus, txNotifications]
   );
 
   useEffect(() => {

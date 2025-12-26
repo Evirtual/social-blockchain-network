@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { getSocialContract } from "../contracts/socialPosts";
 
+const notifyPending = vi.fn();
+const dismiss = vi.fn();
+
 // Mock ethers JsonRpcProvider so no real network calls happen.
 vi.mock("ethers", () => {
+  const rpcGetCodeMock = vi.fn(async () => "0x1234");
+
   class FakeJsonRpcProvider {
     url: string;
     chainId: number;
@@ -20,11 +25,20 @@ vi.mock("ethers", () => {
     async getBlock() {
       return { timestamp: 123 } as any;
     }
+
+    async getCode(address: string) {
+      return rpcGetCodeMock(address);
+    }
+
+    async getNetwork() {
+      return { chainId: this.chainId } as any;
+    }
   }
 
   return {
     ethers: {
-      JsonRpcProvider: FakeJsonRpcProvider
+      JsonRpcProvider: FakeJsonRpcProvider,
+      __rpcGetCodeMock: rpcGetCodeMock
     }
   };
 });
@@ -66,6 +80,11 @@ vi.mock("./StatusContext", () => ({
   useStatus: () => ({ status: "", setStatus })
 }));
 
+vi.mock("./TxNotificationsContext", () => ({
+  useTxNotifications: () => ({ notifyPending, dismiss }),
+  TxNotificationsProvider: ({ children }: { children: React.ReactNode }) => children
+}));
+
 vi.mock("./ContractContext", () => ({
   useContract: () => ({
     ensureContractDeployedOnCurrentNetwork: vi.fn(async () => undefined),
@@ -83,9 +102,12 @@ vi.mock("../lib/metadata", () => ({
 }));
 
 describe("FeedContext (read-only networks)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.unstubAllEnvs();
     setStatus.mockClear();
+
+    notifyPending.mockClear();
+    dismiss.mockClear();
 
     walletState.provider = null;
     walletState.walletAddress = null;
@@ -94,6 +116,11 @@ describe("FeedContext (read-only networks)", () => {
 
     readContract.queryFilter.mockClear();
     (getSocialContract as any).mockClear?.();
+
+    // Reset rpc getCode behavior for tests that cover local probing.
+    const { ethers } = await import("ethers");
+    (ethers as any).__rpcGetCodeMock?.mockReset?.();
+    (ethers as any).__rpcGetCodeMock?.mockResolvedValue?.("0x1234");
   });
 
   it("loads via read-only RPC when wallet is disconnected", async () => {
@@ -241,6 +268,123 @@ describe("FeedContext (read-only networks)", () => {
       "0x00000000000000000000000000000000000000bb",
       expect.anything()
     );
+  });
+
+  it("local probing falls back when candidates have no code", async () => {
+    // Make the configured networks deterministic.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
+    vi.stubEnv("VITE_ETH_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE", "");
+    vi.stubEnv("VITE_BASE_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE_SEPOLIA", "");
+    vi.stubEnv("VITE_BASE_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC", "");
+    vi.stubEnv("VITE_BSC_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
+    vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://local.example.invalid");
+    // Ensure legacy is truly undefined so the `?? ""` branch is exercised.
+    const envAny = import.meta.env as any;
+    const hadLegacy = Object.prototype.hasOwnProperty.call(envAny, "VITE_CONTRACT_ADDRESS");
+    const oldLegacy = envAny.VITE_CONTRACT_ADDRESS;
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete envAny.VITE_CONTRACT_ADDRESS;
+
+    walletState.walletEpoch = 1;
+    walletState.chainId = "0x1";
+
+    const { ethers } = await import("ethers");
+    (ethers as any).__rpcGetCodeMock.mockResolvedValue("0x");
+
+    const { FeedProvider, useFeed } = await import("./FeedContext");
+
+    function Consumer() {
+      const feed = useFeed();
+      return <div data-testid="count">{feed.posts.length}</div>;
+    }
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    try {
+      await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+      // It should attempt a code lookup for the configured local address.
+      expect((ethers as any).__rpcGetCodeMock).toHaveBeenCalledWith("0x00000000000000000000000000000000000000aa");
+      // Since no candidate had code, it falls back to cfg.contractAddress (local env addr).
+      expect(getSocialContract).toHaveBeenCalledWith(
+        "0x00000000000000000000000000000000000000aa",
+        expect.anything()
+      );
+    } finally {
+      if (hadLegacy) envAny.VITE_CONTRACT_ADDRESS = oldLegacy;
+    }
+  });
+
+  it("local probing skips failing candidate and uses the first that looks deployed", async () => {
+    // Make the configured networks deterministic.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
+    vi.stubEnv("VITE_ETH_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE", "");
+    vi.stubEnv("VITE_BASE_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE_SEPOLIA", "");
+    vi.stubEnv("VITE_BASE_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC", "");
+    vi.stubEnv("VITE_BSC_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
+    vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://local.example.invalid");
+
+    const envAny = import.meta.env as any;
+    const oldLegacy = envAny.VITE_CONTRACT_ADDRESS;
+    envAny.VITE_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000bb";
+
+    walletState.walletEpoch = 1;
+    walletState.chainId = "0x1";
+
+    const { ethers } = await import("ethers");
+    (ethers as any).__rpcGetCodeMock
+      .mockImplementationOnce(async () => {
+        throw new Error("boom");
+      })
+      .mockImplementationOnce(async () => "0x1234");
+
+    const { FeedProvider, useFeed } = await import("./FeedContext");
+
+    function Consumer() {
+      const feed = useFeed();
+      return <div data-testid="count">{feed.posts.length}</div>;
+    }
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    try {
+      await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+      // The legacy candidate should be selected (first local candidate threw).
+      expect(getSocialContract).toHaveBeenCalledWith(
+        "0x00000000000000000000000000000000000000bb",
+        expect.anything()
+      );
+      expect(readContract.exists).toHaveBeenCalled();
+    } finally {
+      envAny.VITE_CONTRACT_ADDRESS = oldLegacy;
+    }
   });
 
   it("sets partial-success status when some read-only networks fail", async () => {

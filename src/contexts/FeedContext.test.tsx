@@ -5,8 +5,13 @@ import { FeedProvider, useFeed, type FeedContextValue } from "./FeedContext";
 import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { fetchTokenMetadata } from "../lib/metadata";
 
+const notifyPending = vi.fn();
+const dismiss = vi.fn();
+
 // Mock ethers JsonRpcProvider so no real network calls or startup retry logs happen.
 vi.mock("ethers", () => {
+  const rpcGetCodeMock = vi.fn(async () => "0x1234");
+
   class FakeJsonRpcProvider {
     url: string;
     chainId: number;
@@ -23,11 +28,20 @@ vi.mock("ethers", () => {
     async getBlock() {
       return { timestamp: 123 } as any;
     }
+
+    async getCode(address: string) {
+      return rpcGetCodeMock(address);
+    }
+
+    async getNetwork() {
+      return { chainId: this.chainId } as any;
+    }
   }
 
   return {
     ethers: {
-      JsonRpcProvider: FakeJsonRpcProvider
+      JsonRpcProvider: FakeJsonRpcProvider,
+      __rpcGetCodeMock: rpcGetCodeMock
     }
   };
 });
@@ -76,6 +90,11 @@ vi.mock("./WalletContext", () => ({
 
 vi.mock("./StatusContext", () => ({
   useStatus: () => ({ status: "", setStatus })
+}));
+
+vi.mock("./TxNotificationsContext", () => ({
+  useTxNotifications: () => ({ notifyPending, dismiss }),
+  TxNotificationsProvider: ({ children }: { children: React.ReactNode }) => children
 }));
 
 vi.mock("./ContractContext", () => ({
@@ -169,6 +188,9 @@ describe("FeedContext", () => {
     walletState.walletEpoch = 0;
 
     setStatus.mockClear();
+
+    notifyPending.mockClear();
+    dismiss.mockClear();
 
   (getSocialContract as any).mockClear?.();
 
@@ -760,8 +782,9 @@ describe("FeedContext", () => {
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
-  // Clear initial refresh status calls so we only assert the rerender-triggered refresh.
-  setStatus.mockClear();
+    // Clear initial refresh calls so we only assert the rerender-triggered refresh.
+    setStatus.mockClear();
+    notifyPending.mockClear();
 
     walletState.walletAddress = null;
     walletState.walletEpoch = 1;
@@ -773,7 +796,9 @@ describe("FeedContext", () => {
     );
 
     await waitFor(() =>
-      expect(setStatus).toHaveBeenCalledWith(expect.stringContaining("Loading posts"))
+      expect(notifyPending).toHaveBeenCalledWith(
+        expect.objectContaining({ label: expect.stringContaining("Loading posts") })
+      )
     );
   });
 
@@ -1118,6 +1143,7 @@ describe("FeedContext", () => {
     await waitFor(() => expect(setStatus).toHaveBeenCalled());
 
     setStatus.mockClear();
+    notifyPending.mockClear();
     walletState.walletAddress = "0xabc";
     walletState.walletEpoch = 1;
 
@@ -1128,8 +1154,147 @@ describe("FeedContext", () => {
     );
 
     await waitFor(() =>
-      expect(setStatus).toHaveBeenCalledWith(expect.stringContaining("Loading posts"))
+      expect(notifyPending).toHaveBeenCalledWith(
+        expect.objectContaining({ label: expect.stringContaining("Loading posts") })
+      )
     );
+  });
+
+  it("loads current chain via public RPC when wallet is disconnected", async () => {
+    // Configure current chain (ETH) + an extra chain so we don't early-return.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "0x00000000000000000000000000000000000000e1");
+    vi.stubEnv("VITE_ETH_RPC_URL", "http://eth.example.invalid");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "0x00000000000000000000000000000000000000s1");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "http://sepolia.example.invalid");
+
+    walletState.provider = null;
+    walletState.walletAddress = null;
+    walletState.chainId = "1";
+    walletState.walletEpoch = 1;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("2"));
+
+    const calls = (getSocialContract as any).mock.calls as Array<[string, any]>;
+    expect(calls.some(([addr, p]) => addr === "0x00000000000000000000000000000000000000e1" && p?.chainId === 1)).toBe(true);
+    expect(calls.some(([addr, p]) => addr === "0x00000000000000000000000000000000000000s1" && p?.chainId === 11155111)).toBe(true);
+  });
+
+  it("falls back to injected provider when chainId is not resolved", async () => {
+    walletState.provider = {
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.walletAddress = "0xabc";
+    walletState.chainId = null;
+    walletState.walletEpoch = 1;
+
+    ensureContractDeployedOnCurrentNetwork.mockClear();
+    getReadContract.mockClear();
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(ensureContractDeployedOnCurrentNetwork).toHaveBeenCalled();
+    expect(getReadContract).toHaveBeenCalled();
+  });
+
+  it("continues when getNetwork throws while resolving chainId", async () => {
+    walletState.provider = {
+      getNetwork: vi.fn(async () => {
+        throw new Error("getNetwork fail");
+      }),
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.walletAddress = "0xabc";
+    walletState.chainId = null;
+    walletState.walletEpoch = 1;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(walletState.provider.getNetwork).toHaveBeenCalled();
+  });
+
+  it("ignores provider fallback errors when chainId is not resolved", async () => {
+    walletState.provider = {
+      getNetwork: vi.fn(async () => ({ chainId: 1 })),
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.walletAddress = "0xabc";
+    walletState.chainId = null;
+    walletState.walletEpoch = 1;
+
+    ensureContractDeployedOnCurrentNetwork.mockReset();
+    ensureContractDeployedOnCurrentNetwork.mockRejectedValue(new Error("not deployed"));
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith("Feed loaded."));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("sets resolved chainId to null when getNetwork returns non-numeric chainId", async () => {
+    walletState.provider = {
+      getNetwork: vi.fn(async () => ({ chainId: "nope" })),
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.walletAddress = "0xabc";
+    walletState.chainId = null;
+    walletState.walletEpoch = 1;
+
+    let exposedFeed: FeedContextValue | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed?.posts.length).toBe(1));
+    expect(exposedFeed?.posts[0]?.chainId ?? null).toBeNull();
+  });
+
+  it("resolves chainId from getNetwork when chainId is not provided", async () => {
+    walletState.provider = {
+      getNetwork: vi.fn(async () => ({ chainId: 1 })),
+      getBlockNumber: vi.fn(async () => 10),
+      getBlock: vi.fn(async () => ({ timestamp: 123 }))
+    };
+    walletState.walletAddress = "0xabc";
+    walletState.chainId = null;
+    walletState.walletEpoch = 1;
+
+    let exposedFeed: FeedContextValue | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed?.posts.length).toBe(1));
+    expect(exposedFeed?.posts[0]?.chainId).toBe("1");
   });
 
   it("throws when useFeed is used outside provider", () => {

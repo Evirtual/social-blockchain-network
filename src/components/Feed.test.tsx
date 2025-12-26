@@ -140,26 +140,24 @@ describe("Feed", () => {
     expect(calls[0].from).toBe("/feed?q=1");
   });
 
-  it("shows loading card when isLoading", () => {
+  it("shows loading skeletons when isLoading and no posts", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
-        <Feed {...makeProps({ isLoading: true, loadingText: "loading" })} />
+        <Feed {...makeProps({ isLoading: true, posts: [] })} />
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Loading posts…")).toBeInTheDocument();
-    expect(screen.getByText("loading")).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading posts")).toBeInTheDocument();
   });
 
-  it("uses default loading text when loadingText is empty", () => {
+  it("does not show skeletons when posts already exist", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
-        <Feed {...makeProps({ isLoading: true, loadingText: "" })} />
+        <Feed {...makeProps({ isLoading: true })} />
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Loading posts…")).toBeInTheDocument();
-    expect(screen.getByText(/Fetching on-chain posts/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loading posts")).toBeNull();
   });
 
   it("computes authorLabel from identity or shortAddress and isMine", () => {

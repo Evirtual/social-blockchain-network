@@ -84,6 +84,9 @@ export function Feed({
   const from = (location.state as { from?: string } | null)?.from ?? `${location.pathname}${location.search}`;
   const { getPanel, togglePanel } = usePanelById<PostPanel>();
 
+  const showSkeletons = !!isLoading && posts.length === 0;
+  const skeletonCount = 4;
+
   return (
     <section className="feed">
       {hideHeader ? null : (
@@ -96,15 +99,33 @@ export function Feed({
         </div>
       )}
 
-      {isLoading ? (
-        <section className="card">
-          <div className="cardTitle">Loading posts…</div>
-          <div className="muted">{loadingText || "Fetching on-chain posts. This can take a few seconds on testnets."}</div>
-        </section>
-      ) : null}
+      <div
+        className={singleColumn ? "posts postsSingle" : "posts"}
+        aria-busy={isLoading ? true : undefined}
+        aria-label={showSkeletons ? "Loading posts" : undefined}
+        role={showSkeletons ? "status" : undefined}
+      >
+        {showSkeletons
+          ? Array.from({ length: skeletonCount }).map((_, index) => (
+              <article key={`skeleton-${index}`} className="post postSkeleton" aria-hidden="true">
+                <div className="postHead">
+                  <div className="avatar small skeleton" />
+                  <div className="postHeadMain">
+                    <div className="postHeadTop">
+                      <div className="skeletonLine" style={{ width: "40%" }} />
+                      <div className="skeletonLine" style={{ width: "22%" }} />
+                    </div>
+                  </div>
+                </div>
 
-      <div className={singleColumn ? "posts postsSingle" : "posts"}>
-        {posts.map((post, index) => {
+                <div className="post-body">
+                  <div className="skeletonLine" style={{ width: "92%" }} />
+                  <div className="skeletonLine" style={{ width: "84%" }} />
+                  <div className="skeletonLine" style={{ width: "66%" }} />
+                </div>
+              </article>
+            ))
+          : posts.map((post, index) => {
           const authorKey = post.author?.toLowerCase();
           const info = authorKey ? authorIdentity.get(authorKey) : undefined;
           const authorLabel = (info?.name?.trim() || (post.author ? shortAddress(post.author) : "Unknown")) as string;
