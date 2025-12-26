@@ -647,7 +647,7 @@ describe("FeedContext", () => {
     expect(readContract.queryFilter).toHaveBeenCalled();
   });
 
-  it("reacts to walletEpoch + chain changes", async () => {
+  it("does not refresh when only the chain changes", async () => {
     walletState.provider = { getBlockNumber: vi.fn(async () => 10) };
     walletState.walletEpoch = 0;
     walletState.chainId = "1";
@@ -662,6 +662,9 @@ describe("FeedContext", () => {
       expect(screen.getByTestId("count").textContent).toBe("1");
     });
 
+    // Clear initial refresh status calls so we only assert the rerender behavior.
+    setStatus.mockClear();
+
     walletState.chainId = "8453";
     walletState.walletEpoch = 1;
 
@@ -671,9 +674,9 @@ describe("FeedContext", () => {
       </FeedProvider>
     );
 
-    await waitFor(() => {
-      expect(setStatus).toHaveBeenCalled();
-    });
+    // Switching wallet chains should not affect the aggregated read-only feed.
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
   it("re-runs refresh when wallet connects mid-flight (so liked/saved state matches after reload)", async () => {
@@ -785,7 +788,7 @@ describe("FeedContext", () => {
 
     // Clear initial refresh calls so we only assert the rerender-triggered refresh.
     setStatus.mockClear();
-    notifyPending.mockClear();
+    readContract.queryFilter.mockClear();
 
     walletState.walletAddress = null;
     walletState.walletEpoch = 1;
@@ -796,11 +799,7 @@ describe("FeedContext", () => {
       </FeedProvider>
     );
 
-    await waitFor(() =>
-      expect(notifyPending).toHaveBeenCalledWith(
-        expect.objectContaining({ label: expect.stringContaining("Loading posts") })
-      )
-    );
+    await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalled());
   });
 
   it("refreshFeed shrinks log window on provider errors", async () => {
@@ -1144,7 +1143,7 @@ describe("FeedContext", () => {
     await waitFor(() => expect(setStatus).toHaveBeenCalled());
 
     setStatus.mockClear();
-    notifyPending.mockClear();
+    readContract.queryFilter.mockClear();
     walletState.walletAddress = "0xabc";
     walletState.walletEpoch = 1;
 
@@ -1154,11 +1153,7 @@ describe("FeedContext", () => {
       </FeedProvider>
     );
 
-    await waitFor(() =>
-      expect(notifyPending).toHaveBeenCalledWith(
-        expect.objectContaining({ label: expect.stringContaining("Loading posts") })
-      )
-    );
+    await waitFor(() => expect(readContract.queryFilter).toHaveBeenCalled());
   });
 
   it("loads current chain via public RPC when wallet is disconnected", async () => {

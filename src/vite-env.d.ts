@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_LOCAL_RPC_URL?: string;
   readonly VITE_PINATA_JWT?: string;
   readonly VITE_IPFS_GATEWAY?: string;
+  readonly [key: `VITE_EXPLORER_BASE_URL_${string}`]: string | undefined;
 }
 
 interface ImportMeta {

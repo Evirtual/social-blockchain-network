@@ -211,6 +211,7 @@ describe("PostCard", () => {
 
     const post: Post = {
       ...basePost,
+      chainId: "8453",
       mintTxHash: "0xhash"
     };
 
@@ -249,7 +250,7 @@ describe("PostCard", () => {
       </MemoryRouter>
     );
 
-    const link = screen.getByText("View mint transaction");
+    const link = screen.getByRole("link", { name: "BASE" });
     fireEvent.click(link);
     expect(writeText).toHaveBeenCalledWith("0xhash");
   });
@@ -956,6 +957,7 @@ describe("PostCard", () => {
 
     const post: Post = {
       ...basePost,
+      chainId: "8453",
       mintTxHash: "0xhash"
     };
 
@@ -995,7 +997,7 @@ describe("PostCard", () => {
     );
 
     expect(() => {
-      fireEvent.click(screen.getByText("View mint transaction"));
+      fireEvent.click(screen.getByRole("link", { name: "BASE" }));
     }).not.toThrow();
   });
 
@@ -1005,6 +1007,7 @@ describe("PostCard", () => {
 
     const post: Post = {
       ...basePost,
+      chainId: "8453",
       mintTxHash: "0xhash"
     };
 
@@ -1043,7 +1046,7 @@ describe("PostCard", () => {
       </MemoryRouter>
     );
 
-    const link = screen.getByText("View mint transaction") as HTMLAnchorElement;
+    const link = screen.getByRole("link", { name: "BASE" }) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("https://explorer/tx/0xhash");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noreferrer");

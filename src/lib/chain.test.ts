@@ -1,14 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getExplorerTxUrl, getNativeSymbol, getNetworkBadgeLabel } from "./chain";
 
 describe("chain", () => {
-  it("getExplorerTxUrl supports known chains", () => {
-    expect(getExplorerTxUrl("8453", "0xabc")).toContain("basescan");
-    expect(getExplorerTxUrl("11155111", "0xabc")).toContain("sepolia.etherscan.io");
-    expect(getExplorerTxUrl("1", "0xabc")).toContain("etherscan.io");
-    expect(getExplorerTxUrl("84532", "0xabc")).toContain("sepolia.basescan.org");
+  it("getExplorerTxUrl returns null when env is missing", () => {
+    const envAny = import.meta.env as any;
+    const keys = [
+      "VITE_EXPLORER_BASE_URL_8453",
+      "VITE_EXPLORER_BASE_URL_11155111",
+      "VITE_EXPLORER_BASE_URL_1",
+      "VITE_EXPLORER_BASE_URL_84532",
+      "VITE_EXPLORER_BASE_URL_999"
+    ];
+    const prev: Record<string, unknown> = {};
+    for (const k of keys) {
+      prev[k] = envAny[k];
+      envAny[k] = "";
+    }
+
+    expect(getExplorerTxUrl("8453", "0xabc")).toBeNull();
+    expect(getExplorerTxUrl("11155111", "0xabc")).toBeNull();
+    expect(getExplorerTxUrl("1", "0xabc")).toBeNull();
+    expect(getExplorerTxUrl("84532", "0xabc")).toBeNull();
     expect(getExplorerTxUrl("999", "0xabc")).toBeNull();
     expect(getExplorerTxUrl(null, "0xabc")).toBeNull();
+
+    for (const k of keys) {
+      envAny[k] = prev[k];
+    }
+  });
+
+  it("getExplorerTxUrl uses env base URL", () => {
+    vi.stubEnv("VITE_EXPLORER_BASE_URL_8453", "https://example.explorer/");
+    expect(getExplorerTxUrl("8453", "0xabc")).toBe("https://example.explorer/tx/0xabc");
+    vi.unstubAllEnvs();
   });
 
   it("getNativeSymbol returns BNB for BSC", () => {

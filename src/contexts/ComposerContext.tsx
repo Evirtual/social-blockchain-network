@@ -38,7 +38,7 @@ const ComposerContext = createContext<ComposerContextValue | null>(null);
 export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const txNotifications = useTxNotifications();
   const { setStatus } = useStatus();
-  const { walletAddress } = useWallet();
+  const { walletAddress, chainId } = useWallet();
   const contract = useContract();
   const feed = useFeed();
   const { runContractTx } = useContractTx();
@@ -247,6 +247,16 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const mintPost = useCallback(async () => {
+    const normalizeChainId = (id: string | null): string | null => {
+      if (!id) return null;
+      if (id.startsWith("0x") || id.startsWith("0X")) {
+        const n = Number.parseInt(id, 16);
+        return Number.isFinite(n) ? String(n) : null;
+      }
+      const n = Number.parseInt(id, 10);
+      return Number.isFinite(n) ? String(n) : null;
+    };
+
     const makeLocalNoticeId = () => `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
@@ -409,6 +419,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       const newPost: Post = {
         tokenId: minted.mintedTokenId,
+        chainId: normalizeChainId(chainId) ?? undefined,
         title: draft.title,
         body: draft.body,
         image: imageRefForUi,
@@ -447,14 +458,17 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      feed.setPosts((prev) => [newPost, ...prev.filter((p) => p.tokenId !== minted.mintedTokenId)]);
+      feed.setPosts((prev) => {
+        const newKey = `${newPost.chainId ?? ""}:${newPost.tokenId}`;
+        return [newPost, ...prev.filter((p) => `${p.chainId ?? ""}:${p.tokenId}` !== newKey)];
+      });
       if (processingToastId) {
         txNotifications.notifyConfirmed(processingToastId);
       }
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, contract, isImageLoading, draft, getWriteContract, ipfsConfigured, uploadedImageBlob, uploadedImageFilename, feed, runContractTx, setStatus, txNotifications]);
+  }, [walletAddress, chainId, contract, isImageLoading, draft, getWriteContract, ipfsConfigured, uploadedImageBlob, uploadedImageFilename, feed, runContractTx, setStatus, txNotifications]);
 
   const value = useMemo<ComposerContextValue>(
     () => ({

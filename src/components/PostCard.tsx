@@ -51,7 +51,9 @@ type Props = {
 
 export function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
-  const explorer = props.post.mintTxHash ? props.getExplorerTxUrl(props.chainId, props.post.mintTxHash) : null;
+  const explorer = props.post.mintTxHash
+    ? props.getExplorerTxUrl(props.post.chainId ?? props.chainId, props.post.mintTxHash)
+    : null;
   const avatarStyle = props.authorAvatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.authorAvatarUrl)})` }
     : { background: `hsl(${props.authorHue} 75% 55%)` };
@@ -70,23 +72,6 @@ export function PostCard(props: Props) {
       <div className="postText">
         <p>{props.post.body}</p>
       </div>
-      {props.post.mintTxHash ? (
-        <a
-          href={explorer ?? "#"}
-          target={explorer ? "_blank" : undefined}
-          rel={explorer ? "noreferrer" : undefined}
-          title={explorer ? "View mint transaction" : "Copy mint transaction hash"}
-          onClick={(e) => {
-            if (explorer) return;
-            e.preventDefault();
-              if (props.post.mintTxHash) {
-                void navigator.clipboard?.writeText(props.post.mintTxHash);
-              }
-          }}
-        >
-          View mint transaction
-        </a>
-      ) : null}
     </>
   );
 
@@ -127,9 +112,28 @@ export function PostCard(props: Props) {
                 Token #{tokenId}
               </Link>
               {postNetworkLabel ? (
-                <span className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}>
-                  {postNetworkLabel}
-                </span>
+                props.post.mintTxHash ? (
+                  <a
+                    className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
+                    href={explorer ?? "#"}
+                    target={explorer ? "_blank" : undefined}
+                    rel={explorer ? "noreferrer" : undefined}
+                    title={explorer ? "View mint transaction" : "Copy mint transaction hash"}
+                    onClick={(e) => {
+                      if (explorer) return;
+                      e.preventDefault();
+                      if (props.post.mintTxHash) {
+                        void navigator.clipboard?.writeText(props.post.mintTxHash);
+                      }
+                    }}
+                  >
+                    {postNetworkLabel}
+                  </a>
+                ) : (
+                  <span className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}>
+                    {postNetworkLabel}
+                  </span>
+                )
               ) : null}
               {props.post.contextTag === "saved" ? (
                 <span className="badge savedBadge">
@@ -140,7 +144,7 @@ export function PostCard(props: Props) {
               {(props.isMine || props.canModerate) && props.editingTokenId !== tokenId ? (
                 <span className="postTokenActions">
                   <button
-                    className="ghost iconButton"
+                    className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
                     type="button"
                     onClick={() => props.onStartEditPost(props.post)}
                     aria-label="Edit post"
@@ -150,7 +154,7 @@ export function PostCard(props: Props) {
                     <IconEdit size={16} />
                   </button>
                   <button
-                    className="danger iconButton"
+                    className={`danger iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
                     type="button"
                     onClick={() => props.onBurn(tokenId, props.post.chainId)}
                     aria-label="Burn post"
@@ -269,7 +273,7 @@ export function PostCard(props: Props) {
       <div className="postFooter">
         <div className="postStats">
           <button
-            className={`statPill statButton ${props.post.likedByMe ? "isActive isLike" : ""}`}
+            className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""} ${props.post.likedByMe ? "isActive isLike" : ""}`}
             type="button"
             onClick={() => props.onAction(tokenId, "like", props.post.chainId)}
             aria-label="Like"
@@ -281,7 +285,7 @@ export function PostCard(props: Props) {
           </button>
 
           <button
-            className={`statPill statButton ${props.post.repostedByMe ? "isActive isSaved" : ""}`}
+            className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""} ${props.post.repostedByMe ? "isActive isSaved" : ""}`}
             type="button"
             onClick={() => props.onAction(tokenId, "share", props.post.chainId)}
             aria-label="Save"
@@ -293,7 +297,7 @@ export function PostCard(props: Props) {
           </button>
 
           <button
-            className="statPill statButton"
+            className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
             type="button"
             onClick={() => props.onTogglePanel("comment")}
             aria-label="Comment"
@@ -307,7 +311,7 @@ export function PostCard(props: Props) {
           </button>
 
           <button
-            className="statPill statButton statTip"
+            className={`statPill statButton statTip${requiresNetworkSwitch ? " notAllowed" : ""}`}
             type="button"
             onClick={() => props.onTogglePanel("tip")}
             aria-label="Tip"

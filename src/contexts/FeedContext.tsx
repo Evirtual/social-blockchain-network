@@ -6,7 +6,6 @@ import { getErrorMessage } from "../lib/errors";
 import { fetchTokenMetadata } from "../lib/metadata";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
-import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";
 
 type FeedNetworkConfig = {
@@ -49,7 +48,6 @@ const FeedContext = createContext<FeedContextValue | null>(null);
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId, walletEpoch } = useWallet();
   const { setStatus } = useStatus();
-  const txNotifications = useTxNotifications();
   const contract = useContract();
 
   const ensureContractDeployedOnCurrentNetwork = contract.ensureContractDeployedOnCurrentNetwork;
@@ -57,6 +55,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isFeedLoading, setIsFeedLoading] = useState<boolean>(false);
+  const postsRef = useRef<Post[]>([]);
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({});
   const [isLoadingPostComments, setIsLoadingPostComments] = useState<Record<string, boolean>>({});
@@ -68,8 +70,9 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   // React to account/chain changes emitted by WalletContext.
   const lastWalletEpochRef = useRef<number>(-1);
-  const lastChainIdRef = useRef<string | null>(null);
-  const lastWalletAddressRef = useRef<string | null>(null);
+  const lastChainIdRef = useRef<string | null | undefined>(undefined);
+  const lastWalletAddressRef = useRef<string | null | undefined>(undefined);
+  const lastWalletAddressLowerRef = useRef<string | null | undefined>(undefined);
 
   const loadCommentsForPost = useCallback(
     async (tokenId: string) => {
@@ -293,13 +296,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return merged;
       };
 
-      const FEED_TOAST_HASH = "feed-refresh";
-
       const task = (async () => {
+        let shouldShowLoading = false;
         try {
-          setIsFeedLoading(true);
-          // Non-disruptive UX: show progress via toaster.
-          txNotifications.notifyPending({ hash: FEED_TOAST_HASH, label: "Loading posts", explorerUrl: null });
+          shouldShowLoading = postsRef.current.length === 0;
+          if (shouldShowLoading) setIsFeedLoading(true);
 
           const currentChainIdNumber = chainIdToNumber(chainId);
 
@@ -604,13 +605,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             throw rejected[0].reason;
           }
 
-          setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");
+
+          // Avoid status spam during background refreshes; only report initial load.
+          if (shouldShowLoading) {
+            setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");
+          }
         } catch (err) {
           setStatus(getErrorMessage(err));
           throw err;
         } finally {
-          txNotifications.dismiss(FEED_TOAST_HASH);
-          setIsFeedLoading(false);
+          if (shouldShowLoading) setIsFeedLoading(false);
         }
       })();
 
@@ -625,41 +629,64 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         lastRefreshedAccountRef.current = account ?? null;
       }
     },
-    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, chainId, setStatus, txNotifications]
+    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, chainId, setStatus]
   );
 
-  useEffect(() => {
+  const hasAnyReadOnlyRpc = useMemo(() => {
     const env = import.meta.env as any;
-    const hasAnyReadOnlyRpc =
-      [
-        env.VITE_ETH_RPC_URL,
-        env.VITE_ETH_SEPOLIA_RPC_URL,
-        env.VITE_BASE_RPC_URL,
-        env.VITE_BASE_SEPOLIA_RPC_URL,
-        env.VITE_BSC_RPC_URL,
-        env.VITE_BSC_TESTNET_RPC_URL,
-        env.VITE_LOCAL_RPC_URL
-      ].some((v) => typeof v === "string" && v.trim().length > 0);
+    return [
+      env.VITE_ETH_RPC_URL,
+      env.VITE_ETH_SEPOLIA_RPC_URL,
+      env.VITE_BASE_RPC_URL,
+      env.VITE_BASE_SEPOLIA_RPC_URL,
+      env.VITE_BSC_RPC_URL,
+      env.VITE_BSC_TESTNET_RPC_URL,
+      env.VITE_LOCAL_RPC_URL
+    ].some((v) => typeof v === "string" && v.trim().length > 0);
+  }, []);
 
+  useEffect(() => {
     if (!provider && !hasAnyReadOnlyRpc) return;
+
+    const isInitialEpoch = lastWalletEpochRef.current === -1;
     if (walletEpoch === lastWalletEpochRef.current) return;
     lastWalletEpochRef.current = walletEpoch;
 
+    const walletAddressLower = walletAddress ? walletAddress.toLowerCase() : null;
+
     const chainChanged = lastChainIdRef.current !== chainId;
+    const walletChanged = lastWalletAddressLowerRef.current !== walletAddressLower;
+
+    // Some wallet implementations can emit multiple events (or bump an epoch)
+    // without any observable chain/account changes. Avoid reloading in that case.
+    if (!chainChanged && !walletChanged) return;
     lastChainIdRef.current = chainId;
     lastWalletAddressRef.current = walletAddress;
+    lastWalletAddressLowerRef.current = walletAddressLower;
 
-    if (chainChanged) {
-      setIsFeedLoading(true);
-      setPosts([]);
-      setPostComments({});
-      setIsLoadingPostComments({});
-    }
+    // UX requirement: the main feed is aggregated/read-only across networks and
+    // should not reload just because the user's wallet switched chains.
+    // Auto-refresh only on initial mount (load once) and wallet connect/disconnect.
+    if (!walletChanged && !isInitialEpoch) return;
 
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status; avoid unhandled rejections
     });
-  }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, setStatus]);
+  }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
+
+  useEffect(() => {
+    const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
+    if (isVitest) return;
+    if (!provider && !hasAnyReadOnlyRpc) return;
+
+    const id = window.setInterval(() => {
+      void refreshFeed(walletAddress).catch(() => {
+        // refreshFeed already reports status; avoid unhandled rejections
+      });
+    }, 15_000);
+
+    return () => window.clearInterval(id);
+  }, [provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
   const value = useMemo<FeedContextValue>(
     () => ({

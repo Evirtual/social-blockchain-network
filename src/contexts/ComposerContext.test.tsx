@@ -72,7 +72,7 @@ vi.mock("../lib/ipfsTokenUri", () => ({
 }));
 
 vi.mock("./WalletContext", () => ({
-  useWallet: () => ({ walletAddress: mocks.walletAddress })
+  useWallet: () => ({ walletAddress: mocks.walletAddress, chainId: "84532" })
 }));
 
 vi.mock("./StatusContext", () => ({

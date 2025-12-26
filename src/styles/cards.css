@@ -622,6 +622,14 @@
   cursor: not-allowed;
 }
 
+.notAllowed {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.3);
+  pointer-events: auto !important;
+  /* Optionally add a red border or background for extra clarity */
+}
+
 .list {
   display: flex;
   flex-direction: column;
