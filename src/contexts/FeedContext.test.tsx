@@ -284,11 +284,8 @@ describe("FeedContext", () => {
     readContract.hasShared.mockImplementation(async (_: bigint, __: string) => false);
   });
 
-  it("uses env contract address fallback when local is empty (|| fallback branch)", async () => {
-    // Cover the fallback branch: LOCAL is an empty string so `LOCAL || CONTRACT` uses CONTRACT.
-    vi.unstubAllEnvs();
+  it("uses VITE_CONTRACT_ADDRESS for local chain when VITE_LOCAL_RPC_URL is configured", async () => {
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
 
     walletState.chainId = "31337";
@@ -305,16 +302,16 @@ describe("FeedContext", () => {
     });
 
     await waitFor(() => {
-      expect(getSocialContract).toHaveBeenCalled();
+      expect(getSocialContract).toHaveBeenCalledWith(
+        "0x0000000000000000000000000000000000000001",
+        expect.anything()
+      );
     });
   });
 
-  it("covers resolveRpcContractAddress legacy/local empty-string fallbacks (||)", async () => {
-    // Cover `legacy || ''` and `local || ''` falsy paths with empty strings.
-    vi.unstubAllEnvs();
+  it("trims VITE_CONTRACT_ADDRESS for local chain", async () => {
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "  0x0000000000000000000000000000000000000002  ");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000002");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
 
     walletState.chainId = "31337";
     walletState.provider = null;
@@ -330,7 +327,10 @@ describe("FeedContext", () => {
     });
 
     await waitFor(() => {
-      expect(getSocialContract).toHaveBeenCalled();
+      expect(getSocialContract).toHaveBeenCalledWith(
+        "0x0000000000000000000000000000000000000002",
+        expect.anything()
+      );
     });
   });
 
