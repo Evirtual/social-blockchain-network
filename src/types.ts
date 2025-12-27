@@ -16,7 +16,7 @@ export type Post = {
   tipsWei: bigint;
   likedByMe?: boolean;
   repostedByMe?: boolean;
-  contextTag?: "saved";
+  contextTag?: "saved" | "liked";
 };
 
 export type TxState = "signing" | "pending" | "confirmed" | "failed" | "cancelled";
