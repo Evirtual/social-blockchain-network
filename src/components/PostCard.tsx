@@ -135,17 +135,6 @@ export function PostCard(props: Props) {
                   </span>
                 )
               ) : null}
-              {props.post.contextTag === "saved" ? (
-                <span className="badge savedBadge">
-                  <IconBookmark size={14} filled />
-                  <span>Saved</span>
-                </span>
-              ) : props.post.contextTag === "liked" ? (
-                <span className="badge savedBadge">
-                  <IconHeart size={14} />
-                  <span>Liked</span>
-                </span>
-              ) : null}
               {(props.isMine || props.canModerate) && props.editingTokenId !== tokenId ? (
                 <span className="postTokenActions">
                   <button

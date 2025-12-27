@@ -108,22 +108,22 @@ describe("AccountPage", () => {
 
     render(<AccountPage {...props} />);
 
-    expect(screen.getByTestId("feed-title").textContent).toBe("Your Posts");
-    expect(screen.getByTestId("feed-pill").textContent).toContain("posts");
+    expect(screen.getByTestId("feed-title").textContent).toBe("Your posts");
+    expect(screen.getByTestId("feed-pill").textContent).toBe("");
 
     // click Saved via headerAction rendered by the mocked Feed
-    fireEvent.click(screen.getByRole("button", { name: "Saved" }));
+    fireEvent.click(screen.getByRole("button", { name: "Saved (1)" }));
 
-    expect(screen.getByTestId("feed-title").textContent).toBe("Saved");
-    expect(screen.getByTestId("feed-pill").textContent).toBe("1 saved");
+    expect(screen.getByTestId("feed-title").textContent).toBe("Your posts");
+    expect(screen.getByTestId("feed-pill").textContent).toBe("");
     expect(screen.getByTestId("feed-tag").textContent).toBe("saved");
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
-    expect(screen.getByTestId("feed-title").textContent).toBe("Your Posts");
+    fireEvent.click(screen.getByRole("button", { name: "Posted (1)" }));
+    expect(screen.getByTestId("feed-title").textContent).toBe("Your posts");
 
-    fireEvent.click(screen.getByRole("button", { name: "Liked" }));
-    expect(screen.getByTestId("feed-title").textContent).toBe("Liked");
-    expect(screen.getByTestId("feed-pill").textContent).toBe("1 liked");
+    fireEvent.click(screen.getByRole("button", { name: "Liked (1)" }));
+    expect(screen.getByTestId("feed-title").textContent).toBe("Your posts");
+    expect(screen.getByTestId("feed-pill").textContent).toBe("");
     expect(screen.getByTestId("feed-tag").textContent).toBe("liked");
   });
 });

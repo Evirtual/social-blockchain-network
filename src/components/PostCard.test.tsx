@@ -214,9 +214,12 @@ describe("PostCard", () => {
     }).not.toThrow();
   });
 
-  it("renders Saved badge when post.contextTag is saved", () => {
+  it("does not render Saved/Liked badges in the post header (context is shown by selected tab)", () => {
     renderPostCard({ post: { contextTag: "saved" } });
-    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByText("Saved")).toBeNull();
+
+    renderPostCard({ post: { contextTag: "liked" } });
+    expect(screen.queryByText("Liked")).toBeNull();
   });
 
   it("calls onStartEditPost and onBurn when edit/burn buttons are clicked", () => {

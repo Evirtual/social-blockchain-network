@@ -57,37 +57,32 @@ export function AccountPage(props: Props) {
         ? props.likedPosts.map((p) => ({ ...p, contextTag: "liked" as const }))
         : props.posts.map((p) => ({ ...p, contextTag: undefined }));
   const activeLoading = view === "saved" ? props.isLoadingSaved : view === "liked" ? props.isLoadingLiked : props.isFeedLoading;
-  const activeTitle = view === "saved" ? "Saved" : view === "liked" ? "Liked" : "Your Posts";
-  const activePill =
-    view === "saved"
-      ? `${props.savedPosts.length} saved`
-      : view === "liked"
-        ? `${props.likedPosts.length} liked`
-        : `${props.posts.length} posts • ${props.savedPosts.length} saved • ${props.likedPosts.length} liked`;
+  const activeTitle = "Your posts";
+  const activePill = "";
 
   const headerAction = useMemo(() => {
     return (
       <div className="row" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
         <button className={view === "all" ? "btn secondary" : "btn ghost"} type="button" onClick={() => setView("all")}>
-          All
+          Posted ({props.posts.length})
         </button>
         <button
           className={view === "saved" ? "btn secondary" : "btn ghost"}
           type="button"
           onClick={() => setView("saved")}
         >
-          Saved
+          Saved ({props.savedPosts.length})
         </button>
         <button
           className={view === "liked" ? "btn secondary" : "btn ghost"}
           type="button"
           onClick={() => setView("liked")}
         >
-          Liked
+          Liked ({props.likedPosts.length})
         </button>
       </div>
     );
-  }, [view]);
+  }, [view, props.posts.length, props.savedPosts.length, props.likedPosts.length]);
 
   return (
     <main className="profileLayout">
