@@ -206,6 +206,78 @@ describe("HomePage", () => {
     expect(screen.getByTestId("feed-count").textContent).toBe("3");
   });
 
+  it("auto-selects current chain in Networks filter when wallet is connected", async () => {
+    const props = makeProps({
+      walletAddress: "0xabc",
+      chainId: "84532",
+      posts: [
+        {
+          tokenId: "1",
+          chainId: "11155111",
+          title: "Hello",
+          body: "eth post",
+          image: "",
+          metadataURI: "",
+          author: "0xaaa",
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          tipsWei: 0n
+        },
+        {
+          tokenId: "2",
+          chainId: "84532",
+          title: "World",
+          body: "base post",
+          image: "",
+          metadataURI: "",
+          author: "0xbbb",
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          tipsWei: 0n
+        }
+      ]
+    });
+
+    const { rerender } = render(<HomePage {...props} />);
+
+    const eth = screen.getByRole("checkbox", { name: "Ethereum testnet" }) as HTMLInputElement;
+    const base = screen.getByRole("checkbox", { name: "Base testnet" }) as HTMLInputElement;
+
+    await waitFor(() => {
+      expect(base.checked).toBe(true);
+      expect(eth.checked).toBe(false);
+    });
+    expect(screen.getByTestId("feed-pill").textContent).toBe("1 / 2 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("1");
+
+    // Re-running the effect with the same chainId but a different connected wallet
+    // should keep the already-selected chain (covers the updater's "return prev" branch).
+    rerender(<HomePage {...props} walletAddress="0xdef" chainId="84532" />);
+    await waitFor(() => {
+      expect(base.checked).toBe(true);
+      expect(eth.checked).toBe(false);
+    });
+
+    // Switching chains should move the selected network.
+    rerender(<HomePage {...props} chainId="11155111" />);
+    await waitFor(() => {
+      expect(eth.checked).toBe(true);
+      expect(base.checked).toBe(false);
+    });
+    expect(screen.getByTestId("feed-count").textContent).toBe("1");
+
+    // Disconnecting wallet should reset to All.
+    rerender(<HomePage {...props} walletAddress={null} chainId="11155111" />);
+    await waitFor(() => {
+      expect(eth.checked).toBe(false);
+      expect(base.checked).toBe(false);
+    });
+    expect(screen.getByTestId("feed-pill").textContent).toBe("2 posts");
+    expect(screen.getByTestId("feed-count").textContent).toBe("2");
+  });
+
   it("search filtering handles posts with missing author", () => {
     render(
       <HomePage

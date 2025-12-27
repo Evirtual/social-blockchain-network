@@ -12,20 +12,19 @@ function looksLikeVideoUrl(url: string) {
 export function createMetadataUri(draft: Draft) {
   const image = draft.imageDataUrl || draft.imageUrl;
   const isVideo = !!image && looksLikeVideoUrl(image);
-  const metadata = isVideo
-    ? {
-        name: draft.title,
-        description: draft.body,
-        image: "",
-        animation_url: image,
-        attributes: [{ trait_type: "Origin", value: "Social Blockchain Network" }]
-      }
-    : {
-        name: draft.title,
-        description: draft.body,
-        image,
-        attributes: [{ trait_type: "Origin", value: "Social Blockchain Network" }]
-      };
+  const metadata: any = {
+    name: draft.title,
+    description: draft.body,
+    attributes: [{ trait_type: "Origin", value: "Social Blockchain Network" }]
+  };
+
+  if (isVideo) {
+    metadata.animation_url = image;
+    // Some NFT metadata consumers expect `image` to exist when `animation_url` is present.
+    metadata.image = "";
+  } else if (image) {
+    metadata.image = image;
+  }
   const encoded = toBase64(JSON.stringify(metadata));
   return `data:application/json;base64,${encoded}`;
 }

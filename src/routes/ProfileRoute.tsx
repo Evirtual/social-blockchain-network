@@ -37,7 +37,8 @@ export function ProfileRoute() {
     if (!app.walletAddress) return;
     if (!isSelf) return;
     void app.loadRepostsForAddress(address);
-  }, [address, app.loadRepostsForAddress, app.walletAddress, isSelf]);
+    void app.loadLikesForAddress(address);
+  }, [address, app.loadLikesForAddress, app.loadRepostsForAddress, app.walletAddress, isSelf]);
 
   useEffect(() => {
     if (!app.walletAddress) return;
@@ -86,10 +87,75 @@ export function ProfileRoute() {
   if (isSelf) {
     const selfKey = app.walletAddress!.toLowerCase();
 
-    const savedTokenIds = app.repostTokenIdsByAddress[selfKey] ?? [];
-    const savedPosts = savedTokenIds
-      .map((tokenId) => app.posts.find((p) => p.tokenId === tokenId))
-      .filter((p): p is NonNullable<typeof p> => !!p);
+    const normalizeChainId = (v: string | null | undefined) => {
+      const s = String(v ?? "").trim();
+      if (!s) return "";
+      const n = s.startsWith("0x") || s.startsWith("0X") ? Number.parseInt(s, 16) : Number.parseInt(s, 10);
+      return Number.isFinite(n) ? String(n) : s;
+    };
+
+    const postsByKey = new Map(
+      app.posts.map((p) => {
+        const k = `${normalizeChainId(p.chainId ?? null)}:${p.tokenId}`;
+        return [k, p] as const;
+      })
+    );
+
+    const savedFromFeed = (() => {
+      const seen = new Set<string>();
+      const out: typeof app.posts = [];
+      for (const p of app.posts) {
+        if (!p.repostedByMe) continue;
+        const k = `${normalizeChainId(p.chainId ?? null)}:${p.tokenId}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(p);
+      }
+      return out;
+    })();
+
+    const likedFromFeed = (() => {
+      const seen = new Set<string>();
+      const out: typeof app.posts = [];
+      for (const p of app.posts) {
+        if (!p.likedByMe) continue;
+        const k = `${normalizeChainId(p.chainId ?? null)}:${p.tokenId}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(p);
+      }
+      return out;
+    })();
+
+    const savedKeys = app.repostTokenIdsByAddress[selfKey] ?? [];
+    const savedPosts =
+      savedFromFeed.length > 0
+        ? savedFromFeed
+        : savedKeys
+            .map((savedKey) => {
+              if (savedKey.includes(":")) {
+                const [chainPart, tokenId] = savedKey.split(":");
+                const normalized = `${normalizeChainId(chainPart)}:${tokenId}`;
+                return postsByKey.get(normalized) ?? app.posts.find((p) => p.tokenId === tokenId);
+              }
+              return app.posts.find((p) => p.tokenId === savedKey);
+            })
+            .filter((p): p is NonNullable<typeof p> => !!p);
+
+    const likedKeys = app.likedTokenIdsByAddress[selfKey] ?? [];
+    const likedPosts =
+      likedFromFeed.length > 0
+        ? likedFromFeed
+        : likedKeys
+            .map((likedKey) => {
+              if (likedKey.includes(":")) {
+                const [chainPart, tokenId] = likedKey.split(":");
+                const normalized = `${normalizeChainId(chainPart)}:${tokenId}`;
+                return postsByKey.get(normalized) ?? app.posts.find((p) => p.tokenId === tokenId);
+              }
+              return app.posts.find((p) => p.tokenId === likedKey);
+            })
+            .filter((p): p is NonNullable<typeof p> => !!p);
 
     return (
       <AccountPage
@@ -137,7 +203,9 @@ export function ProfileRoute() {
         isFeedLoading={app.isFeedLoading}
         posts={filtered}
         savedPosts={savedPosts}
+        likedPosts={likedPosts}
           isLoadingSaved={!!app.isLoadingRepostsByAddress[selfKey]}
+        isLoadingLiked={!!app.isLoadingLikesByAddress[selfKey]}
         chainId={app.chainId}
         walletAddress={app.walletAddress}
         authorIdentity={app.authorIdentity}

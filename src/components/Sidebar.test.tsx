@@ -25,6 +25,7 @@ const appApi = {
 };
 
 const contractApi = {
+  contractAddress: "0x000000000000000000000000000000000000C0DE",
   getReadContract: (...args: any[]) => (getReadContractMock as any)(...args),
   getWriteContract: (...args: any[]) => (getWriteContractMock as any)(...args),
   ensureContractDeployedOnCurrentNetwork: (...args: any[]) =>
@@ -126,7 +127,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
   beforeEach(() => {
     vi.useRealTimers();
-    localStorage.clear();
+    sessionStorage.clear();
     getReadContractMock.mockReset();
     getWriteContractMock.mockReset();
     ensureContractDeployedOnCurrentNetworkMock.mockClear();
@@ -178,7 +179,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
   it("owner can open Approvals and add/validate pending wallets", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    localStorage.removeItem("pendingPosterApprovals");
+    sessionStorage.removeItem("pendingPosterApprovals");
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
     renderProfileCard();
@@ -201,7 +202,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(localStorage.getItem("pendingPosterApprovals") ?? "").toContain("BEEF");
+    expect(sessionStorage.getItem("pendingPosterApprovals") ?? "").toContain("BEEF");
     expect(screen.getByText("0x0000")).toBeTruthy();
 
     // Duplicate
@@ -234,10 +235,10 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     await waitForUi(() => screen.queryByRole("button", { name: "Approvals" }) === null);
   });
 
-  it("Approvals: ignores pending approvals when localStorage JSON is not an array", async () => {
+  it("Approvals: ignores pending approvals when sessionStorage JSON is not an array", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify({ nope: true }));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify({ nope: true }));
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
     renderProfileCard();
@@ -249,10 +250,10 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(screen.queryAllByRole("listitem").length).toBe(0);
   });
 
-  it("Approvals: ignores pending approvals when localStorage JSON is invalid", async () => {
+  it("Approvals: ignores pending approvals when sessionStorage JSON is invalid", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    localStorage.setItem("pendingPosterApprovals", "{not-json");
+    sessionStorage.setItem("pendingPosterApprovals", "{not-json");
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
     renderProfileCard();
@@ -264,11 +265,11 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(screen.queryAllByRole("listitem").length).toBe(0);
   });
 
-  it("Approvals: reads pending approvals array from localStorage and trims/filter strings", async () => {
+  it("Approvals: reads pending approvals array from sessionStorage and trims/filter strings", async () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    localStorage.setItem(
+    sessionStorage.setItem(
       "pendingPosterApprovals",
       // mix valid string, whitespace, empty string, and non-string entries
       JSON.stringify([`  ${addr}  `, "", "   ", 5, null])
@@ -287,11 +288,11 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(screen.getByText("0x0000")).toBeTruthy();
   });
 
-  it("Approvals: remove button updates pending list and localStorage", async () => {
+  it("Approvals: remove button updates pending list and sessionStorage", async () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
     getReadContractMock.mockResolvedValue({ owner: async () => "0xOWNER" });
 
     renderProfileCard();
@@ -304,14 +305,14 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     fireEvent.click(within(row).getByRole("button", { name: "Remove" }));
 
     await waitForUi(() => screen.queryAllByRole("listitem").length === 0);
-    expect(localStorage.getItem("pendingPosterApprovals")).toBe("[]");
+    expect(sessionStorage.getItem("pendingPosterApprovals")).toBe("[]");
   });
 
   it("Approvals: shows Flagged based on wasPosterDisapproved contract check", async () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
 
     getReadContractMock.mockResolvedValue({
       owner: async () => "0xOWNER",
@@ -351,7 +352,12 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     await waitForUi(() => !!screen.queryByRole("button", { name: "Approvals" }));
     fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
 
-    await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+    await waitForUi(() => {
+      const rows = screen.queryAllByRole("listitem");
+      return rows.some((el) =>
+        Boolean(within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Approve" }))
+      );
+    });
     const row = screen
       .getAllByRole("listitem")
       .find((el) => within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Approve" }));
@@ -367,7 +373,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
 
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
@@ -409,7 +415,12 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     renderProfileCard();
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
-    await waitForUi(() => !!screen.queryByText(/Requests from chain/i));
+    await waitForUi(() => {
+      const rows = screen.queryAllByRole("listitem");
+      return rows.some((el) =>
+        Boolean(within(el).queryByText("0x0000") && within(el).queryByRole("button", { name: "Approve" }))
+      );
+    });
 
   // Wait for the initial effect that queries on-chain allowed/disapproved status to settle.
   // Otherwise an in-flight response can overwrite the optimistic UI state after we approve.
@@ -529,7 +540,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     setMatchMedia({ matches: false, modern: true });
 
     const addr = "0x000000000000000000000000000000000000BEEF";
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify([addr]));
 
     // Owner check uses getReadContract once, chain-requests effect uses it again,
     // and allowed/disapproved status check uses it a third time.
@@ -555,10 +566,10 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     unmount();
   });
 
-  it("Approvals: reset validates address from localStorage list", async () => {
+  it("Approvals: reset validates address from sessionStorage list", async () => {
     setMatchMedia({ matches: false, modern: true });
 
-    localStorage.setItem("pendingPosterApprovals", JSON.stringify(["lol"]));
+    sessionStorage.setItem("pendingPosterApprovals", JSON.stringify(["lol"]));
     getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
 
     const { unmount } = renderProfileCard();
@@ -633,7 +644,240 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
     expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
-    expect(screen.queryByText(/Requests from chain/i)).toBeNull();
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    expect(await screen.findByText(/Failed to load requests\./i)).toBeTruthy();
+  });
+
+  it("Approvals: does not re-scan on reopen after first load", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+
+    // First open triggers scan.
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+
+    await waitForUi(() => readContract.queryFilter.mock.calls.length === 1);
+    expect(await screen.findByText("0x0000")).toBeTruthy();
+
+    // Close + reopen should not re-trigger queryFilter.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await flushMicrotasks(5);
+
+    fireEvent.click(screen.getByRole("button", { name: "Approvals" }));
+    expect(await screen.findByRole("dialog", { name: "Approvals" })).toBeTruthy();
+    await flushMicrotasks(5);
+
+    expect(readContract.queryFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it("Approvals: ignores on-chain scan when latest block is invalid", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => NaN } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: ["0x000000000000000000000000000000000000BEEF"] }])
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    // Section renders, but scan does not run.
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    expect(await screen.findByText(/No requests found\./i)).toBeTruthy();
+    expect(readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("Approvals: reduces scan window when RPC rejects large ranges", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100_000 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async (_filter: any, fromBlock: number, toBlock: number) => {
+        // Simulate provider rejecting big ranges.
+        if (toBlock - fromBlock > 10_000) throw new Error("range too large");
+        return [{ args: [addr] }];
+      }),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    expect(readContract.queryFilter).toHaveBeenCalled();
+  });
+
+  it("Approvals: uses on-chain requests cache from sessionStorage (trim/filter, no loading)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const cacheKey = `approvalsChainRequestsCache:${contractApi.contractAddress.toLowerCase()}`;
+    sessionStorage.setItem(
+      cacheKey,
+      JSON.stringify({ requesters: [`  ${addr}  `, "", "   ", 5, null], updatedAt: Date.now() })
+    );
+
+    getReadContractMock.mockResolvedValueOnce({ owner: async () => "0xOWNER" });
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    // Cached requester should render without showing the loading state.
+    await waitForUi(() => !!screen.queryByText("0x0000"));
+    expect(screen.queryByText("Loading…")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Reset" }).length).toBeGreaterThan(0);
+  });
+
+  it("Approvals: writes on-chain requests cache to sessionStorage after scan", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const cacheKey = `approvalsChainRequestsCache:${contractApi.contractAddress.toLowerCase()}`;
+    sessionStorage.removeItem(cacheKey);
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+    await waitForUi(() => !!screen.queryByText("0x0000"));
+
+    const raw = sessionStorage.getItem(cacheKey);
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw as string);
+    expect(Array.isArray(parsed?.requesters)).toBe(true);
+    expect((parsed.requesters as any[]).some((x) => String(x).toLowerCase() === addr.toLowerCase())).toBe(true);
+  });
+
+  it("Approvals: ignores malformed cache shape (non-array requesters / non-number updatedAt)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const cacheKey = `approvalsChainRequestsCache:${contractApi.contractAddress.toLowerCase()}`;
+    sessionStorage.setItem(cacheKey, JSON.stringify({ requesters: { nope: true }, updatedAt: "nope" }));
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 1 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    // Malformed cache should be ignored and a scan should occur.
+    await waitForUi(() => readContract.queryFilter.mock.calls.length > 0);
+    await waitForUi(() => screen.queryAllByRole("button", { name: "Reset" }).length > 0);
+  });
+
+  it("Approvals: ignores cache when updatedAt is invalid (falls back to scan)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const cacheKey = `approvalsChainRequestsCache:${contractApi.contractAddress.toLowerCase()}`;
+    sessionStorage.setItem(cacheKey, JSON.stringify({ requesters: [addr], updatedAt: 0 }));
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 1 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    await waitForUi(() => readContract.queryFilter.mock.calls.length > 0);
+    await waitForUi(() => screen.queryAllByRole("button", { name: "Reset" }).length > 0);
+  });
+
+  it("Approvals: ignores cache when sessionStorage JSON is invalid (falls back to scan)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const cacheKey = `approvalsChainRequestsCache:${contractApi.contractAddress.toLowerCase()}`;
+    sessionStorage.setItem(cacheKey, "{");
+
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 1 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    await waitForUi(() => readContract.queryFilter.mock.calls.length > 0);
+    await waitForUi(() => screen.queryAllByRole("button", { name: "Reset" }).length > 0);
+  });
+
+  it("Approvals: still shows on-chain requesters even if hasPosterRequested throws", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const addr = "0x000000000000000000000000000000000000BEEF";
+    const readContract: any = {
+      owner: async () => "0xOWNER",
+      runner: { provider: { getBlockNumber: async () => 100 } },
+      filters: { PosterApprovalRequested: () => ({}) },
+      queryFilter: vi.fn(async () => [{ args: [addr] }]),
+      hasPosterRequested: vi.fn(async () => {
+        throw new Error("rpc down");
+      }),
+      isPosterAllowed: async () => false,
+      wasPosterDisapproved: async () => false
+    };
+
+    getReadContractMock.mockResolvedValue(readContract);
+
+    renderProfileCard();
+    fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+    // We no longer filter by hasPosterRequested (approved accounts stay visible),
+    // so the request should still show.
+    expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
+    expect(readContract.hasPosterRequested).not.toHaveBeenCalled();
   });
 
   it("Approvals: on-chain request shows Flagged when wasPosterDisapproved is true", async () => {
@@ -735,6 +979,47 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
   });
 
+  it("renders followers modal loading state when isLoadingFollowers is true", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    renderProfileCard({
+      followerCount: 1,
+      followers: [],
+      isLoadingFollowers: true
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "View followers" }));
+    expect(await screen.findByRole("dialog", { name: "Followers" })).toBeTruthy();
+    expect(await screen.findByText("Loading…")).toBeTruthy();
+  });
+
+  it("Approvals: handles missing contractAddress (cache key is null)", async () => {
+    setMatchMedia({ matches: false, modern: true });
+
+    const prevAddress = contractApi.contractAddress;
+    try {
+      (contractApi as any).contractAddress = "";
+
+      const addr = "0x000000000000000000000000000000000000BEEF";
+      const readContract: any = {
+        owner: async () => "0xOWNER",
+        runner: { provider: { getBlockNumber: async () => 1 } },
+        filters: { PosterApprovalRequested: () => ({}) },
+        queryFilter: vi.fn(async () => [{ args: [addr] }]),
+        isPosterAllowed: async () => false,
+        wasPosterDisapproved: async () => false
+      };
+      getReadContractMock.mockResolvedValue(readContract);
+
+      renderProfileCard();
+      fireEvent.click(await screen.findByRole("button", { name: "Approvals" }));
+
+      await waitForUi(() => readContract.queryFilter.mock.calls.length > 0);
+    } finally {
+      (contractApi as any).contractAddress = prevAddress;
+    }
+  });
+
   it("Approvals: approve/disapprove toggles buttons and shows Flagged", async () => {
     setMatchMedia({ matches: false, modern: true });
 
@@ -805,6 +1090,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
         if (filter?.addr) throw new Error("no logs");
         return [{ args: [addr] }];
       }),
+      hasPosterRequested: async () => true,
       isPosterAllowed: async () => false,
       wasPosterDisapproved: async () => false
     };
@@ -820,6 +1106,7 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(await screen.findByText(/Requests from chain/i)).toBeTruthy();
 
     // Trigger reset on-chain request; PostMinted queryFilter throws => error shown.
+    await waitForUi(() => screen.queryAllByRole("button", { name: "Reset" }).length > 0);
     const resets = screen.getAllByRole("button", { name: "Reset" });
     fireEvent.click(resets[0]);
 
@@ -901,13 +1188,15 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
     expect(anyHasBg).toBe(true);
   });
 
-  it("evaluates header pill operands and omits followers pill when followerCount is undefined", () => {
+  it("renders followers pill when followerCount is undefined", () => {
     setMatchMedia({ matches: false, modern: true });
 
     renderProfileCard({ walletAddress: "0xAAA", followerCount: undefined });
 
-    // Should not render followers pill when followerCount isn't a number.
-    expect(screen.queryByRole("button", { name: "View followers" })).toBeNull();
+    // Should render followers pill, using followers.length as a fallback.
+    const followersBtn = screen.getByRole("button", { name: "View followers" });
+    expect(followersBtn).toBeTruthy();
+    expect(followersBtn.textContent).toContain("followers");
   });
 
   it("renders header pills when only following length is available", () => {
@@ -1041,13 +1330,16 @@ describe("Sidebar/ProfileCard/WalletCard", () => {
 
     // Following pill shows ellipsis when loading.
     const followingBtn = screen.getByRole("button", { name: "View following" });
-    expect(followingBtn.textContent).toContain("…");
+    expect(followingBtn.textContent).not.toContain("…");
 
     fireEvent.click(screen.getByRole("button", { name: "View followers" }));
     expect(await screen.findByText("No followers yet.")).toBeTruthy();
 
-    // Following is disabled while loading, so modal should not open.
-    expect((followingBtn as HTMLButtonElement).disabled).toBe(true);
+    // Following modal can open while loading (loading indicator is inside the modal).
+    expect((followingBtn as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(followingBtn);
+    expect(await screen.findByRole("dialog", { name: "Following" })).toBeTruthy();
+    expect(await screen.findByText("Loading…")).toBeTruthy();
   });
 
   it("shows empty following modal when not loading", async () => {

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 function stubEnv(key: string, value: string | undefined) {
   if (typeof value === "undefined") vi.stubEnv(key, "");
@@ -775,5 +775,295 @@ describe("ContractContext", () => {
         "Wallet connected, but no contract address is configured for this network. Set VITE_CONTRACT_ADDRESS_* in .env.local, then restart the dev server."
       )
     );
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork caches successful checks", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    const setStatus = vi.fn();
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
+
+    const getCode = vi.fn(async (_addr: string) => "0x123");
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    // The provider may be queried during initial refreshContractState().
+    // Clear calls so we only count calls from this test's explicit ensure() calls.
+    getCode.mockClear();
+
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+    await waitFor(() => expect(ref.current.contractDeployed).toBe(true));
+
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+
+    expect(getCode).toHaveBeenCalledTimes(1);
+    expect(setStatus).not.toHaveBeenCalledWith(
+      "RPC error while verifying contract; proceeding with last known deployed state."
+    );
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork retries on truncated JSON then succeeds", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    const setStatus = vi.fn();
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
+
+    const getCode = vi.fn(async (_addr: string) => "0x123");
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    // Reset call history from initial refreshContractState().
+    getCode.mockClear();
+
+    // First call fails due to truncated JSON, retry succeeds.
+    getCode
+      .mockRejectedValueOnce(new Error("Unterminated string in JSON at position 10"))
+      .mockResolvedValueOnce("0x123");
+
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+
+    expect(getCode).toHaveBeenCalledTimes(2);
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork retries when getCode throws a truncated JSON string", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
+
+    const getCode = vi.fn(async (_addr: string) => "0x123");
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    // Reset call history from initial refreshContractState().
+    getCode.mockClear();
+
+    getCode
+      .mockRejectedValueOnce("Unterminated string in JSON at position 10")
+      .mockResolvedValueOnce("0x123");
+
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+
+    expect(getCode).toHaveBeenCalledTimes(2);
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork treats undefined rejection reasons as non-truncated", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
+
+    const getCode = vi.fn(async (_addr: string) => "0x123");
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    // Reset call history from initial refreshContractState().
+    getCode.mockClear();
+    getCode.mockRejectedValueOnce(undefined);
+
+    await expect(ref.current.ensureContractDeployedOnCurrentNetwork()).rejects.toThrow(
+      /contract not found on this network/i
+    );
+
+    expect(getCode).toHaveBeenCalledTimes(1);
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork proceeds when RPC keeps returning malformed JSON but deployment was already verified", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    const setStatus = vi.fn();
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
+
+    let nowMs = 0;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+
+    const getCode = vi.fn(async (_addr: string) => "0x123");
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+
+    // Reset call history from initial refreshContractState().
+    getCode.mockClear();
+
+    // First verify deployment successfully.
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+    await waitFor(() => expect(ref.current.contractDeployed).toBe(true));
+    expect(getCode).toHaveBeenCalledTimes(1);
+
+    // Then simulate an RPC that consistently returns truncated JSON.
+    getCode.mockReset().mockRejectedValue(new Error("rpc down"));
+
+    // Move time forward so cache doesn't short-circuit.
+    nowMs = 61_000;
+
+    await act(async () => {
+      await ref.current.ensureContractDeployedOnCurrentNetwork();
+    });
+
+    expect(setStatus).toHaveBeenCalledWith(
+      "RPC error while verifying contract; proceeding with last known deployed state."
+    );
+
+    nowSpy.mockRestore();
+  });
+
+  it("ensureContractDeployedOnCurrentNetwork throws when RPC fails before deployment is verified", async () => {
+    vi.resetModules();
+    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+
+    vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
+
+    const getCode = vi.fn(async () => {
+      throw new Error("rpc down");
+    });
+    const provider = { getCode, getNetwork: async () => ({ chainId: 31337n }) };
+    vi.doMock("./WalletContext", () => ({
+      useWallet: () => ({ provider, chainId: "31337", walletAddress: "0xabc" })
+    }));
+    vi.doMock("../contracts/socialPosts", () => ({ getSocialContract: vi.fn() }));
+
+    const { ContractProvider, useContract } = await import("./ContractContext");
+
+    const ref: { current: any } = { current: null };
+    function Consumer() {
+      const c = useContract();
+      React.useEffect(() => {
+        ref.current = c;
+      });
+      return null;
+    }
+
+    render(
+      <ContractProvider>
+        <Consumer />
+      </ContractProvider>
+    );
+
+    await waitFor(() => expect(ref.current).toBeTruthy());
+    getCode.mockClear();
+
+    await expect(ref.current.ensureContractDeployedOnCurrentNetwork()).rejects.toThrow(/rpc down/i);
   });
 });

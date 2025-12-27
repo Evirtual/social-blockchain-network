@@ -24,7 +24,7 @@ vi.mock("../components/Sidebar", () => ({
 }));
 
 describe("AccountPage", () => {
-  it("switches between all and saved view", () => {
+  it("switches between all, saved, and liked view", () => {
     feedSpy.mockClear();
 
     const props: any = {
@@ -75,7 +75,11 @@ describe("AccountPage", () => {
       savedPosts: [
         { tokenId: "2", title: "t", body: "b", image: "", metadataURI: "", likes: 0, comments: 0, shares: 0, tipsWei: 0n }
       ],
+      likedPosts: [
+        { tokenId: "3", title: "t", body: "b", image: "", metadataURI: "", likes: 0, comments: 0, shares: 0, tipsWei: 0n }
+      ],
       isLoadingSaved: false,
+      isLoadingLiked: false,
       chainId: "31337",
       walletAddress: "0xabc",
       authorIdentity: new Map(),
@@ -116,5 +120,10 @@ describe("AccountPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "All" }));
     expect(screen.getByTestId("feed-title").textContent).toBe("Your Posts");
+
+    fireEvent.click(screen.getByRole("button", { name: "Liked" }));
+    expect(screen.getByTestId("feed-title").textContent).toBe("Liked");
+    expect(screen.getByTestId("feed-pill").textContent).toBe("1 liked");
+    expect(screen.getByTestId("feed-tag").textContent).toBe("liked");
   });
 });

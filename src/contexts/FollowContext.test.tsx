@@ -262,6 +262,83 @@ describe("FollowContext transactions", () => {
     });
 });
 
+describe("FollowContext caching", () => {
+  it("does not refetch followerCount for the same address after a successful load", async () => {
+    const get = grabCtx();
+    const target = "0x000000000000000000000000000000000000dEaD";
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowerCountForAddress(target);
+    });
+
+    expect(mocks.provider.getBlockNumber).toHaveBeenCalledTimes(1);
+    expect(mocks.readContract.queryFilter).toHaveBeenCalled();
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowerCountForAddress(target);
+    });
+
+    expect(mocks.provider.getBlockNumber).not.toHaveBeenCalled();
+    expect(mocks.readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("does not refetch followers list for the same address after a successful load", async () => {
+    const get = grabCtx();
+    const target = "0x000000000000000000000000000000000000dEaD";
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowersForAddress(target);
+    });
+
+    expect(mocks.provider.getBlockNumber).toHaveBeenCalledTimes(1);
+    expect(mocks.readContract.queryFilter).toHaveBeenCalled();
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowersForAddress(target);
+    });
+
+    expect(mocks.provider.getBlockNumber).not.toHaveBeenCalled();
+    expect(mocks.readContract.queryFilter).not.toHaveBeenCalled();
+  });
+
+  it("does not refetch following list for the same address after a successful load", async () => {
+    const get = grabCtx();
+    const me = "0x000000000000000000000000000000000000bEEF";
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowingForAddress(me);
+    });
+
+    expect(mocks.provider.getBlockNumber).toHaveBeenCalledTimes(1);
+    expect(mocks.readContract.queryFilter).toHaveBeenCalled();
+
+    mocks.provider.getBlockNumber.mockClear();
+    mocks.readContract.queryFilter.mockClear();
+
+    await act(async () => {
+      await get().loadFollowingForAddress(me);
+    });
+
+    expect(mocks.provider.getBlockNumber).not.toHaveBeenCalled();
+    expect(mocks.readContract.queryFilter).not.toHaveBeenCalled();
+  });
+});
+
 describe("useFollow", () => {
   it("throws when used outside provider", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});

@@ -118,6 +118,11 @@ export type AppContextValue = {
   isLoadingRepostsByAddress: Record<string, boolean>;
   loadRepostsForAddress: (address: string) => Promise<void>;
 
+  // Likes
+  likedTokenIdsByAddress: Record<string, string[]>;
+  isLoadingLikesByAddress: Record<string, boolean>;
+  loadLikesForAddress: (address: string) => Promise<void>;
+
   // Followers
   followerCountByAddress: Record<string, number>;
   isLoadingFollowerCountByAddress: Record<string, boolean>;

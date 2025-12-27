@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { ethers } from "ethers";
-import { socialInterface } from "../contracts/socialPosts";
+import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { getExplorerTxUrl, getNativeSymbol } from "../lib/chain";
 import { getErrorMessage } from "../lib/errors";
 import { shortAddress, stableHueFromSeed } from "../lib/format";
@@ -51,9 +51,130 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   }, [wallet.walletAddress, nudgeConnectWallet]);
 
   // Reposts live here for now (not yet extracted into its own context).
+  // NOTE: Values are stored as `chainId:tokenId` keys to avoid collisions across networks.
   const [repostTokenIdsByAddress, setRepostTokenIdsByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingRepostsByAddress, setIsLoadingRepostsByAddress] = useState<Record<string, boolean>>({});
   const repostsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const repostsLoadedByKeyRef = useRef<Record<string, boolean>>({});
+
+  // Likes live here for now.
+  // NOTE: Values are stored as `chainId:tokenId` keys to avoid collisions across networks.
+  const [likedTokenIdsByAddress, setLikedTokenIdsByAddress] = useState<Record<string, string[]>>({});
+  const [isLoadingLikesByAddress, setIsLoadingLikesByAddress] = useState<Record<string, boolean>>({});
+  const likesInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const likesLoadedByKeyRef = useRef<Record<string, boolean>>({});
+
+  // Session-only cache so Saved doesn't re-load on route remounts.
+  // Keyed only by address so Saved is stable across chain switches within the session.
+  const REPOSTS_SESSION_CACHE_PREFIX = "repostsTokenKeysByAddress:";
+
+  // Session-only cache so Liked doesn't re-load on route remounts.
+  // Keyed only by address so Liked is stable across chain switches within the session.
+  const LIKES_SESSION_CACHE_PREFIX = "likesTokenKeysByAddress:";
+
+  const makeRepostsSessionCacheKey = useCallback(
+    (addressLower: string) => {
+      const addr = addressLower.trim().toLowerCase();
+      if (!addr) return null;
+      return `${REPOSTS_SESSION_CACHE_PREFIX}${addr}`;
+    },
+    []
+  );
+
+  const readRepostsSessionCache = useCallback(
+    (addressLower: string): string[] | null => {
+      /* c8 ignore next */
+      if (typeof window === "undefined") return null;
+      try {
+        const storageKey = makeRepostsSessionCacheKey(addressLower);
+        if (!storageKey) return null;
+        const raw = window.sessionStorage.getItem(storageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as any;
+        const tokenIds = Array.isArray(parsed?.tokenIds)
+          ? parsed.tokenIds.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+          : [];
+        return tokenIds;
+      } catch {
+        return null;
+      }
+    },
+    [makeRepostsSessionCacheKey]
+  );
+
+  const writeRepostsSessionCache = useCallback(
+    (addressLower: string, tokenIds: string[]) => {
+      /* c8 ignore next */
+      if (typeof window === "undefined") return;
+      try {
+        const storageKey = makeRepostsSessionCacheKey(addressLower);
+        if (!storageKey) return;
+        window.sessionStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            tokenIds: tokenIds
+              .filter((x) => typeof x === "string" && x.trim())
+              .map((x) => x.trim())
+          })
+        );
+      } catch {
+        // ignore
+      }
+    },
+    [makeRepostsSessionCacheKey]
+  );
+
+  const makeLikesSessionCacheKey = useCallback(
+    (addressLower: string) => {
+      const addr = addressLower.trim().toLowerCase();
+      if (!addr) return null;
+      return `${LIKES_SESSION_CACHE_PREFIX}${addr}`;
+    },
+    []
+  );
+
+  const readLikesSessionCache = useCallback(
+    (addressLower: string): string[] | null => {
+      /* c8 ignore next */
+      if (typeof window === "undefined") return null;
+      try {
+        const storageKey = makeLikesSessionCacheKey(addressLower);
+        if (!storageKey) return null;
+        const raw = window.sessionStorage.getItem(storageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as any;
+        const tokenIds = Array.isArray(parsed?.tokenIds)
+          ? parsed.tokenIds.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+          : [];
+        return tokenIds;
+      } catch {
+        return null;
+      }
+    },
+    [makeLikesSessionCacheKey]
+  );
+
+  const writeLikesSessionCache = useCallback(
+    (addressLower: string, tokenIds: string[]) => {
+      /* c8 ignore next */
+      if (typeof window === "undefined") return;
+      try {
+        const storageKey = makeLikesSessionCacheKey(addressLower);
+        if (!storageKey) return;
+        window.sessionStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            tokenIds: tokenIds
+              .filter((x) => typeof x === "string" && x.trim())
+              .map((x) => x.trim())
+          })
+        );
+      } catch {
+        // ignore
+      }
+    },
+    [makeLikesSessionCacheKey]
+  );
 
   const connectWallet = useCallback(async () => {
     const addr = await wallet.connectWallet();
@@ -83,22 +204,269 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   const withdrawTips = useCallback(async () => {
     if (!requireConnectedWallet()) return;
     await social.withdrawTips();
-  }, [requireConnectedWallet, social]);
+    // Keep wallet card values (withdrawable tips, deployed status) fresh.
+    try {
+      await contract.refreshContractState();
+    } catch {
+      // ignore
+    }
+  }, [requireConnectedWallet, social, contract]);
 
   const handleAction = useCallback(
     async (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => {
       if (!requireConnectedWallet()) return;
-      await social.handleAction(tokenId, action, postChainId);
+      const ok = await social.handleAction(tokenId, action, postChainId);
+
+      // Saved feed is driven by repostTokenIdsByAddress, which was previously only updated
+      // by an on-chain scan (loadRepostsForAddress). Update it immediately on successful save.
+      if (action === "share" && ok) {
+        const key = wallet.walletAddress!.toLowerCase();
+
+        const chainRaw = String(postChainId ?? wallet.chainId ?? "").trim();
+        const chainNum = chainRaw.startsWith("0x") || chainRaw.startsWith("0X")
+          ? Number.parseInt(chainRaw, 16)
+          : Number.parseInt(chainRaw, 10);
+        const chainKey = Number.isFinite(chainNum) ? String(chainNum) : chainRaw;
+        const savedKey = chainKey ? `${chainKey}:${tokenId}` : tokenId;
+
+        setRepostTokenIdsByAddress((prev) => {
+          const current = prev[key] ?? [];
+          const has = current.includes(savedKey);
+          const next = has ? current.filter((id) => id !== savedKey) : [savedKey, ...current];
+          writeRepostsSessionCache(key, next);
+          return { ...prev, [key]: next };
+        });
+
+        // Ensure the token exists in the local feed cache (saved view maps tokenIds -> posts).
+        void feed.loadPostsByTokenIds([tokenId]);
+      }
+
+      // Liked feed is driven by likedTokenIdsByAddress. Update it immediately on successful like/unlike.
+      if (action === "like" && ok) {
+        const key = wallet.walletAddress!.toLowerCase();
+
+        const chainRaw = String(postChainId ?? wallet.chainId ?? "").trim();
+        const chainNum = chainRaw.startsWith("0x") || chainRaw.startsWith("0X")
+          ? Number.parseInt(chainRaw, 16)
+          : Number.parseInt(chainRaw, 10);
+        const chainKey = Number.isFinite(chainNum) ? String(chainNum) : chainRaw;
+        const likedKey = chainKey ? `${chainKey}:${tokenId}` : tokenId;
+
+        setLikedTokenIdsByAddress((prev) => {
+          const current = prev[key] ?? [];
+          const has = current.includes(likedKey);
+          const next = has ? current.filter((id) => id !== likedKey) : [likedKey, ...current];
+          writeLikesSessionCache(key, next);
+          return { ...prev, [key]: next };
+        });
+
+        void feed.loadPostsByTokenIds([tokenId]);
+      }
     },
-    [requireConnectedWallet, social]
+    [requireConnectedWallet, social, wallet.walletAddress, wallet.chainId, feed, writeRepostsSessionCache, writeLikesSessionCache]
+  );
+
+  const loadLikesForAddress = useCallback(
+    async (address: string) => {
+      try {
+        if (!address) return;
+
+        const key = address.toLowerCase();
+
+        // Avoid re-scanning once we have successfully loaded likes for this address on this network.
+        const networkKey = String(wallet.chainId ?? contract.contractAddress ?? "").toLowerCase();
+        const loadedKey = `${networkKey}:${key}`;
+        if (loadedKey && likesLoadedByKeyRef.current[loadedKey]) return;
+
+        const cached = readLikesSessionCache(key);
+        if (cached !== null) {
+          setLikedTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
+          likesLoadedByKeyRef.current[loadedKey] = true;
+          return;
+        }
+
+        const existing = likesInFlightRef.current[key];
+        if (existing) {
+          await existing;
+          return;
+        }
+
+        const task = (async () => {
+          setIsLoadingLikesByAddress((prev) => ({ ...prev, [key]: true }));
+          try {
+            const env = import.meta.env as any;
+            const chainIdRaw = wallet.chainId;
+            const chainIdNum =
+              typeof chainIdRaw === "string"
+                ? Number.parseInt(chainIdRaw, chainIdRaw.startsWith("0x") ? 16 : 10)
+                : NaN;
+            const resolvedChainIdNum = Number.isFinite(chainIdNum) ? chainIdNum : null;
+
+            const rpcUrlByChainId: Record<number, string | undefined> = {
+              1: env.VITE_ETH_RPC_URL,
+              11155111: env.VITE_ETH_SEPOLIA_RPC_URL,
+              8453: env.VITE_BASE_RPC_URL,
+              84532: env.VITE_BASE_SEPOLIA_RPC_URL,
+              56: env.VITE_BSC_RPC_URL,
+              97: env.VITE_BSC_TESTNET_RPC_URL,
+              31337: env.VITE_LOCAL_RPC_URL
+            };
+
+            const rpcUrl =
+              resolvedChainIdNum != null && typeof rpcUrlByChainId[resolvedChainIdNum] === "string"
+                ? String(rpcUrlByChainId[resolvedChainIdNum]).trim()
+                : "";
+
+            let readContract: any = null;
+            let scanProvider: any = null;
+
+            if (rpcUrl && contract.contractAddress) {
+              const rpcProvider: any = new ethers.JsonRpcProvider(rpcUrl, resolvedChainIdNum!);
+              readContract = getSocialContract(contract.contractAddress, rpcProvider);
+              scanProvider = rpcProvider;
+            } else {
+              if (!wallet.provider) return;
+              await contract.ensureContractDeployedOnCurrentNetwork();
+              readContract = await contract.getReadContract();
+
+              const runner: any = (readContract as any).runner;
+              scanProvider = runner?.provider ?? runner ?? wallet.provider;
+            }
+
+            const latestRaw = (await scanProvider?.getBlockNumber?.()) ?? 0;
+            const latest = Number(latestRaw);
+            if (!Number.isFinite(latest) || latest < 0) {
+              throw new Error("RPC returned an invalid block number.");
+            }
+
+            const maxRounds = 60;
+            const maxEvents = 5_000;
+            let windowSize = 75_000;
+            const minWindowSize = 2_000;
+
+            const collected: ethers.Log[] = [];
+
+            const pullRange = async (fromBlock: number, toBlock: number) => {
+              const [liked, unliked] = await Promise.all([
+                (readContract as any).queryFilter(
+                  (readContract as any).filters.PostLiked(address, null),
+                  fromBlock,
+                  toBlock
+                ),
+                (readContract as any).queryFilter(
+                  (readContract as any).filters.PostUnliked(address, null),
+                  fromBlock,
+                  toBlock
+                )
+              ]);
+              const all = [...(liked as any[]), ...(unliked as any[])].map((log) => {
+                const index = (log as any)?.index;
+                const logIndex = (log as any)?.logIndex;
+                if (index == null && logIndex != null) return { ...(log as any), index: logIndex };
+                return log;
+              });
+              return all.sort((a, b) => {
+                const ab = Number(a.blockNumber ?? 0);
+                const bb = Number(b.blockNumber ?? 0);
+                if (ab !== bb) return ab - bb;
+                const ai = Number(a.index ?? 0);
+                const bi = Number(b.index ?? 0);
+                return ai - bi;
+              });
+            };
+
+            let end = latest;
+            for (let round = 0; round < maxRounds && end >= 0 && collected.length < maxEvents; round++) {
+              const start = Math.max(0, end - windowSize);
+              try {
+                const logs = await pullRange(start, end);
+                collected.unshift(...(logs as any));
+                if (start === 0) break;
+                end = start - 1;
+              } catch {
+                if (windowSize <= minWindowSize) throw new Error("RPC could not serve like log range.");
+                windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+              }
+            }
+
+            const state = new Map<string, { liked: boolean; lastBlock: number }>();
+            for (const log of collected) {
+              let parsed: ethers.LogDescription | null = null;
+              try {
+                parsed = socialInterface.parseLog({ topics: (log as any).topics as string[], data: (log as any).data });
+              } catch {
+                parsed = null;
+              }
+              if (!parsed) continue;
+
+              const tokenIdBig = parsed.args?.[1] as bigint | undefined;
+              if (!tokenIdBig) continue;
+
+              const tokenId = tokenIdBig.toString();
+              const blockNumber = Number((log as any).blockNumber ?? 0);
+
+              if (parsed.name === "PostLiked") {
+                state.set(tokenId, { liked: true, lastBlock: blockNumber });
+              } else if (parsed.name === "PostUnliked") {
+                state.set(tokenId, { liked: false, lastBlock: blockNumber });
+              }
+            }
+
+            const activeTokenIds = Array.from(state.entries())
+              .filter(([, v]) => v.liked)
+              .sort((a, b) => b[1].lastBlock - a[1].lastBlock)
+              .map(([tokenId]) => tokenId);
+
+            const chainRaw = String(wallet.chainId ?? "").trim();
+            const chainNum = chainRaw.startsWith("0x") || chainRaw.startsWith("0X")
+              ? Number.parseInt(chainRaw, 16)
+              : Number.parseInt(chainRaw, 10);
+            const chainKey = Number.isFinite(chainNum) ? String(chainNum) : chainRaw;
+            const activeKeys = chainKey ? activeTokenIds.map((id) => `${chainKey}:${id}`) : activeTokenIds;
+
+            setLikedTokenIdsByAddress((prev) => {
+              const existingLikes = prev[key] ?? [];
+              const preserved = chainKey ? existingLikes.filter((k) => !k.startsWith(`${chainKey}:`)) : existingLikes;
+              const merged = Array.from(new Set([...activeKeys, ...preserved]));
+              writeLikesSessionCache(key, merged);
+              return { ...prev, [key]: merged };
+            });
+
+            await feed.loadPostsByTokenIds(activeTokenIds);
+
+            likesLoadedByKeyRef.current[loadedKey] = true;
+          } finally {
+            setIsLoadingLikesByAddress((prev) => ({ ...prev, [key]: false }));
+          }
+        })();
+
+        likesInFlightRef.current[key] = task;
+        try {
+          await task;
+        } finally {
+          if (likesInFlightRef.current[key] === task) likesInFlightRef.current[key] = null;
+        }
+      } catch (err) {
+        setStatus(getErrorMessage(err));
+      }
+    },
+    [wallet.provider, wallet.chainId, contract, contract.contractAddress, feed, setStatus, readLikesSessionCache, writeLikesSessionCache]
   );
 
   const handleTip = useCallback(
     async (tokenId: string, postChainId?: string | null) => {
       if (!requireConnectedWallet()) return;
-      await social.handleTip(tokenId, postChainId);
+      const ok = await social.handleTip(tokenId, postChainId);
+      if (!ok) return;
+
+      // Tips impact withdrawable balance shown in WalletCard; refresh after tx completes.
+      try {
+        await contract.refreshContractState();
+      } catch {
+        // ignore
+      }
     },
-    [requireConnectedWallet, social]
+    [requireConnectedWallet, social, contract]
   );
 
   const burnPost = useCallback(
@@ -128,10 +496,23 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   const loadRepostsForAddress = useCallback(
     async (address: string) => {
       try {
-        if (!wallet.provider) return;
         if (!address) return;
 
         const key = address.toLowerCase();
+
+        // Avoid re-scanning (and flickering the Saved loading state) once we have
+        // successfully loaded reposts for this address on this network.
+        const networkKey = String(wallet.chainId ?? contract.contractAddress ?? "").toLowerCase();
+        const loadedKey = `${networkKey}:${key}`;
+        if (loadedKey && repostsLoadedByKeyRef.current[loadedKey]) return;
+
+        const cached = readRepostsSessionCache(key);
+        if (cached !== null) {
+          setRepostTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
+          repostsLoadedByKeyRef.current[loadedKey] = true;
+          return;
+        }
+
         const existing = repostsInFlightRef.current[key];
         if (existing) {
           await existing;
@@ -141,10 +522,49 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         const task = (async () => {
           setIsLoadingRepostsByAddress((prev) => ({ ...prev, [key]: true }));
           try {
-            await contract.ensureContractDeployedOnCurrentNetwork();
-            const readContract = await contract.getReadContract();
+            const env = import.meta.env as any;
+            const chainIdRaw = wallet.chainId;
+            const chainIdNum = typeof chainIdRaw === "string" ? Number.parseInt(chainIdRaw, chainIdRaw.startsWith("0x") ? 16 : 10) : NaN;
+            const resolvedChainIdNum = Number.isFinite(chainIdNum) ? chainIdNum : null;
 
-            const latest = await wallet.provider!.getBlockNumber();
+            const rpcUrlByChainId: Record<number, string | undefined> = {
+              1: env.VITE_ETH_RPC_URL,
+              11155111: env.VITE_ETH_SEPOLIA_RPC_URL,
+              8453: env.VITE_BASE_RPC_URL,
+              84532: env.VITE_BASE_SEPOLIA_RPC_URL,
+              56: env.VITE_BSC_RPC_URL,
+              97: env.VITE_BSC_TESTNET_RPC_URL,
+              31337: env.VITE_LOCAL_RPC_URL
+            };
+
+            const rpcUrl =
+              resolvedChainIdNum != null && typeof rpcUrlByChainId[resolvedChainIdNum] === "string"
+                ? String(rpcUrlByChainId[resolvedChainIdNum]).trim()
+                : "";
+
+            // Prefer env/read-only RPC for log scans, even when wallet is connected.
+            // Some wallet RPCs are rate-limited or block eth_getLogs, which can leave Saved empty.
+            let readContract: any = null;
+            let scanProvider: any = null;
+
+            if (rpcUrl && contract.contractAddress) {
+              const rpcProvider: any = new ethers.JsonRpcProvider(rpcUrl, resolvedChainIdNum!);
+              readContract = getSocialContract(contract.contractAddress, rpcProvider);
+              scanProvider = rpcProvider;
+            } else {
+              if (!wallet.provider) return;
+              await contract.ensureContractDeployedOnCurrentNetwork();
+              readContract = await contract.getReadContract();
+
+              const runner: any = (readContract as any).runner;
+              scanProvider = runner?.provider ?? runner ?? wallet.provider;
+            }
+
+            const latestRaw = (await scanProvider?.getBlockNumber?.()) ?? 0;
+            const latest = Number(latestRaw);
+            if (!Number.isFinite(latest) || latest < 0) {
+              throw new Error("RPC returned an invalid block number.");
+            }
             const maxRounds = 60;
             const maxEvents = 5_000;
             let windowSize = 75_000;
@@ -212,13 +632,33 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
               }
             }
 
-            const active = Array.from(state.entries())
+            const activeTokenIds = Array.from(state.entries())
               .filter(([, v]) => v.shared)
               .sort((a, b) => b[1].lastBlock - a[1].lastBlock)
               .map(([tokenId]) => tokenId);
 
-            setRepostTokenIdsByAddress((prev) => ({ ...prev, [key]: active }));
-            await feed.loadPostsByTokenIds(active);
+            const chainRaw = String(wallet.chainId ?? "").trim();
+            const chainNum = chainRaw.startsWith("0x") || chainRaw.startsWith("0X")
+              ? Number.parseInt(chainRaw, 16)
+              : Number.parseInt(chainRaw, 10);
+            const chainKey = Number.isFinite(chainNum) ? String(chainNum) : chainRaw;
+            const activeKeys = chainKey
+              ? activeTokenIds.map((id) => `${chainKey}:${id}`)
+              : activeTokenIds;
+
+            setRepostTokenIdsByAddress((prev) => {
+              const existing = prev[key] ?? [];
+              const preserved = chainKey
+                ? existing.filter((k) => !k.startsWith(`${chainKey}:`))
+                : existing;
+              const merged = Array.from(new Set([...activeKeys, ...preserved]));
+              writeRepostsSessionCache(key, merged);
+              return { ...prev, [key]: merged };
+            });
+
+            await feed.loadPostsByTokenIds(activeTokenIds);
+
+            repostsLoadedByKeyRef.current[loadedKey] = true;
           } finally {
             setIsLoadingRepostsByAddress((prev) => ({ ...prev, [key]: false }));
           }
@@ -234,7 +674,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         setStatus(getErrorMessage(err));
       }
     },
-    [wallet.provider, contract, feed, setStatus]
+    [wallet.provider, wallet.chainId, contract, contract.contractAddress, feed, setStatus, readRepostsSessionCache, writeRepostsSessionCache]
   );
 
   const value = useMemo<AppContextValue>(
@@ -351,6 +791,11 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       isLoadingRepostsByAddress,
       loadRepostsForAddress,
 
+      // Likes
+      likedTokenIdsByAddress,
+      isLoadingLikesByAddress,
+      loadLikesForAddress,
+
       // Followers
       followerCountByAddress: follow.followerCountByAddress,
       isLoadingFollowerCountByAddress: follow.isLoadingFollowerCountByAddress,
@@ -457,6 +902,9 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       repostTokenIdsByAddress,
       isLoadingRepostsByAddress,
       loadRepostsForAddress,
+      likedTokenIdsByAddress,
+      isLoadingLikesByAddress,
+      loadLikesForAddress,
       follow.followerCountByAddress,
       follow.isLoadingFollowerCountByAddress,
       follow.loadFollowerCountForAddress,

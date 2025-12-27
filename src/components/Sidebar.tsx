@@ -2,9 +2,8 @@ import { ethers } from "ethers";
 import { Link } from "react-router-dom";
 import { ipfsToHttp } from "../ipfs";
 import { Modal } from "./Modal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../contexts/AppContext";
-import { useEffect } from "react";
 import { useContract } from "../contexts/ContractContext";
 import { useContractTx } from "../contexts/useContractTx";
 
@@ -150,10 +149,53 @@ export function ProfileCard(props: ProfileCardProps) {
     !!props.walletAddress && !!ownerAddress && props.walletAddress.toLowerCase() === ownerAddress.toLowerCase();
 
   const PENDING_APPROVALS_KEY = "pendingPosterApprovals";
+  const APPROVALS_CHAIN_CACHE_TTL_MS = 60_000;
+  const APPROVALS_CHAIN_CACHE_PREFIX = "approvalsChainRequestsCache:";
+
+  function approvalsChainCacheKey(contractAddress: string | undefined): string | null {
+    if (!contractAddress) return null;
+    const key = contractAddress.trim().toLowerCase();
+    if (!key) return null;
+    return `${APPROVALS_CHAIN_CACHE_PREFIX}${key}`;
+  }
+
+  function readApprovalsChainRequestsCache(contractAddress: string | undefined): {
+    requesters: string[];
+    updatedAt: number;
+  } | null {
+    if (typeof window === "undefined") return null;
+    const key = approvalsChainCacheKey(contractAddress);
+    if (!key) return null;
+
+    try {
+      const raw = window.sessionStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as any;
+      const requesters = Array.isArray(parsed?.requesters)
+        ? parsed.requesters.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+        : [];
+      const updatedAt = Number(parsed?.updatedAt);
+      if (!Number.isFinite(updatedAt) || updatedAt <= 0) return null;
+      return { requesters, updatedAt };
+    } catch {
+      return null;
+    }
+  }
+
+  function writeApprovalsChainRequestsCache(contractAddressLower: string, requesters: string[]) {
+    if (typeof window === "undefined") return;
+    const key = approvalsChainCacheKey(contractAddressLower);
+    if (!key) return;
+    window.sessionStorage.setItem(
+      key,
+      JSON.stringify({ requesters: requesters.filter((x) => typeof x === "string" && x.trim()), updatedAt: Date.now() })
+    );
+  }
+
   function readPendingApprovals(): string[] {
     if (typeof window === "undefined") return [];
     try {
-      const raw = window.localStorage.getItem(PENDING_APPROVALS_KEY);
+      const raw = window.sessionStorage.getItem(PENDING_APPROVALS_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
@@ -165,16 +207,29 @@ export function ProfileCard(props: ProfileCardProps) {
 
   function writePendingApprovals(next: string[]) {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(PENDING_APPROVALS_KEY, JSON.stringify(next));
+    window.sessionStorage.setItem(PENDING_APPROVALS_KEY, JSON.stringify(next));
   }
 
   const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => readPendingApprovals());
   const [pendingInput, setPendingInput] = useState("");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
-  const [onChainRequests, setOnChainRequests] = useState<string[]>([]);
+  const [onChainRequests, setOnChainRequests] = useState<string[]>(() => {
+    const cached = readApprovalsChainRequestsCache(contract.contractAddress);
+    return cached?.requesters ?? [];
+  });
+  const [isLoadingOnChainRequests, setIsLoadingOnChainRequests] = useState(false);
+  const [onChainRequestsLoadError, setOnChainRequestsLoadError] = useState(false);
   const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
   const [posterDisapprovedEverByAddress, setPosterDisapprovedEverByAddress] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Network/contract change: load cache for this contract, if any.
+    const cached = readApprovalsChainRequestsCache(contract.contractAddress);
+    setOnChainRequests(cached?.requesters ?? []);
+    setIsLoadingOnChainRequests(false);
+    setOnChainRequestsLoadError(false);
+  }, [contract.contractAddress]);
 
   useEffect(() => {
     if (!isApprovalsOpen) return;
@@ -185,46 +240,114 @@ export function ProfileCard(props: ProfileCardProps) {
     if (!isApprovalsOpen) return;
     if (!isOwner) {
       setOnChainRequests([]);
+      setIsLoadingOnChainRequests(false);
+      setOnChainRequestsLoadError(false);
       return;
+    }
+
+    const approvalsKey = (contract.contractAddress ?? "").toLowerCase();
+    const cached = readApprovalsChainRequestsCache(contract.contractAddress);
+    const isCachedFresh =
+      !!cached && typeof cached.updatedAt === "number" && Date.now() - cached.updatedAt < APPROVALS_CHAIN_CACHE_TTL_MS;
+
+    // If we have cached data, show it immediately and refresh quietly in the background when stale.
+    if (cached) {
+      setOnChainRequests(cached.requesters);
+      setOnChainRequestsLoadError(false);
+      setIsLoadingOnChainRequests(false);
+      if (isCachedFresh) return;
     }
 
     let cancelled = false;
     void (async () => {
+      const showLoading = !cached;
+      if (showLoading) setIsLoadingOnChainRequests(true);
+      setOnChainRequestsLoadError(false);
       try {
         const readContract = await contract.getReadContract();
         const runner: any = (readContract as any).runner;
         const provider: any = runner?.provider ?? runner;
-        const latest = (await provider?.getBlockNumber?.()) ?? 0;
-        const fromBlock = Math.max(0, Number(latest) - 200_000);
 
-        const logs = (await (readContract as any).queryFilter(
-          (readContract as any).filters.PosterApprovalRequested(),
-          fromBlock,
-          latest
-        )) as any[];
-
-        const uniq: string[] = [];
-        const seen = new Set<string>();
-        for (const l of logs) {
-          const addr = (l?.args?.[0] as string | undefined) ?? "";
-          if (!addr) continue;
-          const key = addr.toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          uniq.push(addr);
-          if (uniq.length >= 50) break;
+        const latestRaw = (await provider?.getBlockNumber?.()) ?? 0;
+        const latest = Number(latestRaw);
+        if (!Number.isFinite(latest) || latest < 0) {
+          if (!cancelled) setOnChainRequests([]);
+          return;
         }
 
-        if (!cancelled) setOnChainRequests(uniq);
+        // Scan backwards in bounded chunks until we find enough unique requesters.
+        // We intentionally do not filter to "currently pending" so that approved
+        // (or later disapproved) accounts remain visible for ongoing management.
+        const filter = (readContract as any).filters.PosterApprovalRequested();
+        const uniq: string[] = [];
+        const seen = new Set<string>();
+        let hadQueryError = false;
+
+        let end = latest;
+        let windowSize = 50_000;
+        const minWindowSize = 1_000;
+        const maxRounds = 20;
+        const startedAt = Date.now();
+        const maxTimeMs = 8_000;
+
+        for (let round = 0; round < maxRounds && end >= 0 && uniq.length < 50; round++) {
+          if (Date.now() - startedAt > maxTimeMs) break;
+          const start = Math.max(0, end - windowSize);
+          try {
+            const logs = (await (readContract as any).queryFilter(filter, start, end)) as any[];
+
+            // Walk newest-to-oldest within this range.
+            for (let i = logs.length - 1; i >= 0 && uniq.length < 50; i--) {
+              const l = logs[i];
+              const addr = (l?.args?.[0] as string | undefined) ?? "";
+              if (!addr) continue;
+              if (!ethers.isAddress(addr)) continue;
+              const key = addr.toLowerCase();
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              uniq.push(addr);
+            }
+
+            if (start === 0) break;
+            end = start - 1;
+          } catch {
+            hadQueryError = true;
+            if (windowSize <= minWindowSize) break;
+            windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+          }
+        }
+
+        // Persist results across route switches. Cache an empty list if the scan completed cleanly.
+        if (approvalsKey && (!hadQueryError || uniq.length > 0)) {
+          writeApprovalsChainRequestsCache(approvalsKey, uniq);
+        }
+
+        if (!cancelled) {
+          setOnChainRequests(uniq);
+          // Only show an error if we had nothing to show (no cache and no results).
+          setOnChainRequestsLoadError(!cached && hadQueryError && uniq.length === 0);
+        }
       } catch {
-        if (!cancelled) setOnChainRequests([]);
+        if (!cancelled && !cached) {
+          setOnChainRequests([]);
+          setOnChainRequestsLoadError(true);
+        }
+      } finally {
+        if (!cancelled && !cached) setIsLoadingOnChainRequests(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [contract, isApprovalsOpen, isOwner]);
+  }, [contract, contract.contractAddress, isApprovalsOpen, isOwner]);
+
+  useEffect(() => {
+    if (isApprovalsOpen) return;
+    setIsLoadingOnChainRequests(false);
+    setOnChainRequestsLoadError(false);
+  }, [isApprovalsOpen]);
 
   useEffect(() => {
     if (!isApprovalsOpen) return;
@@ -397,11 +520,7 @@ export function ProfileCard(props: ProfileCardProps) {
     : { background: `hsl(${props.selfAvatarHue} 75% 55%)` };
 
   const showHeaderStats = !!props.walletAddress;
-  const hasAnyHeaderPills =
-    showHeaderStats &&
-    (typeof props.myPostsCount === "number" ||
-      typeof props.followerCount === "number" ||
-      typeof props.following?.length === "number");
+  const hasAnyHeaderPills = showHeaderStats;
 
   return (
     <details
@@ -422,25 +541,21 @@ export function ProfileCard(props: ProfileCardProps) {
         {hasAnyHeaderPills ? (
           <div className="cardHeaderPills">
             {typeof props.myPostsCount === "number" ? <span className="pill">{props.myPostsCount} posts</span> : null}
-            {typeof props.followerCount === "number" ? (
-              <button
-                type="button"
-                className="pill pillButton"
-                onClick={() => setIsFollowersOpen(true)}
-                disabled={!!props.isLoadingFollowers}
-                aria-label="View followers"
-              >
-                {props.followerCount} followers
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="pill pillButton"
+              onClick={() => setIsFollowersOpen(true)}
+              aria-label="View followers"
+            >
+              {`${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`}
+            </button>
             <button
               type="button"
               className="pill pillButton"
               onClick={() => setIsFollowingOpen(true)}
-              disabled={!!props.isLoadingFollowing}
               aria-label="View following"
             >
-              {props.isLoadingFollowing ? "…" : `${following.length}`} following
+              {`${following.length}`} following
             </button>
           </div>
         ) : null}
@@ -461,19 +576,23 @@ export function ProfileCard(props: ProfileCardProps) {
           </div>
         </div>
 
-        {!props.isEditingProfile && props.walletAddress ? (
+        {props.walletAddress ? (
           <div className="profileActions">
-            <button className="secondary" type="button" onClick={props.onStartEditProfile}>
-              Edit profile
-            </button>
+            {!props.isEditingProfile ? (
+              <button className="secondary" type="button" onClick={props.onStartEditProfile}>
+                Edit profile
+              </button>
+            ) : null}
             {isOwner ? (
               <button className="secondary" type="button" onClick={() => setIsApprovalsOpen(true)}>
                 Approvals
               </button>
             ) : null}
-            <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
-              Disconnect
-            </button>
+            {!props.isEditingProfile ? (
+              <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
+                Disconnect
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -529,38 +648,49 @@ export function ProfileCard(props: ProfileCardProps) {
             )}
           </div>
 
-          {onChainRequests.length ? (
+          {isOwner ? (
             <>
-              <div className="muted">
-                Requests from chain
-              </div>
-              <div className="list">
-                {onChainRequests.map((addr) => (
-                  <div key={addr} className="listRow" role="listitem">
-                    <span className="listRowLeft">
-                      <Link className="value" to={`/profile/${addr}`}>
-                        {props.shortAddress(addr)}
-                      </Link>
-                      {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
-                    </span>
-                    <span className="rowActions">
-                      {posterAllowedByAddress[addr.toLowerCase()] ? null : (
-                        <button className="primary" type="button" onClick={() => void approvePending(addr)}>
-                          Approve
+              <div className="muted">Requests from chain</div>
+
+              {isLoadingOnChainRequests ? <div className="muted">Loading…</div> : null}
+
+              {!isLoadingOnChainRequests && onChainRequestsLoadError ? (
+                <div className="muted">Failed to load requests.</div>
+              ) : null}
+
+              {!isLoadingOnChainRequests && !onChainRequestsLoadError && onChainRequests.length === 0 ? (
+                <div className="muted">No requests found.</div>
+              ) : null}
+
+              {onChainRequests.length ? (
+                <div className="list">
+                  {onChainRequests.map((addr) => (
+                    <div key={addr} className="listRow" role="listitem">
+                      <span className="listRowLeft">
+                        <Link className="value" to={`/profile/${addr}`}>
+                          {props.shortAddress(addr)}
+                        </Link>
+                        {posterDisapprovedEverByAddress[addr.toLowerCase()] ? <span className="pill">Flagged</span> : null}
+                      </span>
+                      <span className="rowActions">
+                        {posterAllowedByAddress[addr.toLowerCase()] ? null : (
+                          <button className="primary" type="button" onClick={() => void approvePending(addr)}>
+                            Approve
+                          </button>
+                        )}
+                        {posterAllowedByAddress[addr.toLowerCase()] ? (
+                          <button className="secondary" type="button" onClick={() => void disapprovePending(addr)}>
+                            Disapprove
+                          </button>
+                        ) : null}
+                        <button className="secondary" type="button" onClick={() => void resetAllAndBlock(addr)}>
+                          Reset
                         </button>
-                      )}
-                      {posterAllowedByAddress[addr.toLowerCase()] ? (
-                        <button className="secondary" type="button" onClick={() => void disapprovePending(addr)}>
-                          Disapprove
-                        </button>
-                      ) : null}
-                      <button className="secondary" type="button" onClick={() => void resetAllAndBlock(addr)}>
-                        Reset
-                      </button>
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -623,57 +753,59 @@ export function ProfileCard(props: ProfileCardProps) {
 
       <Modal open={isFollowersOpen} title="Followers" onClose={() => setIsFollowersOpen(false)}>
         <div className="list">
-          {followers.length === 0 ? (
-            <div className="muted">No followers yet.</div>
-          ) : (
-            followers.map((addr) => (
-              <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowersOpen(false)}>
-                <span className="listRowLeft">
-                  <div
-                    className="avatar tiny"
-                    style={(() => {
-                      const key = addr.toLowerCase();
-                      const p = app.profilesByAddress[key];
-                      const av = p?.avatarUrl?.trim();
-                      return av
-                        ? { backgroundImage: `url(${ipfsToHttp(av)})` }
-                        : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
-                    })()}
-                  />
-                  <span className="value">{props.shortAddress(addr)}</span>
-                </span>
-                <span className="muted">Open profile</span>
-              </Link>
-            ))
-          )}
+          {props.isLoadingFollowers ? <div className="muted">Loading…</div> : null}
+
+          {!props.isLoadingFollowers && followers.length === 0 ? <div className="muted">No followers yet.</div> : null}
+
+          {followers.map((addr) => (
+            <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowersOpen(false)}>
+              <span className="listRowLeft">
+                <div
+                  className="avatar tiny"
+                  style={(() => {
+                    const key = addr.toLowerCase();
+                    const p = app.profilesByAddress[key];
+                    const av = p?.avatarUrl?.trim();
+                    return av
+                      ? { backgroundImage: `url(${ipfsToHttp(av)})` }
+                      : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
+                  })()}
+                />
+                <span className="value">{props.shortAddress(addr)}</span>
+              </span>
+              <span className="muted">Open profile</span>
+            </Link>
+          ))}
         </div>
       </Modal>
 
       <Modal open={isFollowingOpen} title="Following" onClose={() => setIsFollowingOpen(false)}>
         <div className="list">
-          {following.length === 0 ? (
+          {props.isLoadingFollowing ? <div className="muted">Loading…</div> : null}
+
+          {!props.isLoadingFollowing && following.length === 0 ? (
             <div className="muted">Not following anyone yet.</div>
-          ) : (
-            following.map((addr) => (
-              <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowingOpen(false)}>
-                <span className="listRowLeft">
-                  <div
-                    className="avatar tiny"
-                    style={(() => {
-                      const key = addr.toLowerCase();
-                      const p = app.profilesByAddress[key];
-                      const av = p?.avatarUrl?.trim();
-                      return av
-                        ? { backgroundImage: `url(${ipfsToHttp(av)})` }
-                        : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
-                    })()}
-                  />
-                  <span className="value">{props.shortAddress(addr)}</span>
-                </span>
-                <span className="muted">Open profile</span>
-              </Link>
-            ))
-          )}
+          ) : null}
+
+          {following.map((addr) => (
+            <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={() => setIsFollowingOpen(false)}>
+              <span className="listRowLeft">
+                <div
+                  className="avatar tiny"
+                  style={(() => {
+                    const key = addr.toLowerCase();
+                    const p = app.profilesByAddress[key];
+                    const av = p?.avatarUrl?.trim();
+                    return av
+                      ? { backgroundImage: `url(${ipfsToHttp(av)})` }
+                      : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
+                  })()}
+                />
+                <span className="value">{props.shortAddress(addr)}</span>
+              </span>
+              <span className="muted">Open profile</span>
+            </Link>
+          ))}
         </div>
       </Modal>
 

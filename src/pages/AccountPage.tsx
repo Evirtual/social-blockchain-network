@@ -13,7 +13,9 @@ type Props = {
 
   posts: Post[];
   savedPosts: Post[];
+  likedPosts: Post[];
   isLoadingSaved: boolean;
+  isLoadingLiked: boolean;
   chainId: string | null;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
@@ -46,16 +48,22 @@ type Props = {
 };
 
 export function AccountPage(props: Props) {
-  const [view, setView] = useState<"all" | "saved">("all");
+  const [view, setView] = useState<"all" | "saved" | "liked">("all");
 
   const activePosts =
     view === "saved"
       ? props.savedPosts.map((p) => ({ ...p, contextTag: "saved" as const }))
-      : props.posts.map((p) => ({ ...p, contextTag: undefined }));
-  const activeLoading = view === "saved" ? props.isLoadingSaved : props.isFeedLoading;
-  const activeTitle = view === "saved" ? "Saved" : "Your Posts";
+      : view === "liked"
+        ? props.likedPosts.map((p) => ({ ...p, contextTag: "liked" as const }))
+        : props.posts.map((p) => ({ ...p, contextTag: undefined }));
+  const activeLoading = view === "saved" ? props.isLoadingSaved : view === "liked" ? props.isLoadingLiked : props.isFeedLoading;
+  const activeTitle = view === "saved" ? "Saved" : view === "liked" ? "Liked" : "Your Posts";
   const activePill =
-    view === "saved" ? `${props.savedPosts.length} saved` : `${props.posts.length} posts • ${props.savedPosts.length} saved`;
+    view === "saved"
+      ? `${props.savedPosts.length} saved`
+      : view === "liked"
+        ? `${props.likedPosts.length} liked`
+        : `${props.posts.length} posts • ${props.savedPosts.length} saved • ${props.likedPosts.length} liked`;
 
   const headerAction = useMemo(() => {
     return (
@@ -69,6 +77,13 @@ export function AccountPage(props: Props) {
           onClick={() => setView("saved")}
         >
           Saved
+        </button>
+        <button
+          className={view === "liked" ? "btn secondary" : "btn ghost"}
+          type="button"
+          onClick={() => setView("liked")}
+        >
+          Liked
         </button>
       </div>
     );

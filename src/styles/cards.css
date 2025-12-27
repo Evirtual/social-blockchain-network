@@ -1154,22 +1154,28 @@
   padding: 0.125rem 0.5rem;
   border-radius: 62.4375rem;
   border: 0.0625rem solid var(--border);
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.96);
 }
 
 .tx-pending {
-  color: rgba(255, 220, 150, 1);
+  background: rgba(255, 220, 150, 0.22);
+  border-color: rgba(255, 220, 150, 0.28);
 }
 
 .tx-confirmed {
-  color: rgba(130, 255, 200, 1);
+  background: rgba(130, 255, 200, 0.18);
+  border-color: rgba(130, 255, 200, 0.24);
 }
 
 .tx-failed {
-  color: rgba(255, 140, 140, 1);
+  background: rgba(255, 140, 140, 0.18);
+  border-color: rgba(255, 140, 140, 0.24);
 }
 
 .tx-cancelled {
-  color: var(--muted);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .tx-link,

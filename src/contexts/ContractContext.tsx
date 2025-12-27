@@ -65,6 +65,13 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
   const [withdrawableTipsWei, setWithdrawableTipsWei] = useState<bigint>(0n);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
 
+  const lastDeploymentCheckRef = useRef<{
+    chainId: string | null;
+    address: string | null;
+    ok: boolean;
+    atMs: number;
+  } | null>(null);
+
   const chainIdNumberRef = useRef<number | null>(null);
 
   const contractAddress = useMemo(() => {
@@ -89,15 +96,68 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
   const ensureContractDeployedOnCurrentNetwork = useCallback(async () => {
     if (!provider) throw new Error("Wallet not found.");
     const address = requireContractAddress();
-    const code = await provider.getCode(address);
+
+    // Avoid repeatedly calling eth_getCode (some public RPCs occasionally return truncated JSON).
+    // If we recently verified deployment on this chain+address, trust that cached result.
+    const now = Date.now();
+    const last = lastDeploymentCheckRef.current;
+    if (
+      contractDeployed === true &&
+      last?.ok === true &&
+      last.address?.toLowerCase() === address.toLowerCase() &&
+      last.chainId === chainId &&
+      now - last.atMs < 60_000
+    ) {
+      return;
+    }
+
+    const isLikelyTruncatedJson = (err: unknown) => {
+      const msg = String((err as any)?.message ?? err ?? "").toLowerCase();
+      return (
+        msg.includes("unterminated string") ||
+        msg.includes("unexpected end of json") ||
+        msg.includes("invalid json") ||
+        msg.includes("syntaxerror")
+      );
+    };
+
+    const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+
+    let code: string | null = null;
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        code = await provider.getCode(address);
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        if (!isLikelyTruncatedJson(err)) break;
+        await sleep(250 * (attempt + 1));
+      }
+    }
+
+    if (lastError) {
+      // If we previously verified deployment, don't block writes due to a transient RPC hiccup.
+      if (contractDeployed === true) {
+        lastDeploymentCheckRef.current = { chainId, address, ok: true, atMs: now };
+        setStatus("RPC error while verifying contract; proceeding with last known deployed state.");
+        return;
+      }
+      throw lastError;
+    }
+
     if (!code || code === "0x") {
       setContractDeployed(false);
+      lastDeploymentCheckRef.current = { chainId, address, ok: false, atMs: now };
       throw new Error(
         "Contract not found on this network. Switch your wallet network (e.g. Localhost 8545 / chainId 31337) or deploy the contract to the current chain."
       );
     }
+
     setContractDeployed(true);
-  }, [provider, requireContractAddress]);
+    lastDeploymentCheckRef.current = { chainId, address, ok: true, atMs: now };
+  }, [provider, requireContractAddress, contractDeployed, chainId, setStatus]);
 
   const getWriteContract = useCallback(async () => {
     if (!provider) throw new Error("Wallet not found.");

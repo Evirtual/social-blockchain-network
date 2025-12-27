@@ -9,6 +9,7 @@ import { getNetworkBadgeLabel } from "../lib/chain";
 import { useContract } from "./ContractContext";
 import { useFeed } from "./FeedContext";
 import { useStatus } from "./StatusContext";
+import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";
 import { useContractTx } from "./useContractTx";
 
@@ -37,8 +38,8 @@ export type SocialActionsContextValue = {
   burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
   freezePost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
-  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<void>;
-  handleTip: (tokenId: string, postChainId?: string | null) => Promise<void>;
+  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<boolean>;
+  handleTip: (tokenId: string, postChainId?: string | null) => Promise<boolean>;
 
   withdrawTips: () => Promise<void>;
 };
@@ -50,6 +51,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   const { setStatus } = useStatus();
   const contract = useContract();
   const feed = useFeed();
+  const txNotifications = useTxNotifications();
   const { runContractTx } = useContractTx();
 
   const getReadContract = contract.getReadContract;
@@ -212,6 +214,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         };
 
         const maxDataUrlChars = 90_000;
+        const maxTokenUriChars = 140_000;
         const candidates = [
           { q: 0.78, dim: 640 },
           { q: 0.7, dim: 512 },
@@ -221,8 +224,26 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         let best: string | null = null;
         for (const c of candidates) {
           const attempt = await compressToJpegDataUrl(file, c.q, c.dim);
+          if (attempt.length > maxDataUrlChars) {
+            best = attempt;
+            continue;
+          }
+
+          // If we are falling back to on-chain data URIs, ensure the final metadata URI fits too.
+          if (!ipfsConfigured) {
+            const tokenUriAttempt = createMetadataUri({
+              ...editDraft,
+              imageUrl: "",
+              imageDataUrl: attempt
+            });
+            if (tokenUriAttempt.length > maxTokenUriChars) {
+              best = attempt;
+              continue;
+            }
+          }
+
           best = attempt;
-          if (attempt.length <= maxDataUrlChars) break;
+          break;
         }
         if (!best || best.length > maxDataUrlChars) {
           setStatus("Uploaded image is too large. Try a smaller image.");
@@ -242,7 +263,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         setIsEditImageLoading(false);
       }
     },
-    [ipfsConfigured, setStatus]
+    [ipfsConfigured, editDraft, setStatus]
   );
 
   const onEditClearImage = useCallback(() => {
@@ -256,6 +277,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const saveEditedPost = useCallback(async () => {
+    let processingToastId: string | null = null;
     try {
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
@@ -271,17 +293,21 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         setStatus("Post text is required.");
         return;
       }
-      if (!editDraft.imageUrl.trim() && !editDraft.imageDataUrl.trim()) {
-        setStatus("Add an image URL or upload an image.");
-        return;
-      }
 
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(editingTokenId);
 
+      const makeLocalNoticeId = () => `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      // Match create-post UX: show an immediate "initializing" toast while we prepare the update
+      // (e.g. building metadata / uploading to IPFS) before the wallet confirmation step.
+      processingToastId = makeLocalNoticeId();
+      txNotifications.notifyPending({ hash: processingToastId, label: "Updating post…", explorerUrl: null });
+
       let tokenUri = "";
       if (ipfsConfigured) {
         setStatus("Uploading update to IPFS (Pinata)...");
+        txNotifications.notifyPending({ hash: processingToastId, label: "Uploading update to IPFS…", explorerUrl: null });
         const built = await buildIpfsTokenUri({
           draft: editDraft,
           imageBlob: editUploadedImageBlob,
@@ -292,9 +318,17 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         tokenUri = createMetadataUri(editDraft);
         const maxTokenUriChars = 140_000;
         if (tokenUri.length > maxTokenUriChars) {
+          txNotifications.dismiss(processingToastId);
+          processingToastId = null;
           setStatus("Updated metadata is too large. Configure IPFS (Pinata) or use a smaller image.");
           return;
         }
+      }
+
+      // Replace the local “preparing/updating” notice with the real tx lifecycle toasts.
+      if (processingToastId) {
+        txNotifications.dismiss(processingToastId);
+        processingToastId = null;
       }
 
       const post = feed.posts.find((p) => p.tokenId === editingTokenId);
@@ -308,9 +342,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       cancelEditPost();
       await feed.refreshFeed();
     } catch (error) {
-      setStatus(getErrorMessage(error));
+      const message = getErrorMessage(error);
+      if (processingToastId) {
+        txNotifications.notifyFailed({ hash: processingToastId, label: "Updating post", error: message });
+      }
+      setStatus(message);
     }
-  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus]);
+  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus, txNotifications]);
 
   const burnPost = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
@@ -368,22 +406,27 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     try {
       if (!walletAddress) {
         setStatus("Connect your wallet first.");
-        return;
+        return false;
       }
-      if (!ensureMatchingNetwork(postChainId)) return;
+      if (!ensureMatchingNetwork(postChainId)) return false;
 
       const raw = (tipDrafts[tokenId] ?? "").trim();
       const amount = raw.length ? Number(raw) : 0;
       if (!Number.isFinite(amount) || amount <= 0) {
         setStatus("Enter a valid tip amount.");
-        return;
+        return false;
       }
 
       const valueWei = ethers.parseEther(raw);
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(tokenId);
 
-      await runContractTx("Tip", () => writeContract.tipPost(tokenIdBig, { value: valueWei }));
+      const ok = await runContractTx<boolean>(
+        "Tip",
+        () => writeContract.tipPost(tokenIdBig, { value: valueWei }),
+        () => true
+      );
+      if (!ok) return false;
 
       feed.setPosts((prev) =>
         prev.map((p) => {
@@ -394,8 +437,10 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       );
       setTipDrafts((prev) => ({ ...prev, [tokenId]: "" }));
       void refreshWalletPanel();
+      return true;
     } catch (error) {
       setStatus(getErrorMessage(error));
+      return false;
     }
   }, [walletAddress, ensureMatchingNetwork, tipDrafts, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]);
 
@@ -419,9 +464,9 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       try {
         if (!walletAddress) {
           setStatus("Connect your wallet first.");
-          return;
+          return false;
         }
-        if (!ensureMatchingNetwork(postChainId)) return;
+        if (!ensureMatchingNetwork(postChainId)) return false;
 
         const writeContract = await getWriteContract();
         const tokenIdBig = BigInt(tokenId);
@@ -430,10 +475,10 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           const comment = commentDrafts[tokenId];
           if (!comment) {
             setStatus("Write a comment before signing.");
-            return;
+            return false;
           }
           const ok = await runContractTx<boolean>("Comment", () => writeContract.commentPost(tokenIdBig, comment), () => true);
-          if (!ok) return;
+          if (!ok) return false;
 
           feed.setPosts((prev) =>
             prev.map((post) => {
@@ -444,7 +489,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           );
           setCommentDrafts((prev) => ({ ...prev, [tokenId]: "" }));
           void feed.loadCommentsForPost(tokenId);
-          return;
+          return true;
         }
 
         if (action === "like") {
@@ -454,7 +499,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
             () => ((already ? (writeContract as any).unlikePost(tokenIdBig) : writeContract.likePost(tokenIdBig)) as any),
             () => true
           );
-          if (!ok) return;
+          if (!ok) return false;
 
           feed.setPosts((prev) =>
             prev.map((post) => {
@@ -464,7 +509,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
               return { ...post, likes: next, likedByMe: !already };
             })
           );
-          return;
+          return true;
         }
 
         if (action === "share") {
@@ -474,7 +519,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
             () => ((already ? (writeContract as any).unsharePost(tokenIdBig) : (writeContract as any).sharePost(tokenIdBig)) as any),
             () => true
           );
-          if (!ok) return;
+          if (!ok) return false;
 
           feed.setPosts((prev) =>
             prev.map((post) => {
@@ -484,10 +529,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
               return { ...post, shares: next, repostedByMe: !already };
             })
           );
-          return;
+          return true;
         }
+
+        return false;
       } catch (error) {
         setStatus(getErrorMessage(error));
+        return false;
       }
     },
     [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, commentDrafts, feed, setStatus]

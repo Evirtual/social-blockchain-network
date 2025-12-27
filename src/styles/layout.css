@@ -332,7 +332,7 @@
 .txToast {
   pointer-events: auto;
   border: 0.0625rem solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   border-radius: var(--radius-lg);
   padding: 0.625rem;
   box-shadow: var(--shadow);
@@ -341,23 +341,23 @@
 }
 
 .txToast--pending {
-  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface);
+  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface-2);
 }
 
 .txToast--signing {
-  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface);
+  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface-2);
 }
 
 .txToast--confirmed {
-  background: linear-gradient(135deg, var(--tx-tint-confirmed), transparent 65%), var(--surface);
+  background: linear-gradient(135deg, var(--tx-tint-confirmed), transparent 65%), var(--surface-2);
 }
 
 .txToast--failed {
-  background: linear-gradient(135deg, var(--tx-tint-failed), transparent 65%), var(--surface);
+  background: linear-gradient(135deg, var(--tx-tint-failed), transparent 65%), var(--surface-2);
 }
 
 .txToast--cancelled {
-  background: linear-gradient(135deg, var(--tx-tint-cancelled), transparent 65%), var(--surface);
+  background: linear-gradient(135deg, var(--tx-tint-cancelled), transparent 65%), var(--surface-2);
 }
 
 .txToastRow {

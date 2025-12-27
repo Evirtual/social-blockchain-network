@@ -36,6 +36,10 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
   const contract = useContract();
   const { runContractTx } = useContractTx();
 
+  const loadedFollowerCountByAddressRef = useRef<Record<string, boolean>>({});
+  const loadedFollowersByAddressRef = useRef<Record<string, boolean>>({});
+  const loadedFollowingByAddressRef = useRef<Record<string, boolean>>({});
+
   const ensureContractDeployedOnCurrentNetwork = contract.ensureContractDeployedOnCurrentNetwork;
   const getReadContract = contract.getReadContract;
   const getWriteContract = contract.getWriteContract;
@@ -119,6 +123,8 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       if (!address) return;
       const key = address.toLowerCase();
 
+      if (loadedFollowerCountByAddressRef.current[key]) return;
+
       const existing = followerCountInFlightRef.current[key];
       if (existing) {
         await existing;
@@ -189,6 +195,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
           const count = Array.from(state.values()).filter(Boolean).length;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
+          loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {
@@ -213,6 +220,8 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       if (!provider) return;
       if (!address) return;
       const key = address.toLowerCase();
+
+      if (loadedFollowersByAddressRef.current[key]) return;
 
       const existing = followersInFlightRef.current[key];
       if (existing) {
@@ -289,6 +298,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
             .map(([addr]) => addr);
 
           setFollowersByAddress((prev) => ({ ...prev, [key]: active }));
+          loadedFollowersByAddressRef.current[key] = true;
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {
@@ -313,6 +323,8 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
       if (!provider) return;
       if (!address) return;
       const key = address.toLowerCase();
+
+      if (loadedFollowingByAddressRef.current[key]) return;
 
       const existing = followingInFlightRef.current[key];
       if (existing) {
@@ -389,6 +401,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
             .map(([addr]) => addr);
 
           setFollowingByAddress((prev) => ({ ...prev, [key]: active }));
+          loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {

@@ -73,7 +73,16 @@ const mocks = vi.hoisted(() => {
         await send();
         if (onReceipt) return await onReceipt({ hash: "0xhash", logs: [] });
         return true;
-      })
+      }),
+
+    txNotifications: {
+      notifySigning: vi.fn(),
+      notifyPending: vi.fn(),
+      notifyConfirmed: vi.fn(),
+      notifyFailed: vi.fn(),
+      notifyCancelled: vi.fn(),
+      dismiss: vi.fn()
+    }
   };
 });
 
@@ -82,7 +91,10 @@ vi.mock("../ipfs", () => ({
 }));
 
 vi.mock("../lib/metadata", () => ({
-  createMetadataUri: () => mocks.metadataUri
+  createMetadataUri: (...args: any[]) => {
+    const v: any = (mocks as any).metadataUri;
+    return typeof v === "function" ? v(...args) : v;
+  }
 }));
 
 vi.mock("../lib/ipfsTokenUri", () => ({
@@ -124,6 +136,11 @@ vi.mock("./useContractTx", () => ({
   useContractTx: () => ({ runContractTx: mocks.runContractTx })
 }));
 
+vi.mock("./TxNotificationsContext", () => ({
+  useTxNotifications: () => mocks.txNotifications,
+  isUserRejectedTx: () => false
+}));
+
 import { SocialActionsProvider, useSocialActions } from "./SocialActionsContext";
 
 function grabCtx() {
@@ -151,6 +168,10 @@ beforeEach(() => {
   mocks.runContractTx.mockClear();
   mocks.refreshFeed.mockClear();
   mocks.loadCommentsForPost.mockClear();
+
+  Object.values(mocks.txNotifications).forEach((v) => {
+    if (typeof v === "function" && "mockClear" in v) (v as any).mockClear();
+  });
 
   mocks.hasPinata = false;
   mocks.metadataUri = "data:application/json;base64,AAAA";
@@ -463,11 +484,36 @@ describe("SocialActionsContext transactions", () => {
       await get().handleTip("1");
     });
 
-    expect(mocks.runContractTx).toHaveBeenCalledWith("Tip", expect.any(Function));
+    expect(mocks.runContractTx).toHaveBeenCalledWith("Tip", expect.any(Function), expect.any(Function));
     expect(mocks.writeContract.tipPost).toHaveBeenCalledWith(1n, { value: expect.anything() });
     expect(typeof mocks.writeContract.tipPost.mock.calls[0]?.[1]?.value).toBe("bigint");
     expect(get().tipDrafts["1"]).toBe("");
     expect(mocks.refreshWalletPanel).toHaveBeenCalled();
+  });
+
+  it("handleTip returns early when tx returns ok=false", async () => {
+    const get = grabCtx();
+    mocks.runContractTx.mockResolvedValueOnce(false);
+
+    mocks.feedState.posts = [
+      {
+        ...mocks.feedState.posts[0],
+        tokenId: "1",
+        tipsWei: 0n
+      }
+    ] as any[];
+
+    await act(async () => {
+      get().onTipDraftChange("1", "0.01");
+    });
+    await act(async () => {
+      const ok = await get().handleTip("1");
+      expect(ok).toBe(false);
+    });
+
+    const updated = mocks.feedState.posts.find((p: any) => p.tokenId === "1");
+    expect(updated.tipsWei).toBe(0n);
+    expect(get().tipDrafts["1"]).toBe("0.01");
   });
 
   it("handleTip only updates posts on matching postChainId", async () => {
@@ -498,6 +544,29 @@ describe("SocialActionsContext transactions", () => {
     const onBase = mocks.feedState.posts.find((p: any) => p.tokenId === "1" && p.chainId === "8453");
     expect(onEth.tipsWei).toBeGreaterThan(0n);
     expect(onBase.tipsWei).toBe(0n);
+  });
+
+  it("handleTip updates post when postChainId is provided but post has no chainId", async () => {
+    const get = grabCtx();
+    mocks.chainId = "1";
+
+    mocks.feedState.posts = [
+      {
+        ...mocks.feedState.posts[0],
+        chainId: undefined,
+        tipsWei: 0n
+      }
+    ] as any[];
+
+    await act(async () => {
+      get().onTipDraftChange("1", "0.01");
+    });
+    await act(async () => {
+      await get().handleTip("1", "1");
+    });
+
+    const updated = mocks.feedState.posts.find((p: any) => p.tokenId === "1");
+    expect(updated.tipsWei).toBeGreaterThan(0n);
   });
 
   it("handleAction comment requires a draft", async () => {
@@ -636,6 +705,15 @@ describe("SocialActionsContext transactions", () => {
     const updated = mocks.feedState.posts.find((p) => p.tokenId === "1");
     expect(updated.likes).toBe(0);
     expect(updated.likedByMe).toBe(false);
+  });
+
+  it("handleAction returns false for unknown action", async () => {
+    const get = grabCtx();
+
+    await act(async () => {
+      const ok = await get().handleAction("1", "nope" as any);
+      expect(ok).toBe(false);
+    });
   });
 
   it("handleAction like only updates posts on matching postChainId", async () => {
@@ -821,14 +899,25 @@ describe("SocialActionsContext transactions", () => {
       await get().saveEditedPost();
     });
     expect(mocks.setStatus).toHaveBeenCalledWith("Post text is required.");
+  });
+
+  it("saveEditedPost allows edits without an image", async () => {
+    const get = grabCtx();
 
     await act(async () => {
-      get().setEditDraft((prev) => ({ ...prev, body: "ok", imageUrl: "  ", imageDataUrl: "" }));
+      get().startEditPost(mocks.feedState.posts[0] as any);
     });
+    await waitFor(() => expect(get().editingTokenId).toBe("1"));
+
+    await act(async () => {
+      get().setEditDraft((prev) => ({ ...prev, body: "Updated", imageUrl: "", imageDataUrl: "" }));
+    });
+
     await act(async () => {
       await get().saveEditedPost();
     });
-    expect(mocks.setStatus).toHaveBeenCalledWith("Add an image URL or upload an image.");
+
+    expect(mocks.writeContract.updatePostURI).toHaveBeenCalledWith(1n, expect.any(String));
   });
 
   it("saveEditedPost rejects oversized non-IPFS tokenUri", async () => {
@@ -873,6 +962,35 @@ describe("SocialActionsContext transactions", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith("Uploading update to IPFS (Pinata)...");
     expect(buildIpfsTokenUri).toHaveBeenCalled();
     expect(mocks.writeContract.updatePostURI).toHaveBeenCalledWith(1n, mocks.ipfsTokenUri);
+  });
+
+  it("saveEditedPost marks the initializing toast as failed when IPFS build fails", async () => {
+    mocks.hasPinata = true;
+    (buildIpfsTokenUri as any).mockRejectedValueOnce(new Error("boom"));
+
+    const get = grabCtx();
+
+    await act(async () => {
+      get().startEditPost(mocks.feedState.posts[0] as any);
+    });
+    await waitFor(() => expect(get().editingTokenId).toBe("1"));
+
+    await act(async () => {
+      get().setEditDraft((prev) => ({ ...prev, body: "Updated", imageUrl: "https://example.com/new.png" }));
+    });
+
+    await act(async () => {
+      await get().saveEditedPost();
+    });
+
+    expect(mocks.txNotifications.notifyFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hash: expect.stringMatching(/^local-/),
+        label: "Updating post",
+        error: "boom"
+      })
+    );
+    expect(mocks.setStatus).toHaveBeenCalledWith("boom");
   });
 
   it("burnPost calls burnPost and removes local post", async () => {
@@ -1263,6 +1381,70 @@ describe("SocialActionsContext transactions", () => {
     vi.useRealTimers();
 
     expect(mocks.setStatus).toHaveBeenCalledWith("Uploaded image is too large. Try a smaller image.");
+
+    (globalThis as any).Image = originalImage;
+    if (originalCreateObjectURL) (URL as any).createObjectURL = originalCreateObjectURL;
+    else delete (URL as any).createObjectURL;
+    if (originalRevokeObjectURL) (URL as any).revokeObjectURL = originalRevokeObjectURL;
+    else delete (URL as any).revokeObjectURL;
+    createElementSpy.mockRestore();
+  });
+
+  it("onEditSelectFile keeps trying smaller images until on-chain tokenUri fits", async () => {
+    const get = grabCtx();
+
+    // Non-IPFS path so createMetadataUri size gate runs.
+    mocks.hasPinata = false;
+
+    // First few attempts produce an oversized tokenUri, last one fits.
+    let metadataCalls = 0;
+    (mocks as any).metadataUri = () => {
+      metadataCalls++;
+      return metadataCalls < 4 ? "x".repeat(140_001) : "data:application/json;base64,OK";
+    };
+
+    const originalImage = (globalThis as any).Image;
+    class LoadsImage {
+      width = 1000;
+      height = 1000;
+      decoding: any;
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      set src(_v: string) {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    (globalThis as any).Image = LoadsImage as any;
+
+    const originalCreateObjectURL = (URL as any).createObjectURL;
+    const originalRevokeObjectURL = (URL as any).revokeObjectURL;
+    (URL as any).createObjectURL = vi.fn().mockReturnValue("blob:img");
+    (URL as any).revokeObjectURL = vi.fn();
+
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tag: any) => {
+      if (tag === "canvas") {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({ drawImage: vi.fn() }),
+          // Small enough data URL so the *tokenUri* size gate is what forces retries.
+          toDataURL: () => "data:image/jpeg;base64," + "A".repeat(10_000)
+        } as any;
+      }
+      return originalCreateElement(tag);
+    });
+
+    vi.useFakeTimers();
+    await act(async () => {
+      const task = get().onEditSelectFile(new File(["a"], "a.png", { type: "image/png" }));
+      await vi.runAllTimersAsync();
+      await task;
+    });
+    vi.useRealTimers();
+
+    expect(metadataCalls).toBeGreaterThan(1);
+    expect(mocks.setStatus).toHaveBeenCalledWith("Uploaded image ready.");
 
     (globalThis as any).Image = originalImage;
     if (originalCreateObjectURL) (URL as any).createObjectURL = originalCreateObjectURL;

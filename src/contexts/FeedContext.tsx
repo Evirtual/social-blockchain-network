@@ -132,10 +132,70 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const loadPostsByTokenIds = useCallback(
     async (tokenIds: string[]) => {
-      if (!provider) return;
       if (!tokenIds.length) return;
 
       const currentChainId = chainIdToNumber(chainId);
+
+      const env = import.meta.env as any;
+      const configuredNetworks: FeedNetworkConfig[] = [
+        { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
+        { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },
+        { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: env.VITE_BASE_RPC_URL },
+        { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: env.VITE_BASE_SEPOLIA_RPC_URL },
+        { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: env.VITE_BSC_RPC_URL },
+        { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
+        {
+          chainId: 31337,
+          contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL || env.VITE_CONTRACT_ADDRESS,
+          rpcUrl: env.VITE_LOCAL_RPC_URL
+        }
+      ]
+        .filter((n) => typeof n.contractAddress === "string" && n.contractAddress.trim().length > 0)
+        .map((n) => ({ ...n, contractAddress: String(n.contractAddress).trim() }));
+
+      const currentCfg = currentChainId != null ? configuredNetworks.find((n) => n.chainId === currentChainId) : undefined;
+      const currentRpcUrl = typeof currentCfg?.rpcUrl === "string" ? String(currentCfg.rpcUrl).trim() : "";
+
+      const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
+        if (cfg.chainId !== 31337) return cfg.contractAddress;
+
+        const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) || "").trim();
+        const local = String((env.VITE_CONTRACT_ADDRESS_LOCAL as string | undefined) || "").trim();
+
+        const candidates = Array.from(new Set([cfg.contractAddress, local, legacy].map((x) => String(x).trim()).filter(Boolean)));
+
+        const isSocialPostsAt = async (address: string) => {
+          try {
+            const code = await rpcProvider.getCode(address);
+            if (!code || code === "0x") return false;
+            const c = getSocialContract(address, rpcProvider);
+            await (c as any).exists(1n);
+            return true;
+          } catch {
+            return false;
+          }
+        };
+
+        for (const addr of candidates) {
+          if (await isSocialPostsAt(addr)) return addr;
+        }
+
+        return cfg.contractAddress;
+      };
+
+      // Prefer env RPC for current-chain reads when configured (more reliable than some wallet RPCs).
+      // Fallback to the injected provider when no env RPC exists.
+      const canUseEnvRpc = !!currentCfg && !!currentRpcUrl;
+      if (!provider && !canUseEnvRpc) return;
+
+      const readProvider: any = canUseEnvRpc ? new ethers.JsonRpcProvider(currentRpcUrl, currentCfg!.chainId) : provider;
+
+      const readContract = canUseEnvRpc
+        ? getSocialContract(await resolveRpcContractAddress(currentCfg!, readProvider), readProvider)
+        : await (async () => {
+            await ensureContractDeployedOnCurrentNetwork();
+            return await getReadContract();
+          })();
       const existing = new Set(
         posts
           .filter((p) => {
@@ -146,9 +206,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       );
       const missing = Array.from(new Set(tokenIds)).filter((id) => id && !existing.has(id));
       if (missing.length === 0) return;
-
-      await ensureContractDeployedOnCurrentNetwork();
-      const readContract = await getReadContract();
 
       const mapWithConcurrency = async <T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> => {
         const results: R[] = new Array(items.length);

@@ -284,6 +284,146 @@ describe("FeedContext", () => {
     readContract.hasShared.mockImplementation(async (_: bigint, __: string) => false);
   });
 
+  it("uses env contract address fallback when local is empty (|| fallback branch)", async () => {
+    // Cover the fallback branch: LOCAL is an empty string so `LOCAL || CONTRACT` uses CONTRACT.
+    vi.unstubAllEnvs();
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
+
+    walletState.chainId = "31337";
+    walletState.provider = null;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      screen.getByText("loadByIdsNew").click();
+    });
+
+    await waitFor(() => {
+      expect(getSocialContract).toHaveBeenCalled();
+    });
+  });
+
+  it("covers resolveRpcContractAddress legacy/local empty-string fallbacks (||)", async () => {
+    // Cover `legacy || ''` and `local || ''` falsy paths with empty strings.
+    vi.unstubAllEnvs();
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000002");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
+
+    walletState.chainId = "31337";
+    walletState.provider = null;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      screen.getByText("loadByIdsNew").click();
+    });
+
+    await waitFor(() => {
+      expect(getSocialContract).toHaveBeenCalled();
+    });
+  });
+
+  it("resolveRpcContractAddress returns cfg.contractAddress when not local chain", async () => {
+    // Turn on env RPC so resolveRpcContractAddress is evaluated.
+    vi.stubEnv("VITE_ETH_RPC_URL", "http://rpc.example");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "0x0000000000000000000000000000000000000002");
+
+    walletState.chainId = "1";
+    walletState.provider = null;
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      screen.getByText("loadByIdsNew").click();
+    });
+
+    await waitFor(() => {
+      expect(getSocialContract).toHaveBeenCalledWith("0x0000000000000000000000000000000000000002", expect.anything());
+    });
+  });
+
+  it("resolveRpcContractAddress falls back when candidates have no code / throw / no exists", async () => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000003");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000004");
+
+    walletState.chainId = "31337";
+    walletState.provider = null;
+
+    // Make candidates fail: first no code, then throw, then no code again.
+    const { ethers: mockedEthers }: any = await import("ethers");
+    const rpcGetCode = mockedEthers.__rpcGetCodeMock as any;
+    rpcGetCode.mockReset();
+    rpcGetCode
+      .mockImplementationOnce(async () => "0x")
+      .mockImplementationOnce(async () => {
+        throw new Error("boom");
+      })
+      .mockImplementation(async () => "0x");
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      screen.getByText("loadByIdsNew").click();
+    });
+
+    await waitFor(() => {
+      expect(getSocialContract).toHaveBeenCalled();
+    });
+  });
+
+  it("loadPostsByTokenIds resolves local contract address candidates", async () => {
+    // Force the env-RPC path + local chain resolution.
+    walletState.chainId = "31337";
+    walletState.provider = null;
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0xAAA");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0xBBB");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
+
+    // First candidate has no code (so it fails without probing `exists`), second candidate has code.
+    const { ethers: mockedEthers }: any = await import("ethers");
+    const rpcGetCode = mockedEthers.__rpcGetCodeMock as any;
+    rpcGetCode.mockReset();
+    rpcGetCode.mockImplementation(async (address: string) => {
+      if (address.toLowerCase() === "0xaaa") return "0x";
+      return "0x1234";
+    });
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await act(async () => {
+      screen.getByText("loadByIdsNew").click();
+    });
+
+    // If local contract resolution succeeds, the load path completes and sets a post.
+    await waitFor(() => expect(Number(screen.getByTestId("count").textContent ?? "0")).toBeGreaterThan(0));
+  });
+
   it("derives mintTimestamp using timestamp ?? 0 when block has no timestamp", async () => {
     const provider = {
       getBlockNumber: vi.fn(async () => 10),

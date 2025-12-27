@@ -23,9 +23,11 @@ const mocks: any = vi.hoisted(() => {
       isOwner: undefined as any,
       profilesByAddress: { "0xme": { name: "Me", bio: "", avatarUrl: "" } } as any,
       isFollowingByAddress: {} as any,
-      posts: [{ tokenId: "1", title: "", body: "", image: "", metadataURI: "", author: "0xme", likes: 0, comments: 0, shares: 0, tipsWei: 0n }],
-      repostTokenIdsByAddress: { "0xme": ["1"] } as any,
+      posts: [{ tokenId: "1", chainId: "31337", title: "", body: "", image: "", metadataURI: "", author: "0xme", likes: 0, comments: 0, shares: 0, tipsWei: 0n }],
+      repostTokenIdsByAddress: { "0xme": ["31337:1"] } as any,
       isLoadingRepostsByAddress: {} as any,
+      likedTokenIdsByAddress: { "0xme": [] } as any,
+      isLoadingLikesByAddress: {} as any,
       followerCountByAddress: {} as any,
       followersByAddress: {} as any,
       followingByAddress: {} as any,
@@ -86,6 +88,7 @@ const mocks: any = vi.hoisted(() => {
       loadProfile: vi.fn(),
       loadIsFollowing: vi.fn(),
       loadRepostsForAddress: vi.fn(),
+      loadLikesForAddress: vi.fn(),
       loadFollowerCountForAddress: vi.fn(),
       loadFollowersForAddress: vi.fn(),
       loadFollowingForAddress: vi.fn(),
@@ -120,6 +123,7 @@ vi.mock("../pages/AccountPage", () => ({
       data-testid="account-page"
       data-posts-count={props.posts?.length ?? 0}
       data-saved-count={props.savedPosts?.length ?? 0}
+      data-liked-count={props.likedPosts?.length ?? 0}
     />
   )
 }));
@@ -212,6 +216,25 @@ describe("ProfileRoute", () => {
     (mocks.app as any).isOwner = undefined;
     mocks.app.loadProfile.mockClear();
     mocks.app.refreshFeed.mockClear();
+
+    // Reset stateful fields that individual tests mutate.
+    mocks.app.posts = [
+      {
+        tokenId: "1",
+        chainId: "31337",
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n
+      }
+    ];
+    mocks.app.repostTokenIdsByAddress = { "0xme": ["31337:1"] } as any;
+    mocks.app.likedTokenIdsByAddress = { "0xme": [] } as any;
   });
 
   it("does not load poster status when address is invalid (even for owner)", async () => {
@@ -237,6 +260,149 @@ describe("ProfileRoute", () => {
     await flushMicrotasks();
     expect(mocks.contract.ensureContractDeployedOnCurrentNetwork).not.toHaveBeenCalled();
     expect(mocks.contract.getReadContract).not.toHaveBeenCalled();
+  });
+
+  it("covers normalizeChainId edge cases and feed dedupe branches", async () => {
+    // Duplicate liked/reposted posts hit seen.has(k) continue.
+    mocks.app.posts = [
+      {
+        tokenId: "1",
+        chainId: undefined,
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n,
+        likedByMe: true,
+        repostedByMe: true
+      },
+      {
+        tokenId: "1",
+        chainId: null as any,
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n,
+        likedByMe: true,
+        repostedByMe: true
+      },
+      {
+        tokenId: "2",
+        chainId: "abc",
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n,
+        likedByMe: true,
+        repostedByMe: false
+      }
+    ];
+
+    render(
+      <MemoryRouter initialEntries={[`/profile/0xme`]}>
+        <Routes>
+          <Route path="/profile/:address" element={<ProfileRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("account-page")).toBeInTheDocument();
+    // Feed-first lists should include liked/reposted items (deduped).
+    expect(Number(screen.getByTestId("account-page").getAttribute("data-saved-count"))).toBeGreaterThanOrEqual(1);
+    expect(Number(screen.getByTestId("account-page").getAttribute("data-liked-count"))).toBeGreaterThanOrEqual(1);
+  });
+
+  it("covers saved/liked fallback mapping for tokenId-only and chainKey forms", async () => {
+    // Ensure feed-first lists are empty so fallback mapping runs.
+    mocks.app.posts = [
+      {
+        tokenId: "1",
+        chainId: "31337",
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n
+      },
+      {
+        tokenId: "2",
+        chainId: "31337",
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n
+      }
+    ];
+    mocks.app.repostTokenIdsByAddress = { "0xme": ["1"] } as any;
+
+    // Force the postsByKey lookup to miss, so the fallback `find(p.tokenId===...)` path runs.
+    // - "1:2" will not match the post's chainId key ("31337:2"), but will still resolve by tokenId.
+    // - "1" is tokenId-only.
+    mocks.app.likedTokenIdsByAddress = { "0xme": ["1:2", "1"] } as any;
+
+    render(
+      <MemoryRouter initialEntries={[`/profile/0xme`]}>
+        <Routes>
+          <Route path="/profile/:address" element={<ProfileRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("account-page")).toBeInTheDocument();
+    expect(screen.getByTestId("account-page").getAttribute("data-saved-count")).toBe("1");
+    expect(screen.getByTestId("account-page").getAttribute("data-liked-count")).toBe("2");
+  });
+
+  it("covers likedTokenIdsByAddress missing entry (?? [] branch)", async () => {
+    mocks.app.likedTokenIdsByAddress = {} as any;
+    mocks.app.posts = [
+      {
+        tokenId: "1",
+        chainId: "31337",
+        title: "",
+        body: "",
+        image: "",
+        metadataURI: "",
+        author: "0xme",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n
+      }
+    ];
+
+    render(
+      <MemoryRouter initialEntries={[`/profile/0xme`]}>
+        <Routes>
+          <Route path="/profile/:address" element={<ProfileRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("account-page").getAttribute("data-liked-count")).toBe("0");
   });
 
   it("loads poster allowed/disapproved status for owner (success)", async () => {
@@ -940,6 +1106,7 @@ describe("ProfileRoute", () => {
     mocks.app.loadProfile.mockClear();
     mocks.app.loadIsFollowing.mockClear();
     mocks.app.loadRepostsForAddress.mockClear();
+    mocks.app.loadLikesForAddress?.mockClear?.();
 
     render(
       <MemoryRouter initialEntries={["/profile/0xme"]}>
@@ -952,11 +1119,48 @@ describe("ProfileRoute", () => {
     expect(screen.getByTestId("account-page")).toBeInTheDocument();
     expect(mocks.app.loadProfile).toHaveBeenCalledWith("0xme");
     expect(mocks.app.loadRepostsForAddress).toHaveBeenCalledWith("0xme");
+    expect(mocks.app.loadLikesForAddress).toHaveBeenCalledWith("0xme");
     expect(mocks.app.loadIsFollowing).not.toHaveBeenCalled();
 
     expect(mocks.app.loadFollowerCountForAddress).toHaveBeenCalledWith("0xme");
     expect(mocks.app.loadFollowersForAddress).toHaveBeenCalledWith("0xme");
     expect(mocks.app.loadFollowingForAddress).toHaveBeenCalledWith("0xme");
+  });
+
+  it("prefers saved/liked flags from the feed (chainId-normalized)", () => {
+    mocks.app.walletAddress = "0xme";
+    mocks.app.posts = [
+      {
+        tokenId: "1",
+        chainId: "0x1",
+        author: "0xme",
+        title: "t",
+        body: "b",
+        image: "",
+        metadataURI: "",
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        tipsWei: 0n,
+        repostedByMe: true,
+        likedByMe: true
+      }
+    ] as any;
+    mocks.app.repostTokenIdsByAddress = { "0xme": ["1:999"] } as any;
+    mocks.app.likedTokenIdsByAddress = { "0xme": ["1:999"] } as any;
+
+    render(
+      <MemoryRouter initialEntries={["/profile/0xme"]}>
+        <Routes>
+          <Route path="/profile/:address" element={<ProfileRoute />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const node = screen.getByTestId("account-page");
+    expect(node.getAttribute("data-posts-count")).toBe("1");
+    expect(node.getAttribute("data-saved-count")).toBe("1");
+    expect(node.getAttribute("data-liked-count")).toBe("1");
   });
 
   it("renders ProfilePage for other users and triggers follow-load", () => {
@@ -1011,7 +1215,7 @@ describe("ProfileRoute", () => {
 
   it("filters savedPosts to only those present in the feed", () => {
     mocks.app.walletAddress = "0xme";
-    mocks.app.repostTokenIdsByAddress = { "0xme": ["999"] } as any;
+    mocks.app.repostTokenIdsByAddress = { "0xme": ["31337:999"] } as any;
 
     render(
       <MemoryRouter initialEntries={["/profile/0xme"]}>

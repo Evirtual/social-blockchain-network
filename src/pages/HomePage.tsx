@@ -1,6 +1,6 @@
 import type { Draft, Post } from "../types";
 import { Feed } from "../components/Feed";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChainLogo } from "../components/ChainLogos";
 
 type Props = {
@@ -96,6 +96,23 @@ export function HomePage(props: Props) {
   });
 
   const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
+  useEffect(() => {
+    // UX requirement: when a wallet is connected and on a supported chain,
+    // keep the Networks filter pinned to the current chain.
+    if (!props.walletAddress) {
+      setSelectedNetworkChainIds([]);
+      return;
+    }
+
+    const chainId = props.chainId ? String(props.chainId) : null;
+    if (!chainId) return;
+
+    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    if (!supported.has(chainId)) return;
+
+    setSelectedNetworkChainIds((prev) => (prev.length === 1 && prev[0] === chainId ? prev : [chainId]));
+  }, [props.walletAddress, props.chainId, supportedNetworks]);
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
