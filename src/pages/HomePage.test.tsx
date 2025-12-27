@@ -27,7 +27,7 @@ describe("HomePage", () => {
     delete (window as any).ethereum;
 
     // Keep tests deterministic even if a developer has local env vars set.
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
   });
 
   function makeProps(overrides: Partial<any> = {}) {
@@ -344,8 +344,8 @@ describe("HomePage", () => {
     expect(row?.classList.contains("homeHeroRowSingle")).toBe(false);
   });
 
-  it("includes Local in supported networks when VITE_CONTRACT_ADDRESS_LOCAL is set", () => {
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+  it("includes Local in supported networks when VITE_CONTRACT_ADDRESS is set", () => {
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     render(<HomePage {...makeProps()} />);
 

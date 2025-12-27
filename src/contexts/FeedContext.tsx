@@ -146,7 +146,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
         {
           chainId: 31337,
-          contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL || env.VITE_CONTRACT_ADDRESS,
+          contractAddress: env.VITE_CONTRACT_ADDRESS,
           rpcUrl: env.VITE_LOCAL_RPC_URL
         }
       ]
@@ -160,9 +160,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         if (cfg.chainId !== 31337) return cfg.contractAddress;
 
         const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) || "").trim();
-        const local = String((env.VITE_CONTRACT_ADDRESS_LOCAL as string | undefined) || "").trim();
 
-        const candidates = Array.from(new Set([cfg.contractAddress, local, legacy].map((x) => String(x).trim()).filter(Boolean)));
+        const candidates = Array.from(new Set([cfg.contractAddress, legacy].map((x) => String(x).trim()).filter(Boolean)));
 
         const isSocialPostsAt = async (address: string) => {
           try {
@@ -372,7 +371,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             {
               chainId: 31337,
               // Local dev commonly uses the legacy single-network address.
-              contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL ?? env.VITE_CONTRACT_ADDRESS,
+              contractAddress: env.VITE_CONTRACT_ADDRESS,
               rpcUrl: env.VITE_LOCAL_RPC_URL
             }
           ]
@@ -401,11 +400,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               if (cfg.chainId !== 31337) return cfg.contractAddress;
 
               const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) ?? "").trim();
-              const local = String((env.VITE_CONTRACT_ADDRESS_LOCAL as string | undefined) ?? "").trim();
 
-              const candidates = Array.from(
-                new Set([cfg.contractAddress, local, legacy].map((x) => String(x).trim()).filter(Boolean))
-              );
+              const candidates = Array.from(new Set([cfg.contractAddress, legacy].map((x) => String(x).trim()).filter(Boolean)));
 
               const isSocialPostsAt = async (address: string) => {
                 try {

@@ -18,7 +18,7 @@ const CONTRACT_ADDRESS_BY_CHAIN_ID: Record<number, string | undefined> = {
   97: import.meta.env.VITE_CONTRACT_ADDRESS_BSC_TESTNET as string | undefined,
 
   // Local (Hardhat)
-  31337: import.meta.env.VITE_CONTRACT_ADDRESS_LOCAL as string | undefined
+  31337: import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined
 };
 
 function chainIdToNumber(chainId: string | null): number | null {
@@ -89,7 +89,7 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
     throw new Error(
       `Missing contract address${chainHint}. Set it in your environment (e.g. .env.local).\n\n` +
         `For multi-network: set VITE_CONTRACT_ADDRESS_ETH (1) and/or VITE_CONTRACT_ADDRESS_BASE (8453).\n` +
-        "For local dev: run npm run deploy:local then restart the dev server."
+        "For local dev: set VITE_CONTRACT_ADDRESS after deploy:local, then restart the dev server."
     );
   }, [chainId]);
 

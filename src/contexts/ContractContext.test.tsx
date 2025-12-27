@@ -28,7 +28,7 @@ describe("ContractContext", () => {
 
   it("refreshes contract state and withdrawable tips", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -72,7 +72,7 @@ describe("ContractContext", () => {
   it("sets ownerAddress to null when contract address is missing", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", undefined);
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -105,7 +105,7 @@ describe("ContractContext", () => {
 
   it("sets ownerAddress when owner() succeeds", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -139,7 +139,7 @@ describe("ContractContext", () => {
   it("requireContractAddress throws when missing", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", undefined);
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -170,7 +170,7 @@ describe("ContractContext", () => {
 
   it("requireContractAddress parses hex chainId", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -196,7 +196,7 @@ describe("ContractContext", () => {
 
   it("requireContractAddress parses uppercase hex chainId", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -223,7 +223,6 @@ describe("ContractContext", () => {
   it("requireContractAddress falls back to legacy address when chain is unknown", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -250,7 +249,6 @@ describe("ContractContext", () => {
   it("requireContractAddress uses legacy address when chainId is null", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -276,8 +274,7 @@ describe("ContractContext", () => {
 
   it("requireContractAddress falls back to network chainId when chainId is invalid", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
-    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -320,7 +317,6 @@ describe("ContractContext", () => {
   it("requireContractAddress throws without chainId hint when chain is unknown", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", undefined);
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -351,8 +347,7 @@ describe("ContractContext", () => {
 
   it("requireContractAddress falls back to network chainId when decimal chainId is invalid", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
-    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -394,7 +389,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork marks not deployed when code is empty", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -435,7 +430,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork marks not deployed when code is falsy", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -475,7 +470,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork marks deployed when code is present", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -523,7 +518,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork throws when no provider is present", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -561,7 +556,7 @@ describe("ContractContext", () => {
 
   it("getWriteContract throws when no provider is present", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -599,7 +594,7 @@ describe("ContractContext", () => {
 
   it("getReadContract throws when no provider is present", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
     vi.doMock("./WalletContext", () => ({
@@ -637,7 +632,7 @@ describe("ContractContext", () => {
 
   it("getWriteContract uses signer and address", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -683,7 +678,7 @@ describe("ContractContext", () => {
 
   it("refreshContractState sets tips to 0 when walletAddress is missing", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -719,7 +714,7 @@ describe("ContractContext", () => {
 
   it("refreshContractState sets contractDeployed to null when getCode throws", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -753,7 +748,7 @@ describe("ContractContext", () => {
   it("shows a status hint when wallet is connected but no contract address is configured", async () => {
     vi.resetModules();
     stubEnv("VITE_CONTRACT_ADDRESS", undefined);
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", undefined);
+    stubEnv("VITE_CONTRACT_ADDRESS", undefined);
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -779,7 +774,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork caches successful checks", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -831,7 +826,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork retries on truncated JSON then succeeds", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -879,7 +874,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork retries when getCode throws a truncated JSON string", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -925,7 +920,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork treats undefined rejection reasons as non-truncated", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 
@@ -968,7 +963,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork proceeds when RPC keeps returning malformed JSON but deployment was already verified", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     const setStatus = vi.fn();
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus }) }));
@@ -1031,7 +1026,7 @@ describe("ContractContext", () => {
 
   it("ensureContractDeployedOnCurrentNetwork throws when RPC fails before deployment is verified", async () => {
     vi.resetModules();
-    stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000001");
+    stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
 
     vi.doMock("./StatusContext", () => ({ useStatus: () => ({ setStatus: vi.fn() }) }));
 

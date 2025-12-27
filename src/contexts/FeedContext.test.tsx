@@ -229,7 +229,7 @@ describe("FeedContext", () => {
     vi.stubEnv("VITE_BSC_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
 
@@ -288,7 +288,7 @@ describe("FeedContext", () => {
     // Cover the fallback branch: LOCAL is an empty string so `LOCAL || CONTRACT` uses CONTRACT.
     vi.unstubAllEnvs();
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000001");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
 
     walletState.chainId = "31337";
@@ -313,7 +313,7 @@ describe("FeedContext", () => {
     // Cover `legacy || ''` and `local || ''` falsy paths with empty strings.
     vi.unstubAllEnvs();
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000002");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000002");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
 
     walletState.chainId = "31337";
@@ -360,7 +360,7 @@ describe("FeedContext", () => {
   it("resolveRpcContractAddress falls back when candidates have no code / throw / no exists", async () => {
     vi.unstubAllEnvs();
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x0000000000000000000000000000000000000003");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000003");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000004");
 
     walletState.chainId = "31337";
@@ -377,19 +377,21 @@ describe("FeedContext", () => {
       })
       .mockImplementation(async () => "0x");
 
+    let exposedFeed: FeedContextValue | null = null;
+
     render(
       <FeedProvider>
-        <Consumer />
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
       </FeedProvider>
     );
 
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
     await act(async () => {
-      screen.getByText("loadByIdsNew").click();
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
     });
 
-    await waitFor(() => {
-      expect(getSocialContract).toHaveBeenCalled();
-    });
+    expect(getSocialContract).toHaveBeenCalled();
   });
 
   it("loadPostsByTokenIds resolves local contract address candidates", async () => {
@@ -397,7 +399,7 @@ describe("FeedContext", () => {
     walletState.chainId = "31337";
     walletState.provider = null;
 
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0xAAA");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0xAAA");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "0xBBB");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
 
@@ -410,18 +412,81 @@ describe("FeedContext", () => {
       return "0x1234";
     });
 
+    let exposedFeed: FeedContextValue | null = null;
+
     render(
       <FeedProvider>
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
         <Consumer />
       </FeedProvider>
     );
 
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
     await act(async () => {
-      screen.getByText("loadByIdsNew").click();
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
     });
 
     // If local contract resolution succeeds, the load path completes and sets a post.
     await waitFor(() => expect(Number(screen.getByTestId("count").textContent ?? "0")).toBeGreaterThan(0));
+  });
+
+  it("loadPostsByTokenIds local probing handles RPC exceptions", async () => {
+    walletState.chainId = "31337";
+    walletState.provider = null;
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://localhost:8545");
+
+    const { ethers: mockedEthers }: any = await import("ethers");
+    const rpcGetCode = mockedEthers.__rpcGetCodeMock as any;
+    rpcGetCode.mockReset();
+    rpcGetCode.mockImplementationOnce(async () => {
+      throw new Error("boom");
+    });
+
+    let exposedFeed: FeedContextValue | null = null;
+
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
+    await act(async () => {
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
+    });
+
+    await waitFor(() => expect(Number(screen.getByTestId("count").textContent ?? "0")).toBeGreaterThan(0));
+  });
+
+  it("loadPostsByTokenIds uses env-RPC on non-local chains", async () => {
+    // Force env-RPC path for the current chain (non-local) with no wallet provider.
+    walletState.chainId = "11155111";
+    walletState.provider = null;
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "0x0000000000000000000000000000000000000001");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "http://example.invalid");
+
+    let exposedFeed: FeedContextValue | null = null;
+    render(
+      <FeedProvider>
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
+    await act(async () => {
+      await exposedFeed!.loadPostsByTokenIds(["2"]);
+    });
+
+    await waitFor(() => expect(Number(screen.getByTestId("count").textContent ?? "0")).toBeGreaterThan(0));
+    expect(getSocialContract).toHaveBeenCalledWith("0x0000000000000000000000000000000000000001", expect.anything());
   });
 
   it("derives mintTimestamp using timestamp ?? 0 when block has no timestamp", async () => {
@@ -501,7 +566,7 @@ describe("FeedContext", () => {
     vi.stubEnv("VITE_BSC_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "0x0000000000000000000000000000000000000001");
@@ -1577,14 +1642,18 @@ describe("FeedContext", () => {
     walletState.provider = null;
     readContract.exists.mockClear();
 
+    let exposedFeed: FeedContextValue | null = null;
+
     render(
       <FeedProvider>
-        <Consumer />
+        <ExposeFeed onFeed={(f) => (exposedFeed = f)} />
       </FeedProvider>
     );
 
+    await waitFor(() => expect(exposedFeed).not.toBeNull());
+
     await act(async () => {
-      screen.getByText("loadByIdsNew").click();
+      await exposedFeed!.loadPostsByTokenIds(["2", "2"]);
     });
 
     expect(readContract.exists).not.toHaveBeenCalled();

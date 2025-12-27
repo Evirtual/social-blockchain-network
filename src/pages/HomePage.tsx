@@ -67,7 +67,7 @@ function getSupportedNetworks(): SupportedNetwork[] {
     { chainId: 97, name: "BSC testnet", description: "" }
   ];
 
-  const localAddr = (import.meta.env.VITE_CONTRACT_ADDRESS_LOCAL || "").trim();
+  const localAddr = (import.meta.env.VITE_CONTRACT_ADDRESS || "").trim();
   if (localAddr) {
     networks.unshift({ chainId: 31337, name: "Local", description: "" });
   }

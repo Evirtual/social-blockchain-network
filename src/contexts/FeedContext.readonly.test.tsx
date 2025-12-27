@@ -139,7 +139,7 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_BSC_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "");
 
@@ -166,7 +166,7 @@ describe("FeedContext (read-only networks)", () => {
     expect(readContract.queryFilter).toHaveBeenCalled();
   });
 
-  it("uses VITE_CONTRACT_ADDRESS as a fallback for local when VITE_CONTRACT_ADDRESS_LOCAL is unset", async () => {
+  it("does not configure local read-only network when VITE_CONTRACT_ADDRESS is unset", async () => {
     vi.stubEnv("MODE", "development");
 
     // Blank out other networks.
@@ -183,22 +183,9 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
 
-    // Only local is configured, via legacy address.
-    // IMPORTANT: FeedContext uses `VITE_CONTRACT_ADDRESS_LOCAL ?? VITE_CONTRACT_ADDRESS`.
-    // `vi.stubEnv` sets string values; setting to `""`/`"undefined"` won't trigger `??`.
-    // Delete the key so it becomes truly `undefined` and the fallback is exercised.
-    const envAny = import.meta.env as any;
-    const hadLocalAddr = Object.prototype.hasOwnProperty.call(envAny, "VITE_CONTRACT_ADDRESS_LOCAL");
-    const oldLocalAddr = envAny.VITE_CONTRACT_ADDRESS_LOCAL;
-    const oldLegacyAddr = envAny.VITE_CONTRACT_ADDRESS;
-    const oldLocalRpc = envAny.VITE_LOCAL_RPC_URL;
-
-    // Use the legacy single-network address for the local chain.
-    envAny.VITE_CONTRACT_ADDRESS = "0x00000000000000000000000000000000000000aa";
-    envAny.VITE_LOCAL_RPC_URL = "http://example.invalid";
-    // Remove the local-specific key so `??` falls back.
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete envAny.VITE_CONTRACT_ADDRESS_LOCAL;
+    // With only VITE_CONTRACT_ADDRESS supported, leaving it unset means local is not configured.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://example.invalid");
 
     walletState.walletEpoch = 1;
 
@@ -209,26 +196,17 @@ describe("FeedContext (read-only networks)", () => {
       return <div data-testid="count">{feed.posts.length}</div>;
     }
 
-    try {
-      render(
-        <FeedProvider>
-          <Consumer />
-        </FeedProvider>
-      );
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
 
-      await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
-      expect(getSocialContract).toHaveBeenCalledWith(
-        "0x00000000000000000000000000000000000000aa",
-        expect.anything()
-      );
-    } finally {
-      envAny.VITE_CONTRACT_ADDRESS = oldLegacyAddr;
-      envAny.VITE_LOCAL_RPC_URL = oldLocalRpc;
-      if (hadLocalAddr) envAny.VITE_CONTRACT_ADDRESS_LOCAL = oldLocalAddr;
-    }
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+    expect(getSocialContract).not.toHaveBeenCalled();
   });
 
-  it("uses VITE_CONTRACT_ADDRESS_LOCAL when it is set", async () => {
+  it("loads local via read-only RPC when MODE is development", async () => {
     vi.stubEnv("MODE", "development");
 
     // Blank out other networks.
@@ -245,7 +223,47 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
 
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x00000000000000000000000000000000000000bb");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_LOCAL_RPC_URL", "http://example.invalid");
+
+    // Trigger the effect by bumping walletEpoch.
+    walletState.walletEpoch = 1;
+
+    const { FeedProvider, useFeed } = await import("./FeedContext");
+
+    function Consumer() {
+      const feed = useFeed();
+      return <div data-testid="count">{feed.posts.length}</div>;
+    }
+
+    render(
+      <FeedProvider>
+        <Consumer />
+      </FeedProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    expect(readContract.queryFilter).toHaveBeenCalled();
+  });
+
+  it("uses VITE_CONTRACT_ADDRESS when it is set", async () => {
+    vi.stubEnv("MODE", "development");
+
+    // Blank out other networks.
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
+    vi.stubEnv("VITE_ETH_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_SEPOLIA", "");
+    vi.stubEnv("VITE_ETH_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE", "");
+    vi.stubEnv("VITE_BASE_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BASE_SEPOLIA", "");
+    vi.stubEnv("VITE_BASE_SEPOLIA_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC", "");
+    vi.stubEnv("VITE_BSC_RPC_URL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
+    vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
+
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000bb");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://example.invalid");
 
     walletState.walletEpoch = 1;
@@ -271,6 +289,8 @@ describe("FeedContext (read-only networks)", () => {
   });
 
   it("local probing falls back when candidates have no code", async () => {
+    vi.stubEnv("MODE", "development");
+
     // Make the configured networks deterministic.
     vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
     vi.stubEnv("VITE_ETH_RPC_URL", "");
@@ -285,14 +305,8 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
 
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://local.example.invalid");
-    // Ensure legacy is truly undefined so the `?? ""` branch is exercised.
-    const envAny = import.meta.env as any;
-    const hadLegacy = Object.prototype.hasOwnProperty.call(envAny, "VITE_CONTRACT_ADDRESS");
-    const oldLegacy = envAny.VITE_CONTRACT_ADDRESS;
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete envAny.VITE_CONTRACT_ADDRESS;
 
     walletState.walletEpoch = 1;
     walletState.chainId = "0x1";
@@ -313,22 +327,17 @@ describe("FeedContext (read-only networks)", () => {
       </FeedProvider>
     );
 
-    try {
-      await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
-      // It should attempt a code lookup for the configured local address.
-      expect((ethers as any).__rpcGetCodeMock).toHaveBeenCalledWith("0x00000000000000000000000000000000000000aa");
-      // Since no candidate had code, it falls back to cfg.contractAddress (local env addr).
-      expect(getSocialContract).toHaveBeenCalledWith(
-        "0x00000000000000000000000000000000000000aa",
-        expect.anything()
-      );
-    } finally {
-      if (hadLegacy) envAny.VITE_CONTRACT_ADDRESS = oldLegacy;
-    }
+    // It should attempt a code lookup for the configured local address.
+    expect((ethers as any).__rpcGetCodeMock).toHaveBeenCalledWith("0x00000000000000000000000000000000000000aa");
+    // Since no candidate had code, it falls back to cfg.contractAddress (local env addr).
+    expect(getSocialContract).toHaveBeenCalledWith("0x00000000000000000000000000000000000000aa", expect.anything());
   });
 
   it("local probing skips failing candidate and uses the first that looks deployed", async () => {
+    vi.stubEnv("MODE", "development");
+
     // Make the configured networks deterministic.
     vi.stubEnv("VITE_CONTRACT_ADDRESS_ETH", "");
     vi.stubEnv("VITE_ETH_RPC_URL", "");
@@ -343,7 +352,7 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
 
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "0x00000000000000000000000000000000000000aa");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "0x00000000000000000000000000000000000000aa");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "http://local.example.invalid");
 
     const envAny = import.meta.env as any;
@@ -405,7 +414,7 @@ describe("FeedContext (read-only networks)", () => {
     vi.stubEnv("VITE_BSC_RPC_URL", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
     vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
-    vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+    vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
     vi.stubEnv("VITE_LOCAL_RPC_URL", "");
 
@@ -475,7 +484,7 @@ describe("FeedContext (read-only networks)", () => {
       vi.stubEnv("VITE_BSC_RPC_URL", "");
       vi.stubEnv("VITE_CONTRACT_ADDRESS_BSC_TESTNET", "");
       vi.stubEnv("VITE_BSC_TESTNET_RPC_URL", "");
-      vi.stubEnv("VITE_CONTRACT_ADDRESS_LOCAL", "");
+      vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
       vi.stubEnv("VITE_CONTRACT_ADDRESS", "");
       vi.stubEnv("VITE_LOCAL_RPC_URL", "");
 
