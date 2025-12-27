@@ -351,23 +351,29 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         setStatus("Please wait for the uploaded image to finish processing.");
         return;
       }
-      if (!draft.body || (!draft.imageUrl && !draft.imageDataUrl)) {
-        setStatus("Fill out the post text and add an image URL or upload an image.");
+      const bodyTrimmed = (draft.body || "").trim();
+      const imageUrlTrimmed = (draft.imageUrl || "").trim();
+      const imageDataUrlTrimmed = (draft.imageDataUrl || "").trim();
+      if (!bodyTrimmed && !imageUrlTrimmed && !imageDataUrlTrimmed) {
+        setStatus("Add text or attach media (image/video) to post.");
         return;
       }
 
       const writeContract = await getWriteContract();
 
-      const processingToastId = ipfsConfigured ? makeLocalNoticeId() : null;
+      const hasMedia = Boolean(uploadedImageBlob || imageUrlTrimmed || imageDataUrlTrimmed);
+      const willUseIpfs = ipfsConfigured && hasMedia;
+
+      const processingToastId = willUseIpfs ? makeLocalNoticeId() : null;
       if (processingToastId) {
         txNotifications.notifyPending({ hash: processingToastId, label: "Preparing post…", explorerUrl: null });
       }
 
       let metadataURI = "";
-      let imageRefForUi = draft.imageDataUrl || draft.imageUrl;
+      let imageRefForUi = imageDataUrlTrimmed || imageUrlTrimmed;
       let animationUrlForUi: string | undefined;
 
-      if (ipfsConfigured) {
+      if (willUseIpfs) {
         setStatus("Uploading to IPFS (Pinata)...");
         if (processingToastId) {
           txNotifications.notifyPending({ hash: processingToastId, label: "Uploading to IPFS…", explorerUrl: null });
@@ -398,8 +404,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
           let mintedTokenId: string | null = null;
           let mintedAuthor: string | undefined;
           let mintTxHash: string | undefined;
+          let mintBlockNumber: number | undefined;
 
           mintTxHash = receipt.hash;
+          mintBlockNumber = typeof (receipt as any)?.blockNumber === "number" ? Number((receipt as any).blockNumber) : undefined;
 
           for (const log of receipt.logs) {
             try {
@@ -414,7 +422,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          return { mintedTokenId, mintedAuthor, mintTxHash };
+          return { mintedTokenId, mintedAuthor, mintTxHash, mintBlockNumber };
         }
       );
 
@@ -435,6 +443,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         metadataURI,
         author: minted.mintedAuthor,
         mintTxHash: minted.mintTxHash,
+        mintBlockNumber: minted.mintBlockNumber,
+        // Ensure the optimistic post doesn't get sorted to the end of the feed
+        // during background refreshes before the on-chain timestamp is fetched.
+        mintTimestamp: Math.floor(Date.now() / 1000),
         likes: 0,
         comments: 0,
         shares: 0,

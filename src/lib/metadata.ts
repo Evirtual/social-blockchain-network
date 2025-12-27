@@ -75,7 +75,12 @@ export async function fetchTokenMetadata(tokenUri: string): Promise<TokenMetadat
   // IPFS/http(s) metadata.
   try {
     const url = ipfsToHttp(tokenUri);
-    const res = await fetch(url);
+    // Metadata fetches can be slow/unreliable (IPFS gateways, large responses).
+    // Keep the feed responsive by timing out and falling back to empty metadata.
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 4_500);
+    const res = await fetch(url, { signal: controller.signal });
+    window.clearTimeout(timeoutId);
     if (!res.ok) return {};
     const json = (await res.json()) as any;
     return {

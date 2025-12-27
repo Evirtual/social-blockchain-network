@@ -145,6 +145,10 @@ beforeEach(() => {
   mocks.walletAddress = "0x000000000000000000000000000000000000bEEF";
   mocks.hasPinata = false;
   mocks.setStatus.mockClear();
+  mocks.txNotifications.notifyPending.mockClear();
+  mocks.txNotifications.notifyConfirmed.mockClear();
+  mocks.txNotifications.notifyFailed.mockClear();
+  mocks.txNotifications.dismiss.mockClear();
   mocks.runContractTx.mockClear();
   mocks.writeContract.mintPost.mockClear();
   mocks.writeContract.requestPosterApproval.mockClear();
@@ -457,6 +461,33 @@ describe("ComposerContext transactions", () => {
     );
   });
 
+  it("does not emit a 'Preparing post…' toast when Pinata is configured but post is text-only", async () => {
+    mocks.hasPinata = true;
+    const get = grabCtx();
+
+    mocks.receipt = {
+      hash: "0xhash",
+      logs: [{ topics: ["t"], data: "0x01" }]
+    };
+    mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 77n] });
+
+    await act(async () => {
+      get().openComposer();
+      get().handleDraftChange("body", "Hello text-only");
+      // Ensure no media is attached (guard against any in-memory state leakage across tests).
+      get().onComposerImageUrlChange("");
+      get().onComposerClearImage();
+    });
+
+    await act(async () => {
+      await get().mintPost();
+    });
+
+    expect(mocks.txNotifications.notifyPending).not.toHaveBeenCalledWith(
+      expect.objectContaining({ label: "Preparing post…" })
+    );
+  });
+
   it("mintPost shows closed beta message when not allowed and not requested", async () => {
     const get = grabCtx();
     mocks.readContract.isPosterAllowed.mockResolvedValue(false);
@@ -529,16 +560,19 @@ describe("ComposerContext transactions", () => {
       await get().mintPost();
     });
 
-    expect(mocks.setStatus).toHaveBeenCalledWith("Fill out the post text and add an image URL or upload an image.");
+    expect(mocks.setStatus).toHaveBeenCalledWith("Add text or attach media (image/video) to post.");
   });
 
   it("mintPost calls contract.mintPost and adds new post to feed", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
     const get = grabCtx();
 
     mocks.receipt = {
       hash: "0xhash",
+      blockNumber: 777,
       logs: [{ topics: ["t"], data: "0x01" }]
-    };
+    } as any;
     mocks.parseLog.mockReturnValue({ name: "PostMinted", args: ["0xabc", 99n] });
 
     await act(async () => {
@@ -556,8 +590,12 @@ describe("ComposerContext transactions", () => {
 
     expect(mocks.feedState.posts[0]?.tokenId).toBe("99");
     expect(mocks.feedState.posts[0]?.body).toBe("Hello chain");
+    expect(mocks.feedState.posts[0]?.mintTimestamp).toBe(Math.floor(Date.now() / 1000));
+    expect(mocks.feedState.posts[0]?.mintBlockNumber).toBe(777);
     expect(get().isComposerOpen).toBe(false);
     expect(get().draft.body).toBe("");
+
+    vi.useRealTimers();
   });
 
   it("mintPost returns early when image is still processing", async () => {
