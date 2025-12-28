@@ -392,7 +392,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             // Current network uses the connected wallet provider to preserve existing behavior.
             const tasks: Array<Promise<Post[]>> = [];
 
-            const taskTimeoutMs = 10_000;
+            const taskTimeoutMs = 25_000;
 
             const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
               if (cfg.chainId !== 31337) return cfg.contractAddress;

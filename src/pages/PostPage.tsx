@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 type Props = {
   isOwner: boolean;
   tokenId: string;
+  postChainId: string | null;
   post: Post | null;
   comments: PostComment[];
   isLoadingComments: boolean;
@@ -43,6 +44,13 @@ type Props = {
 
 export function PostPage(props: Props) {
   const location = useLocation();
+
+  const requiresNetworkSwitch =
+    !!props.walletAddress && !!props.chainId && !!props.postChainId && props.postChainId !== props.chainId;
+  const interactionDisabledTitle = requiresNetworkSwitch
+    ? "Switch networks to interact with this post."
+    : undefined;
+  const explorerChainId = props.postChainId ?? props.chainId;
 
   const from = (location.state as { from?: string } | null)?.from;
   const current = `${location.pathname}${location.search}`;
@@ -118,8 +126,16 @@ export function PostPage(props: Props) {
                   value={props.commentDrafts[props.tokenId] || ""}
                   onChange={(event) => props.onCommentDraftChange(props.tokenId, event.target.value)}
                   placeholder="Write a comment to sign"
+                  disabled={requiresNetworkSwitch}
+                  title={interactionDisabledTitle}
                 />
-                <button className="secondary" type="button" onClick={() => props.onAction(props.tokenId, "comment")}>
+                <button
+                  className={`secondary${requiresNetworkSwitch ? " notAllowed" : ""}`}
+                  type="button"
+                  onClick={() => props.onAction(props.tokenId, "comment", props.postChainId)}
+                  disabled={requiresNetworkSwitch}
+                  title={interactionDisabledTitle}
+                >
                   Sign
                 </button>
               </div>
@@ -136,7 +152,7 @@ export function PostPage(props: Props) {
                 {props.comments.map((c, idx) => {
                   const hue = props.stableHueFromSeed(c.commenter.toLowerCase());
                   const label = props.shortAddress(c.commenter);
-                  const explorer = c.txHash ? props.getExplorerTxUrl(props.chainId, c.txHash) : null;
+                  const explorer = c.txHash ? props.getExplorerTxUrl(explorerChainId, c.txHash) : null;
                   return (
                     <div key={`${c.txHash ?? "nohash"}-${idx}`} className="commentItem">
                       <div className="avatar small" style={{ background: `hsl(${hue} 75% 55%)` }} />

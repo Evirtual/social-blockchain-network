@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import { PostPage } from "../pages/PostPage";
 import { useApp } from "../contexts/AppContext";
 
@@ -8,7 +8,14 @@ export function PostRoute() {
   const params = useParams();
   const location = useLocation();
   const tokenId = params.tokenId as string | undefined;
-  const postChainId = (location.state as { chainId?: string | null } | null)?.chainId ?? null;
+  const stateChainId = (location.state as { chainId?: string | null } | null)?.chainId ?? null;
+  const paramChainId = (params.chainId as string | undefined) ?? null;
+  const postChainId = paramChainId ?? stateChainId;
+
+  // If we navigated internally with chainId in state, prefer the canonical URL.
+  if (tokenId && !paramChainId && stateChainId) {
+    return <Navigate to={`/post/${stateChainId}/${tokenId}`} replace state={location.state} />;
+  }
 
   useEffect(() => {
     if (!tokenId) return;
@@ -34,6 +41,7 @@ export function PostRoute() {
     <PostPage
       isOwner={app.isOwner}
       tokenId={tokenId}
+      postChainId={postChainId}
       post={post}
       comments={app.postComments[tokenId] ?? []}
       isLoadingComments={!!app.isLoadingPostComments[tokenId]}

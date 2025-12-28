@@ -54,6 +54,8 @@ export function PostCard(props: Props) {
   const explorer = props.post.mintTxHash
     ? props.getExplorerTxUrl(props.post.chainId ?? props.chainId, props.post.mintTxHash)
     : null;
+  const hasMedia = !!props.post.image || !!props.post.animationUrl;
+  const postUrl = props.post.chainId ? `/post/${props.post.chainId}/${tokenId}` : `/post/${tokenId}`;
   const avatarStyle = props.authorAvatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.authorAvatarUrl)})` }
     : { background: `hsl(${props.authorHue} 75% 55%)` };
@@ -106,7 +108,7 @@ export function PostCard(props: Props) {
             <div className="postTokenArea">
               <Link
                 className="postTokenLink"
-                to={`/post/${tokenId}`}
+                to={postUrl}
                 state={{ from: props.from, chainId: props.post.chainId ?? null }}
               >
                 Token #{tokenId}
@@ -226,7 +228,7 @@ export function PostCard(props: Props) {
       ) : (
         <>
           {!!props.post.animationUrl ? (
-            <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
+            <Link className="postImageLink" to={postUrl} state={{ from: props.from, chainId: props.post.chainId ?? null }} aria-label="Open post">
               <video
                 className="postImage"
                 src={animationSrc}
@@ -244,7 +246,7 @@ export function PostCard(props: Props) {
               />
             </Link>
           ) : props.post.image ? (
-            <Link className="postImageLink" to={`/post/${tokenId}`} state={{ from: props.from }} aria-label="Open post">
+            <Link className="postImageLink" to={postUrl} state={{ from: props.from, chainId: props.post.chainId ?? null }} aria-label="Open post">
               <img
                 className="postImage"
                 src={imageSrc}
@@ -260,7 +262,7 @@ export function PostCard(props: Props) {
             </Link>
           ) : null}
 
-          {props.post.image || props.post.animationUrl ? null : <div className="post-body">{description}</div>}
+          {hasMedia ? null : <div className="post-body">{description}</div>}
         </>
       )}
 
@@ -370,7 +372,9 @@ export function PostCard(props: Props) {
         ) : null}
       </div>
 
-      {props.editingTokenId === tokenId || !props.post.image ? null : <div className="postCaption">{description}</div>}
+      {props.editingTokenId === tokenId || !hasMedia || !props.post.body?.trim() ? null : (
+        <div className="postCaption">{description}</div>
+      )}
     </article>
   );
 }

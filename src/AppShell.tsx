@@ -71,6 +71,7 @@ export function AppShell() {
 
       <Routes>
         <Route path="/" element={<HomeRoute />} />
+        <Route path="/post/:chainId/:tokenId" element={<PostRoute />} />
         <Route path="/post/:tokenId" element={<PostRoute />} />
         <Route path="/profile/:address" element={<ProfileRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
