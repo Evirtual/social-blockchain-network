@@ -3,7 +3,21 @@ import { socialInterface } from "../../contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
+import { parseChainKey } from "@shared/lib/chainKey";
 import { addressKey } from "./utils";
+
+// In-memory caches to persist results across route navigation without using sessionStorage.
+// Keys include chainId so data never bleeds across networks.
+const followersByKeyCache = new Map<string, string[]>();
+const followingByKeyCache = new Map<string, string[]>();
+const followerCountByKeyCache = new Map<string, number>();
+
+function makeCacheKey(chainId: string | null, addressLower: string) {
+  const addr = String(addressLower ?? "").trim().toLowerCase();
+  if (!addr) return null;
+  const chainKey = parseChainKey(chainId);
+  return `${chainKey}:${addr}`;
+}
 
 export function useFollowScans(params: {
   provider: any | null;
@@ -57,6 +71,13 @@ export function useFollowScans(params: {
       if (!address) return;
       const key = addressKey(address);
 
+      const cacheKey = makeCacheKey(params.chainId, key);
+      if (cacheKey && followerCountByKeyCache.has(cacheKey)) {
+        setFollowerCountByAddress((prev) => ({ ...prev, [key]: followerCountByKeyCache.get(cacheKey)! }));
+        loadedFollowerCountByAddressRef.current[key] = true;
+        return;
+      }
+
       if (loadedFollowerCountByAddressRef.current[key]) return;
 
       await runInFlight(followerCountInFlightRef.current, key, async () => {
@@ -78,6 +99,7 @@ export function useFollowScans(params: {
 
           const count = activeFollowers.length;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
+          if (cacheKey) followerCountByKeyCache.set(cacheKey, count);
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));
@@ -96,6 +118,16 @@ export function useFollowScans(params: {
       const key = addressKey(address);
 
       if (loadedFollowersByAddressRef.current[key]) return;
+
+      const cacheKey = makeCacheKey(params.chainId, key);
+      if (cacheKey && followersByKeyCache.has(cacheKey)) {
+        const cached = followersByKeyCache.get(cacheKey)!;
+        setFollowersByAddress((prev) => ({ ...prev, [key]: cached }));
+        setFollowerCountByAddress((prev) => ({ ...prev, [key]: cached.length }));
+        loadedFollowersByAddressRef.current[key] = true;
+        loadedFollowerCountByAddressRef.current[key] = true;
+        return;
+      }
 
       await runInFlight(followersInFlightRef.current, key, async () => {
         setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
@@ -117,6 +149,10 @@ export function useFollowScans(params: {
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
+          if (cacheKey) {
+            followersByKeyCache.set(cacheKey, normalizedActive);
+            followerCountByKeyCache.set(cacheKey, normalizedActive.length);
+          }
           loadedFollowersByAddressRef.current[key] = true;
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
@@ -137,6 +173,13 @@ export function useFollowScans(params: {
 
       if (loadedFollowingByAddressRef.current[key]) return;
 
+      const cacheKey = makeCacheKey(params.chainId, key);
+      if (cacheKey && followingByKeyCache.has(cacheKey)) {
+        setFollowingByAddress((prev) => ({ ...prev, [key]: followingByKeyCache.get(cacheKey)! }));
+        loadedFollowingByAddressRef.current[key] = true;
+        return;
+      }
+
       await runInFlight(followingInFlightRef.current, key, async () => {
         setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
         try {
@@ -156,6 +199,7 @@ export function useFollowScans(params: {
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+          if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));
