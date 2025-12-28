@@ -29,7 +29,7 @@ export type FollowContextValue = {
 const FollowContext = createContext<FollowContextValue | null>(null);
 
 export function FollowProvider({ children }: { children: React.ReactNode }) {
-  const { provider, walletAddress } = useWallet();
+  const { provider, walletAddress, chainId } = useWallet();
   const { setStatus } = useStatus();
   const contract = useContract();
   const { runContractTx } = useContractTx();
@@ -40,6 +40,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
   const { isFollowingByAddress, loadIsFollowing, toggleFollow } = useIsFollowing({
     provider,
+    chainId,
     walletAddress,
     ensureContractDeployedOnCurrentNetwork,
     getReadContract,
@@ -60,6 +61,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
     loadFollowingForAddress
   } = useFollowScans({
     provider,
+    chainId,
     ensureContractDeployedOnCurrentNetwork,
     getReadContract,
     setStatus

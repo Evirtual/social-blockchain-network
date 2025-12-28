@@ -99,7 +99,24 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       requestApproval: posterApproval.requestApproval,
       dismissApproval: posterApproval.dismissApproval
     }),
-    [isComposerOpen, openComposer, closeComposer, ipfsConfigured, draft, media, mintFlow, handleDraftChange, posterApproval]
+    [
+      isComposerOpen,
+      openComposer,
+      closeComposer,
+      ipfsConfigured,
+      draft,
+      media.isImageLoading,
+      media.onComposerImageUrlChange,
+      media.onComposerClearImage,
+      media.onSelectComposerFile,
+      mintFlow.isPosting,
+      mintFlow.mintPost,
+      handleDraftChange,
+      posterApproval.approvalRequired,
+      posterApproval.approvalRequested,
+      posterApproval.requestApproval,
+      posterApproval.dismissApproval
+    ]
   );
 
   return <ComposerContext.Provider value={value}>{children}</ComposerContext.Provider>;

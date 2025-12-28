@@ -12,6 +12,7 @@ export function Sidebar({
   profileBio,
   profileAvatarUrl,
   myPostsCount,
+  isLoadingMyPostsCount,
   followerCount,
   followers,
   following,
@@ -52,6 +53,7 @@ export function Sidebar({
         profileBio={profileBio}
         profileAvatarUrl={profileAvatarUrl}
         myPostsCount={myPostsCount}
+        isLoadingMyPostsCount={isLoadingMyPostsCount}
         followerCount={followerCount}
         followers={followers}
         following={following}

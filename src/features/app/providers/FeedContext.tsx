@@ -74,7 +74,17 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       loadCommentsForPost: comments.loadCommentsForPost,
       loadPostsByTokenIds: postsByTokenIds.loadPostsByTokenIds
     }),
-    [feedRefresh, comments, postsByTokenIds]
+    [
+      feedRefresh.posts,
+      feedRefresh.setPosts,
+      feedRefresh.isFeedLoading,
+      feedRefresh.refreshFeed,
+      comments.postComments,
+      comments.setPostComments,
+      comments.isLoadingPostComments,
+      comments.loadCommentsForPost,
+      postsByTokenIds.loadPostsByTokenIds
+    ]
   );
 
   return <FeedContext.Provider value={value}>{children}</FeedContext.Provider>;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post, PostComment } from "@types";
 import { getSocialContract } from "../../contract";
 import { getErrorMessage } from "@shared/lib/errors";
@@ -31,6 +31,23 @@ export function useFeedComments(params: {
 
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
   const commentsCacheRef = useRef<Map<string, { lastScannedBlock: number; comments: PostComment[] }>>(new Map());
+
+  const lastChainIdRef = useRef<string | null | undefined>(undefined);
+  const lastProviderRef = useRef<any>(undefined);
+
+  useEffect(() => {
+    const chainChanged = lastChainIdRef.current !== chainId;
+    const providerChanged = lastProviderRef.current !== provider;
+    if (!chainChanged && !providerChanged) return;
+
+    lastChainIdRef.current = chainId;
+    lastProviderRef.current = provider;
+
+    setPostComments({});
+    setIsLoadingPostComments({});
+    commentsInFlightRef.current = {};
+    commentsCacheRef.current = new Map();
+  }, [chainId, provider]);
 
   const loadCommentsForPost = useCallback(
     async (tokenId: string, postChainId?: string | null) => {

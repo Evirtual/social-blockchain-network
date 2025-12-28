@@ -12,6 +12,7 @@ export type ProfileRecord = { name: string; bio: string; avatarUrl: string };
 
 type UseProfilesStateArgs = {
   provider: unknown | null;
+  chainId: string | null;
   walletAddress: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: () => Promise<unknown>;
@@ -26,6 +27,7 @@ type UseProfilesStateArgs = {
 
 export function useProfilesState({
   provider,
+  chainId,
   walletAddress,
   ensureContractDeployedOnCurrentNetwork,
   getReadContract,
@@ -54,6 +56,33 @@ export function useProfilesState({
   const [isProfileAvatarLoading, setIsProfileAvatarLoading] = useState(false);
 
   const ipfsConfigured = useMemo(() => hasPinata(), []);
+
+  const lastChainIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const isInitial = lastChainIdRef.current === undefined;
+    if (chainId === lastChainIdRef.current) return;
+    lastChainIdRef.current = chainId;
+
+    if (isInitial) return;
+
+    profilesByAddressRef.current = {};
+    profileLoadInFlightRef.current = {};
+    setProfilesByAddress({});
+
+    resetProfileUiState({
+      setProfileName,
+      setProfileBio,
+      setProfileAvatarUrl,
+      setIsEditingProfile,
+      setProfileDraftName,
+      setProfileDraftBio,
+      setProfileDraftAvatarUrl,
+      setProfileDraftAvatarDataUrl,
+      setProfileUploadedAvatarBlob,
+      setProfileUploadedAvatarFilename,
+      setIsProfileAvatarLoading
+    });
+  }, [chainId]);
 
   useEffect(() => {
     walletAddressRef.current = walletAddress;

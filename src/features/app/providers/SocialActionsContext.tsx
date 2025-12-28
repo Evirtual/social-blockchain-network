@@ -108,7 +108,23 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       handleTip: actions.handleTip,
       withdrawTips: actions.withdrawTips
     }),
-    [isOwner, edit, actions]
+    [
+      isOwner,
+      edit.editingTokenId,
+      edit.editDraft,
+      edit.isEditImageLoading,
+      edit.setEditDraft,
+      edit.onEditSelectFile,
+      edit.onEditClearImage,
+      edit.startEditPost,
+      edit.cancelEditPost,
+      edit.saveEditedPost,
+      actions.burnPost,
+      actions.freezePost,
+      actions.handleAction,
+      actions.handleTip,
+      actions.withdrawTips
+    ]
   );
 
   return <SocialActionsContext.Provider value={value}>{children}</SocialActionsContext.Provider>;

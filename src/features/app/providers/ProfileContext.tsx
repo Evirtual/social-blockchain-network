@@ -45,7 +45,7 @@ const ProfileContext: ReturnType<typeof createContext<ProfileContextValue | null
   >);
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const { provider, walletAddress } = useWallet();
+  const { provider, walletAddress, chainId } = useWallet();
   const { setStatus } = useStatus();
   const contract = useContract();
   const { posts } = useFeed();
@@ -77,6 +77,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     saveProfile
   } = useProfilesState({
     provider,
+    chainId,
     walletAddress,
     ensureContractDeployedOnCurrentNetwork,
     getReadContract,

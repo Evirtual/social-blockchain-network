@@ -1,7 +1,6 @@
 import { isAddress } from "ethers";
 
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
-import { writePendingApprovals } from "@shared/lib/approvalsCache";
 import { hasPinata } from "@features/ipfs";
 import { discoverMintedTokenIdsForAuthor } from "@features/profile";
 import { bestEffortUnpinCids, collectPinnedCidsForTokenIds, collectReferencedIpfsCidsFromPosts } from "@features/ipfs";
@@ -43,14 +42,12 @@ export function useApprovalActions(args: {
     const next = [addr, ...args.pendingApprovals];
     args.setApprovalsError(null);
     args.setPendingApprovals(next);
-    writePendingApprovals(next);
     args.setPendingInput("");
   }
 
   function removePending(addr: string) {
     const next = args.pendingApprovals.filter((a) => a.toLowerCase() !== addr.toLowerCase());
     args.setPendingApprovals(next);
-    writePendingApprovals(next);
   }
 
   async function approvePending(addr: string) {

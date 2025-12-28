@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 
-import { readPendingApprovals } from "@shared/lib/approvalsCache";
-
 import { Modal } from "../../Modal";
 import { useContract } from "../../../providers/ContractContext";
 import { useContractTx } from "../../../providers/useContractTx";
 import { useFeed } from "../../../providers/FeedContext";
+import { useWallet } from "../../../providers/WalletContext";
 import { ApprovalListRow } from "./approvals/ApprovalListRow";
 import { useApprovalActions } from "./approvals/useApprovalActions";
 import { useOnChainApprovalRequests } from "./approvals/useOnChainApprovalRequests";
 import { usePosterStatusMaps } from "./approvals/usePosterStatusMaps";
+
+// In-memory cache to keep pending approvals across route navigation.
+// Resets on page refresh by design.
+const pendingApprovalsCache = new Map<string, string[]>();
 
 export type ApprovalsModalProps = {
   open: boolean;
@@ -22,19 +25,31 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const contract = useContract();
   const { runContractTx } = useContractTx();
   const feed = useFeed();
+  const wallet = useWallet();
 
-  const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => readPendingApprovals());
+  const pendingCacheKey = `${String(wallet.chainId ?? "").trim()}:${String(contract.contractAddress ?? "")
+    .trim()
+    .toLowerCase()}`;
+
+  const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => pendingApprovalsCache.get(pendingCacheKey) ?? []);
   const [pendingInput, setPendingInput] = useState("");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!props.open) return;
-    setPendingApprovals(readPendingApprovals());
+    setApprovalsError(null);
+    setPendingInput("");
   }, [props.open]);
+
+  useEffect(() => {
+    // On network/contract change, hydrate from cache for that network.
+    setPendingApprovals(pendingApprovalsCache.get(pendingCacheKey) ?? []);
+  }, [pendingCacheKey]);
 
   const { onChainRequests, isLoadingOnChainRequests, onChainRequestsLoadError } = useOnChainApprovalRequests({
     open: props.open,
     isOwner: props.isOwner,
+    chainId: wallet.chainId,
     contractAddress: contract.contractAddress,
     getReadContract: contract.getReadContract
   });
@@ -54,7 +69,10 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
 
   const { addPendingApproval, removePending, approvePending, disapprovePending, resetAllAndBlock } = useApprovalActions({
     pendingApprovals,
-    setPendingApprovals,
+    setPendingApprovals: (next) => {
+      setPendingApprovals(next);
+      pendingApprovalsCache.set(pendingCacheKey, next);
+    },
     setApprovalsError,
     setPendingInput,
     setPosterAllowedByAddress,
@@ -107,7 +125,20 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
           <>
             <div className="muted">Requests from chain</div>
 
-            {isLoadingOnChainRequests ? <div className="muted">Loading…</div> : null}
+            {isLoadingOnChainRequests ? (
+              <div className="list" aria-busy={true} aria-label="Loading requests" role="status">
+                <div className="listRow" aria-hidden="true">
+                  <span className="listRowLeft">
+                    <span className="value" style={{ display: "inline-flex", alignItems: "center" }}>
+                      <span className="skeletonLine" style={{ width: "9rem" }} />
+                    </span>
+                  </span>
+                  <span className="rowActions">
+                    <span className="skeletonLine" style={{ width: "16rem", height: "2.25rem", borderRadius: "0.75rem" }} />
+                  </span>
+                </div>
+              </div>
+            ) : null}
 
             {!isLoadingOnChainRequests && onChainRequestsLoadError ? <div className="muted">Failed to load requests.</div> : null}
 

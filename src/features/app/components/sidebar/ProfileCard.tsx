@@ -16,6 +16,7 @@ export type ProfileCardProps = {
   profileBio: string;
   profileAvatarUrl: string;
   myPostsCount?: number;
+  isLoadingMyPostsCount?: boolean;
   followerCount?: number;
   followers?: string[] | null;
   following?: string[] | null;
@@ -68,6 +69,10 @@ export function ProfileCard(props: ProfileCardProps) {
   const showHeaderStats = !!props.walletAddress;
   const hasAnyHeaderPills = showHeaderStats;
 
+  const pillCountSkeleton = (widthRem: number) => (
+    <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "0.85rem" }} aria-hidden="true" />
+  );
+
   return (
     <details
       className="card cardDropdown profileDropdown"
@@ -84,22 +89,42 @@ export function ProfileCard(props: ProfileCardProps) {
           <div className="cardTitle">Profile</div>
           {hasAnyHeaderPills ? (
             <div className="cardHeaderPills">
-              {typeof props.myPostsCount === "number" ? <span className="pill">{props.myPostsCount} posts</span> : null}
+              {props.isLoadingMyPostsCount ? (
+                <span className="pill buttonWithSpinner" aria-label="Loading post count" aria-busy="true">
+                  {pillCountSkeleton(1.9)} posts
+                </span>
+              ) : typeof props.myPostsCount === "number" ? (
+                <span className="pill">{props.myPostsCount} posts</span>
+              ) : null}
               <button
                 type="button"
-                className="pill pillButton"
+                className="pill pillButton buttonWithSpinner"
                 onClick={() => setIsFollowersOpen(true)}
                 aria-label="View followers"
               >
-                {`${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`}
+                {props.isLoadingFollowers ? (
+                  <>
+                    {pillCountSkeleton(2.1)}
+                    followers
+                  </>
+                ) : (
+                  `${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`
+                )}
               </button>
               <button
                 type="button"
-                className="pill pillButton"
+                className="pill pillButton buttonWithSpinner"
                 onClick={() => setIsFollowingOpen(true)}
                 aria-label="View following"
               >
-                {`${following.length}`} following
+                {props.isLoadingFollowing ? (
+                  <>
+                    {pillCountSkeleton(2.1)}
+                    following
+                  </>
+                ) : (
+                  `${following.length} following`
+                )}
               </button>
             </div>
           ) : null}

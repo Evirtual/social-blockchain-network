@@ -1,35 +1,47 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isAddress } from "ethers";
 
 import { scanRecentUniqueAddressesFromEvent } from "@features/profile";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
-import {
-  readApprovalsChainRequestsCache,
-  writeApprovalsChainRequestsCache
-} from "@shared/lib/approvalsCache";
 
+type ApprovalsRequestsCacheEntry = {
+  requesters: string[];
+  hadQueryError: boolean;
+  loadedAt: number;
+};
 
-const APPROVALS_CHAIN_CACHE_TTL_MS = 60_000;
+// In-memory cache to preserve results across route navigation (SPA).
+// Resets on page refresh by design.
+const approvalsRequestsCache = new Map<string, ApprovalsRequestsCacheEntry>();
 
 export function useOnChainApprovalRequests(args: {
   open: boolean;
   isOwner: boolean;
+  chainId: string | null;
   contractAddress: string | undefined;
   getReadContract: () => Promise<any>;
 }) {
+  const cacheKey = `${String(args.chainId ?? "").trim()}:${String(args.contractAddress ?? "").trim().toLowerCase()}`;
+
   const [onChainRequests, setOnChainRequests] = useState<string[]>(() => {
-    const cached = readApprovalsChainRequestsCache(args.contractAddress);
+    const cached = approvalsRequestsCache.get(cacheKey);
     return cached?.requesters ?? [];
   });
   const [isLoadingOnChainRequests, setIsLoadingOnChainRequests] = useState(false);
-  const [onChainRequestsLoadError, setOnChainRequestsLoadError] = useState(false);
+  const [onChainRequestsLoadError, setOnChainRequestsLoadError] = useState(() => {
+    const cached = approvalsRequestsCache.get(cacheKey);
+    return !!cached?.hadQueryError && (cached.requesters?.length ?? 0) === 0;
+  });
+
+  const lastLoadedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const cached = readApprovalsChainRequestsCache(args.contractAddress);
+    const cached = approvalsRequestsCache.get(cacheKey);
     setOnChainRequests(cached?.requesters ?? []);
     setIsLoadingOnChainRequests(false);
-    setOnChainRequestsLoadError(false);
-  }, [args.contractAddress]);
+    setOnChainRequestsLoadError(!!cached?.hadQueryError && (cached.requesters?.length ?? 0) === 0);
+    lastLoadedKeyRef.current = cached ? cacheKey : null;
+  }, [args.chainId, args.contractAddress]);
 
   useEffect(() => {
     if (!args.open) return;
@@ -37,24 +49,21 @@ export function useOnChainApprovalRequests(args: {
       setOnChainRequests([]);
       setIsLoadingOnChainRequests(false);
       setOnChainRequestsLoadError(false);
+      lastLoadedKeyRef.current = null;
       return;
     }
 
-    const cached = readApprovalsChainRequestsCache(args.contractAddress);
-    const isCachedFresh =
-      !!cached && typeof cached.updatedAt === "number" && Date.now() - cached.updatedAt < APPROVALS_CHAIN_CACHE_TTL_MS;
-
-    if (cached) {
-      setOnChainRequests(cached.requesters);
-      setOnChainRequestsLoadError(false);
+    const cached = approvalsRequestsCache.get(cacheKey);
+    // If we have any cached result for this network+contract, do not re-load on reopen.
+    if (cached && lastLoadedKeyRef.current === cacheKey) {
       setIsLoadingOnChainRequests(false);
-      if (isCachedFresh) return;
+      setOnChainRequestsLoadError(!!cached.hadQueryError && cached.requesters.length === 0);
+      return;
     }
 
     let cancelled = false;
     void (async () => {
-      const showLoading = !cached;
-      if (showLoading) setIsLoadingOnChainRequests(true);
+      setIsLoadingOnChainRequests(true);
       setOnChainRequestsLoadError(false);
       try {
         const readContract = await args.getReadContract();
@@ -82,21 +91,28 @@ export function useOnChainApprovalRequests(args: {
           maxTimeMs: 8_000
         });
 
-        if (!hadQueryError || uniq.length > 0) {
-          writeApprovalsChainRequestsCache(args.contractAddress, uniq);
-        }
-
         if (!cancelled) {
           setOnChainRequests(uniq);
-          setOnChainRequestsLoadError(!cached && hadQueryError && uniq.length === 0);
+          setOnChainRequestsLoadError(hadQueryError && uniq.length === 0);
+          approvalsRequestsCache.set(cacheKey, {
+            requesters: uniq,
+            hadQueryError,
+            loadedAt: Date.now()
+          });
+          lastLoadedKeyRef.current = cacheKey;
         }
       } catch {
-        if (!cancelled && !cached) {
+        if (!cancelled) {
           setOnChainRequests([]);
           setOnChainRequestsLoadError(true);
+          approvalsRequestsCache.set(cacheKey, {
+            requesters: [],
+            hadQueryError: true,
+            loadedAt: Date.now()
+          });
         }
       } finally {
-        if (!cancelled && !cached) setIsLoadingOnChainRequests(false);
+        if (!cancelled) setIsLoadingOnChainRequests(false);
       }
     })();
 

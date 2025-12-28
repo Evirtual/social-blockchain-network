@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { socialInterface } from "../../contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
@@ -7,6 +7,7 @@ import { addressKey } from "./utils";
 
 export function useFollowScans(params: {
   provider: any | null;
+  chainId: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: () => Promise<any>;
   setStatus: (v: string) => void;
@@ -26,6 +27,29 @@ export function useFollowScans(params: {
   const [followingByAddress, setFollowingByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingFollowingByAddress, setIsLoadingFollowingByAddress] = useState<Record<string, boolean>>({});
   const followingInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+
+  const lastChainIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const isInitial = lastChainIdRef.current === undefined;
+    if (params.chainId === lastChainIdRef.current) return;
+    lastChainIdRef.current = params.chainId;
+    if (isInitial) return;
+
+    loadedFollowerCountByAddressRef.current = {};
+    loadedFollowersByAddressRef.current = {};
+    loadedFollowingByAddressRef.current = {};
+
+    followerCountInFlightRef.current = {};
+    followersInFlightRef.current = {};
+    followingInFlightRef.current = {};
+
+    setFollowerCountByAddress({});
+    setIsLoadingFollowerCountByAddress({});
+    setFollowersByAddress({});
+    setIsLoadingFollowersByAddress({});
+    setFollowingByAddress({});
+    setIsLoadingFollowingByAddress({});
+  }, [params.chainId]);
 
   const loadFollowerCountForAddress = useCallback(
     async (address: string) => {
@@ -90,8 +114,11 @@ export function useFollowScans(params: {
             errorLabel: "follower"
           });
 
-          setFollowersByAddress((prev) => ({ ...prev, [key]: active }));
+          const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
+          setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+          setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
           loadedFollowersByAddressRef.current[key] = true;
+          loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));
         } finally {
@@ -127,7 +154,8 @@ export function useFollowScans(params: {
             errorLabel: "following"
           });
 
-          setFollowingByAddress((prev) => ({ ...prev, [key]: active }));
+          const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
+          setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));

@@ -209,7 +209,20 @@ export function useFeedRefresh(params: {
     lastChainIdRef.current = chainId;
     lastWalletAddressLowerRef.current = walletAddressLower;
 
-    if (!walletChanged && !isInitialEpoch) return;
+    // On network change, reset state and caches so we don't show stale data.
+    if (chainChanged && !isInitialEpoch) {
+      setPosts([]);
+      postsRef.current = [];
+      refreshFeedInFlightRef.current = null;
+      queuedRefreshAccountRef.current = undefined;
+      lastRefreshedAccountRef.current = null;
+      lastRefreshCompletedAtRef.current = 0;
+      blockTimestampCacheRef.current = new Map();
+      mintedEventsCacheRef.current = new Map();
+      existsPruneCursorRef.current = new Map();
+    }
+
+    if (!walletChanged && !chainChanged && !isInitialEpoch) return;
 
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status

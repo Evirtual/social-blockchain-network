@@ -141,6 +141,7 @@ export function useAccountPageProps(args: {
         profileBio: profileCtx.profileBio,
         profileAvatarUrl: profileCtx.profileAvatarUrl,
         myPostsCount: profileCtx.myPostsCount,
+        isLoadingMyPostsCount: !!feed.isFeedLoading && (profileCtx.myPostsCount ?? 0) === 0,
         followerCount: selfKey ? follow.followerCountByAddress[selfKey] : undefined,
         followers: selfKey ? (follow.followersByAddress[selfKey] ?? null) : null,
         following: selfKey ? (follow.followingByAddress[selfKey] ?? null) : null,

@@ -6,6 +6,7 @@ import { addressKey } from "./utils";
 
 export function useIsFollowing(params: {
   provider: unknown | null;
+  chainId: string | null;
   walletAddress: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: () => Promise<any>;
@@ -18,14 +19,20 @@ export function useIsFollowing(params: {
   setStatus: (v: string) => void;
 }) {
   const [isFollowingByAddress, setIsFollowingByAddress] = useState<Record<string, boolean | undefined>>({});
+  const isFollowingByAddressRef = useRef<Record<string, boolean | undefined>>({});
   const loadedIsFollowingByAddressRef = useRef<Record<string, boolean>>({});
   const isFollowingInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   useEffect(() => {
     setIsFollowingByAddress({});
+    isFollowingByAddressRef.current = {};
     loadedIsFollowingByAddressRef.current = {};
     isFollowingInFlightRef.current = {};
-  }, [params.walletAddress]);
+  }, [params.walletAddress, params.chainId]);
+
+  useEffect(() => {
+    isFollowingByAddressRef.current = isFollowingByAddress;
+  }, [isFollowingByAddress]);
 
   const loadIsFollowing = useCallback(
     async (followee: string) => {
@@ -36,7 +43,7 @@ export function useIsFollowing(params: {
         const key = addressKey(followee);
 
         if (loadedIsFollowingByAddressRef.current[key]) return;
-        if (typeof isFollowingByAddress[key] === "boolean") {
+        if (typeof isFollowingByAddressRef.current[key] === "boolean") {
           loadedIsFollowingByAddressRef.current[key] = true;
           return;
         }
@@ -45,20 +52,18 @@ export function useIsFollowing(params: {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
           const ok = (await (readContract as any).isFollowing(params.walletAddress, followee)) as boolean;
-          setIsFollowingByAddress((prev) => ({ ...prev, [key]: !!ok }));
+          setIsFollowingByAddress((prev) => {
+            const next = { ...prev, [key]: !!ok };
+            isFollowingByAddressRef.current = next;
+            return next;
+          });
           loadedIsFollowingByAddressRef.current[key] = true;
         });
       } catch {
         // ignore
       }
     },
-    [
-      params.provider,
-      params.walletAddress,
-      params.ensureContractDeployedOnCurrentNetwork,
-      params.getReadContract,
-      isFollowingByAddress
-    ]
+    [params.provider, params.walletAddress, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract]
   );
 
   const toggleFollow = useCallback(
@@ -78,7 +83,7 @@ export function useIsFollowing(params: {
         const writeContract = await params.getWriteContract();
         const key = addressKey(followee);
 
-        let currently = isFollowingByAddress[key];
+        let currently = isFollowingByAddressRef.current[key];
         if (typeof currently !== "boolean") {
           currently = (await (writeContract as any).isFollowing(params.walletAddress, followee)) as boolean;
         }
@@ -93,12 +98,16 @@ export function useIsFollowing(params: {
         );
         if (!ok) return;
 
-        setIsFollowingByAddress((prev) => ({ ...prev, [key]: !currently }));
+        setIsFollowingByAddress((prev) => {
+          const next = { ...prev, [key]: !currently };
+          isFollowingByAddressRef.current = next;
+          return next;
+        });
       } catch (error) {
         params.setStatus(getErrorMessage(error));
       }
     },
-    [params.walletAddress, params.getWriteContract, params.runContractTx, params.setStatus, isFollowingByAddress]
+    [params.walletAddress, params.getWriteContract, params.runContractTx, params.setStatus]
   );
 
   return {

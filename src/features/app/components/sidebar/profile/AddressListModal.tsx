@@ -20,6 +20,22 @@ export type AddressListModalProps = {
 export function AddressListModal(props: AddressListModalProps) {
   const profile = useProfile();
 
+  const loadingSkeletonRows = props.isLoading
+    ? Array.from({ length: 1 }).map((_, idx) => (
+        <div key={`addr-skeleton-${idx}`} className="listRow" aria-hidden="true">
+          <span className="listRowLeft">
+            <div className="avatar tiny skeleton" />
+            <span className="value" style={{ display: "inline-flex", alignItems: "center" }}>
+              <span className="skeletonLine" style={{ width: "7rem" }} />
+            </span>
+          </span>
+          <span className="muted">
+            <span className="skeletonLine" style={{ width: "5.5rem" }} />
+          </span>
+        </div>
+      ))
+    : null;
+
   useEffect(() => {
     if (!props.open) return;
     const addrs = props.addresses.slice(0, 24);
@@ -30,7 +46,7 @@ export function AddressListModal(props: AddressListModalProps) {
   return (
     <Modal open={props.open} title={props.title} onClose={props.onClose}>
       <div className="list">
-        {props.isLoading ? <div className="muted">Loading…</div> : null}
+        {loadingSkeletonRows}
 
         {!props.isLoading && props.addresses.length === 0 ? <div className="muted">{props.emptyText}</div> : null}
 

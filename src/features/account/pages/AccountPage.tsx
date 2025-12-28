@@ -83,6 +83,7 @@ export function AccountPage(props: Props) {
           profileBio={props.sidebar.profileBio}
           profileAvatarUrl={props.sidebar.profileAvatarUrl}
           myPostsCount={props.sidebar.myPostsCount}
+          isLoadingMyPostsCount={props.sidebar.isLoadingMyPostsCount}
           followerCount={props.sidebar.followerCount}
           followers={props.sidebar.followers}
           following={props.sidebar.following}
