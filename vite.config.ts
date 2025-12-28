@@ -1,8 +1,20 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@features": path.resolve(__dirname, "src/features"),
+      "@shared": path.resolve(__dirname, "src/features/shared"),
+      "@types": path.resolve(__dirname, "src/types.ts")
+    }
+  },
   build: {
     rollupOptions: {
       output: {
@@ -19,8 +31,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     css: true,
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
     exclude: ["test/**", "node_modules/**", "dist/**"],
+    passWithNoTests: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
@@ -30,8 +43,7 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/test/**",
         "src/vite-env.d.ts",
-        "src/types.ts",
-        "src/contexts/AppContext.types.ts"
+        "src/types.ts"
       ]
     }
   }

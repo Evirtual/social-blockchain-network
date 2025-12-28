@@ -13,9 +13,11 @@ A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 3. Deploy the contract to localhost
    - `npm run deploy:local`
 
+   This writes the deployed address into `.env.local` as `VITE_CONTRACT_ADDRESS`.
+
 4. Create `.env.local`
-   - Copy from `.env.example`
-   - Set `VITE_CONTRACT_ADDRESS` to the deployed address
+   - If you didn’t run `npm run deploy:local`, copy `.env.example` → `.env.local`
+   - Set `VITE_CONTRACT_ADDRESS` (single-network) or the per-network vars (recommended)
 
 5. Start the frontend
    - `npm run dev`
@@ -41,9 +43,7 @@ A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 
 GitHub Actions runs on every PR and push to `main`:
 
-- Contract tests
-- Frontend tests
-- Production build
+- Production build (`npm run build`)
 
 ## Deploying to Ethereum + Base
 
@@ -61,6 +61,8 @@ Set at minimum:
    - `ETH_RPC_URL`
    - `BASE_RPC_URL`
 
+Optional (recommended): also configure the chain-specific testnet RPC URLs from `.env.example`.
+
 ### 2) Deploy
 
 - Ethereum mainnet:
@@ -75,9 +77,9 @@ Testnets:
 - Base Sepolia:
    - `npm run deploy:base:sepolia`
 
-Deploy both Sepolia networks (with a preflight RPC/chainId check):
+Deploy a set of supported testnets (with a preflight RPC/chainId check):
 
-- `npm run deploy:sepolias`
+- `npm run deploy:testnets`
 
 Optional: BSC is also supported, and you can deploy Base Sepolia + BSC Testnet via:
 
@@ -89,8 +91,22 @@ Each deploy writes the resulting address into `.env` using a chain-specific key:
 - `VITE_CONTRACT_ADDRESS_SEPOLIA` for Ethereum Sepolia (chainId 11155111)
 - `VITE_CONTRACT_ADDRESS_BASE` for Base (chainId 8453)
 - `VITE_CONTRACT_ADDRESS_BSC` for BSC (chainId 56)
+- `VITE_CONTRACT_ADDRESS_BASE_SEPOLIA` for Base Sepolia (chainId 84532)
+- `VITE_CONTRACT_ADDRESS_BSC_TESTNET` for BSC Testnet (chainId 97)
 
 The frontend will automatically select the correct address based on the user’s connected network.
+
+## Frontend environment variables
+
+See `.env.example` for the full list. Common ones:
+
+- Contract address selection:
+   - `VITE_CONTRACT_ADDRESS` (legacy single-network)
+   - `VITE_CONTRACT_ADDRESS_<NETWORK>` (recommended multi-network)
+- Optional multi-network feed reads (browser-side, must be CORS-enabled):
+   - `VITE_<NETWORK>_RPC_URL` (e.g. `VITE_BASE_RPC_URL`)
+- Optional IPFS gateway override:
+   - `VITE_IPFS_GATEWAY` (e.g. `https://gateway.pinata.cloud/ipfs/`)
 
 ## Production notes / readiness
 

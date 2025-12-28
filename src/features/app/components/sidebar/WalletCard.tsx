@@ -1,0 +1,99 @@
+import { formatEther } from "ethers";
+import { useEffect, useState } from "react";
+
+import { useIsMobile } from "@shared/hooks/useIsMobile";
+
+export type WalletCardProps = {
+  walletAddress: string | null;
+  chainId: string | null;
+  networkName: string | null;
+  nativeBalance: string;
+  withdrawableTipsWei: bigint;
+  contractAddress: string | undefined;
+  contractDeployed: boolean | null;
+  status: string;
+  onWithdrawTips: () => void;
+  shortAddress: (address: string) => string;
+  getNativeSymbol: (chainId: string | null) => string;
+};
+
+export function WalletCard(props: WalletCardProps) {
+  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+
+  useEffect(() => {
+    setIsOpen(!isMobile);
+  }, [isMobile]);
+
+  return (
+    <details
+      className="card cardDropdown walletDropdown"
+      open={isOpen}
+      onToggle={(e) => setIsOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary className="cardDropdownSummary">
+        <span className="cardTitle">Wallet</span>
+        <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+      </summary>
+
+      <div className="cardDropdownBody">
+        <div className="cardHeader">
+          <div className="cardTitle">Wallet</div>
+        </div>
+
+        <div className="walletRows">
+          <div className="walletRow">
+            <div className="walletField">
+              <div className="label">Address</div>
+              <div className="value">{props.walletAddress ? props.shortAddress(props.walletAddress) : "—"}</div>
+            </div>
+            <div className="walletField">
+              <div className="label">Network</div>
+              <div className="value">
+                {props.networkName ? `${props.networkName} (${props.chainId})` : props.chainId ? props.chainId : "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="walletRow">
+            <div className="walletField">
+              <div className="label">Balance</div>
+              <div className="value">
+                {props.nativeBalance} {props.getNativeSymbol(props.chainId)}
+              </div>
+            </div>
+            <div className="walletField">
+              <div className="label">Tips</div>
+              <div className="value">
+                {props.withdrawableTipsWei > 0n
+                  ? `${Number(formatEther(props.withdrawableTipsWei)).toFixed(4)} ${props.getNativeSymbol(props.chainId)}`
+                  : "0"}
+              </div>
+            </div>
+          </div>
+
+          <div className="walletRow walletContractRow">
+            <div className="walletField">
+              <div className="label">Contract</div>
+              <div className="value">
+                {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "—"}
+                {props.contractDeployed === false ? " (not on this chain)" : ""}
+              </div>
+            </div>
+
+            <div className="walletContractActions">
+              <button
+                className="secondary"
+                type="button"
+                onClick={props.onWithdrawTips}
+                disabled={!props.walletAddress || props.withdrawableTipsWei === 0n}
+              >
+                Withdraw tips
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}

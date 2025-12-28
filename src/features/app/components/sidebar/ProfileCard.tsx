@@ -1,0 +1,223 @@
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+import { ipfsToHttp } from "../../../ipfs";
+
+import { Modal } from "../Modal";
+import { useIsMobile } from "@shared/hooks/useIsMobile";
+import { ApprovalsModal } from "./profile/ApprovalsModal";
+import { FollowersModal } from "./profile/FollowersModal";
+import { FollowingModal } from "./profile/FollowingModal";
+import { useOwnerAddress } from "./profile/useOwnerAddress";
+
+export type ProfileCardProps = {
+  walletAddress: string | null;
+  displayName: string;
+  profileBio: string;
+  profileAvatarUrl: string;
+  myPostsCount?: number;
+  followerCount?: number;
+  followers?: string[] | null;
+  following?: string[] | null;
+  isLoadingFollowers?: boolean;
+  isLoadingFollowing?: boolean;
+  onDisconnectWallet: () => void;
+  isEditingProfile: boolean;
+  profileDraftName: string;
+  profileDraftBio: string;
+  profileDraftAvatarUrl: string;
+  profileDraftAvatarDataUrl: string;
+  isProfileAvatarLoading: boolean;
+  onProfileDraftNameChange: (value: string) => void;
+  onProfileDraftBioChange: (value: string) => void;
+  onProfileDraftAvatarUrlChange: (value: string) => void;
+  onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
+  onClearProfileAvatar: () => void;
+  onStartEditProfile: () => void;
+  onCancelEditProfile: () => void;
+  onSaveProfile: () => void | Promise<void>;
+  selfAvatarHue: number;
+  shortAddress: (address: string) => string;
+};
+
+export function ProfileCard(props: ProfileCardProps) {
+  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+
+  useEffect(() => {
+    setIsOpen(!isMobile);
+  }, [isMobile]);
+
+  const profileLink = props.walletAddress ? `/profile/${props.walletAddress}` : null;
+  const avatarDisplayUrl = props.profileAvatarUrl;
+
+  const followers = props.followers ?? [];
+  const following = props.following ?? [];
+
+  const [isFollowersOpen, setIsFollowersOpen] = useState(false);
+  const [isFollowingOpen, setIsFollowingOpen] = useState(false);
+
+  const { isOwner } = useOwnerAddress(props.walletAddress);
+
+  const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
+
+  const avatarStyle = avatarDisplayUrl?.trim()
+    ? { backgroundImage: `url(${ipfsToHttp(avatarDisplayUrl)})` }
+    : { background: `hsl(${props.selfAvatarHue} 75% 55%)` };
+
+  const showHeaderStats = !!props.walletAddress;
+  const hasAnyHeaderPills = showHeaderStats;
+
+  return (
+    <details
+      className="card cardDropdown profileDropdown"
+      open={isOpen}
+      onToggle={(e) => setIsOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary className="cardDropdownSummary">
+        <span className="cardTitle">Profile</span>
+        <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+      </summary>
+
+      <div className="cardDropdownBody">
+        <div className="cardHeader">
+          <div className="cardTitle">Profile</div>
+          {hasAnyHeaderPills ? (
+            <div className="cardHeaderPills">
+              {typeof props.myPostsCount === "number" ? <span className="pill">{props.myPostsCount} posts</span> : null}
+              <button
+                type="button"
+                className="pill pillButton"
+                onClick={() => setIsFollowersOpen(true)}
+                aria-label="View followers"
+              >
+                {`${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`}
+              </button>
+              <button
+                type="button"
+                className="pill pillButton"
+                onClick={() => setIsFollowingOpen(true)}
+                aria-label="View following"
+              >
+                {`${following.length}`} following
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="profileHeader">
+          <div className="avatar" style={avatarStyle} />
+          <div className="profileMain">
+            <div className="profileName">{profileLink ? <Link to={profileLink}>{props.displayName}</Link> : props.displayName}</div>
+            <div className="profileMeta">
+              {props.walletAddress ? (
+                <Link to={profileLink!}>{props.shortAddress(props.walletAddress)}</Link>
+              ) : (
+                "Connect wallet to edit profile"
+              )}
+            </div>
+          </div>
+
+          {props.walletAddress ? (
+            <div className="profileActions">
+              {!props.isEditingProfile ? (
+                <button className="secondary" type="button" onClick={props.onStartEditProfile}>
+                  Edit profile
+                </button>
+              ) : null}
+              {isOwner ? (
+                <button className="secondary" type="button" onClick={() => setIsApprovalsOpen(true)}>
+                  Approvals
+                </button>
+              ) : null}
+              {!props.isEditingProfile ? (
+                <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
+                  Disconnect
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <ApprovalsModal
+          open={isApprovalsOpen}
+          isOwner={isOwner}
+          onClose={() => setIsApprovalsOpen(false)}
+          shortAddress={props.shortAddress}
+        />
+
+        <Modal open={props.isEditingProfile} title="Edit profile" onClose={props.onCancelEditProfile}>
+          <div className="composer">
+            <input
+              className="input"
+              value={props.profileDraftName}
+              onChange={(e) => props.onProfileDraftNameChange(e.target.value)}
+              placeholder="Display name"
+            />
+            <textarea
+              className="textarea"
+              rows={3}
+              value={props.profileDraftBio}
+              onChange={(e) => props.onProfileDraftBioChange(e.target.value)}
+              placeholder="Bio"
+            />
+
+            <input
+              className="input"
+              value={props.profileDraftAvatarUrl}
+              onChange={(e) => props.onProfileDraftAvatarUrlChange(e.target.value)}
+              placeholder="Avatar image URL (or upload below)"
+            />
+
+            <div className="row fileRow">
+              <input
+                className="file-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
+              />
+              <button type="button" className="secondary" onClick={props.onClearProfileAvatar}>
+                Clear
+              </button>
+            </div>
+
+            {props.profileDraftAvatarDataUrl.startsWith("data:image/") && (
+              <img className="image-preview" src={props.profileDraftAvatarDataUrl} alt="Avatar preview" />
+            )}
+
+            <div className="rowActions">
+              <button className="secondary" type="button" onClick={props.onCancelEditProfile}>
+                Cancel
+              </button>
+              <button className="primary" type="button" onClick={props.onSaveProfile} disabled={props.isProfileAvatarLoading}>
+                Save
+              </button>
+            </div>
+          </div>
+        </Modal>
+
+        <FollowersModal
+          open={isFollowersOpen}
+          followers={followers}
+          isLoadingFollowers={props.isLoadingFollowers}
+          onClose={() => setIsFollowersOpen(false)}
+          shortAddress={props.shortAddress}
+        />
+
+        <FollowingModal
+          open={isFollowingOpen}
+          following={following}
+          isLoadingFollowing={props.isLoadingFollowing}
+          onClose={() => setIsFollowingOpen(false)}
+          shortAddress={props.shortAddress}
+        />
+
+        {props.walletAddress && (
+          <div className="profileBio">
+            <div className="muted">{props.profileBio || "Add a short bio to personalize your profile."}</div>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}

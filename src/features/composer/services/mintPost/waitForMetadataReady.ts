@@ -1,0 +1,1 @@
+export { waitForMetadataReady } from "../../../metadata";
