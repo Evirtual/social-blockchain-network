@@ -1,31 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ethers } from "ethers";
 import type { Post, PostComment } from "../types";
 import { getSocialContract, socialInterface } from "../contracts/socialPosts";
 import { getErrorMessage } from "../lib/errors";
+import { mapWithConcurrency } from "../lib/async";
 import { fetchTokenMetadata } from "../lib/metadata";
+import { getConfiguredFeedNetworks, type FeedNetworkConfig } from "../lib/feedNetworks";
+import { queryLogsPaged, withTimeout } from "../lib/feedQuery";
+import { loadFeedFromProvider, type MintedEventLite } from "../lib/feedLoader";
+import { resolveSocialPostsAddress } from "../lib/resolveSocialPostsAddress";
+import { mergePosts } from "../lib/feedPosts";
+import { getFeedNetworkTasks } from "../lib/feedNetworkTasks";
+import { getRpcProvider } from "../lib/rpc";
+import { runInFlight } from "../lib/inFlight";
+import { parseChainIdNumber } from "../lib/chainId";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
 import { useWallet } from "./WalletContext";
 
-type FeedNetworkConfig = {
-  chainId: number;
-  contractAddress: string;
-  rpcUrl?: string;
-};
-
-function chainIdToNumber(chainId: string | null): number | null {
-  if (!chainId) return null;
-  if (chainId.startsWith("0x") || chainId.startsWith("0X")) {
-    const n = Number.parseInt(chainId, 16);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = Number.parseInt(chainId, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function postKey(p: Pick<Post, "tokenId" | "chainId">) {
   return `${p.chainId ?? ""}:${p.tokenId}`;
+}
+
+function commentKey(chainId: string | null | undefined, tokenId: string) {
+  return chainId ? `${chainId}:${tokenId}` : tokenId;
 }
 
 export type FeedContextValue = {
@@ -38,9 +35,9 @@ export type FeedContextValue = {
   postComments: Record<string, PostComment[]>;
   setPostComments: React.Dispatch<React.SetStateAction<Record<string, PostComment[]>>>;
   isLoadingPostComments: Record<string, boolean>;
-  loadCommentsForPost: (tokenId: string) => Promise<void>;
+  loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
-  loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
+  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
 };
 
 const FeedContext = createContext<FeedContextValue | null>(null);
@@ -66,118 +63,155 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const refreshFeedInFlightRef = useRef<Promise<void> | null>(null);
   const queuedRefreshAccountRef = useRef<string | null | undefined>(undefined);
   const lastRefreshedAccountRef = useRef<string | null>(null);
+  const lastRefreshCompletedAtRef = useRef<number>(0);
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const commentsCacheRef = useRef<Map<string, { lastScannedBlock: number; comments: PostComment[] }>>(new Map());
+
+  const blockTimestampCacheRef = useRef<Map<string, Map<number, number>>>(new Map());
+
+  const mintedEventsCacheRef = useRef<Map<string, { lastScannedBlock: number; events: MintedEventLite[] }>>(new Map());
+
+  const existsPruneCursorRef = useRef<Map<string, number>>(new Map());
 
   // React to account/chain changes emitted by WalletContext.
   const lastWalletEpochRef = useRef<number>(-1);
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
-  const lastWalletAddressRef = useRef<string | null | undefined>(undefined);
   const lastWalletAddressLowerRef = useRef<string | null | undefined>(undefined);
 
   const loadCommentsForPost = useCallback(
-    async (tokenId: string) => {
-      if (!provider) return;
+    async (tokenId: string, postChainId?: string | null) => {
+      const env = import.meta.env as any;
+      const configuredNetworks = getConfiguredFeedNetworks(env);
 
-      const existingInFlight = commentsInFlightRef.current[tokenId];
-      if (existingInFlight) {
-        await existingInFlight;
-        return;
-      }
+      const targetChainId = parseChainIdNumber(postChainId ?? chainId);
+      const targetCfg = targetChainId != null ? configuredNetworks.find((n) => n.chainId === targetChainId) : undefined;
+      const targetRpcUrl = typeof targetCfg?.rpcUrl === "string" ? String(targetCfg.rpcUrl).trim() : "";
+
+      const canUseEnvRpc = !!targetCfg && !!targetRpcUrl;
+      if (!provider && !canUseEnvRpc) return;
 
       const tokenIdBig = BigInt(tokenId);
 
-      const task = (async () => {
-        setIsLoadingPostComments((prev) => ({ ...prev, [tokenId]: true }));
+      const key = commentKey(postChainId ?? chainId, tokenId);
+
+      const readProvider: any = canUseEnvRpc ? getRpcProvider(targetRpcUrl, targetCfg!.chainId) : provider;
+      const readContract: any = canUseEnvRpc
+        ? getSocialContract(await resolveSocialPostsAddress(targetCfg!, readProvider), readProvider)
+        : await (async () => {
+            await ensureContractDeployedOnCurrentNetwork();
+            return await getReadContract();
+          })();
+
+      await runInFlight(commentsInFlightRef.current, key, async () => {
+        setIsLoadingPostComments((prev) => ({ ...prev, [key]: true }));
         try {
-          await ensureContractDeployedOnCurrentNetwork();
-          const readContract = await getReadContract();
+          const latestAny = await withTimeout<any>(readProvider.getBlockNumber(), 6_000, "comments getBlockNumber");
+          const latest = Number(latestAny);
+          if (!Number.isFinite(latest) || latest < 0) {
+            setPostComments((prev) => ({ ...prev, [key]: [] }));
+            return;
+          }
+
+          const cached = commentsCacheRef.current.get(key);
+
+          const mintHint = postsRef.current.find((p) => {
+            if (p.tokenId !== tokenId) return false;
+            if (postChainId && p.chainId && p.chainId !== postChainId) return false;
+            if (postChainId && !p.chainId) return false;
+            return true;
+          })?.mintBlockNumber;
+
+          // Avoid scanning from genesis on large chains; use mint block when known,
+          // otherwise cap to a recent window to keep the UI responsive.
+          const defaultFromBlock = (() => {
+            if (typeof mintHint === "number" && Number.isFinite(mintHint) && mintHint >= 0) return Math.floor(mintHint);
+            return Math.max(0, latest - 25_000);
+          })();
+
+          const fromBlock = cached ? Math.max(0, cached.lastScannedBlock + 1) : defaultFromBlock;
+          if (fromBlock > latest) {
+            // Nothing new.
+            if (cached) {
+              setPostComments((prev) => (prev[key] === cached.comments ? prev : { ...prev, [key]: cached.comments }));
+            }
+            return;
+          }
 
           const filter = readContract.filters.PostCommented(null, tokenIdBig);
-          const logs = await readContract.queryFilter(filter, 0, "latest");
+          const logs = await queryLogsPaged({
+            readContract,
+            filter,
+            fromBlock,
+            toBlock: latest,
+            label: `comments ${tokenId}`,
+            timeoutMs: 8_000,
+            initialChunkSize: 50_000,
+            minChunkSize: 250
+          });
 
-          const parsed: PostComment[] = logs
-            .flatMap((log: any) => {
-              const desc = socialInterface.parseLog(log);
-              if (!desc) return [];
-              return [
-                {
-                  commenter: String(desc.args.commenter),
-                  comment: String(desc.args.comment),
-                  txHash: log.transactionHash,
-                  blockNumber: log.blockNumber
-                } satisfies PostComment
-              ];
-            })
-            .sort((a: PostComment, b: PostComment) => (a.blockNumber ?? 0) - (b.blockNumber ?? 0));
+          const parsedNew: PostComment[] = logs.flatMap((log: any) => {
+            const desc = socialInterface.parseLog(log);
+            if (!desc) return [];
+            return [
+              {
+                commenter: String(desc.args.commenter),
+                comment: String(desc.args.comment),
+                txHash: log.transactionHash,
+                blockNumber: log.blockNumber,
+                logIndex: log.logIndex
+              } satisfies PostComment
+            ];
+          });
 
-          setPostComments((prev) => ({ ...prev, [tokenId]: parsed }));
+          const merged = (() => {
+            const prevComments = cached?.comments ?? [];
+            if (prevComments.length === 0) return parsedNew;
+            if (parsedNew.length === 0) return prevComments;
+
+            const seen = new Set<string>();
+            for (const c of prevComments) {
+              const sig = `${c.txHash ?? ""}:${c.logIndex ?? -1}`;
+              if (c.txHash) seen.add(sig);
+            }
+
+            const next = prevComments.slice();
+            for (const c of parsedNew) {
+              if (c.txHash) {
+                const sig = `${c.txHash}:${c.logIndex ?? -1}`;
+                if (seen.has(sig)) continue;
+                seen.add(sig);
+              }
+              next.push(c);
+            }
+            return next;
+          })().sort((a, b) => (a.blockNumber ?? 0) - (b.blockNumber ?? 0));
+
+          commentsCacheRef.current.set(key, { lastScannedBlock: latest, comments: merged });
+          setPostComments((prev) => ({ ...prev, [key]: merged }));
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {
-          setIsLoadingPostComments((prev) => ({ ...prev, [tokenId]: false }));
+          setIsLoadingPostComments((prev) => ({ ...prev, [key]: false }));
         }
-      })();
-
-      commentsInFlightRef.current[tokenId] = task;
-      try {
-        await task;
-      } finally {
-        if (commentsInFlightRef.current[tokenId] === task) {
-          commentsInFlightRef.current[tokenId] = null;
-        }
-      }
+      });
     },
-    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, setStatus]
+    [provider, chainId, ensureContractDeployedOnCurrentNetwork, getReadContract, setStatus]
   );
 
   const loadPostsByTokenIds = useCallback(
-    async (tokenIds: string[]) => {
+    async (tokenIds: string[], postChainId?: string | null) => {
       if (!tokenIds.length) return;
 
-      const currentChainId = chainIdToNumber(chainId);
+      const currentChainId = parseChainIdNumber(postChainId ?? chainId);
 
       const env = import.meta.env as any;
-      const configuredNetworks: FeedNetworkConfig[] = [
-        { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
-        { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },
-        { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: env.VITE_BASE_RPC_URL },
-        { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: env.VITE_BASE_SEPOLIA_RPC_URL },
-        { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: env.VITE_BSC_RPC_URL },
-        { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
-        {
-          chainId: 31337,
-          contractAddress: env.VITE_CONTRACT_ADDRESS,
-          rpcUrl: env.VITE_LOCAL_RPC_URL
-        }
-      ]
-        .filter((n) => typeof n.contractAddress === "string" && n.contractAddress.trim().length > 0)
-        .map((n) => ({ ...n, contractAddress: String(n.contractAddress).trim() }));
+      const configuredNetworks = getConfiguredFeedNetworks(env);
 
       const currentCfg = currentChainId != null ? configuredNetworks.find((n) => n.chainId === currentChainId) : undefined;
       const currentRpcUrl = typeof currentCfg?.rpcUrl === "string" ? String(currentCfg.rpcUrl).trim() : "";
 
       const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
-        if (cfg.chainId !== 31337) return cfg.contractAddress;
-
-        const candidates = [cfg.contractAddress].map((x) => String(x).trim()).filter(Boolean);
-
-        const isSocialPostsAt = async (address: string) => {
-          try {
-            const code = await rpcProvider.getCode(address);
-            if (!code || code === "0x") return false;
-            const c = getSocialContract(address, rpcProvider);
-            await (c as any).exists(1n);
-            return true;
-          } catch {
-            return false;
-          }
-        };
-
-        for (const addr of candidates) {
-          if (await isSocialPostsAt(addr)) return addr;
-        }
-
-        return cfg.contractAddress;
+        return await resolveSocialPostsAddress(cfg, rpcProvider);
       };
 
       // Prefer env RPC for current-chain reads when configured (more reliable than some wallet RPCs).
@@ -185,7 +219,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       const canUseEnvRpc = !!currentCfg && !!currentRpcUrl;
       if (!provider && !canUseEnvRpc) return;
 
-      const readProvider: any = canUseEnvRpc ? new ethers.JsonRpcProvider(currentRpcUrl, currentCfg!.chainId) : provider;
+      const readProvider: any = canUseEnvRpc ? getRpcProvider(currentRpcUrl, currentCfg!.chainId) : provider;
 
       const readContract = canUseEnvRpc
         ? getSocialContract(await resolveRpcContractAddress(currentCfg!, readProvider), readProvider)
@@ -194,9 +228,9 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             return await getReadContract();
           })();
       const existing = new Set(
-        posts
+        postsRef.current
           .filter((p) => {
-            const pChain = chainIdToNumber(p.chainId ?? null);
+            const pChain = parseChainIdNumber(p.chainId ?? null);
             return currentChainId == null || pChain == null || pChain === currentChainId;
           })
           .map((p) => p.tokenId)
@@ -204,67 +238,57 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       const missing = Array.from(new Set(tokenIds)).filter((id) => id && !existing.has(id));
       if (missing.length === 0) return;
 
-      const mapWithConcurrency = async <T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> => {
-        const results: R[] = new Array(items.length);
-        let nextIndex = 0;
-        const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-          while (true) {
-            const i = nextIndex++;
-            if (i >= items.length) break;
-            results[i] = await fn(items[i]);
+      const fetched = await (async () => {
+        // Fallback: individual calls per token.
+        return await mapWithConcurrency(missing, 6, async (id) => {
+          const tokenIdBig = BigInt(id);
+          let tokenUri = "";
+          let likesRaw = 0n;
+          let commentsRaw = 0n;
+          let savesRaw = 0n;
+          let tipsWei = 0n;
+          let author = "";
+          let likedByMe: boolean | undefined;
+          let savedByMe: boolean | undefined;
+          try {
+            [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, author, likedByMe, savedByMe] = await Promise.all([
+              (readContract as any).tokenURI(tokenIdBig) as Promise<string>,
+              (readContract as any).likesOf(tokenIdBig) as Promise<bigint>,
+              (readContract as any).commentsOf(tokenIdBig) as Promise<bigint>,
+              (readContract as any).savesOf(tokenIdBig) as Promise<bigint>,
+              (readContract as any).tipsOf(tokenIdBig) as Promise<bigint>,
+              (readContract as any).authorOf(tokenIdBig) as Promise<string>,
+              walletAddress
+                ? ((readContract as any).hasLiked(tokenIdBig, walletAddress) as Promise<boolean>)
+                : Promise.resolve(undefined),
+              walletAddress
+                ? ((readContract as any).hasSaved(tokenIdBig, walletAddress) as Promise<boolean>)
+                : Promise.resolve(undefined)
+            ]);
+          } catch {
+            return null;
           }
+
+          const meta = await fetchTokenMetadata(tokenUri);
+          const post: Post = {
+            tokenId: id,
+            chainId: currentChainId != null ? String(currentChainId) : undefined,
+            title: meta?.name ?? `Token #${id}`,
+            body: meta?.description ?? "",
+            image: meta?.image ?? "",
+            animationUrl: meta?.animation_url,
+            metadataURI: tokenUri,
+            author,
+            likes: Number(likesRaw),
+            comments: Number(commentsRaw),
+            saves: Number(savesRaw),
+            tipsWei,
+            likedByMe,
+            savedByMe
+          };
+          return post;
         });
-        await Promise.all(workers);
-        return results;
-      };
-
-      const fetched = await mapWithConcurrency(missing, 6, async (id) => {
-        const tokenIdBig = BigInt(id);
-        const exists = (await (readContract as any).exists(tokenIdBig)) as boolean;
-        if (!exists) return null;
-
-        let tokenUri = "";
-        let likesRaw = 0n;
-        let commentsRaw = 0n;
-        let savesRaw = 0n;
-        let tipsWei = 0n;
-        let author = "";
-        let likedByMe: boolean | undefined;
-        let savedByMe: boolean | undefined;
-        try {
-          [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, author, likedByMe, savedByMe] = await Promise.all([
-            (readContract as any).tokenURI(tokenIdBig) as Promise<string>,
-            (readContract as any).likesOf(tokenIdBig) as Promise<bigint>,
-            (readContract as any).commentsOf(tokenIdBig) as Promise<bigint>,
-            (readContract as any).savesOf(tokenIdBig) as Promise<bigint>,
-            (readContract as any).tipsOf(tokenIdBig) as Promise<bigint>,
-            (readContract as any).authorOf(tokenIdBig) as Promise<string>,
-            walletAddress ? ((readContract as any).hasLiked(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined),
-            walletAddress ? ((readContract as any).hasSaved(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined)
-          ]);
-        } catch {
-          return null;
-        }
-
-        const meta = await fetchTokenMetadata(tokenUri);
-        const post: Post = {
-          tokenId: id,
-          chainId: currentChainId != null ? String(currentChainId) : undefined,
-          title: meta?.name ?? `Token #${id}`,
-          body: meta?.description ?? "",
-          image: meta?.image ?? "",
-          animationUrl: meta?.animation_url,
-          metadataURI: tokenUri,
-          author,
-          likes: Number(likesRaw),
-          comments: Number(commentsRaw),
-          saves: Number(savesRaw),
-          tipsWei,
-          likedByMe,
-          savedByMe
-        };
-        return post;
-      });
+      })();
 
       const toAdd = fetched.filter((p): p is Post => p != null);
       if (toAdd.length === 0) return;
@@ -275,14 +299,22 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return Array.from(byId.values());
       });
     },
-    [provider, posts, chainId, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress]
+    [provider, chainId, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress]
   );
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
       const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
 
+      // Coalesce back-to-back refresh triggers (mount + visibility + interval + post actions).
+      // Keep initial load immediate.
+      const MIN_REFRESH_INTERVAL_MS = 1_500;
+
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
+      const normalizedAccount = typeof account === "string" ? account.toLowerCase() : null;
+      const normalizedLastAccount =
+        typeof lastRefreshedAccountRef.current === "string" ? lastRefreshedAccountRef.current.toLowerCase() : null;
+
       if (refreshFeedInFlightRef.current) {
         queuedRefreshAccountRef.current = account ?? null;
         try {
@@ -299,56 +331,17 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const mapWithConcurrency = async <T, R>(
-        items: T[],
-        limit: number,
-        fn: (item: T, index: number) => Promise<R>
-      ): Promise<R[]> => {
-        const results: R[] = new Array(items.length);
-        let nextIndex = 0;
-        const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-          while (true) {
-            const i = nextIndex++;
-            if (i >= items.length) break;
-            results[i] = await fn(items[i], i);
-          }
-        });
-        await Promise.all(workers);
-        return results;
-      };
-
-      const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
-        let timeoutId: ReturnType<typeof setTimeout> | null = null;
-        const timeout = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-        });
-        try {
-          return await Promise.race([promise, timeout]);
-        } finally {
-          if (timeoutId) clearTimeout(timeoutId);
+      if (!isVitest && postsRef.current.length > 0) {
+        const lastCompletedAt = lastRefreshCompletedAtRef.current;
+        const now = Date.now();
+        if (
+          lastCompletedAt > 0 &&
+          now - lastCompletedAt < MIN_REFRESH_INTERVAL_MS &&
+          normalizedAccount === normalizedLastAccount
+        ) {
+          return;
         }
-      };
-
-      const sortPostsNewestFirst = (items: Post[]) => {
-        items.sort((a, b) => {
-          const at = a.mintTimestamp ?? 0;
-          const bt = b.mintTimestamp ?? 0;
-          if (at !== bt) return bt - at;
-          const ab = a.mintBlockNumber ?? 0;
-          const bb = b.mintBlockNumber ?? 0;
-          if (ab !== bb) return bb - ab;
-          return postKey(b).localeCompare(postKey(a));
-        });
-      };
-
-      const mergePosts = (prev: Post[], incoming: Post[]) => {
-        if (!incoming.length) return prev;
-        const byKey = new Map(prev.map((p) => [postKey(p), p] as const));
-        for (const p of incoming) byKey.set(postKey(p), p);
-        const merged = Array.from(byKey.values());
-        sortPostsNewestFirst(merged);
-        return merged;
-      };
+      }
 
       const task = (async () => {
         let shouldShowLoading = false;
@@ -356,7 +349,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           shouldShowLoading = postsRef.current.length === 0;
           if (shouldShowLoading) setIsFeedLoading(true);
 
-          const currentChainIdNumber = chainIdToNumber(chainId);
+          const currentChainIdNumber = parseChainIdNumber(chainId);
 
           const env = import.meta.env as any;
           // Browser RPCs are frequently rate-limited and slow for historical `eth_getLogs`.
@@ -364,22 +357,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           const maxLookbackBlocksRaw = Number(env.VITE_FEED_MAX_LOOKBACK_BLOCKS ?? 200_000);
           const maxLookbackBlocks =
             Number.isFinite(maxLookbackBlocksRaw) && maxLookbackBlocksRaw > 0 ? maxLookbackBlocksRaw : 200_000;
-          const configuredNetworks: FeedNetworkConfig[] = [
-            { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
-            { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },
-            { chainId: 8453, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE, rpcUrl: env.VITE_BASE_RPC_URL },
-            { chainId: 84532, contractAddress: env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA, rpcUrl: env.VITE_BASE_SEPOLIA_RPC_URL },
-            { chainId: 56, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC, rpcUrl: env.VITE_BSC_RPC_URL },
-            { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
-            {
-              chainId: 31337,
-              // Local dev commonly uses the legacy single-network address.
-              contractAddress: env.VITE_CONTRACT_ADDRESS,
-              rpcUrl: env.VITE_LOCAL_RPC_URL
-            }
-          ]
-            .filter((n) => typeof n.contractAddress === "string" && n.contractAddress.trim().length > 0)
-            .map((n) => ({ ...n, contractAddress: String(n.contractAddress).trim() }));
+          const configuredNetworks = getConfiguredFeedNetworks(env);
 
           // Only include additional networks if a public RPC URL is configured.
           const extraNetworks = configuredNetworks.filter(
@@ -393,259 +371,47 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           // keep the previous behavior (no-op) to avoid spurious status churn.
           if (!provider && extraNetworks.length === 0) return;
 
-          const getNetworkTasks = async () => {
-            // Current network uses the connected wallet provider to preserve existing behavior.
-            const tasks: Array<Promise<Post[]>> = [];
-
-            const taskTimeoutMs = 25_000;
-
-            const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
-              if (cfg.chainId !== 31337) return cfg.contractAddress;
-
-              const candidates = [cfg.contractAddress].map((x) => String(x).trim()).filter(Boolean);
-
-              const isSocialPostsAt = async (address: string) => {
-                try {
-                  const code = await withTimeout(rpcProvider.getCode(address), 3_000, `code ${cfg.chainId}`);
-                  if (!code || code === "0x") return false;
-                  const c = getSocialContract(address, rpcProvider);
-                  await withTimeout((c as any).exists(1n) as Promise<boolean>, 3_000, `probe ${cfg.chainId}`);
-                  return true;
-                } catch {
-                  return false;
-                }
-              };
-
-              for (const addr of candidates) {
-                if (await isSocialPostsAt(addr)) return addr;
-              }
-
-              return cfg.contractAddress;
-            };
-
-            const loadFromProvider = async (
-              chainIdNum: number | null,
-              networkProvider: any,
-              readContract: any
-            ): Promise<Post[]> => {
-              let resolvedChainIdNum: number | null = chainIdNum;
-              if (resolvedChainIdNum == null && typeof networkProvider?.getNetwork === "function") {
-                try {
-                  const net = await withTimeout(networkProvider.getNetwork(), 3_000, "feed getNetwork");
-                  const n = Number((net as any)?.chainId);
-                  resolvedChainIdNum = Number.isFinite(n) ? n : null;
-                } catch {
-                  resolvedChainIdNum = null;
-                }
-              }
-
-              const queryPostMintedPaged = async (fromBlock: number, toBlock: number) => {
-                const filter = readContract.filters.PostMinted();
-                const logs: any[] = [];
-
-                // Many public RPCs enforce limits on eth_getLogs response size and/or block range.
-                // Paginate the query by block range and shrink chunk size on failure.
-                let chunkSize = 25_000;
-                const minChunkSize = 100;
-
-                let start = fromBlock;
-                while (start <= toBlock) {
-                  const end = Math.min(toBlock, start + chunkSize - 1);
-                  try {
-                    const part = (await withTimeout<any>(
-                      readContract.queryFilter(filter, start, end),
-                      10_000,
-                      `feed logs ${resolvedChainIdNum ?? chainIdNum ?? "?"} ${start}-${end}`
-                    )) as any[];
-                    logs.push(...part);
-                    start = end + 1;
-                  } catch (err) {
-                    if (chunkSize <= minChunkSize) throw err;
-                    chunkSize = Math.max(minChunkSize, Math.floor(chunkSize / 2));
-                  }
-                }
-
-                return logs;
-              };
-
-              // Some RPC providers may fail when querying logs from block 0 to latest.
-              // Fetch logs in an adaptive window, but cap lookback to keep browsers responsive.
-              // (Freshly deployed contracts have no historical logs; scanning millions of blocks can hang.)
-              const fetchMintedEvents = async () => {
-                const latestAny = await withTimeout<any>(networkProvider.getBlockNumber(), 6_000, "feed getBlockNumber");
-                const latest = Number(latestAny);
-                if (!Number.isFinite(latest) || latest < 0) {
-                  throw new Error("Feed RPC returned invalid blockNumber.");
-                }
-
-                // Start small and do not aggressively expand when empty.
-                // This prevents timeouts immediately after redeploy (when there are 0 events).
-                const windowSize = Math.min(25_000, maxLookbackBlocks, latest);
-                const minWindowSize = 2_000;
-
-                const fromBlock = Math.max(0, latest - windowSize);
-
-                while (true) {
-                  try {
-                    const events = await queryPostMintedPaged(fromBlock, latest);
-                    if (events.length > 0 || fromBlock === 0) return events;
-
-                    // No events found in the recent lookback window.
-                    // Return empty rather than expanding to deep history (slow + often rate-limited).
-                    return events;
-                  } catch (err) {
-                    // If even the small window fails, try shrinking once, then give up.
-                    if (windowSize <= minWindowSize) throw err;
-                    const smallerFromBlock = Math.max(0, latest - minWindowSize);
-                    return await queryPostMintedPaged(smallerFromBlock, latest);
-                  }
-                }
-              };
-
-              const mintedEvents = await fetchMintedEvents();
-              const eventsNewestFirst = mintedEvents.slice().reverse();
-
-              const minted = await mapWithConcurrency(eventsNewestFirst, 6, async (event) => {
-                const anyEvent = event as any;
-                const args = anyEvent.args as any[] | undefined;
-                const author = args?.[0] as string | undefined;
-                const tokenIdBig = args?.[1] as bigint | undefined;
-                if (!tokenIdBig) return null;
-
-                const exists = (await readContract.exists(tokenIdBig)) as boolean;
-                if (!exists) return null;
-
-                const tokenId = tokenIdBig.toString();
-
-                const blockNumber = Number(anyEvent.blockNumber ?? 0) || undefined;
-                const txHash = (anyEvent.transactionHash as string | undefined) ?? undefined;
-
-                let mintTimestamp: number | undefined;
-                if (blockNumber && typeof networkProvider.getBlock === "function") {
-                  try {
-                    const block = await withTimeout<any>(networkProvider.getBlock(blockNumber), 6_000, "feed getBlock");
-                    const ts = Number((block as any)?.timestamp ?? 0);
-                    if (Number.isFinite(ts) && ts > 0) mintTimestamp = ts;
-                  } catch {
-                    // ignore
-                  }
-                }
-
-                let tokenUri = "";
-                let likesRaw = 0n;
-                let commentsRaw = 0n;
-                let savesRaw = 0n;
-                let tipsWei = 0n;
-                let likedByMe: boolean | undefined;
-                let savedByMe: boolean | undefined;
-                try {
-                  [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, likedByMe, savedByMe] = await Promise.all([
-                    readContract.tokenURI(tokenIdBig) as Promise<string>,
-                    readContract.likesOf(tokenIdBig) as Promise<bigint>,
-                    readContract.commentsOf(tokenIdBig) as Promise<bigint>,
-                    readContract.savesOf(tokenIdBig) as Promise<bigint>,
-                    readContract.tipsOf(tokenIdBig) as Promise<bigint>,
-                    account
-                      ? ((readContract as any).hasLiked(tokenIdBig, account) as Promise<boolean>)
-                      : Promise.resolve(undefined),
-                    account
-                      ? ((readContract as any).hasSaved(tokenIdBig, account) as Promise<boolean>)
-                      : Promise.resolve(undefined)
-                  ]);
-                } catch {
-                  return null;
-                }
-
-                const meta = await fetchTokenMetadata(tokenUri);
-
-                const post: Post = {
-                  tokenId,
-                  chainId: resolvedChainIdNum != null ? String(resolvedChainIdNum) : undefined,
-                  title: meta?.name ?? `Token #${tokenId}`,
-                  body: meta?.description ?? "",
-                  image: meta?.image ?? "",
-                  animationUrl: meta?.animation_url,
-                  metadataURI: tokenUri,
-                  author,
-                  mintTxHash: txHash,
-                  mintBlockNumber: blockNumber,
-                  mintTimestamp,
-                  likes: Number(likesRaw),
-                  comments: Number(commentsRaw),
-                  saves: Number(savesRaw),
-                  tipsWei,
-                  likedByMe,
-                  savedByMe
-                };
-                return post;
-              });
-
-              return minted.filter((p): p is Post => p != null);
-            };
-
-            const enqueueLoad = (label: string, promise: Promise<Post[]>) => {
-              tasks.push(
-                withTimeout(promise, taskTimeoutMs, label).then((loaded) => {
-                  setPosts((prev) => mergePosts(prev, loaded));
-                  return loaded;
-                })
-              );
-            };
-
-            // Current chain
-            if (currentChainIdNumber != null) {
-              const currentCfg = configuredNetworks.find((n) => n.chainId === currentChainIdNumber);
-              const currentRpcUrl = typeof currentCfg?.rpcUrl === "string" ? currentCfg.rpcUrl.trim() : "";
-
-              // When disconnected, prefer a public RPC for reads.
-              if (!walletAddress && currentCfg && currentRpcUrl) {
-                const rpcProvider: any = new ethers.JsonRpcProvider(currentRpcUrl, currentCfg.chainId);
-                enqueueLoad(
-                  `Feed network ${currentCfg.chainId}`,
-                  (async () => {
-                    const addr = await resolveRpcContractAddress(currentCfg, rpcProvider);
-                    const remoteReadContract = getSocialContract(addr, rpcProvider);
-                    return loadFromProvider(currentCfg.chainId, rpcProvider, remoteReadContract);
-                  })()
-                );
-              } else if (provider) {
-                try {
-                  await ensureContractDeployedOnCurrentNetwork();
-                  const currentReadContract = await getReadContract();
-                  enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, provider, currentReadContract));
-                } catch {
-                  // If the connected network isn't configured, still try any configured read-only networks.
-                }
-              }
-            } else if (provider) {
-              // ChainId not resolved yet; fall back to injected provider.
-              try {
-                await ensureContractDeployedOnCurrentNetwork();
-                const currentReadContract = await getReadContract();
-                enqueueLoad("Feed current network", loadFromProvider(currentChainIdNumber, provider, currentReadContract));
-              } catch {
-                // ignore
-              }
-            }
-
-            // Other chains
-            for (const cfg of extraNetworks) {
-              const url = String(cfg.rpcUrl).trim();
-              const rpcProvider: any = new ethers.JsonRpcProvider(url, cfg.chainId);
-              enqueueLoad(
-                `Feed network ${cfg.chainId}`,
-                (async () => {
-                  const addr = await resolveRpcContractAddress(cfg, rpcProvider);
-                  const remoteReadContract = getSocialContract(addr, rpcProvider);
-                  return loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract);
-                })()
-              );
-            }
-
-            return tasks;
+          const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
+            return await resolveSocialPostsAddress(cfg, rpcProvider, {
+              withTimeout,
+              codeTimeoutMs: 3_000,
+              probeTimeoutMs: 3_000,
+              label: `resolve ${cfg.chainId}`
+            });
           };
 
-          const networkTasks = await getNetworkTasks();
+          const loadFromProvider = async (chainIdNum: number | null, networkProvider: any, readContract: any): Promise<Post[]> => {
+            return await loadFeedFromProvider({
+              chainIdNum,
+              networkProvider,
+              readContract,
+              maxLookbackBlocks,
+              account: account ?? null,
+              lastRefreshedAccount: lastRefreshedAccountRef.current,
+              postsSnapshot: postsRef.current,
+              postKey,
+              mintedEventsCache: mintedEventsCacheRef.current,
+              blockTimestampCache: blockTimestampCacheRef.current,
+              existsPruneCursor: existsPruneCursorRef.current,
+              pruneByKeys: (keys) => setPosts((prev) => prev.filter((p) => !keys.has(postKey(p))))
+            });
+          };
+
+          const networkTasks = await getFeedNetworkTasks({
+            currentChainIdNumber,
+            configuredNetworks,
+            extraNetworks,
+            provider,
+            walletAddress: walletAddress ?? null,
+            ensureContractDeployedOnCurrentNetwork,
+            getReadContract,
+            getRpcProvider,
+            resolveRpcContractAddress,
+            taskTimeoutMs: 25_000,
+            withTimeout,
+            loadFromProvider,
+            onLoaded: (loaded) => setPosts((prev) => mergePosts(prev, loaded, postKey))
+          });
 
           // IMPORTANT: In browsers, some public RPC endpoints fail due to CORS or rate limits.
           // We still want to show posts from any networks that *do* succeed.
@@ -696,6 +462,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         }
 
         lastRefreshedAccountRef.current = account ?? null;
+        lastRefreshCompletedAtRef.current = Date.now();
       }
     },
     [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, walletAddress, chainId, setStatus]
@@ -730,7 +497,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     // without any observable chain/account changes. Avoid reloading in that case.
     if (!chainChanged && !walletChanged) return;
     lastChainIdRef.current = chainId;
-    lastWalletAddressRef.current = walletAddress;
     lastWalletAddressLowerRef.current = walletAddressLower;
 
     // UX requirement: the main feed is aggregated/read-only across networks and
@@ -748,13 +514,28 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     if (isVitest) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
 
-    const id = window.setInterval(() => {
+    let stopped = false;
+    const refreshNow = () => {
+      if (stopped) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void refreshFeed(walletAddress).catch(() => {
         // refreshFeed already reports status; avoid unhandled rejections
       });
-    }, 15_000);
+    };
 
-    return () => window.clearInterval(id);
+    const id = window.setInterval(refreshNow, 15_000);
+    const onVisibility = () => {
+      // When the tab becomes visible again, refresh promptly.
+      if (document.visibilityState === "visible") refreshNow();
+    };
+
+    document.addEventListener?.("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+      document.removeEventListener?.("visibilitychange", onVisibility);
+    };
   }, [provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
   const value = useMemo<FeedContextValue>(

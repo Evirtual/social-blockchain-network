@@ -1,43 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getSocialContract } from "../contracts/socialPosts";
+import { parseChainIdNumber } from "../lib/chainId";
+import { resolveConfiguredSocialPostsAddress } from "../lib/configuredSocialPostsAddress";
 import { useStatus } from "./StatusContext";
 import { useWallet } from "./WalletContext";
-
-const LEGACY_CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined;
-const CONTRACT_ADDRESS_BY_CHAIN_ID: Record<number, string | undefined> = {
-  // Ethereum
-  1: import.meta.env.VITE_CONTRACT_ADDRESS_ETH as string | undefined,
-  11155111: import.meta.env.VITE_CONTRACT_ADDRESS_SEPOLIA as string | undefined,
-
-  // Base
-  8453: import.meta.env.VITE_CONTRACT_ADDRESS_BASE as string | undefined,
-  84532: import.meta.env.VITE_CONTRACT_ADDRESS_BASE_SEPOLIA as string | undefined,
-
-  // BNB Smart Chain (BSC)
-  56: import.meta.env.VITE_CONTRACT_ADDRESS_BSC as string | undefined,
-  97: import.meta.env.VITE_CONTRACT_ADDRESS_BSC_TESTNET as string | undefined,
-
-  // Local (Hardhat)
-  31337: import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined
-};
-
-function chainIdToNumber(chainId: string | null): number | null {
-  if (!chainId) return null;
-  if (chainId.startsWith("0x") || chainId.startsWith("0X")) {
-    const n = Number.parseInt(chainId, 16);
-    return Number.isFinite(n) ? n : null;
-  }
-  const n = Number.parseInt(chainId, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
-function resolveContractAddress(chainIdNumber: number | null): string | undefined {
-  if (typeof chainIdNumber === "number") {
-    const mapped = CONTRACT_ADDRESS_BY_CHAIN_ID[chainIdNumber];
-    if (mapped) return mapped;
-  }
-  return LEGACY_CONTRACT_ADDRESS;
-}
 
 export type ContractContextValue = {
   contractAddress: string | undefined;
@@ -75,13 +41,13 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
   const chainIdNumberRef = useRef<number | null>(null);
 
   const contractAddress = useMemo(() => {
-    const chain = chainIdToNumber(chainId);
-    return resolveContractAddress(chain ?? chainIdNumberRef.current);
+    const chain = parseChainIdNumber(chainId);
+    return resolveConfiguredSocialPostsAddress(chain ?? chainIdNumberRef.current);
   }, [chainId]);
 
   const requireContractAddress = useCallback(() => {
-    const chain = chainIdToNumber(chainId) ?? chainIdNumberRef.current;
-    const resolved = resolveContractAddress(chain);
+    const chain = parseChainIdNumber(chainId) ?? chainIdNumberRef.current;
+    const resolved = resolveConfiguredSocialPostsAddress(chain);
     if (resolved) return resolved;
 
     const chainHint = typeof chain === "number" ? ` (chainId ${chain})` : "";
@@ -206,7 +172,7 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
 
-    const addr = resolveContractAddress(chainIdToNumber(chainId) ?? chainIdNumberRef.current);
+    const addr = resolveConfiguredSocialPostsAddress(parseChainIdNumber(chainId) ?? chainIdNumberRef.current);
     if (!addr) {
       setContractDeployed(null);
       setWithdrawableTipsWei(0n);

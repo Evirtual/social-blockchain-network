@@ -11,10 +11,6 @@ const StatusContext = createContext<StatusContextValue | null>(null);
 export function StatusProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatusState] = useState<string>("Wallet disconnected");
 
-  const setStatus = useCallback((next: string) => {
-    setStatusState(next);
-  }, []);
-
   const clearStatus = useCallback(() => {
     setStatusState("");
   }, []);
@@ -22,10 +18,10 @@ export function StatusProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<StatusContextValue>(
     () => ({
       status,
-      setStatus,
+      setStatus: setStatusState,
       clearStatus
     }),
-    [status, setStatus, clearStatus]
+    [status, clearStatus]
   );
 
   return <StatusContext.Provider value={value}>{children}</StatusContext.Provider>;

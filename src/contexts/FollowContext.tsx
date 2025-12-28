@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ethers } from "ethers";
 import { socialInterface } from "../contracts/socialPosts";
 import { getErrorMessage } from "../lib/errors";
+import { runInFlight } from "../lib/inFlight";
+import { scanActiveFollowAddresses } from "../lib/followEventScanner";
+import { requestConnectNudge } from "../lib/connectNudge";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
 import { useWallet } from "./WalletContext";
@@ -45,6 +47,8 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
   const getWriteContract = contract.getWriteContract;
 
   const [isFollowingByAddress, setIsFollowingByAddress] = useState<Record<string, boolean | undefined>>({});
+  const loadedIsFollowingByAddressRef = useRef<Record<string, boolean>>({});
+  const isFollowingInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const [followerCountByAddress, setFollowerCountByAddress] = useState<Record<string, number>>({});
   const [isLoadingFollowerCountByAddress, setIsLoadingFollowerCountByAddress] = useState<Record<string, boolean>>({});
@@ -60,6 +64,8 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsFollowingByAddress({});
+    loadedIsFollowingByAddressRef.current = {};
+    isFollowingInFlightRef.current = {};
   }, [walletAddress]);
 
   const loadIsFollowing = useCallback(
@@ -70,21 +76,31 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
         if (!followee) return;
         const key = followee.toLowerCase();
 
-        await ensureContractDeployedOnCurrentNetwork();
-        const readContract = await getReadContract();
-        const ok = (await (readContract as any).isFollowing(walletAddress, followee)) as boolean;
-        setIsFollowingByAddress((prev) => ({ ...prev, [key]: !!ok }));
+        if (loadedIsFollowingByAddressRef.current[key]) return;
+        if (typeof isFollowingByAddress[key] === "boolean") {
+          loadedIsFollowingByAddressRef.current[key] = true;
+          return;
+        }
+
+        await runInFlight(isFollowingInFlightRef.current, key, async () => {
+          await ensureContractDeployedOnCurrentNetwork();
+          const readContract = await getReadContract();
+          const ok = (await (readContract as any).isFollowing(walletAddress, followee)) as boolean;
+          setIsFollowingByAddress((prev) => ({ ...prev, [key]: !!ok }));
+          loadedIsFollowingByAddressRef.current[key] = true;
+        });
       } catch {
         // ignore
       }
     },
-    [provider, walletAddress, ensureContractDeployedOnCurrentNetwork, getReadContract]
+    [provider, walletAddress, isFollowingByAddress, ensureContractDeployedOnCurrentNetwork, getReadContract]
   );
 
   const toggleFollow = useCallback(
     async (followee: string) => {
       try {
         if (!walletAddress) {
+          requestConnectNudge();
           setStatus("Connect your wallet first.");
           return;
         }
@@ -125,75 +141,24 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
       if (loadedFollowerCountByAddressRef.current[key]) return;
 
-      const existing = followerCountInFlightRef.current[key];
-      if (existing) {
-        await existing;
-        return;
-      }
-
-      const task = (async () => {
+      await runInFlight(followerCountInFlightRef.current, key, async () => {
         setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
 
-          const latest = await provider.getBlockNumber();
-          const maxRounds = 60;
-          const maxEvents = 5_000;
-          let windowSize = 75_000;
-          const minWindowSize = 2_000;
+          const activeFollowers = await scanActiveFollowAddresses({
+            readContract,
+            scanProvider: provider,
+            iface: socialInterface,
+            followedFilter: (readContract as any).filters.Followed(null, address),
+            unfollowedFilter: (readContract as any).filters.Unfollowed(null, address),
+            addressArgIndex: 0,
+            maxEvents: 5_000,
+            errorLabel: "follower"
+          });
 
-          const collected: ethers.Log[] = [];
-
-          const pullRange = async (fromBlock: number, toBlock: number) => {
-            const [followed, unfollowed] = await Promise.all([
-              (readContract as any).queryFilter((readContract as any).filters.Followed(null, address), fromBlock, toBlock),
-              (readContract as any).queryFilter((readContract as any).filters.Unfollowed(null, address), fromBlock, toBlock)
-            ]);
-            return [...(followed as any[]), ...(unfollowed as any[])].sort((a, b) => {
-              const ab = Number(a.blockNumber ?? 0);
-              const bb = Number(b.blockNumber ?? 0);
-              if (ab !== bb) return ab - bb;
-              const ai = Number(a.index ?? a.logIndex ?? 0);
-              const bi = Number(b.index ?? b.logIndex ?? 0);
-              return ai - bi;
-            });
-          };
-
-          let end = latest;
-          for (let round = 0; round < maxRounds && end >= 0 && collected.length < maxEvents; round++) {
-            const start = Math.max(0, end - windowSize);
-            try {
-              const logs = await pullRange(start, end);
-              collected.unshift(...(logs as any));
-              if (start === 0) break;
-              end = start - 1;
-            } catch {
-              if (windowSize <= minWindowSize) throw new Error("RPC could not serve follower log range.");
-              windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
-            }
-          }
-
-          const state = new Map<string, boolean>();
-          for (const log of collected) {
-            let parsed: ethers.LogDescription | null = null;
-            try {
-              parsed = socialInterface.parseLog({ topics: (log as any).topics as string[], data: (log as any).data });
-            } catch {
-              parsed = null;
-            }
-            if (!parsed) continue;
-            const follower = (parsed.args?.[0] as string | undefined) ?? "";
-            if (!follower) continue;
-
-            if (parsed.name === "Followed") {
-              state.set(follower.toLowerCase(), true);
-            } else if (parsed.name === "Unfollowed") {
-              state.set(follower.toLowerCase(), false);
-            }
-          }
-
-          const count = Array.from(state.values()).filter(Boolean).length;
+          const count = activeFollowers.length;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
@@ -201,16 +166,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
         } finally {
           setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
         }
-      })();
-
-      followerCountInFlightRef.current[key] = task;
-      try {
-        await task;
-      } finally {
-        if (followerCountInFlightRef.current[key] === task) {
-          followerCountInFlightRef.current[key] = null;
-        }
-      }
+      });
     },
     [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, setStatus]
   );
@@ -223,79 +179,22 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
       if (loadedFollowersByAddressRef.current[key]) return;
 
-      const existing = followersInFlightRef.current[key];
-      if (existing) {
-        await existing;
-        return;
-      }
-
-      const task = (async () => {
+      await runInFlight(followersInFlightRef.current, key, async () => {
         setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
 
-          const latest = await provider.getBlockNumber();
-          const maxRounds = 60;
-          const maxEvents = 7_500;
-          let windowSize = 75_000;
-          const minWindowSize = 2_000;
-
-          const collected: ethers.Log[] = [];
-
-          const pullRange = async (fromBlock: number, toBlock: number) => {
-            const [followed, unfollowed] = await Promise.all([
-              (readContract as any).queryFilter((readContract as any).filters.Followed(null, address), fromBlock, toBlock),
-              (readContract as any).queryFilter((readContract as any).filters.Unfollowed(null, address), fromBlock, toBlock)
-            ]);
-            return [...(followed as any[]), ...(unfollowed as any[])].sort((a, b) => {
-              const ab = Number(a.blockNumber ?? 0);
-              const bb = Number(b.blockNumber ?? 0);
-              if (ab !== bb) return ab - bb;
-              const ai = Number(a.index ?? a.logIndex ?? 0);
-              const bi = Number(b.index ?? b.logIndex ?? 0);
-              return ai - bi;
-            });
-          };
-
-          let end = latest;
-          for (let round = 0; round < maxRounds && end >= 0 && collected.length < maxEvents; round++) {
-            const start = Math.max(0, end - windowSize);
-            try {
-              const logs = await pullRange(start, end);
-              collected.unshift(...(logs as any));
-              if (start === 0) break;
-              end = start - 1;
-            } catch {
-              if (windowSize <= minWindowSize) throw new Error("RPC could not serve follower log range.");
-              windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
-            }
-          }
-
-          const state = new Map<string, { following: boolean; lastBlock: number }>();
-          for (const log of collected) {
-            let parsed: ethers.LogDescription | null = null;
-            try {
-              parsed = socialInterface.parseLog({ topics: (log as any).topics as string[], data: (log as any).data });
-            } catch {
-              parsed = null;
-            }
-            if (!parsed) continue;
-            const follower = (parsed.args?.[0] as string | undefined) ?? "";
-            if (!follower) continue;
-            const blockNumber = Number((log as any).blockNumber ?? 0);
-
-            if (parsed.name === "Followed") {
-              state.set(follower.toLowerCase(), { following: true, lastBlock: blockNumber });
-            } else if (parsed.name === "Unfollowed") {
-              state.set(follower.toLowerCase(), { following: false, lastBlock: blockNumber });
-            }
-          }
-
-          const active = Array.from(state.entries())
-            .filter(([, v]) => v.following)
-            .sort((a, b) => (b[1].lastBlock ?? 0) - (a[1].lastBlock ?? 0))
-            .map(([addr]) => addr);
+          const active = await scanActiveFollowAddresses({
+            readContract,
+            scanProvider: provider,
+            iface: socialInterface,
+            followedFilter: (readContract as any).filters.Followed(null, address),
+            unfollowedFilter: (readContract as any).filters.Unfollowed(null, address),
+            addressArgIndex: 0,
+            maxEvents: 7_500,
+            errorLabel: "follower"
+          });
 
           setFollowersByAddress((prev) => ({ ...prev, [key]: active }));
           loadedFollowersByAddressRef.current[key] = true;
@@ -304,16 +203,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
         } finally {
           setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
         }
-      })();
-
-      followersInFlightRef.current[key] = task;
-      try {
-        await task;
-      } finally {
-        if (followersInFlightRef.current[key] === task) {
-          followersInFlightRef.current[key] = null;
-        }
-      }
+      });
     },
     [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, setStatus]
   );
@@ -326,79 +216,22 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
       if (loadedFollowingByAddressRef.current[key]) return;
 
-      const existing = followingInFlightRef.current[key];
-      if (existing) {
-        await existing;
-        return;
-      }
-
-      const task = (async () => {
+      await runInFlight(followingInFlightRef.current, key, async () => {
         setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
 
-          const latest = await provider.getBlockNumber();
-          const maxRounds = 60;
-          const maxEvents = 7_500;
-          let windowSize = 75_000;
-          const minWindowSize = 2_000;
-
-          const collected: ethers.Log[] = [];
-
-          const pullRange = async (fromBlock: number, toBlock: number) => {
-            const [followed, unfollowed] = await Promise.all([
-              (readContract as any).queryFilter((readContract as any).filters.Followed(address, null), fromBlock, toBlock),
-              (readContract as any).queryFilter((readContract as any).filters.Unfollowed(address, null), fromBlock, toBlock)
-            ]);
-            return [...(followed as any[]), ...(unfollowed as any[])].sort((a, b) => {
-              const ab = Number(a.blockNumber ?? 0);
-              const bb = Number(b.blockNumber ?? 0);
-              if (ab !== bb) return ab - bb;
-              const ai = Number(a.index ?? a.logIndex ?? 0);
-              const bi = Number(b.index ?? b.logIndex ?? 0);
-              return ai - bi;
-            });
-          };
-
-          let end = latest;
-          for (let round = 0; round < maxRounds && end >= 0 && collected.length < maxEvents; round++) {
-            const start = Math.max(0, end - windowSize);
-            try {
-              const logs = await pullRange(start, end);
-              collected.unshift(...(logs as any));
-              if (start === 0) break;
-              end = start - 1;
-            } catch {
-              if (windowSize <= minWindowSize) throw new Error("RPC could not serve following log range.");
-              windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
-            }
-          }
-
-          const state = new Map<string, { following: boolean; lastBlock: number }>();
-          for (const log of collected) {
-            let parsed: ethers.LogDescription | null = null;
-            try {
-              parsed = socialInterface.parseLog({ topics: (log as any).topics as string[], data: (log as any).data });
-            } catch {
-              parsed = null;
-            }
-            if (!parsed) continue;
-            const followee = (parsed.args?.[1] as string | undefined) ?? "";
-            if (!followee) continue;
-            const blockNumber = Number((log as any).blockNumber ?? 0);
-
-            if (parsed.name === "Followed") {
-              state.set(followee.toLowerCase(), { following: true, lastBlock: blockNumber });
-            } else if (parsed.name === "Unfollowed") {
-              state.set(followee.toLowerCase(), { following: false, lastBlock: blockNumber });
-            }
-          }
-
-          const active = Array.from(state.entries())
-            .filter(([, v]) => v.following)
-            .sort((a, b) => (b[1].lastBlock ?? 0) - (a[1].lastBlock ?? 0))
-            .map(([addr]) => addr);
+          const active = await scanActiveFollowAddresses({
+            readContract,
+            scanProvider: provider,
+            iface: socialInterface,
+            followedFilter: (readContract as any).filters.Followed(address, null),
+            unfollowedFilter: (readContract as any).filters.Unfollowed(address, null),
+            addressArgIndex: 1,
+            maxEvents: 7_500,
+            errorLabel: "following"
+          });
 
           setFollowingByAddress((prev) => ({ ...prev, [key]: active }));
           loadedFollowingByAddressRef.current[key] = true;
@@ -407,16 +240,7 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
         } finally {
           setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
         }
-      })();
-
-      followingInFlightRef.current[key] = task;
-      try {
-        await task;
-      } finally {
-        if (followingInFlightRef.current[key] === task) {
-          followingInFlightRef.current[key] = null;
-        }
-      }
+      });
     },
     [provider, ensureContractDeployedOnCurrentNetwork, getReadContract, setStatus]
   );

@@ -1,11 +1,25 @@
-import { ethers } from "ethers";
+import { formatEther, isAddress } from "ethers";
 import { Link } from "react-router-dom";
-import { ipfsToHttp } from "../ipfs";
+import { hasPinata, ipfsToHttp } from "../ipfs";
+import { scanRecentUniqueAddressesFromEvent } from "../lib/eventAddressScanner";
+import { getScanProviderFromReadContract } from "../lib/contractRunner";
+import {
+  readApprovalsChainRequestsCache,
+  readPendingApprovals,
+  writeApprovalsChainRequestsCache,
+  writePendingApprovals
+} from "../lib/approvalsCache";
+import { discoverMintedTokenIdsForAuthor } from "../lib/mintedTokenDiscovery";
+import { fetchPosterStatuses } from "../lib/posterStatus";
+import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts } from "../lib/pinataCleanup";
+import { collectPinnedCidsForTokenIds } from "../lib/pinataTokenCids";
 import { Modal } from "./Modal";
 import { useEffect, useState } from "react";
-import { useApp } from "../contexts/AppContext";
 import { useContract } from "../contexts/ContractContext";
 import { useContractTx } from "../contexts/useContractTx";
+import { useFeed } from "../contexts/FeedContext";
+import { useProfile } from "../contexts/ProfileContext";
+import { stableHueFromSeed } from "../lib/format";
 
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(() => {
@@ -66,7 +80,6 @@ type Props = {
   contractAddress: string | undefined;
   contractDeployed: boolean | null;
   status: string;
-  onRefreshWalletPanel: () => void;
   onWithdrawTips: () => void;
 
   shortAddress: (address: string) => string;
@@ -105,9 +118,10 @@ type ProfileCardProps = Pick<
 >;
 
 export function ProfileCard(props: ProfileCardProps) {
-  const app = useApp();
   const contract = useContract();
   const { runContractTx } = useContractTx();
+  const feed = useFeed();
+  const profile = useProfile();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
 
@@ -147,68 +161,7 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const isOwner =
     !!props.walletAddress && !!ownerAddress && props.walletAddress.toLowerCase() === ownerAddress.toLowerCase();
-
-  const PENDING_APPROVALS_KEY = "pendingPosterApprovals";
   const APPROVALS_CHAIN_CACHE_TTL_MS = 60_000;
-  const APPROVALS_CHAIN_CACHE_PREFIX = "approvalsChainRequestsCache:";
-
-  function approvalsChainCacheKey(contractAddress: string | undefined): string | null {
-    if (!contractAddress) return null;
-    const key = contractAddress.trim().toLowerCase();
-    if (!key) return null;
-    return `${APPROVALS_CHAIN_CACHE_PREFIX}${key}`;
-  }
-
-  function readApprovalsChainRequestsCache(contractAddress: string | undefined): {
-    requesters: string[];
-    updatedAt: number;
-  } | null {
-    if (typeof window === "undefined") return null;
-    const key = approvalsChainCacheKey(contractAddress);
-    if (!key) return null;
-
-    try {
-      const raw = window.sessionStorage.getItem(key);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as any;
-      const requesters = Array.isArray(parsed?.requesters)
-        ? parsed.requesters.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
-        : [];
-      const updatedAt = Number(parsed?.updatedAt);
-      if (!Number.isFinite(updatedAt) || updatedAt <= 0) return null;
-      return { requesters, updatedAt };
-    } catch {
-      return null;
-    }
-  }
-
-  function writeApprovalsChainRequestsCache(contractAddressLower: string, requesters: string[]) {
-    if (typeof window === "undefined") return;
-    const key = approvalsChainCacheKey(contractAddressLower);
-    if (!key) return;
-    window.sessionStorage.setItem(
-      key,
-      JSON.stringify({ requesters: requesters.filter((x) => typeof x === "string" && x.trim()), updatedAt: Date.now() })
-    );
-  }
-
-  function readPendingApprovals(): string[] {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.sessionStorage.getItem(PENDING_APPROVALS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim());
-    } catch {
-      return [];
-    }
-  }
-
-  function writePendingApprovals(next: string[]) {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(PENDING_APPROVALS_KEY, JSON.stringify(next));
-  }
 
   const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => readPendingApprovals());
@@ -245,7 +198,6 @@ export function ProfileCard(props: ProfileCardProps) {
       return;
     }
 
-    const approvalsKey = (contract.contractAddress ?? "").toLowerCase();
     const cached = readApprovalsChainRequestsCache(contract.contractAddress);
     const isCachedFresh =
       !!cached && typeof cached.updatedAt === "number" && Date.now() - cached.updatedAt < APPROVALS_CHAIN_CACHE_TTL_MS;
@@ -265,8 +217,7 @@ export function ProfileCard(props: ProfileCardProps) {
       setOnChainRequestsLoadError(false);
       try {
         const readContract = await contract.getReadContract();
-        const runner: any = (readContract as any).runner;
-        const provider: any = runner?.provider ?? runner;
+        const provider: any = getScanProviderFromReadContract(readContract);
 
         const latestRaw = (await provider?.getBlockNumber?.()) ?? 0;
         const latest = Number(latestRaw);
@@ -279,48 +230,23 @@ export function ProfileCard(props: ProfileCardProps) {
         // We intentionally do not filter to "currently pending" so that approved
         // (or later disapproved) accounts remain visible for ongoing management.
         const filter = (readContract as any).filters.PosterApprovalRequested();
-        const uniq: string[] = [];
-        const seen = new Set<string>();
-        let hadQueryError = false;
 
-        let end = latest;
-        let windowSize = 50_000;
-        const minWindowSize = 1_000;
-        const maxRounds = 20;
-        const startedAt = Date.now();
-        const maxTimeMs = 8_000;
-
-        for (let round = 0; round < maxRounds && end >= 0 && uniq.length < 50; round++) {
-          if (Date.now() - startedAt > maxTimeMs) break;
-          const start = Math.max(0, end - windowSize);
-          try {
-            const logs = (await (readContract as any).queryFilter(filter, start, end)) as any[];
-
-            // Walk newest-to-oldest within this range.
-            for (let i = logs.length - 1; i >= 0 && uniq.length < 50; i--) {
-              const l = logs[i];
-              const addr = (l?.args?.[0] as string | undefined) ?? "";
-              if (!addr) continue;
-              if (!ethers.isAddress(addr)) continue;
-              const key = addr.toLowerCase();
-              if (seen.has(key)) continue;
-              seen.add(key);
-
-              uniq.push(addr);
-            }
-
-            if (start === 0) break;
-            end = start - 1;
-          } catch {
-            hadQueryError = true;
-            if (windowSize <= minWindowSize) break;
-            windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
-          }
-        }
+        const { addresses: uniq, hadQueryError } = await scanRecentUniqueAddressesFromEvent({
+          scanProvider: provider,
+          readContract,
+          filter,
+          extractAddress: (l: any) => (l?.args?.[0] as string | undefined) ?? "",
+          isValidAddress: (a) => isAddress(a),
+          maxUnique: 50,
+          maxRounds: 20,
+          initialWindowSize: 50_000,
+          minWindowSize: 1_000,
+          maxTimeMs: 8_000
+        });
 
         // Persist results across route switches. Cache an empty list if the scan completed cleanly.
-        if (approvalsKey && (!hadQueryError || uniq.length > 0)) {
-          writeApprovalsChainRequestsCache(approvalsKey, uniq);
+        if (!hadQueryError || uniq.length > 0) {
+          writeApprovalsChainRequestsCache(contract.contractAddress, uniq);
         }
 
         if (!cancelled) {
@@ -357,7 +283,7 @@ export function ProfileCard(props: ProfileCardProps) {
     for (const a of [...pendingApprovals, ...onChainRequests]) {
       const raw = (a ?? "").trim();
       if (!raw) continue;
-      if (!ethers.isAddress(raw)) continue;
+      if (!isAddress(raw)) continue;
       const key = raw.toLowerCase();
       if (!byKey.has(key)) byKey.set(key, raw);
     }
@@ -369,28 +295,18 @@ export function ProfileCard(props: ProfileCardProps) {
     void (async () => {
       try {
         const readContract = await contract.getReadContract();
-        const checks = await Promise.all(
-          addrs.map(async (a) => {
-            try {
-              const allowed = (await (readContract as any).isPosterAllowed(a)) as boolean;
-              const disapprovedEver = (await (readContract as any).wasPosterDisapproved(a)) as boolean;
-              return { a, allowed, disapprovedEver };
-            } catch {
-              return { a, allowed: false, disapprovedEver: false };
-            }
-          })
-        );
+        const checks = await fetchPosterStatuses(readContract, addrs);
 
         if (cancelled) return;
         setPosterAllowedByAddress((prev) => {
           const next = { ...prev };
-          for (const c of checks) next[c.a.toLowerCase()] = c.allowed;
+          for (const c of checks) next[c.address.toLowerCase()] = c.allowed;
           return next;
         });
 
         setPosterDisapprovedEverByAddress((prev) => {
           const next = { ...prev };
-          for (const c of checks) next[c.a.toLowerCase()] = c.disapprovedEver;
+          for (const c of checks) next[c.address.toLowerCase()] = c.disapprovedEver;
           return next;
         });
       } catch {
@@ -405,7 +321,7 @@ export function ProfileCard(props: ProfileCardProps) {
 
   function addPendingApproval(raw: string) {
     const addr = raw.trim();
-    if (!ethers.isAddress(addr)) {
+    if (!isAddress(addr)) {
       setApprovalsError("Invalid address");
       return;
     }
@@ -445,7 +361,7 @@ export function ProfileCard(props: ProfileCardProps) {
 
   async function resetAllAndBlock(addr: string) {
     const normalized = addr.trim();
-    if (!ethers.isAddress(normalized)) {
+    if (!isAddress(normalized)) {
       setApprovalsError("Invalid address");
       return;
     }
@@ -454,37 +370,43 @@ export function ProfileCard(props: ProfileCardProps) {
 
     let tokenIds: bigint[] = [];
     let tokenDiscoveryFailed = false;
-    try {
+    {
       const readContract = await contract.getReadContract();
-      const runner: any = (readContract as any).runner;
-      const provider: any = runner?.provider ?? runner;
-      const latest = (await provider?.getBlockNumber?.()) ?? 0;
-
-      const logs = (await (readContract as any).queryFilter(
-        (readContract as any).filters.PostMinted(normalized),
-        0,
-        latest
-      )) as any[];
-
-      const uniq = new Set<string>();
-      for (const l of logs) {
-        const id = l?.args?.[1] as bigint | undefined;
-        if (typeof id !== "bigint") continue;
-        uniq.add(id.toString());
-      }
-      tokenIds = Array.from(uniq).map((s) => BigInt(s));
-    } catch {
-      tokenDiscoveryFailed = true;
-      tokenIds = [];
+      const provider: any = getScanProviderFromReadContract(readContract);
+      const discovered = await discoverMintedTokenIdsForAuthor({ readContract, scanProvider: provider, author: normalized });
+      tokenIds = discovered.tokenIds;
+      tokenDiscoveryFailed = discovered.failed;
     }
+
+    let pinnedCids: Set<string> | null = null;
 
     try {
       await runContractTx("Reset account", async () => {
+        // Best-effort: collect pinned CIDs before burn so we can unpin after.
+        try {
+          if (hasPinata() && tokenIds.length) {
+            const readContract = await contract.getReadContract();
+            pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+          }
+        } catch {
+          pinnedCids = null;
+        }
+
         const writeContract = await contract.getWriteContract();
         return (writeContract as any).adminResetAccount(normalized, tokenIds);
       });
     } catch {
       return;
+    }
+
+    // Best-effort cleanup: unpin burned posts' metadata/media from Pinata.
+    try {
+      if (pinnedCids) {
+        const referenced = collectReferencedIpfsCidsFromPosts(feed.posts);
+        void bestEffortUnpinCids(pinnedCids, { protectReferencedIn: referenced });
+      }
+    } catch {
+      // ignore
     }
 
     setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
@@ -505,15 +427,15 @@ export function ProfileCard(props: ProfileCardProps) {
     if (!isFollowersOpen) return;
     const addrs = followers.slice(0, 24);
     if (addrs.length === 0) return;
-    void Promise.all(addrs.map((a) => app.loadProfile(a)));
-  }, [app, followers, isFollowersOpen]);
+    void Promise.all(addrs.map((a) => profile.loadProfile(a)));
+  }, [followers, isFollowersOpen, profile]);
 
   useEffect(() => {
     if (!isFollowingOpen) return;
     const addrs = following.slice(0, 24);
     if (addrs.length === 0) return;
-    void Promise.all(addrs.map((a) => app.loadProfile(a)));
-  }, [app, following, isFollowingOpen]);
+    void Promise.all(addrs.map((a) => profile.loadProfile(a)));
+  }, [following, isFollowingOpen, profile]);
 
   const avatarStyle = avatarDisplayUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(avatarDisplayUrl)})` }
@@ -764,11 +686,11 @@ export function ProfileCard(props: ProfileCardProps) {
                   className="avatar tiny"
                   style={(() => {
                     const key = addr.toLowerCase();
-                    const p = app.profilesByAddress[key];
+                    const p = profile.profilesByAddress[key];
                     const av = p?.avatarUrl?.trim();
                     return av
                       ? { backgroundImage: `url(${ipfsToHttp(av)})` }
-                      : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
+                      : { background: `hsl(${stableHueFromSeed(addr)} 75% 55%)` };
                   })()}
                 />
                 <span className="value">{props.shortAddress(addr)}</span>
@@ -794,11 +716,11 @@ export function ProfileCard(props: ProfileCardProps) {
                   className="avatar tiny"
                   style={(() => {
                     const key = addr.toLowerCase();
-                    const p = app.profilesByAddress[key];
+                    const p = profile.profilesByAddress[key];
                     const av = p?.avatarUrl?.trim();
                     return av
                       ? { backgroundImage: `url(${ipfsToHttp(av)})` }
-                      : { background: `hsl(${app.stableHueFromSeed(addr)} 75% 55%)` };
+                      : { background: `hsl(${stableHueFromSeed(addr)} 75% 55%)` };
                   })()}
                 />
                 <span className="value">{props.shortAddress(addr)}</span>
@@ -829,7 +751,6 @@ type WalletCardProps = Pick<
   | "contractAddress"
   | "contractDeployed"
   | "status"
-  | "onRefreshWalletPanel"
   | "onWithdrawTips"
   | "shortAddress"
   | "getNativeSymbol"
@@ -886,7 +807,7 @@ export function WalletCard(props: WalletCardProps) {
             <div className="label">Tips</div>
             <div className="value">
               {props.withdrawableTipsWei > 0n
-                ? `${Number(ethers.formatEther(props.withdrawableTipsWei)).toFixed(4)} ${props.getNativeSymbol(
+                ? `${Number(formatEther(props.withdrawableTipsWei)).toFixed(4)} ${props.getNativeSymbol(
                     props.chainId
                   )}`
                 : "0"}
@@ -904,14 +825,6 @@ export function WalletCard(props: WalletCardProps) {
           </div>
 
           <div className="walletContractActions">
-            <button
-              className="secondary"
-              type="button"
-              onClick={props.onRefreshWalletPanel}
-              disabled={!props.walletAddress}
-            >
-              Refresh
-            </button>
             <button
               className="secondary"
               type="button"
@@ -962,7 +875,6 @@ export function Sidebar({
   contractAddress,
   contractDeployed,
   status,
-  onRefreshWalletPanel,
   onWithdrawTips,
   shortAddress,
   getNativeSymbol
@@ -1008,7 +920,6 @@ export function Sidebar({
         contractAddress={contractAddress}
         contractDeployed={contractDeployed}
         status={status}
-        onRefreshWalletPanel={onRefreshWalletPanel}
         onWithdrawTips={onWithdrawTips}
         shortAddress={shortAddress}
         getNativeSymbol={getNativeSymbol}

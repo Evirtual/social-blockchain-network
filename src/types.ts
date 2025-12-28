@@ -49,4 +49,5 @@ export type PostComment = {
   comment: string;
   txHash?: string;
   blockNumber?: number;
+  logIndex?: number;
 };

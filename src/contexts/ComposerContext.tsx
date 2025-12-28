@@ -1,32 +1,36 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-// Utility to normalize chainId (hex or decimal string to decimal string, or null for invalid)
-export function normalizeChainId(chainId: string | number | null | undefined): string | null {
-  if (chainId == null || chainId === "") return null;
-  if (typeof chainId === "number") return String(chainId);
-  if (typeof chainId === "string") {
-    if (/^0x[0-9a-f]+$/i.test(chainId)) {
-      try {
-        return String(parseInt(chainId, 16));
-      } catch {
-        return null;
-      }
-    }
-    if (/^\d+$/.test(chainId)) return chainId;
-  }
-  return null;
-}
 import { hasPinata, ipfsToHttp } from "../ipfs";
 import type { Draft, Post } from "../types";
 import { socialInterface } from "../contracts/socialPosts";
 import { createMetadataUri, fetchTokenMetadata } from "../lib/metadata";
 import { getErrorMessage } from "../lib/errors";
 import { buildIpfsTokenUri } from "../lib/ipfsTokenUri";
+import { parseChainIdNumber } from "../lib/chainId";
 import { useContract } from "./ContractContext";
 import { useFeed } from "./FeedContext";
 import { useStatus } from "./StatusContext";
 import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";
 import { useContractTx } from "./useContractTx";
+import { fetchPosterGateStatuses, fetchPosterStatuses } from "../lib/posterStatus";
+import { runInFlight } from "../lib/inFlight";
+import { requestConnectNudge } from "../lib/connectNudge";
+import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from "../lib/postLimits";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+
+function normalizeChainIdToString(chainId: string | number | null | undefined): string | undefined {
+  if (chainId == null || chainId === "") return undefined;
+  if (typeof chainId === "number") return Number.isFinite(chainId) ? String(chainId) : undefined;
+  const n = parseChainIdNumber(chainId);
+  return n == null ? undefined : String(n);
+}
+
+function makeLocalNoticeId() {
+  return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => window.setTimeout(r, ms));
+}
 
 export type ComposerContextValue = {
   isComposerOpen: boolean;
@@ -37,6 +41,7 @@ export type ComposerContextValue = {
 
   draft: Draft;
   isImageLoading: boolean;
+  isPosting: boolean;
   handleDraftChange: (field: keyof Draft, value: string) => void;
   onComposerImageUrlChange: (value: string) => void;
   onComposerClearImage: () => void;
@@ -63,6 +68,8 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const [draft, setDraft] = useState<Draft>({ title: "", body: "", imageUrl: "", imageDataUrl: "" });
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const postingInFlightRef = useRef(false);
   const [uploadedImageBlob, setUploadedImageBlob] = useState<Blob | null>(null);
   const [uploadedImageFilename, setUploadedImageFilename] = useState<string>("");
   const composerPreviewObjectUrlRef = useRef<string | null>(null);
@@ -71,31 +78,53 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [approvalRequested, setApprovalRequested] = useState(false);
+  const approvalPollInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   useEffect(() => {
     if (!walletAddress) return;
     if (!approvalRequested) return;
 
     let cancelled = false;
-    const t = window.setInterval(() => {
-      void (async () => {
-        try {
+    const pollOnce = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+
+      try {
+        const key = walletAddress.toLowerCase();
+        await runInFlight(approvalPollInFlightRef.current, key, async () => {
           const readContract = await contract.getReadContract();
-          const allowed = (await (readContract as any).isPosterAllowed(walletAddress)) as boolean;
+          const statuses = await fetchPosterStatuses(readContract, [walletAddress]);
+          const allowed = statuses[0]?.allowed ?? false;
           if (!allowed) return;
           if (cancelled) return;
           setApprovalRequired(false);
           setApprovalRequested(false);
           setStatus("You’ve been approved. You can post now.");
-        } catch {
-          // ignore
-        }
-      })();
-    }, 3500);
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void pollOnce();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+
+    void pollOnce();
+    const t = window.setInterval(() => void pollOnce(), 3500);
 
     return () => {
       cancelled = true;
       window.clearInterval(t);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
     };
   }, [walletAddress, approvalRequested, contract, setStatus]);
 
@@ -111,6 +140,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
   const requestApproval = useCallback(async () => {
     if (!walletAddress) {
+      requestConnectNudge();
       setStatus("Connect your wallet first.");
       return;
     }
@@ -137,7 +167,10 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, [walletAddress, approvalRequested, runContractTx, contract, setStatus]);
 
   const handleDraftChange = useCallback((field: keyof Draft, value: string) => {
-    setDraft((prev) => ({ ...prev, [field]: value }));
+    let next = value;
+    if (field === "title") next = next.slice(0, MAX_POST_TITLE_LENGTH);
+    if (field === "body") next = next.slice(0, MAX_POST_BODY_LENGTH);
+    setDraft((prev) => ({ ...prev, [field]: next }));
   }, []);
 
   const onComposerImageUrlChange = useCallback((value: string) => {
@@ -263,74 +296,75 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const mintPost = useCallback(async () => {
-
-
-    const makeLocalNoticeId = () => `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
-
-    const waitForUrlReachable = async (url: string, attempts = 10, delayMs = 750) => {
-      for (let i = 0; i < attempts; i++) {
-        try {
-          const controller = new AbortController();
-          const t = window.setTimeout(() => controller.abort(), 2500);
-          try {
-            const head = await fetch(url, { method: "HEAD", signal: controller.signal, cache: "no-store" });
-            if (head.ok) return true;
-          } catch {
-            // fall through
-          } finally {
-            window.clearTimeout(t);
-          }
-
-          const controller2 = new AbortController();
-          const t2 = window.setTimeout(() => controller2.abort(), 2500);
-          try {
-            const probe = await fetch(url, {
-              method: "GET",
-              headers: { Range: "bytes=0-0" },
-              signal: controller2.signal,
-              cache: "no-store"
-            });
-            if (probe.ok) return true;
-          } catch {
-            // ignore
-          } finally {
-            window.clearTimeout(t2);
-          }
-        } catch {
-          // ignore
-        }
-
-        await sleep(delayMs);
-      }
-      return false;
-    };
-
-    const waitForMetadataReady = async (tokenUri: string, attempts = 10, delayMs = 750) => {
-      for (let i = 0; i < attempts; i++) {
-        const meta = await fetchTokenMetadata(tokenUri);
-        const hasAny =
-          typeof meta.name === "string" ||
-          typeof meta.description === "string" ||
-          typeof meta.image === "string" ||
-          typeof meta.animation_url === "string";
-        if (hasAny) return meta;
-        await sleep(delayMs);
-      }
-      return fetchTokenMetadata(tokenUri);
-    };
+    if (postingInFlightRef.current) return;
+    postingInFlightRef.current = true;
+    setIsPosting(true);
 
     try {
+      const waitForUrlReachable = async (url: string, attempts = 10, delayMs = 750) => {
+        for (let i = 0; i < attempts; i++) {
+          try {
+            const controller = new AbortController();
+            const t = window.setTimeout(() => controller.abort(), 2500);
+            try {
+              const head = await fetch(url, { method: "HEAD", signal: controller.signal, cache: "no-store" });
+              if (head.ok) return true;
+            } catch {
+              // fall through
+            } finally {
+              window.clearTimeout(t);
+            }
+
+            const controller2 = new AbortController();
+            const t2 = window.setTimeout(() => controller2.abort(), 2500);
+            try {
+              const probe = await fetch(url, {
+                method: "GET",
+                headers: { Range: "bytes=0-0" },
+                signal: controller2.signal,
+                cache: "no-store"
+              });
+              if (probe.ok) return true;
+            } catch {
+              // ignore
+            } finally {
+              window.clearTimeout(t2);
+            }
+          } catch {
+            // ignore
+          }
+
+          await sleep(delayMs);
+        }
+        return false;
+      };
+
+      const waitForMetadataReady = async (tokenUri: string, attempts = 10, delayMs = 750) => {
+        for (let i = 0; i < attempts; i++) {
+          const meta = await fetchTokenMetadata(tokenUri);
+          const hasAny =
+            typeof meta.name === "string" ||
+            typeof meta.description === "string" ||
+            typeof meta.image === "string" ||
+            typeof meta.animation_url === "string";
+          if (hasAny) return meta;
+          await sleep(delayMs);
+        }
+        return fetchTokenMetadata(tokenUri);
+      };
+
       if (!walletAddress) {
+        requestConnectNudge();
         setStatus("Connect your wallet first.");
         return;
       }
 
       try {
         const readContract = await contract.getReadContract();
-        const allowed = (await (readContract as any).isPosterAllowed(walletAddress)) as boolean;
+        const statuses = await fetchPosterGateStatuses(readContract, [walletAddress]);
+        const allowed = statuses[0]?.allowed ?? false;
         if (!allowed) {
-          const requested = (await (readContract as any).hasPosterRequested(walletAddress)) as boolean;
+          const requested = statuses[0]?.requested ?? false;
           setApprovalRequired(true);
           setApprovalRequested(Boolean(requested));
           setIsComposerOpen(false);
@@ -435,7 +469,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 
       const newPost: Post = {
         tokenId: minted.mintedTokenId,
-        chainId: normalizeChainId(chainId) ?? undefined,
+        chainId: normalizeChainIdToString(chainId),
         title: draft.title,
         body: draft.body,
         image: imageRefForUi,
@@ -487,6 +521,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       setStatus(getErrorMessage(error));
+    } finally {
+      postingInFlightRef.current = false;
+      setIsPosting(false);
     }
   }, [walletAddress, chainId, contract, isImageLoading, draft, getWriteContract, ipfsConfigured, uploadedImageBlob, uploadedImageFilename, feed, runContractTx, setStatus, txNotifications]);
 
@@ -498,6 +535,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       ipfsConfigured,
       draft,
       isImageLoading,
+      isPosting,
       handleDraftChange,
       onComposerImageUrlChange,
       onComposerClearImage,
@@ -515,6 +553,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       ipfsConfigured,
       draft,
       isImageLoading,
+      isPosting,
       handleDraftChange,
       onComposerImageUrlChange,
       onComposerClearImage,

@@ -1,52 +1,77 @@
 import { HomePage } from "../pages/HomePage";
-import { useApp } from "../contexts/AppContext";
+import { useComposer } from "../contexts/ComposerContext";
+import { useContract } from "../contexts/ContractContext";
+import { useFeed } from "../contexts/FeedContext";
+import { useProfile } from "../contexts/ProfileContext";
+import { useSocialActions } from "../contexts/SocialActionsContext";
+import { useStatus } from "../contexts/StatusContext";
+import { useWallet } from "../contexts/WalletContext";
+import { getExplorerTxUrl, getNativeSymbol } from "../lib/chain";
+import { shortAddress, stableHueFromSeed } from "../lib/format";
+import { useCallback } from "react";
 
 export function HomeRoute() {
-  const app = useApp();
+  const wallet = useWallet();
+  const contract = useContract();
+  const feed = useFeed();
+  const profile = useProfile();
+  const composer = useComposer();
+  const social = useSocialActions();
+  const { status } = useStatus();
+
+  const onTip = useCallback(
+    async (tokenId: string, amountRaw: string, postChainId?: string | null) => {
+      const ok = await social.handleTip(tokenId, amountRaw, postChainId);
+      if (!ok) return false;
+      try {
+        await contract.refreshContractState();
+      } catch {
+        // ignore
+      }
+      return true;
+    },
+    [social, contract]
+  );
 
   return (
     <HomePage
-      isOwner={app.isOwner}
-      selfAvatarHue={app.selfAvatarHue}
-      ipfsConfigured={app.ipfsConfigured}
-      onOpenComposer={app.openComposer}
-      draft={app.draft}
-      isImageLoading={app.isImageLoading}
-      onDraftFieldChange={app.handleDraftChange}
-      onImageUrlChange={app.onComposerImageUrlChange}
-      onSelectFile={app.onSelectComposerFile}
-      onClearImage={app.onComposerClearImage}
-      onPost={app.mintPost}
-      posts={app.posts}
-      chainId={app.chainId}
-      networkName={app.networkName}
-      contractAddress={app.contractAddress}
-      contractDeployed={app.contractDeployed}
-      status={app.status}
-      isFeedLoading={app.isFeedLoading}
-      walletAddress={app.walletAddress}
-      authorIdentity={app.authorIdentity}
-      editingTokenId={app.editingTokenId}
-      editDraft={app.editDraft}
-      isEditImageLoading={app.isEditImageLoading}
-      tipDrafts={app.tipDrafts}
-      commentDrafts={app.commentDrafts}
-      onSetEditDraft={app.setEditDraft}
-      onTipDraftChange={app.onTipDraftChange}
-      onCommentDraftChange={app.onCommentDraftChange}
-      onStartEditPost={app.startEditPost}
-      onCancelEditPost={app.cancelEditPost}
-      onSaveEditedPost={app.saveEditedPost}
-      onEditSelectFile={app.onEditSelectFile}
-      onEditClearImage={app.onEditClearImage}
-      onAction={app.handleAction}
-      onTip={app.handleTip}
-      onBurn={app.burnPost}
-      onFreezePost={app.freezePost}
-      shortAddress={app.shortAddress}
-      stableHueFromSeed={app.stableHueFromSeed}
-      getNativeSymbol={app.getNativeSymbol}
-      getExplorerTxUrl={app.getExplorerTxUrl}
+      isOwner={contract.isOwner}
+      selfAvatarHue={profile.selfAvatarHue}
+      ipfsConfigured={composer.ipfsConfigured}
+      onOpenComposer={composer.openComposer}
+      draft={composer.draft}
+      isImageLoading={composer.isImageLoading}
+      onDraftFieldChange={composer.handleDraftChange}
+      onImageUrlChange={composer.onComposerImageUrlChange}
+      onSelectFile={composer.onSelectComposerFile}
+      onClearImage={composer.onComposerClearImage}
+      onPost={composer.mintPost}
+      posts={feed.posts}
+      chainId={wallet.chainId}
+      networkName={wallet.networkName}
+      contractAddress={contract.contractAddress}
+      contractDeployed={contract.contractDeployed}
+      status={status}
+      isFeedLoading={feed.isFeedLoading}
+      walletAddress={wallet.walletAddress}
+      authorIdentity={profile.authorIdentity}
+      editingTokenId={social.editingTokenId}
+      editDraft={social.editDraft}
+      isEditImageLoading={social.isEditImageLoading}
+      onSetEditDraft={social.setEditDraft}
+      onStartEditPost={social.startEditPost}
+      onCancelEditPost={social.cancelEditPost}
+      onSaveEditedPost={social.saveEditedPost}
+      onEditSelectFile={social.onEditSelectFile}
+      onEditClearImage={social.onEditClearImage}
+      onAction={social.handleAction}
+      onTip={onTip}
+      onBurn={social.burnPost}
+      onFreezePost={social.freezePost}
+      shortAddress={shortAddress}
+      stableHueFromSeed={stableHueFromSeed}
+      getNativeSymbol={getNativeSymbol}
+      getExplorerTxUrl={getExplorerTxUrl}
     />
   );
 }

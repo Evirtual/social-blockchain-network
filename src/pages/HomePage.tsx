@@ -29,12 +29,8 @@ type Props = {
   editingTokenId: string | null;
   editDraft: Draft;
   isEditImageLoading: boolean;
-  tipDrafts: Record<string, string>;
-  commentDrafts: Record<string, string>;
 
   onSetEditDraft: (next: Draft) => void;
-  onTipDraftChange: (tokenId: string, value: string) => void;
-  onCommentDraftChange: (tokenId: string, value: string) => void;
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
@@ -42,8 +38,13 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
-  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onAction: (
+    tokenId: string,
+    action: "like" | "comment" | "save",
+    postChainId?: string | null,
+    comment?: string
+  ) => Promise<boolean>;
+  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
@@ -335,11 +336,7 @@ export function HomePage(props: Props) {
         editingTokenId={props.editingTokenId}
         editDraft={props.editDraft}
         isEditImageLoading={props.isEditImageLoading}
-        tipDrafts={props.tipDrafts}
-        commentDrafts={props.commentDrafts}
         onSetEditDraft={props.onSetEditDraft}
-        onTipDraftChange={props.onTipDraftChange}
-        onCommentDraftChange={props.onCommentDraftChange}
         onStartEditPost={props.onStartEditPost}
         onCancelEditPost={props.onCancelEditPost}
         onSaveEditedPost={props.onSaveEditedPost}

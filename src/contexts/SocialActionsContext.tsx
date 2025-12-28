@@ -1,11 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { ethers } from "ethers";
+import { parseEther } from "ethers";
 import type { Draft, Post } from "../types";
 import { createMetadataUri } from "../lib/metadata";
 import { getErrorMessage } from "../lib/errors";
-import { extractIpfsCid, hasPinata, ipfsToHttp, pinataUnpinCid } from "../ipfs";
+import { extractIpfsCid, hasPinata, ipfsToHttp } from "../ipfs";
 import { buildIpfsTokenUri } from "../lib/ipfsTokenUri";
 import { getNetworkBadgeLabel } from "../lib/chain";
+import { bestEffortUnpinCids, collectIpfsCidsFromTokenUri, collectReferencedIpfsCidsFromPosts } from "../lib/pinataCleanup";
+import { parseChainKey } from "../lib/chainKey";
+import { readSessionTokenIds, writeSessionTokenIds } from "../lib/sessionTokenCache";
+import { requestConnectNudge } from "../lib/connectNudge";
 import { useContract } from "./ContractContext";
 import { useFeed } from "./FeedContext";
 import { useStatus } from "./StatusContext";
@@ -21,13 +25,8 @@ export type SocialActionsContextValue = {
   editingTokenId: string | null;
   editDraft: Draft;
   isEditImageLoading: boolean;
-  tipDrafts: Record<string, string>;
-  commentDrafts: Record<string, string>;
 
   setEditDraft: React.Dispatch<React.SetStateAction<Draft>>;
-
-  onTipDraftChange: (tokenId: string, value: string) => void;
-  onCommentDraftChange: (tokenId: string, value: string) => void;
 
   onEditSelectFile: (file: File | null) => Promise<void>;
   onEditClearImage: () => void;
@@ -39,8 +38,13 @@ export type SocialActionsContextValue = {
   burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
   freezePost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
-  handleAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => Promise<boolean>;
-  handleTip: (tokenId: string, postChainId?: string | null) => Promise<boolean>;
+  handleAction: (
+    tokenId: string,
+    action: "like" | "comment" | "save",
+    postChainId?: string | null,
+    comment?: string
+  ) => Promise<boolean>;
+  handleTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
 
   withdrawTips: () => Promise<void>;
 };
@@ -69,9 +73,6 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   const editPreviewObjectUrlRef = useRef<string | null>(null);
   const [isEditImageLoading, setIsEditImageLoading] = useState(false);
 
-  const [tipDrafts, setTipDrafts] = useState<Record<string, string>>({});
-  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-
   const ensureMatchingNetwork = useCallback(
     (postChainId?: string | null) => {
       if (!postChainId) return true;
@@ -85,14 +86,6 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     },
     [chainId, setStatus]
   );
-
-  const onTipDraftChange = useCallback((tokenId: string, value: string) => {
-    setTipDrafts((prev) => ({ ...prev, [tokenId]: value }));
-  }, []);
-
-  const onCommentDraftChange = useCallback((tokenId: string, value: string) => {
-    setCommentDrafts((prev) => ({ ...prev, [tokenId]: value }));
-  }, []);
 
   const startEditPost = useCallback(
     (post: Post) => {
@@ -117,54 +110,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     [getReadContract, isOwner, setStatus]
   );
 
-  const collectIpfsCidsFromTokenUri = useCallback(async (tokenUri: string): Promise<Set<string>> => {
-    const out = new Set<string>();
-    const metaCid = extractIpfsCid(tokenUri);
-    if (metaCid) out.add(metaCid);
-
-    const meta = await fetchTokenMetadata(tokenUri);
-    const imageCid = extractIpfsCid(String(meta?.image ?? ""));
-    if (imageCid) out.add(imageCid);
-    const animCid = extractIpfsCid(String((meta as any)?.animation_url ?? ""));
-    if (animCid) out.add(animCid);
-    return out;
-  }, []);
-
-  const bestEffortUnpinCids = useCallback(
-    async (cids: Iterable<string>) => {
+  const bestEffortUnpinCidsSafe = useCallback(
+    async (cids: Iterable<string>, exclude?: { chainId?: string | null; tokenIds?: Iterable<string> }) => {
       if (!ipfsConfigured) return;
-      const unique = Array.from(new Set(Array.from(cids).map((c) => String(c).trim()).filter(Boolean)));
-      if (!unique.length) return;
-      await Promise.allSettled(unique.map((cid) => pinataUnpinCid(cid)));
+      const protect = collectReferencedIpfsCidsFromPosts(feed.posts, { exclude });
+      await bestEffortUnpinCids(cids, { protectReferencedIn: protect });
     },
-    [ipfsConfigured]
-  );
-
-  const collectReferencedIpfsCidsFromFeed = useCallback(
-    (exclude?: { chainId?: string | null; tokenId?: string | null }) => {
-      const out = new Set<string>();
-      const excludeChain = exclude?.chainId ? String(exclude.chainId).trim() : "";
-      const excludeToken = exclude?.tokenId ? String(exclude.tokenId).trim() : "";
-
-      for (const p of feed.posts) {
-        if (excludeChain && excludeToken) {
-          if (String(p.chainId ?? "").trim() === excludeChain && String(p.tokenId ?? "").trim() === excludeToken) {
-            continue;
-          }
-        }
-
-        const refs = [p.metadataURI, p.image, p.animationUrl].filter(
-          (x): x is string => typeof x === "string" && x.trim().length > 0
-        );
-        for (const ref of refs) {
-          const cid = extractIpfsCid(ref);
-          if (cid) out.add(cid);
-        }
-      }
-
-      return out;
-    },
-    [feed.posts]
+    [ipfsConfigured, feed.posts]
   );
 
   const cancelEditPost = useCallback(() => {
@@ -179,6 +131,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     async (tokenId: string, postChainId?: string | null) => {
       try {
         if (!walletAddress) {
+          requestConnectNudge();
           setStatus("Connect your wallet first.");
           return;
         }
@@ -331,6 +284,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     let processingToastId: string | null = null;
     try {
       if (!walletAddress) {
+        requestConnectNudge();
         setStatus("Connect your wallet first.");
         return;
       }
@@ -549,9 +503,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         for (const cid of oldPinnedCids) {
           if (!newPinnedCids.has(cid)) toRemove.push(cid);
         }
-        const referenced = collectReferencedIpfsCidsFromFeed({ chainId, tokenId: editingTokenId });
-        const safeToUnpin = toRemove.filter((cid) => !referenced.has(cid));
-        void bestEffortUnpinCids(safeToUnpin);
+        void bestEffortUnpinCidsSafe(toRemove, { chainId, tokenIds: [editingTokenId] });
       }
 
       cancelEditPost();
@@ -563,11 +515,12 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       }
       setStatus(message);
     }
-  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getReadContract, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus, txNotifications, collectIpfsCidsFromTokenUri, bestEffortUnpinCids, collectReferencedIpfsCidsFromFeed, chainId]);
+  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getReadContract, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus, txNotifications, bestEffortUnpinCidsSafe, chainId]);
 
   const burnPost = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
       if (!walletAddress) {
+        requestConnectNudge();
         setStatus("Connect your wallet first.");
         return;
       }
@@ -599,9 +552,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
 
       // Best-effort cleanup: stop pinning the burned post's metadata/media.
       if (ipfsConfigured && pinnedCids) {
-        const referenced = collectReferencedIpfsCidsFromFeed({ chainId: postChainId ?? chainId, tokenId });
-        const safeToUnpin = Array.from(pinnedCids).filter((cid) => !referenced.has(cid));
-        void bestEffortUnpinCids(safeToUnpin);
+        void bestEffortUnpinCidsSafe(pinnedCids, { chainId: postChainId ?? chainId, tokenIds: [tokenId] });
       }
 
       if (editingTokenId === tokenId) {
@@ -620,39 +571,30 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         const { [tokenId]: _, ...rest } = prev;
         return rest;
       });
-      setTipDrafts((prev) => {
-        if (!(tokenId in prev)) return prev;
-        const { [tokenId]: _, ...rest } = prev;
-        return rest;
-      });
-      setCommentDrafts((prev) => {
-        if (!(tokenId in prev)) return prev;
-        const { [tokenId]: _, ...rest } = prev;
-        return rest;
-      });
 
       await feed.refreshFeed();
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, ensureMatchingNetwork, ipfsConfigured, getReadContract, getWriteContract, isOwner, runContractTx, editingTokenId, cancelEditPost, feed, setStatus, collectIpfsCidsFromTokenUri, bestEffortUnpinCids, collectReferencedIpfsCidsFromFeed, chainId]);
+  }, [walletAddress, ensureMatchingNetwork, ipfsConfigured, getReadContract, getWriteContract, isOwner, runContractTx, editingTokenId, cancelEditPost, feed, setStatus, bestEffortUnpinCidsSafe, chainId]);
 
-  const handleTip = useCallback(async (tokenId: string, postChainId?: string | null) => {
+  const handleTip = useCallback(async (tokenId: string, amountRaw: string, postChainId?: string | null) => {
     try {
       if (!walletAddress) {
+        requestConnectNudge();
         setStatus("Connect your wallet first.");
         return false;
       }
       if (!ensureMatchingNetwork(postChainId)) return false;
 
-      const raw = (tipDrafts[tokenId] ?? "").trim();
+      const raw = (amountRaw ?? "").trim();
       const amount = raw.length ? Number(raw) : 0;
       if (!Number.isFinite(amount) || amount <= 0) {
         setStatus("Enter a valid tip amount.");
         return false;
       }
 
-      const valueWei = ethers.parseEther(raw);
+      const valueWei = parseEther(raw);
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(tokenId);
 
@@ -670,18 +612,18 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           return { ...p, tipsWei: p.tipsWei + valueWei };
         })
       );
-      setTipDrafts((prev) => ({ ...prev, [tokenId]: "" }));
       void refreshWalletPanel();
       return true;
     } catch (error) {
       setStatus(getErrorMessage(error));
       return false;
     }
-  }, [walletAddress, ensureMatchingNetwork, tipDrafts, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]);
+  }, [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]);
 
   const withdrawTips = useCallback(async () => {
     try {
       if (!walletAddress) {
+        requestConnectNudge();
         setStatus("Connect your wallet first.");
         return;
       }
@@ -695,24 +637,33 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   }, [walletAddress, getWriteContract, runContractTx, refreshWalletPanel, setStatus]);
 
   const handleAction = useCallback(
-    async (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => {
+    async (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null, comment?: string) => {
       try {
         if (!walletAddress) {
+          requestConnectNudge();
           setStatus("Connect your wallet first.");
           return false;
         }
         if (!ensureMatchingNetwork(postChainId)) return false;
 
+        const addressLower = walletAddress.toLowerCase();
+        const chainKey = parseChainKey(postChainId ?? chainId);
+        const tokenKey = chainKey ? `${chainKey}:${tokenId}` : tokenId;
+
         const writeContract = await getWriteContract();
         const tokenIdBig = BigInt(tokenId);
 
         if (action === "comment") {
-          const comment = commentDrafts[tokenId];
-          if (!comment) {
+          const text = (comment ?? "").trim();
+          if (!text) {
             setStatus("Write a comment before signing.");
             return false;
           }
-          const ok = await runContractTx<boolean>("Comment", () => writeContract.commentPost(tokenIdBig, comment), () => true);
+          const ok = await runContractTx<boolean>(
+            "Comment",
+            () => writeContract.commentPost(tokenIdBig, text),
+            () => true
+          );
           if (!ok) return false;
 
           feed.setPosts((prev) =>
@@ -722,8 +673,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
               return { ...post, comments: post.comments + 1 };
             })
           );
-          setCommentDrafts((prev) => ({ ...prev, [tokenId]: "" }));
-          void feed.loadCommentsForPost(tokenId);
+          void feed.loadCommentsForPost(tokenId, postChainId ?? chainId);
           return true;
         }
 
@@ -744,6 +694,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
               return { ...post, likes: next, likedByMe: !already };
             })
           );
+
+          // Persist for the Saved/Liked profile views (fast reload without rescans).
+          const prev = readSessionTokenIds("likesTokenKeysByAddress:", addressLower) ?? [];
+          const next = !already ? (prev.includes(tokenKey) ? prev : [tokenKey, ...prev]) : prev.filter((k) => k !== tokenKey);
+          writeSessionTokenIds("likesTokenKeysByAddress:", addressLower, next);
           return true;
         }
 
@@ -764,6 +719,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
               return { ...post, saves: next, savedByMe: !already };
             })
           );
+
+          // Persist for the Saved/Liked profile views (fast reload without rescans).
+          const prev = readSessionTokenIds("savedTokenKeysByAddress:", addressLower) ?? [];
+          const next = !already ? (prev.includes(tokenKey) ? prev : [tokenKey, ...prev]) : prev.filter((k) => k !== tokenKey);
+          writeSessionTokenIds("savedTokenKeysByAddress:", addressLower, next);
           return true;
         }
 
@@ -773,7 +733,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         return false;
       }
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, commentDrafts, feed, setStatus]
+    [walletAddress, chainId, ensureMatchingNetwork, getWriteContract, runContractTx, feed, setStatus]
   );
 
   const value = useMemo<SocialActionsContextValue>(
@@ -782,11 +742,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       editingTokenId,
       editDraft,
       isEditImageLoading,
-      tipDrafts,
-      commentDrafts,
       setEditDraft,
-      onTipDraftChange,
-      onCommentDraftChange,
       onEditSelectFile,
       onEditClearImage,
       startEditPost,
@@ -803,10 +759,6 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       editingTokenId,
       editDraft,
       isEditImageLoading,
-      tipDrafts,
-      commentDrafts,
-      onTipDraftChange,
-      onCommentDraftChange,
       onEditSelectFile,
       onEditClearImage,
       startEditPost,

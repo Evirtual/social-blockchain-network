@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ethers } from "ethers";
+import { BrowserProvider, type Eip1193Provider, formatEther } from "ethers";
 import { useStatus } from "./StatusContext";
+import { parseChainIdNumber } from "../lib/chainId";
 
 const WALLET_DISCONNECTED_KEY = "socialBlockchainNetwork.walletDisconnected";
 
 export type WalletContextValue = {
-  provider: ethers.BrowserProvider | null;
+  provider: BrowserProvider | null;
   walletAddress: string | null;
   chainId: string | null;
   networkName: string | null;
@@ -44,15 +45,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   });
 
   const refreshWalletInFlightRef = useRef<Promise<void> | null>(null);
+  const walletAddressRef = useRef<string | null>(null);
+  useEffect(() => {
+    walletAddressRef.current = walletAddress;
+  }, [walletAddress]);
 
   const provider = useMemo(() => {
-    const ethereum = window.ethereum as ethers.Eip1193Provider | undefined;
+    const ethereum = window.ethereum as Eip1193Provider | undefined;
     if (!ethereum) return null;
-    return new ethers.BrowserProvider(ethereum);
+    return new BrowserProvider(ethereum);
   }, [providerNonce]);
 
+  const setDisconnectedState = useCallback(
+    (statusMessage: string) => {
+      setWalletAddress(null);
+      setNativeBalance("—");
+      setStatus(statusMessage);
+      setWalletEpoch((n) => n + 1);
+    },
+    [setStatus]
+  );
+
   const refreshWalletPanel = useCallback(async () => {
-    if (!provider || !walletAddress) return;
+    if (!provider) return;
+    const addr = walletAddressRef.current;
+    if (!addr) return;
     if (refreshWalletInFlightRef.current) {
       await refreshWalletInFlightRef.current;
       return;
@@ -62,11 +79,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       try {
         const [network, balanceWei] = await Promise.all([
           provider.getNetwork(),
-          provider.getBalance(walletAddress)
+          provider.getBalance(addr)
         ]);
         setNetworkName(network.name);
         setChainId(network.chainId.toString());
-        setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
+        setNativeBalance(Number(formatEther(balanceWei)).toFixed(4));
       } catch {
         // ignore
       }
@@ -78,7 +95,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (refreshWalletInFlightRef.current === task) refreshWalletInFlightRef.current = null;
     }
-  }, [provider, walletAddress]);
+  }, [provider]);
 
   const connectWallet = useCallback(async (): Promise<string | null> => {
     try {
@@ -108,7 +125,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Balance is a nice-to-have; don't block on it.
       try {
         const balanceWei = await provider.getBalance(address);
-        setNativeBalance(Number(ethers.formatEther(balanceWei)).toFixed(4));
+        setNativeBalance(Number(formatEther(balanceWei)).toFixed(4));
       } catch {
         setNativeBalance("—");
       }
@@ -124,9 +141,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const disconnectWallet = useCallback(() => {
     // Wallet extensions (e.g. MetaMask) don't support a true programmatic disconnect.
     // This clears the app's local session state.
-    setWalletAddress(null);
-    setNativeBalance("—");
-    setStatus("Wallet disconnected");
+    setDisconnectedState("Wallet disconnected");
 
     setIsWalletAutoConnectDisabled(true);
     try {
@@ -134,11 +149,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-
-    setWalletEpoch((n) => n + 1);
-  }, [setStatus]);
+  }, [setDisconnectedState]);
 
   useEffect(() => {
+    let cancelled = false;
     const bootstrap = async () => {
       try {
         if (!provider) return;
@@ -146,6 +160,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         // Always resolve chain info on page load.
         try {
           const network = await provider.getNetwork();
+          if (cancelled) return;
           setChainId(network.chainId.toString());
           setNetworkName(network.name);
         } catch {
@@ -155,12 +170,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const accounts = (await provider.send("eth_accounts", [])) as string[];
         const addr = isWalletAutoConnectDisabled ? null : (accounts?.[0] ?? null);
         if (!addr) {
-          setStatus("Wallet disconnected");
+          if (cancelled) return;
+          setDisconnectedState("Wallet disconnected");
           return;
         }
 
+        if (cancelled) return;
         setWalletAddress(addr);
         const network = await provider.getNetwork();
+        if (cancelled) return;
         setChainId(network.chainId.toString());
         setNetworkName(network.name);
         setStatus("Wallet connected.");
@@ -172,6 +190,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
 
     void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [provider, isWalletAutoConnectDisabled, setStatus]);
 
   useEffect(() => {
@@ -181,10 +203,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     const onAccountsChanged = async (accounts: string[]) => {
       if (isWalletAutoConnectDisabled) {
-        setWalletAddress(null);
-        setNativeBalance("—");
-        setStatus("Wallet disconnected");
-        setWalletEpoch((n) => n + 1);
+        setDisconnectedState("Wallet disconnected");
         return;
       }
 
@@ -201,8 +220,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!addr) {
-        setStatus("Wallet disconnected");
-        setWalletEpoch((n) => n + 1);
+        setDisconnectedState("Wallet disconnected");
         return;
       }
 
@@ -216,11 +234,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
         if (typeof nextChainId === "string" && nextChainId.length > 0) {
           // EIP-1193 chainChanged gives hex chainId.
-          const n = nextChainId.startsWith("0x") || nextChainId.startsWith("0X")
-            ? Number.parseInt(nextChainId, 16)
-            : Number.parseInt(nextChainId, 10);
-          if (Number.isFinite(n)) setChainId(String(n));
-          else setChainId(null);
+          const n = parseChainIdNumber(nextChainId);
+          setChainId(n == null ? null : String(n));
         }
 
         // Recreate provider to avoid stale network cache.
@@ -241,8 +256,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [provider, isWalletAutoConnectDisabled, setStatus]);
 
   useEffect(() => {
+    // Auto-load balance on initial page load (auto-connect) and when switching accounts.
+    // The callback itself is provider-aware and de-duped.
+    if (!provider) return;
+    if (!walletAddress) return;
     void refreshWalletPanel();
-  }, [refreshWalletPanel]);
+  }, [provider, walletAddress, refreshWalletPanel]);
 
   const value = useMemo<WalletContextValue>(
     () => ({

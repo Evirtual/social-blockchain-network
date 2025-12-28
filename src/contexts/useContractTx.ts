@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { ethers } from "ethers";
+import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { getExplorerTxUrl } from "../lib/chain";
 import { getErrorMessage } from "../lib/errors";
 import { useContract } from "./ContractContext";
@@ -16,10 +16,17 @@ export function useContractTx() {
   const runContractTx = useCallback(
     async function runContractTx<T>(
       label: string,
-      send: () => Promise<ethers.TransactionResponse>,
-      onReceipt?: (receipt: ethers.TransactionReceipt) => Promise<T> | T
+      send: () => Promise<TransactionResponse>,
+      onReceipt?: (receipt: TransactionReceipt) => Promise<T> | T
     ): Promise<T | undefined> {
       let signingToastId: string | null = null;
+
+      const dismissSigningToast = () => {
+        if (!signingToastId) return;
+        txNotifications.dismiss(signingToastId);
+        signingToastId = null;
+      };
+
       try {
         await contract.ensureContractDeployedOnCurrentNetwork();
         setStatus(`${label} (confirm in wallet)...`);
@@ -29,10 +36,7 @@ export function useContractTx() {
 
         const tx = await send();
 
-        if (signingToastId) {
-          txNotifications.dismiss(signingToastId);
-          signingToastId = null;
-        }
+        dismissSigningToast();
 
         const explorerUrl = getExplorerTxUrl(wallet.chainId, tx.hash);
         txNotifications.notifyPending({ hash: tx.hash, label, explorerUrl });
@@ -51,22 +55,21 @@ export function useContractTx() {
         if (onReceipt) return await onReceipt(receipt);
         return undefined;
       } catch (error) {
-        if (signingToastId) {
-          txNotifications.dismiss(signingToastId);
-          signingToastId = null;
-        }
+        dismissSigningToast();
 
         const message = getErrorMessage(error);
+        const rejected = isUserRejectedTx(error);
         setStatus(message);
 
-        if (isUserRejectedTx(error)) {
+        if (rejected) {
           txNotifications.notifyCancelled(label);
+          throw error;
         }
 
         const hash = (error as any)?.transaction?.hash ?? (error as any)?.hash;
         if (typeof hash === "string") {
           txNotifications.notifyFailed({ hash, label, error: message });
-        } else if (!isUserRejectedTx(error)) {
+        } else {
           txNotifications.notifyFailed({ label, error: message });
         }
 

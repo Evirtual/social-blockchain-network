@@ -23,12 +23,8 @@ type Props = {
   editingTokenId: string | null;
   editDraft: Draft;
   isEditImageLoading: boolean;
-  tipDrafts: Record<string, string>;
-  commentDrafts: Record<string, string>;
 
   onSetEditDraft: (next: Draft) => void;
-  onTipDraftChange: (tokenId: string, value: string) => void;
-  onCommentDraftChange: (tokenId: string, value: string) => void;
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
@@ -36,8 +32,13 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
-  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onAction: (
+    tokenId: string,
+    action: "like" | "comment" | "save",
+    postChainId?: string | null,
+    comment?: string
+  ) => Promise<boolean>;
+  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
@@ -50,12 +51,11 @@ type Props = {
 export function AccountPage(props: Props) {
   const [view, setView] = useState<"all" | "saved" | "liked">("all");
 
-  const activePosts =
-    view === "saved"
-      ? props.savedPosts.map((p) => ({ ...p, contextTag: "saved" as const }))
-      : view === "liked"
-        ? props.likedPosts.map((p) => ({ ...p, contextTag: "liked" as const }))
-        : props.posts.map((p) => ({ ...p, contextTag: undefined }));
+  const activePosts = useMemo(() => {
+    if (view === "saved") return props.savedPosts.map((p) => ({ ...p, contextTag: "saved" as const }));
+    if (view === "liked") return props.likedPosts.map((p) => ({ ...p, contextTag: "liked" as const }));
+    return props.posts.map((p) => ({ ...p, contextTag: undefined }));
+  }, [view, props.posts, props.savedPosts, props.likedPosts]);
   const activeLoading = view === "saved" ? props.isLoadingSaved : view === "liked" ? props.isLoadingLiked : props.isFeedLoading;
   const activeTitle = "Your posts";
   const activePill = "";
@@ -126,7 +126,6 @@ export function AccountPage(props: Props) {
           contractAddress={props.sidebar.contractAddress}
           contractDeployed={props.sidebar.contractDeployed}
           status={props.sidebar.status}
-          onRefreshWalletPanel={props.sidebar.onRefreshWalletPanel}
           onWithdrawTips={props.sidebar.onWithdrawTips}
           shortAddress={props.sidebar.shortAddress}
           getNativeSymbol={props.sidebar.getNativeSymbol}
@@ -147,11 +146,7 @@ export function AccountPage(props: Props) {
           editingTokenId={props.editingTokenId}
           editDraft={props.editDraft}
           isEditImageLoading={props.isEditImageLoading}
-          tipDrafts={props.tipDrafts}
-          commentDrafts={props.commentDrafts}
           onSetEditDraft={props.onSetEditDraft}
-          onTipDraftChange={props.onTipDraftChange}
-          onCommentDraftChange={props.onCommentDraftChange}
           onStartEditPost={props.onStartEditPost}
           onCancelEditPost={props.onCancelEditPost}
           onSaveEditedPost={props.onSaveEditedPost}

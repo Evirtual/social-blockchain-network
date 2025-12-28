@@ -3,32 +3,97 @@ import { ComposerCard } from "./components/ComposerCard";
 import { Modal } from "./components/Modal";
 import { Topbar } from "./components/Topbar";
 import { TxToaster } from "./components/TxToaster";
-import { useApp } from "./contexts/AppContext";
 import { getNetworkBadgeLabel } from "./lib/chain";
+import { getErrorMessage } from "./lib/errors";
+import { shortAddress } from "./lib/format";
 import { HomeRoute } from "./routes/HomeRoute";
 import { PostRoute } from "./routes/PostRoute";
 import { ProfileRoute } from "./routes/ProfileRoute";
+import { useTheme } from "./contexts/ThemeContext";
+import { useWallet } from "./contexts/WalletContext";
+import { useContract } from "./contexts/ContractContext";
+import { useFeed } from "./contexts/FeedContext";
+import { useProfile } from "./contexts/ProfileContext";
+import { useComposer } from "./contexts/ComposerContext";
+import { useStatus } from "./contexts/StatusContext";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CONNECT_NUDGE_EVENT_NAME } from "./lib/connectNudge";
 
 export function AppShell() {
-  const app = useApp();
+  const theme = useTheme();
+  const wallet = useWallet();
+  const contract = useContract();
+  const feed = useFeed();
+  const profile = useProfile();
+  const composer = useComposer();
+  const { setStatus } = useStatus();
+
+  const [connectNudge, setConnectNudge] = useState(false);
+  const connectNudgeTimeoutRef = useRef<number | null>(null);
+
+  const triggerConnectNudge = useCallback(() => {
+    setConnectNudge(true);
+    if (connectNudgeTimeoutRef.current !== null) {
+      window.clearTimeout(connectNudgeTimeoutRef.current);
+    }
+    connectNudgeTimeoutRef.current = window.setTimeout(() => {
+      setConnectNudge(false);
+      connectNudgeTimeoutRef.current = null;
+    }, 1400);
+  }, []);
+
+  useEffect(() => {
+    const handleNudge = () => triggerConnectNudge();
+    window.addEventListener(CONNECT_NUDGE_EVENT_NAME, handleNudge);
+    return () => {
+      window.removeEventListener(CONNECT_NUDGE_EVENT_NAME, handleNudge);
+      if (connectNudgeTimeoutRef.current !== null) {
+        window.clearTimeout(connectNudgeTimeoutRef.current);
+        connectNudgeTimeoutRef.current = null;
+      }
+    };
+  }, [triggerConnectNudge]);
+
+  const connectWallet = useCallback(async () => {
+    const addr = await wallet.connectWallet();
+    if (!addr) {
+      triggerConnectNudge();
+      return;
+    }
+
+    try {
+      await contract.refreshContractState();
+    } catch {
+      // ignore
+    }
+
+    try {
+      await contract.ensureContractDeployedOnCurrentNetwork();
+    } catch (err) {
+      setStatus(getErrorMessage(err));
+    }
+
+    void wallet.refreshWalletPanel();
+    void feed.refreshFeed(addr);
+  }, [wallet, contract, setStatus, feed, triggerConnectNudge]);
 
   return (
     <div className="app">
       <Topbar
-        theme={app.theme}
-        connectNudge={app.connectNudge}
-        walletAddress={app.walletAddress}
-        onToggleTheme={app.toggleTheme}
-        onConnectWallet={app.connectWallet}
-        onOpenComposer={app.openComposer}
+        theme={theme.theme}
+        connectNudge={connectNudge}
+        walletAddress={wallet.walletAddress}
+        onToggleTheme={theme.toggleTheme}
+        onConnectWallet={connectWallet}
+        onOpenComposer={composer.openComposer}
         rightSlot={
-          app.profileLink ? (
-            <Link className="btn secondary" to={app.profileLink}>
-              {app.walletAddress ? (
+          profile.profileLink ? (
+            <Link className="btn secondary" to={profile.profileLink}>
+              {wallet.walletAddress ? (
                 <>
-                  {app.shortAddress(app.walletAddress)}
-                  {typeof app.chainId === "string" && app.chainId ? (
-                    <span className="badge">{getNetworkBadgeLabel(app.chainId)}</span>
+                  {shortAddress(wallet.walletAddress)}
+                  {typeof wallet.chainId === "string" && wallet.chainId ? (
+                    <span className="badge">{getNetworkBadgeLabel(wallet.chainId)}</span>
                   ) : null}
                 </>
               ) : (
@@ -39,31 +104,32 @@ export function AppShell() {
         }
       />
 
-      <Modal open={app.isComposerOpen} title="Create a post" onClose={app.closeComposer}>
+      <Modal open={composer.isComposerOpen} title="Create a post" onClose={composer.closeComposer}>
         <ComposerCard
-          selfAvatarHue={app.selfAvatarHue}
-          ipfsConfigured={app.ipfsConfigured}
-          draft={app.draft}
-          isImageLoading={app.isImageLoading}
-          onDraftFieldChange={app.handleDraftChange}
-          onImageUrlChange={app.onComposerImageUrlChange}
-          onSelectFile={app.onSelectComposerFile}
-          onClearImage={app.onComposerClearImage}
-          onPost={app.mintPost}
+          selfAvatarHue={profile.selfAvatarHue}
+          ipfsConfigured={composer.ipfsConfigured}
+          draft={composer.draft}
+          isImageLoading={composer.isImageLoading}
+          isPosting={composer.isPosting}
+          onDraftFieldChange={composer.handleDraftChange}
+          onImageUrlChange={composer.onComposerImageUrlChange}
+          onSelectFile={composer.onSelectComposerFile}
+          onClearImage={composer.onComposerClearImage}
+          onPost={composer.mintPost}
         />
       </Modal>
 
-      <Modal open={app.approvalRequired} title="Request posting approval" onClose={app.dismissApproval}>
+      <Modal open={composer.approvalRequired} title="Request posting approval" onClose={composer.dismissApproval}>
         <div className="composer">
           <div className="muted">
             Posting is in closed beta. Request approval, then wait for an admin to approve your wallet.
           </div>
           <div className="rowActions">
-            <button className="secondary" type="button" onClick={app.dismissApproval}>
+            <button className="secondary" type="button" onClick={composer.dismissApproval}>
               Close
             </button>
-            <button className="primary" type="button" onClick={app.requestApproval}>
-              {app.approvalRequested ? "Requested" : "Request approval"}
+            <button className="primary" type="button" onClick={composer.requestApproval}>
+              {composer.approvalRequested ? "Requested" : "Request approval"}
             </button>
           </div>
         </div>

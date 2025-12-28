@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { TxNotice, TxState } from "../types";
 
 export type TxNotificationsContextValue = {
@@ -30,14 +30,28 @@ export function TxNotificationsProvider({ children }: { children: React.ReactNod
   const [txNotices, setTxNotices] = useState<TxNotice[]>([]);
   const dismissTimersRef = useRef<Record<string, number>>({});
 
-  const dismiss = useCallback((hash: string) => {
+  const clearDismissTimer = useCallback((hash: string) => {
     const t = dismissTimersRef.current[hash];
-    if (typeof t === "number") {
-      window.clearTimeout(t);
-      delete dismissTimersRef.current[hash];
-    }
-    setTxNotices((prev) => prev.filter((n) => n.hash !== hash));
+    if (typeof t !== "number") return;
+    window.clearTimeout(t);
+    delete dismissTimersRef.current[hash];
   }, []);
+
+  useEffect(() => {
+    return () => {
+      const timers = dismissTimersRef.current;
+      for (const hash of Object.keys(timers)) {
+        const t = timers[hash];
+        if (typeof t === "number") window.clearTimeout(t);
+      }
+      dismissTimersRef.current = {};
+    };
+  }, []);
+
+  const dismiss = useCallback((hash: string) => {
+    clearDismissTimer(hash);
+    setTxNotices((prev) => prev.filter((n) => n.hash !== hash));
+  }, [clearDismissTimer]);
 
   const scheduleAutoDismiss = useCallback(
     (hash: string) => {
@@ -68,11 +82,7 @@ export function TxNotificationsProvider({ children }: { children: React.ReactNod
   const notifyPending = useCallback(
     (args: { hash: string; label: string; explorerUrl: string | null }) => {
       // Pending stays until resolved (or user manually dismisses).
-      const existingTimer = dismissTimersRef.current[args.hash];
-      if (typeof existingTimer === "number") {
-        window.clearTimeout(existingTimer);
-        delete dismissTimersRef.current[args.hash];
-      }
+      clearDismissTimer(args.hash);
       setTxNotices((prev) =>
         upsertNotice(prev, {
           hash: args.hash,
@@ -83,7 +93,7 @@ export function TxNotificationsProvider({ children }: { children: React.ReactNod
         })
       );
     },
-    []
+    [clearDismissTimer]
   );
 
   const notifyConfirmed = useCallback((hash: string) => {

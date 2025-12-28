@@ -1192,14 +1192,26 @@
   margin-top: 0.625rem;
 }
 
+.commentEmpty {
+  margin-top: 0.875rem;
+  padding: 0.875rem 0;
+  text-align: center;
+}
+
 .commentItem {
   display: flex;
   gap: 0.625rem;
   align-items: flex-start;
   padding: 0.625rem;
   border: 0.0625rem solid var(--border);
-  background: var(--surface-2);
-  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  border-radius: calc(var(--radius-lg) - 0.5rem);
+}
+
+.commentItem .avatar {
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: calc(var(--radius-sm) - 0.125rem);
 }
 
 .commentMain {
@@ -1214,6 +1226,7 @@
   display: flex;
   gap: 0.625rem;
   align-items: center;
+  justify-content: space-between;
 }
 
 .commentAuthor {
@@ -1223,6 +1236,10 @@
 .commentLink {
   color: var(--muted);
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .commentText {

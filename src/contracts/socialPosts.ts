@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { Contract, type ContractRunner, Interface } from "ethers";
 
 export const SOCIAL_ABI = [
   "event ProfileUpdated(address indexed account, string name, string bio, string avatar)",
@@ -73,8 +73,8 @@ export const SOCIAL_ABI = [
   "function tokenURI(uint256 tokenId) external view returns (string)"
 ] as const;
 
-export const socialInterface = new ethers.Interface(SOCIAL_ABI);
+export const socialInterface = new Interface(SOCIAL_ABI);
 
-export function getSocialContract(address: string, runner: ethers.ContractRunner) {
-  return new ethers.Contract(address, SOCIAL_ABI, runner);
+export function getSocialContract(address: string, runner: ContractRunner) {
+  return new Contract(address, SOCIAL_ABI, runner);
 }

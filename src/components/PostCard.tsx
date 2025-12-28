@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { memo, useCallback, useEffect, useState } from "react";
+import { formatEther } from "ethers";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "../types";
 import { ipfsToHttp, ipfsToHttpWithGateway } from "../ipfs";
 import { getNetworkBadgeLabel } from "../lib/chain";
+import { MAX_POST_BODY_LENGTH } from "../lib/postLimits";
 import { IconBookmark, IconCoin, IconEdit, IconFlame, IconHeart, IconMessage } from "./icons";
 
 export type PostPanel = "comment" | "tip";
@@ -21,18 +22,15 @@ type Props = {
   isMine: boolean;
   canModerate?: boolean;
 
-  editingTokenId: string | null;
-  editDraft: Draft;
+  isEditing: boolean;
+  editDraft: Draft | null;
   isEditImageLoading: boolean;
-  tipDrafts: Record<string, string>;
-  commentDrafts: Record<string, string>;
 
   openPanel: PostPanel | null;
-  onTogglePanel: (panel: PostPanel) => void;
+  panelKey: string;
+  togglePanel: (id: string, panel: PostPanel) => void;
 
   onSetEditDraft: (next: Draft) => void;
-  onTipDraftChange: (tokenId: string, value: string) => void;
-  onCommentDraftChange: (tokenId: string, value: string) => void;
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
@@ -40,8 +38,13 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
-  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onAction: (
+    tokenId: string,
+    action: "like" | "comment" | "save",
+    postChainId?: string | null,
+    comment?: string
+  ) => Promise<boolean>;
+  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
@@ -49,7 +52,7 @@ type Props = {
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
-export function PostCard(props: Props) {
+export const PostCard = memo(function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
   const explorer = props.post.mintTxHash
     ? props.getExplorerTxUrl(props.post.chainId ?? props.chainId, props.post.mintTxHash)
@@ -95,8 +98,33 @@ export function PostCard(props: Props) {
     setImageSrc((prev) => (prev.startsWith("blob:") ? prev : imagePrimaryUrl));
   }, [imagePrimaryUrl]);
 
+  const onTogglePanel = useCallback(
+    (panel: PostPanel) => {
+      props.togglePanel(props.panelKey, panel);
+    },
+    [props.togglePanel, props.panelKey]
+  );
+
+  const [tipDraft, setTipDraft] = useState<string>("");
+  const [commentDraft, setCommentDraft] = useState<string>("");
+
+  useEffect(() => {
+    setTipDraft("");
+    setCommentDraft("");
+  }, [tokenId]);
+
+  const onSubmitTip = useCallback(async () => {
+    const ok = await props.onTip(tokenId, tipDraft, props.post.chainId);
+    if (ok) setTipDraft("");
+  }, [props, tokenId, tipDraft]);
+
+  const onSubmitComment = useCallback(async () => {
+    const ok = await props.onAction(tokenId, "comment", props.post.chainId, commentDraft);
+    if (ok) setCommentDraft("");
+  }, [props, tokenId, commentDraft]);
+
   return (
-    <article key={tokenId} className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
+    <article className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
       <div className="postHead">
         <div className="avatar small" style={avatarStyle} />
         <div className="postHeadMain">
@@ -137,7 +165,7 @@ export function PostCard(props: Props) {
                   </span>
                 )
               ) : null}
-              {(props.isMine || props.canModerate) && props.editingTokenId !== tokenId ? (
+              {(props.isMine || props.canModerate) && !props.isEditing ? (
                 <span className="postTokenActions">
                   <button
                     className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
@@ -166,21 +194,28 @@ export function PostCard(props: Props) {
         </div>
       </div>
 
-      {props.editingTokenId === tokenId ? (
+      {props.isEditing ? (
         <div className="editBox">
           <textarea
             className="textarea"
             rows={4}
-            value={props.editDraft.body}
-            onChange={(e) => props.onSetEditDraft({ ...props.editDraft, body: e.target.value })}
+            value={props.editDraft?.body ?? ""}
+            maxLength={MAX_POST_BODY_LENGTH}
+            onChange={(e) => {
+              const nextBody = e.target.value.slice(0, MAX_POST_BODY_LENGTH);
+              const base = props.editDraft ?? { title: "", body: "", imageUrl: "", imageDataUrl: "" };
+              props.onSetEditDraft({ ...base, body: nextBody });
+            }}
             placeholder="Post text"
           />
+          <div className="muted">{(props.editDraft?.body ?? "").length}/{MAX_POST_BODY_LENGTH}</div>
           <input
             className="input"
-            value={props.editDraft.imageUrl}
+            value={props.editDraft?.imageUrl ?? ""}
             onChange={(e) => {
               const v = e.target.value;
-              props.onSetEditDraft({ ...props.editDraft, imageUrl: v, imageDataUrl: "" });
+              const base = props.editDraft ?? { title: "", body: "", imageUrl: "", imageDataUrl: "" };
+              props.onSetEditDraft({ ...base, imageUrl: v, imageDataUrl: "" });
             }}
             placeholder="Image URL"
           />
@@ -197,11 +232,11 @@ export function PostCard(props: Props) {
             </button>
           </div>
 
-          {props.editDraft.imageDataUrl.startsWith("data:image/") && (
+          {props.editDraft?.imageDataUrl?.startsWith("data:image/") && (
             <img className="image-preview" src={props.editDraft.imageDataUrl} alt="Edit preview" />
           )}
 
-          {props.editDraft.imageDataUrl.startsWith("blob:") && (
+          {props.editDraft?.imageDataUrl?.startsWith("blob:") && (
             <video className="image-preview" src={props.editDraft.imageDataUrl} controls playsInline preload="metadata" />
           )}
 
@@ -295,7 +330,7 @@ export function PostCard(props: Props) {
           <button
             className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
             type="button"
-            onClick={() => props.onTogglePanel("comment")}
+            onClick={() => onTogglePanel("comment")}
             aria-label="Comment"
             aria-expanded={props.openPanel === "comment"}
             aria-controls={`comment-${props.post.chainId ?? ""}-${tokenId}`}
@@ -309,7 +344,7 @@ export function PostCard(props: Props) {
           <button
             className={`statPill statButton statTip${requiresNetworkSwitch ? " notAllowed" : ""}`}
             type="button"
-            onClick={() => props.onTogglePanel("tip")}
+            onClick={() => onTogglePanel("tip")}
             aria-label="Tip"
             aria-expanded={props.openPanel === "tip"}
             aria-controls={`tip-${props.post.chainId ?? ""}-${tokenId}`}
@@ -318,7 +353,7 @@ export function PostCard(props: Props) {
           >
             <IconCoin size={18} />
             <span className="statValue">
-              {Number(ethers.formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(props.chainId)}
+              {Number(formatEther(props.post.tipsWei)).toFixed(6)} {props.getNativeSymbol(props.chainId)}
             </span>
           </button>
         </div>
@@ -329,15 +364,15 @@ export function PostCard(props: Props) {
               <input
                 className="postField"
                 type="text"
-                value={props.tipDrafts[tokenId] || ""}
-                onChange={(event) => props.onTipDraftChange(tokenId, event.target.value)}
+                value={tipDraft}
+                onChange={(event) => setTipDraft(event.target.value)}
                 placeholder={`Tip amount in ${props.getNativeSymbol(props.chainId)} (e.g. 0.001)`}
                 disabled={requiresNetworkSwitch}
               />
               <button
                 className="primary"
                 type="button"
-                onClick={() => props.onTip(tokenId, props.post.chainId)}
+                onClick={onSubmitTip}
                 disabled={requiresNetworkSwitch}
                 title={interactionDisabledTitle}
               >
@@ -353,15 +388,15 @@ export function PostCard(props: Props) {
               <input
                 className="postField"
                 type="text"
-                value={props.commentDrafts[tokenId] || ""}
-                onChange={(event) => props.onCommentDraftChange(tokenId, event.target.value)}
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
                 placeholder="Write a comment to sign"
                 disabled={requiresNetworkSwitch}
               />
               <button
                 className="secondary"
                 type="button"
-                onClick={() => props.onAction(tokenId, "comment", props.post.chainId)}
+                onClick={onSubmitComment}
                 disabled={requiresNetworkSwitch}
                 title={interactionDisabledTitle}
               >
@@ -372,9 +407,9 @@ export function PostCard(props: Props) {
         ) : null}
       </div>
 
-      {props.editingTokenId === tokenId || !hasMedia || !props.post.body?.trim() ? null : (
+      {props.isEditing || !hasMedia || !props.post.body?.trim() ? null : (
         <div className="postCaption">{description}</div>
       )}
     </article>
   );
-}
+});

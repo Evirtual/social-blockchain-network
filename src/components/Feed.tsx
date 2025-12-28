@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Draft, Post } from "../types";
 import { useLocation } from "react-router-dom";
 import { PostCard, type PostPanel } from "./PostCard";
@@ -21,12 +21,8 @@ type Props = {
   editingTokenId: string | null;
   editDraft: Draft;
   isEditImageLoading: boolean;
-  tipDrafts: Record<string, string>;
-  commentDrafts: Record<string, string>;
 
   onSetEditDraft: (next: Draft) => void;
-  onTipDraftChange: (tokenId: string, value: string) => void;
-  onCommentDraftChange: (tokenId: string, value: string) => void;
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
@@ -34,8 +30,13 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
-  onTip: (tokenId: string, postChainId?: string | null) => void;
+  onAction: (
+    tokenId: string,
+    action: "like" | "comment" | "save",
+    postChainId?: string | null,
+    comment?: string
+  ) => Promise<boolean>;
+  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
@@ -45,7 +46,7 @@ type Props = {
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
-export function Feed({
+export const Feed = memo(function Feed({
   title,
   pillText,
   headerAction,
@@ -60,11 +61,7 @@ export function Feed({
   editingTokenId,
   editDraft,
   isEditImageLoading,
-  tipDrafts,
-  commentDrafts,
   onSetEditDraft,
-  onTipDraftChange,
-  onCommentDraftChange,
   onStartEditPost,
   onCancelEditPost,
   onSaveEditedPost,
@@ -83,8 +80,11 @@ export function Feed({
   const from = (location.state as { from?: string } | null)?.from ?? `${location.pathname}${location.search}`;
   const { getPanel, togglePanel } = usePanelById<PostPanel>();
 
+  const walletLower = walletAddress ? walletAddress.toLowerCase() : null;
+  const guestHue = stableHueFromSeed("guest");
+
   const showSkeletons = !!isLoading;
-  const initialSkeletonCount = 4;
+  const initialSkeletonCount = singleColumn ? 1 : 4;
   const trailingSkeletonCount = 1;
   const skeletonCount = posts.length === 0 ? initialSkeletonCount : trailingSkeletonCount;
 
@@ -110,13 +110,14 @@ export function Feed({
           const authorKey = post.author?.toLowerCase();
           const info = authorKey ? authorIdentity.get(authorKey) : undefined;
           const authorLabel = (info?.name?.trim() || (post.author ? shortAddress(post.author) : "Unknown")) as string;
-          const authorHue = info?.hue ?? stableHueFromSeed("guest");
+          const authorHue = info?.hue ?? guestHue;
           const authorAvatarUrl = info?.avatarUrl;
-          const isMine = !!walletAddress && !!post.author && walletAddress.toLowerCase() === post.author.toLowerCase();
+          const isMine = !!walletLower && !!post.author && walletLower === post.author.toLowerCase();
           const canModerate = !!isOwner;
           const panelKey = `${post.chainId ?? ""}:${post.tokenId}`;
           const openPanel = getPanel(panelKey);
-          const compositeKey = `${panelKey}:${post.contextTag ?? "post"}:${index}`;
+          const compositeKey = `${panelKey}:${post.contextTag ?? "post"}`;
+          const isEditing = editingTokenId === post.tokenId;
 
           return (
             <PostCard
@@ -131,16 +132,13 @@ export function Feed({
               authorAvatarUrl={authorAvatarUrl}
               isMine={isMine}
               canModerate={canModerate}
-              editingTokenId={editingTokenId}
-              editDraft={editDraft}
-              isEditImageLoading={isEditImageLoading}
-              tipDrafts={tipDrafts}
-              commentDrafts={commentDrafts}
+              isEditing={isEditing}
+              editDraft={isEditing ? editDraft : null}
+              isEditImageLoading={isEditing ? isEditImageLoading : false}
               openPanel={openPanel}
-              onTogglePanel={(panel) => togglePanel(panelKey, panel)}
+              panelKey={panelKey}
+              togglePanel={togglePanel}
               onSetEditDraft={onSetEditDraft}
-              onTipDraftChange={onTipDraftChange}
-              onCommentDraftChange={onCommentDraftChange}
               onStartEditPost={onStartEditPost}
               onCancelEditPost={onCancelEditPost}
               onSaveEditedPost={onSaveEditedPost}
@@ -180,4 +178,4 @@ export function Feed({
       </div>
     </section>
   );
-}
+});

@@ -198,6 +198,34 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.buttonWithSpinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 0.125rem solid currentColor;
+  border-top-color: transparent;
+  animation: spinnerSpin 800ms linear infinite;
+}
+
+@keyframes spinnerSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .primary {
   background: var(--accent);
   color: var(--accent-contrast);
