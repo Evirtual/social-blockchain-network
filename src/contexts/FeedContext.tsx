@@ -159,9 +159,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
         if (cfg.chainId !== 31337) return cfg.contractAddress;
 
-        const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) || "").trim();
-
-        const candidates = Array.from(new Set([cfg.contractAddress, legacy].map((x) => String(x).trim()).filter(Boolean)));
+        const candidates = [cfg.contractAddress].map((x) => String(x).trim()).filter(Boolean);
 
         const isSocialPostsAt = async (address: string) => {
           try {
@@ -399,9 +397,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
               if (cfg.chainId !== 31337) return cfg.contractAddress;
 
-              const legacy = String((env.VITE_CONTRACT_ADDRESS as string | undefined) ?? "").trim();
-
-              const candidates = Array.from(new Set([cfg.contractAddress, legacy].map((x) => String(x).trim()).filter(Boolean)));
+              const candidates = [cfg.contractAddress].map((x) => String(x).trim()).filter(Boolean);
 
               const isSocialPostsAt = async (address: string) => {
                 try {
