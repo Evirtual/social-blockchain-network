@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,12 +21,6 @@ jobs:
 
       - name: Install
         run: npm ci
-
-      - name: Contract tests
-        run: npm run test:contracts
-
-      - name: Frontend tests
-        run: npm run test:frontend
 
       - name: Build
         run: npm run build

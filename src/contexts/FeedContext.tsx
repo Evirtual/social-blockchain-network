@@ -392,7 +392,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             // Current network uses the connected wallet provider to preserve existing behavior.
             const tasks: Array<Promise<Post[]>> = [];
 
-            const taskTimeoutMs = 8_000;
+            const taskTimeoutMs = 10_000;
 
             const resolveRpcContractAddress = async (cfg: FeedNetworkConfig, rpcProvider: any) => {
               if (cfg.chainId !== 31337) return cfg.contractAddress;
@@ -440,7 +440,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
                 // Many public RPCs enforce limits on eth_getLogs response size and/or block range.
                 // Paginate the query by block range and shrink chunk size on failure.
-                let chunkSize = 5_000;
+                let chunkSize = 25_000;
                 const minChunkSize = 100;
 
                 let start = fromBlock;
@@ -464,7 +464,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               const fetchMintedEvents = async () => {
                 const latest = await networkProvider.getBlockNumber();
 
-                let windowSize = 50_000;
+                let windowSize = 500_000;
                 const maxWindowSize = Math.max(windowSize, latest);
                 const minWindowSize = 2_000;
 
