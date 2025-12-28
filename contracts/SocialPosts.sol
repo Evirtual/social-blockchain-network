@@ -25,13 +25,13 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(uint256 => uint256) private _likes;
     mapping(uint256 => uint256) private _comments;
-    mapping(uint256 => uint256) private _shares;
+    mapping(uint256 => uint256) private _saves;
 
     mapping(uint256 => uint256) private _tipsWei;
     mapping(address => uint256) private _withdrawableWei;
 
     mapping(uint256 => mapping(address => bool)) private _hasLiked;
-    mapping(uint256 => mapping(address => bool)) private _hasShared;
+    mapping(uint256 => mapping(address => bool)) private _hasSaved;
 
     mapping(address => mapping(address => bool)) private _isFollowing;
 
@@ -51,9 +51,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event ProfileClearedByAdmin(address indexed admin, address indexed account);
     event PostLiked(address indexed liker, uint256 indexed tokenId);
     event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment);
-    event PostShared(address indexed sharer, uint256 indexed tokenId);
+    event PostSaved(address indexed saver, uint256 indexed tokenId);
     event PostUnliked(address indexed unliker, uint256 indexed tokenId);
-    event PostUnshared(address indexed unsharer, uint256 indexed tokenId);
+    event PostUnsaved(address indexed unsaver, uint256 indexed tokenId);
     event Followed(address indexed follower, address indexed followee);
     event Unfollowed(address indexed follower, address indexed followee);
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
@@ -164,7 +164,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
             delete _author[tokenId];
             delete _likes[tokenId];
             delete _comments[tokenId];
-            delete _shares[tokenId];
+            delete _saves[tokenId];
             delete _tipsWei[tokenId];
             delete _postFrozen[tokenId];
 
@@ -240,7 +240,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _author[tokenId];
         delete _likes[tokenId];
         delete _comments[tokenId];
-        delete _shares[tokenId];
+        delete _saves[tokenId];
         delete _tipsWei[tokenId];
         delete _postFrozen[tokenId];
 
@@ -256,7 +256,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _author[tokenId];
         delete _likes[tokenId];
         delete _comments[tokenId];
-        delete _shares[tokenId];
+        delete _saves[tokenId];
         delete _tipsWei[tokenId];
         delete _postFrozen[tokenId];
 
@@ -292,24 +292,24 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit PostCommented(msg.sender, tokenId, comment);
     }
 
-    function sharePost(uint256 tokenId) external {
+    function savePost(uint256 tokenId) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
-        require(!_hasShared[tokenId][msg.sender], "Already shared");
+        require(!_hasSaved[tokenId][msg.sender], "Already saved");
 
-        _hasShared[tokenId][msg.sender] = true;
-        _shares[tokenId] += 1;
+        _hasSaved[tokenId][msg.sender] = true;
+        _saves[tokenId] += 1;
 
-        emit PostShared(msg.sender, tokenId);
+        emit PostSaved(msg.sender, tokenId);
     }
 
-    function unsharePost(uint256 tokenId) external {
+    function unsavePost(uint256 tokenId) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
-        require(_hasShared[tokenId][msg.sender], "Not shared");
+        require(_hasSaved[tokenId][msg.sender], "Not saved");
 
-        _hasShared[tokenId][msg.sender] = false;
-        _shares[tokenId] -= 1;
+        _hasSaved[tokenId][msg.sender] = false;
+        _saves[tokenId] -= 1;
 
-        emit PostUnshared(msg.sender, tokenId);
+        emit PostUnsaved(msg.sender, tokenId);
     }
 
     function follow(address followee) external {
@@ -376,9 +376,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return _comments[tokenId];
     }
 
-    function sharesOf(uint256 tokenId) external view returns (uint256) {
+    function savesOf(uint256 tokenId) external view returns (uint256) {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
-        return _shares[tokenId];
+        return _saves[tokenId];
     }
 
     function hasLiked(uint256 tokenId, address account) external view returns (bool) {
@@ -386,8 +386,8 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return _hasLiked[tokenId][account];
     }
 
-    function hasShared(uint256 tokenId, address account) external view returns (bool) {
+    function hasSaved(uint256 tokenId, address account) external view returns (bool) {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
-        return _hasShared[tokenId][account];
+        return _hasSaved[tokenId][account];
     }
 }

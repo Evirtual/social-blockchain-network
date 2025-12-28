@@ -7,6 +7,7 @@ import { useContractTx } from "../contexts/useContractTx";
 import { useContract } from "../contexts/ContractContext";
 import { ethers } from "ethers";
 import { hasPinata, pinataPinFile } from "../ipfs";
+import { bestEffortUnpinCids, collectIpfsCidsFromTokenUri, collectReferencedIpfsCidsFromPosts } from "../lib/pinataCleanup";
 
 export function ProfileRoute() {
   const app = useApp();
@@ -36,9 +37,9 @@ export function ProfileRoute() {
   useEffect(() => {
     if (!app.walletAddress) return;
     if (!isSelf) return;
-    void app.loadRepostsForAddress(address);
+    void app.loadSavedForAddress(address);
     void app.loadLikesForAddress(address);
-  }, [address, app.loadLikesForAddress, app.loadRepostsForAddress, app.walletAddress, isSelf]);
+  }, [address, app.loadLikesForAddress, app.loadSavedForAddress, app.walletAddress, isSelf]);
 
   useEffect(() => {
     if (!app.walletAddress) return;
@@ -105,7 +106,7 @@ export function ProfileRoute() {
       const seen = new Set<string>();
       const out: typeof app.posts = [];
       for (const p of app.posts) {
-        if (!p.repostedByMe) continue;
+        if (!p.savedByMe) continue;
         const k = `${normalizeChainId(p.chainId ?? null)}:${p.tokenId}`;
         if (seen.has(k)) continue;
         seen.add(k);
@@ -127,7 +128,7 @@ export function ProfileRoute() {
       return out;
     })();
 
-    const savedKeys = app.repostTokenIdsByAddress[selfKey] ?? [];
+    const savedKeys = app.savedTokenIdsByAddress[selfKey] ?? [];
     const savedPosts =
       savedFromFeed.length > 0
         ? savedFromFeed
@@ -204,7 +205,7 @@ export function ProfileRoute() {
         posts={filtered}
         savedPosts={savedPosts}
         likedPosts={likedPosts}
-          isLoadingSaved={!!app.isLoadingRepostsByAddress[selfKey]}
+          isLoadingSaved={!!app.isLoadingSavedByAddress[selfKey]}
         isLoadingLiked={!!app.isLoadingLikesByAddress[selfKey]}
         chainId={app.chainId}
         walletAddress={app.walletAddress}
@@ -289,11 +290,67 @@ export function ProfileRoute() {
 
         try {
           await runContractTx("Reset account", async () => {
+            // Capture IPFS CIDs for the user's posts before burning them.
+            // Best-effort: if anything fails (missing token, gateway timeout, etc) we still proceed with the on-chain reset.
+            let pinnedCids: Set<string> | null = null;
+            try {
+              if (hasPinata() && tokenIds.length) {
+                const readContract = await contract.getReadContract();
+                pinnedCids = new Set<string>();
+
+                const mapWithConcurrency = async <T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>) => {
+                  const results: R[] = new Array(items.length);
+                  let nextIndex = 0;
+                  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+                    while (true) {
+                      const i = nextIndex++;
+                      if (i >= items.length) break;
+                      results[i] = await fn(items[i]);
+                    }
+                  });
+                  await Promise.all(workers);
+                  return results;
+                };
+
+                await mapWithConcurrency(tokenIds, 4, async (id) => {
+                  try {
+                    const tokenUri = (await (readContract as any).tokenURI(id)) as string;
+                    const cids = await collectIpfsCidsFromTokenUri(tokenUri);
+                    for (const cid of cids) pinnedCids!.add(cid);
+                  } catch {
+                    // ignore
+                  }
+                  return null;
+                });
+
+                // Stash on the contract object for access after tx (closure-safe).
+                (contract as any).__lastResetPinnedCids = pinnedCids;
+              }
+            } catch {
+              (contract as any).__lastResetPinnedCids = null;
+            }
+
             const writeContract = await contract.getWriteContract();
             return (writeContract as any).adminResetAccount(normalized, tokenIds);
           });
         } catch {
           return;
+        }
+
+        // Best-effort cleanup: unpin burned posts' metadata/media from Pinata.
+        try {
+          const pinned = (contract as any).__lastResetPinnedCids as Set<string> | null | undefined;
+          (contract as any).__lastResetPinnedCids = null;
+          if (pinned && pinned.size) {
+            // Avoid deleting shared CIDs (same media uploaded/used on other chains or posts).
+            const excludeTokenIds = tokenIds.map((x) => x.toString());
+            const referenced = collectReferencedIpfsCidsFromPosts(app.posts, {
+              exclude: { chainId: app.chainId, tokenIds: excludeTokenIds }
+            });
+            void bestEffortUnpinCids(pinned, { protectReferencedIn: referenced });
+          }
+        } catch {
+          // ignore
         }
 
         setIsPosterAllowed(false);

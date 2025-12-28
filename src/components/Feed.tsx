@@ -34,7 +34,7 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
   onTip: (tokenId: string, postChainId?: string | null) => void;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
@@ -85,7 +85,7 @@ export function Feed({
 
   const showSkeletons = !!isLoading;
   const initialSkeletonCount = 4;
-  const trailingSkeletonCount = 2;
+  const trailingSkeletonCount = 1;
   const skeletonCount = posts.length === 0 ? initialSkeletonCount : trailingSkeletonCount;
 
   return (

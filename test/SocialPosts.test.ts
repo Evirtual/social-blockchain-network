@@ -257,22 +257,22 @@ describe("SocialPosts", () => {
     expect(await contract.commentsOf(1n)).to.equal(1n);
   });
 
-  it("share/unshare is single-toggle per account", async () => {
+  it("save/unsave is single-toggle per account", async () => {
     const { contract, author, other } = await deploy();
 
     await contract.connect(author).mintPost("ipfs://post-1");
 
-    await expect(contract.connect(other).sharePost(1n)).to.emit(contract, "PostShared");
-    expect(await contract.sharesOf(1n)).to.equal(1n);
-    expect(await contract.hasShared(1n, other.address)).to.equal(true);
+    await expect(contract.connect(other).savePost(1n)).to.emit(contract, "PostSaved");
+    expect(await contract.savesOf(1n)).to.equal(1n);
+    expect(await contract.hasSaved(1n, other.address)).to.equal(true);
 
-    await expect(contract.connect(other).sharePost(1n)).to.be.revertedWith("Already shared");
+    await expect(contract.connect(other).savePost(1n)).to.be.revertedWith("Already saved");
 
-    await expect(contract.connect(other).unsharePost(1n)).to.emit(contract, "PostUnshared");
-    expect(await contract.sharesOf(1n)).to.equal(0n);
-    expect(await contract.hasShared(1n, other.address)).to.equal(false);
+    await expect(contract.connect(other).unsavePost(1n)).to.emit(contract, "PostUnsaved");
+    expect(await contract.savesOf(1n)).to.equal(0n);
+    expect(await contract.hasSaved(1n, other.address)).to.equal(false);
 
-    await expect(contract.connect(other).unsharePost(1n)).to.be.revertedWith("Not shared");
+    await expect(contract.connect(other).unsavePost(1n)).to.be.revertedWith("Not saved");
   });
 
   it("follow/unfollow validates inputs and updates isFollowing", async () => {
@@ -321,15 +321,15 @@ describe("SocialPosts", () => {
 
     await expect(contract.likesOf(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.commentsOf(999n)).to.be.revertedWith("Post does not exist");
-    await expect(contract.sharesOf(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.savesOf(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.tipsOf(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.hasLiked(999n, author.address)).to.be.revertedWith("Post does not exist");
-    await expect(contract.hasShared(999n, author.address)).to.be.revertedWith("Post does not exist");
+    await expect(contract.hasSaved(999n, author.address)).to.be.revertedWith("Post does not exist");
 
     await expect(contract.connect(other).likePost(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.connect(other).unlikePost(999n)).to.be.revertedWith("Post does not exist");
-    await expect(contract.connect(other).sharePost(999n)).to.be.revertedWith("Post does not exist");
-    await expect(contract.connect(other).unsharePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).savePost(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.connect(other).unsavePost(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.connect(other).commentPost(999n, "Hi")).to.be.revertedWith("Post does not exist");
     await expect(contract.connect(other).tipPost(999n, { value: 1n })).to.be.revertedWith("Post does not exist");
   });

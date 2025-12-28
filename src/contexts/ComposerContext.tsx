@@ -449,7 +449,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         mintTimestamp: Math.floor(Date.now() / 1000),
         likes: 0,
         comments: 0,
-        shares: 0,
+        saves: 0,
         tipsWei: 0n
       };
 

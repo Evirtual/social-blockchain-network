@@ -10,8 +10,8 @@ export const SOCIAL_ABI = [
   "event PostLiked(address indexed liker, uint256 indexed tokenId)",
   "event PostUnliked(address indexed unliker, uint256 indexed tokenId)",
   "event PostCommented(address indexed commenter, uint256 indexed tokenId, string comment)",
-  "event PostShared(address indexed sharer, uint256 indexed tokenId)",
-  "event PostUnshared(address indexed unsharer, uint256 indexed tokenId)",
+  "event PostSaved(address indexed saver, uint256 indexed tokenId)",
+  "event PostUnsaved(address indexed unsaver, uint256 indexed tokenId)",
   "event Followed(address indexed follower, address indexed followee)",
   "event Unfollowed(address indexed follower, address indexed followee)",
   "event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei)",
@@ -45,8 +45,8 @@ export const SOCIAL_ABI = [
   "function likePost(uint256 tokenId) external",
   "function unlikePost(uint256 tokenId) external",
   "function commentPost(uint256 tokenId, string comment) external",
-  "function sharePost(uint256 tokenId) external",
-  "function unsharePost(uint256 tokenId) external",
+  "function savePost(uint256 tokenId) external",
+  "function unsavePost(uint256 tokenId) external",
 
   "function follow(address followee) external",
   "function unfollow(address followee) external",
@@ -63,13 +63,13 @@ export const SOCIAL_ABI = [
   "function adminBurnPost(uint256 tokenId) external",
   "function likesOf(uint256 tokenId) external view returns (uint256)",
   "function commentsOf(uint256 tokenId) external view returns (uint256)",
-  "function sharesOf(uint256 tokenId) external view returns (uint256)",
+  "function savesOf(uint256 tokenId) external view returns (uint256)",
   "function tipsOf(uint256 tokenId) external view returns (uint256)",
   "function withdrawableOf(address account) external view returns (uint256)",
   "function authorOf(uint256 tokenId) external view returns (address)",
   "function exists(uint256 tokenId) external view returns (bool)",
   "function hasLiked(uint256 tokenId, address account) external view returns (bool)",
-  "function hasShared(uint256 tokenId, address account) external view returns (bool)",
+  "function hasSaved(uint256 tokenId, address account) external view returns (bool)",
   "function tokenURI(uint256 tokenId) external view returns (string)"
 ] as const;
 

@@ -40,7 +40,7 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
   onTip: (tokenId: string, postChainId?: string | null) => void;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
@@ -281,15 +281,15 @@ export function PostCard(props: Props) {
           </button>
 
           <button
-            className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""} ${props.post.repostedByMe ? "isActive isSaved" : ""}`}
+            className={`statPill statButton${requiresNetworkSwitch ? " notAllowed" : ""} ${props.post.savedByMe ? "isActive isSaved" : ""}`}
             type="button"
-            onClick={() => props.onAction(tokenId, "share", props.post.chainId)}
+            onClick={() => props.onAction(tokenId, "save", props.post.chainId)}
             aria-label="Save"
             disabled={requiresNetworkSwitch}
             title={interactionDisabledTitle}
           >
-            <IconBookmark size={18} filled={!!props.post.repostedByMe} />
-            <span className="statValue">{props.post.shares}</span>
+            <IconBookmark size={18} filled={!!props.post.savedByMe} />
+            <span className="statValue">{props.post.saves}</span>
           </button>
 
           <button

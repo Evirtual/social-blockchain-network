@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import type { Draft, Post } from "../types";
 import { createMetadataUri } from "../lib/metadata";
 import { getErrorMessage } from "../lib/errors";
-import { hasPinata } from "../ipfs";
+import { extractIpfsCid, hasPinata, ipfsToHttp, pinataUnpinCid } from "../ipfs";
 import { buildIpfsTokenUri } from "../lib/ipfsTokenUri";
 import { getNetworkBadgeLabel } from "../lib/chain";
 import { useContract } from "./ContractContext";
@@ -12,6 +12,7 @@ import { useStatus } from "./StatusContext";
 import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";
 import { useContractTx } from "./useContractTx";
+import { fetchTokenMetadata } from "../lib/metadata";
 
 export type SocialActionsContextValue = {
   isOwner: boolean;
@@ -38,7 +39,7 @@ export type SocialActionsContextValue = {
   burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
   freezePost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
-  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<boolean>;
+  handleAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => Promise<boolean>;
   handleTip: (tokenId: string, postChainId?: string | null) => Promise<boolean>;
 
   withdrawTips: () => Promise<void>;
@@ -108,12 +109,62 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         }
 
         setEditingTokenId(post.tokenId);
-        setEditDraft({ title: post.title, body: post.body, imageUrl: post.image, imageDataUrl: "" });
+        setEditDraft({ title: post.title, body: post.body, imageUrl: post.animationUrl ?? post.image, imageDataUrl: "" });
         setEditUploadedImageBlob(null);
         setEditUploadedImageFilename("");
       })();
     },
     [getReadContract, isOwner, setStatus]
+  );
+
+  const collectIpfsCidsFromTokenUri = useCallback(async (tokenUri: string): Promise<Set<string>> => {
+    const out = new Set<string>();
+    const metaCid = extractIpfsCid(tokenUri);
+    if (metaCid) out.add(metaCid);
+
+    const meta = await fetchTokenMetadata(tokenUri);
+    const imageCid = extractIpfsCid(String(meta?.image ?? ""));
+    if (imageCid) out.add(imageCid);
+    const animCid = extractIpfsCid(String((meta as any)?.animation_url ?? ""));
+    if (animCid) out.add(animCid);
+    return out;
+  }, []);
+
+  const bestEffortUnpinCids = useCallback(
+    async (cids: Iterable<string>) => {
+      if (!ipfsConfigured) return;
+      const unique = Array.from(new Set(Array.from(cids).map((c) => String(c).trim()).filter(Boolean)));
+      if (!unique.length) return;
+      await Promise.allSettled(unique.map((cid) => pinataUnpinCid(cid)));
+    },
+    [ipfsConfigured]
+  );
+
+  const collectReferencedIpfsCidsFromFeed = useCallback(
+    (exclude?: { chainId?: string | null; tokenId?: string | null }) => {
+      const out = new Set<string>();
+      const excludeChain = exclude?.chainId ? String(exclude.chainId).trim() : "";
+      const excludeToken = exclude?.tokenId ? String(exclude.tokenId).trim() : "";
+
+      for (const p of feed.posts) {
+        if (excludeChain && excludeToken) {
+          if (String(p.chainId ?? "").trim() === excludeChain && String(p.tokenId ?? "").trim() === excludeToken) {
+            continue;
+          }
+        }
+
+        const refs = [p.metadataURI, p.image, p.animationUrl].filter(
+          (x): x is string => typeof x === "string" && x.trim().length > 0
+        );
+        for (const ref of refs) {
+          const cid = extractIpfsCid(ref);
+          if (cid) out.add(cid);
+        }
+      }
+
+      return out;
+    },
+    [feed.posts]
   );
 
   const cancelEditPost = useCallback(() => {
@@ -267,7 +318,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   );
 
   const onEditClearImage = useCallback(() => {
-    setEditDraft((d) => ({ ...d, imageDataUrl: "" }));
+    setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "" }));
     setEditUploadedImageBlob(null);
     setEditUploadedImageFilename("");
     if (editPreviewObjectUrlRef.current) {
@@ -289,13 +340,30 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         return;
       }
 
-      if (!editDraft.body.trim()) {
-        setStatus("Post text is required.");
+      const bodyTrimmed = (editDraft.body || "").trim();
+      const imageUrlTrimmed = (editDraft.imageUrl || "").trim();
+      const imageDataUrlTrimmed = (editDraft.imageDataUrl || "").trim();
+      const hasMedia = Boolean(editUploadedImageBlob || imageUrlTrimmed || imageDataUrlTrimmed);
+      if (!bodyTrimmed && !hasMedia) {
+        setStatus("Add text or attach media (image/video) to post.");
         return;
       }
 
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(editingTokenId);
+
+      // Capture current tokenURI + related IPFS CIDs before we update it.
+      // We only unpin after the tx succeeds.
+      let oldPinnedCids: Set<string> | null = null;
+      try {
+        if (ipfsConfigured) {
+          const readContract = await getReadContract();
+          const oldTokenUri = (await (readContract as any).tokenURI(tokenIdBig)) as string;
+          oldPinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+        }
+      } catch {
+        oldPinnedCids = null;
+      }
 
       const makeLocalNoticeId = () => `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -304,18 +372,54 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       processingToastId = makeLocalNoticeId();
       txNotifications.notifyPending({ hash: processingToastId, label: "Updating post…", explorerUrl: null });
 
+      // Existing post (used for media-type hints and permissioning).
+      const post = feed.posts.find((p) => p.tokenId === editingTokenId);
+
       let tokenUri = "";
-      if (ipfsConfigured) {
+      let newPinnedCids: Set<string> | null = null;
+
+      // Used for immediate UI update (avoid relying solely on metadata fetch timing).
+      let nextUiImage = "";
+      let nextUiAnimationUrl: string | undefined;
+
+      // Match mint behavior: only pin to IPFS when media is present.
+      const willUseIpfs = ipfsConfigured && hasMedia;
+
+      if (willUseIpfs) {
         setStatus("Uploading update to IPFS (Pinata)...");
         txNotifications.notifyPending({ hash: processingToastId, label: "Uploading update to IPFS…", explorerUrl: null });
+
+        const mediaTypeHint = editUploadedImageBlob
+          ? (((editUploadedImageBlob as any)?.type?.startsWith?.("video/") ?? false) ? "video" : "image")
+          : post?.animationUrl
+            ? "video"
+            : post?.image
+              ? "image"
+              : undefined;
+
         const built = await buildIpfsTokenUri({
           draft: editDraft,
           imageBlob: editUploadedImageBlob,
-          imageFilename: editUploadedImageFilename
+          imageFilename: editUploadedImageFilename,
+          mediaTypeHint
         });
         tokenUri = built.tokenUri;
+
+        nextUiImage = built.imageRef || (built.animationRef ? "" : imageDataUrlTrimmed || imageUrlTrimmed);
+        nextUiAnimationUrl = built.animationRef || undefined;
+
+        // Prefer the known refs from buildIpfsTokenUri (no extra gateway fetch needed).
+        newPinnedCids = new Set<string>();
+        const metaCid = extractIpfsCid(built.tokenUri);
+        if (metaCid) newPinnedCids.add(metaCid);
+        const imageCid = extractIpfsCid(built.imageRef);
+        if (imageCid) newPinnedCids.add(imageCid);
+        const animCid = extractIpfsCid(built.animationRef);
+        if (animCid) newPinnedCids.add(animCid);
       } else {
         tokenUri = createMetadataUri(editDraft);
+        nextUiImage = imageDataUrlTrimmed || imageUrlTrimmed;
+        nextUiAnimationUrl = undefined;
         const maxTokenUriChars = 140_000;
         if (tokenUri.length > maxTokenUriChars) {
           txNotifications.dismiss(processingToastId);
@@ -323,6 +427,9 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           setStatus("Updated metadata is too large. Configure IPFS (Pinata) or use a smaller image.");
           return;
         }
+
+        // Not pinning in this mode.
+        newPinnedCids = new Set<string>();
       }
 
       // Replace the local “preparing/updating” notice with the real tx lifecycle toasts.
@@ -330,8 +437,6 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         txNotifications.dismiss(processingToastId);
         processingToastId = null;
       }
-
-      const post = feed.posts.find((p) => p.tokenId === editingTokenId);
       const author = post?.author;
       const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
       const send = isOwner && !isMine
@@ -339,6 +444,116 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         : () => (writeContract as any).updatePostURI(tokenIdBig, tokenUri);
 
       await runContractTx("Edit post", send);
+
+      // If this is an IPFS-backed edit, show a short "finalizing" state like mint does.
+      // This reduces confusion when gateways take a moment to serve the new metadata/media.
+      const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
+      const waitForUrlReachable = async (url: string, attempts = 10, delayMs = 650) => {
+        for (let i = 0; i < attempts; i++) {
+          try {
+            const controller = new AbortController();
+            const t = window.setTimeout(() => controller.abort(), 2500);
+            try {
+              const head = await fetch(url, { method: "HEAD", signal: controller.signal, cache: "no-store" });
+              if (head.ok) return true;
+            } catch {
+              // fall through
+            } finally {
+              window.clearTimeout(t);
+            }
+
+            const controller2 = new AbortController();
+            const t2 = window.setTimeout(() => controller2.abort(), 2500);
+            try {
+              const probe = await fetch(url, {
+                method: "GET",
+                headers: { Range: "bytes=0-0" },
+                signal: controller2.signal,
+                cache: "no-store"
+              });
+              if (probe.ok) return true;
+            } catch {
+              // ignore
+            } finally {
+              window.clearTimeout(t2);
+            }
+          } catch {
+            // ignore
+          }
+
+          await sleep(delayMs);
+        }
+        return false;
+      };
+
+      const waitForMetadataReady = async (tokenUriToCheck: string, attempts = 10, delayMs = 650) => {
+        for (let i = 0; i < attempts; i++) {
+          const meta = await fetchTokenMetadata(tokenUriToCheck);
+          const hasAny =
+            typeof meta.name === "string" ||
+            typeof meta.description === "string" ||
+            typeof meta.image === "string" ||
+            typeof meta.animation_url === "string";
+          if (hasAny) return meta;
+          await sleep(delayMs);
+        }
+        return fetchTokenMetadata(tokenUriToCheck);
+      };
+
+      if (willUseIpfs && tokenUri.startsWith("ipfs://")) {
+        const finalizingToastId = makeLocalNoticeId();
+        txNotifications.notifyPending({
+          hash: finalizingToastId,
+          label: "Post updated — finalizing media…",
+          explorerUrl: null
+        });
+
+        try {
+          await waitForUrlReachable(ipfsToHttp(tokenUri), 10, 650);
+          const meta = await waitForMetadataReady(tokenUri, 10, 650);
+
+          const mediaRef =
+            (typeof meta.animation_url === "string" && meta.animation_url.trim()) ||
+            (typeof meta.image === "string" && meta.image.trim()) ||
+            "";
+
+          if (mediaRef && mediaRef.startsWith("ipfs://")) {
+            await waitForUrlReachable(ipfsToHttp(mediaRef), 12, 650);
+          }
+        } catch {
+          // ignore
+        } finally {
+          // Don't leave the local toast stuck.
+          txNotifications.notifyConfirmed(finalizingToastId);
+        }
+      }
+
+      // Optimistically apply the edit locally so the UI doesn't appear to lose text
+      // due to gateway timing or metadata fetch failures.
+      feed.setPosts((prev) =>
+        prev.map((p) => {
+          if (p.tokenId !== editingTokenId) return p;
+          return {
+            ...p,
+            body: editDraft.body,
+            image: nextUiImage,
+            animationUrl: nextUiAnimationUrl,
+            metadataURI: tokenUri
+          };
+        })
+      );
+
+      // Best-effort cleanup: unpin old metadata/media that is no longer referenced.
+      if (ipfsConfigured && oldPinnedCids && newPinnedCids) {
+        const toRemove: string[] = [];
+        for (const cid of oldPinnedCids) {
+          if (!newPinnedCids.has(cid)) toRemove.push(cid);
+        }
+        const referenced = collectReferencedIpfsCidsFromFeed({ chainId, tokenId: editingTokenId });
+        const safeToUnpin = toRemove.filter((cid) => !referenced.has(cid));
+        void bestEffortUnpinCids(safeToUnpin);
+      }
+
       cancelEditPost();
       await feed.refreshFeed();
     } catch (error) {
@@ -348,7 +563,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       }
       setStatus(message);
     }
-  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus, txNotifications]);
+  }, [walletAddress, isOwner, editingTokenId, isEditImageLoading, editDraft, getReadContract, getWriteContract, ipfsConfigured, editUploadedImageBlob, editUploadedImageFilename, runContractTx, cancelEditPost, feed, setStatus, txNotifications, collectIpfsCidsFromTokenUri, bestEffortUnpinCids, collectReferencedIpfsCidsFromFeed, chainId]);
 
   const burnPost = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
@@ -357,6 +572,19 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         return;
       }
       if (!ensureMatchingNetwork(postChainId)) return;
+
+      // Capture tokenURI + related IPFS CIDs before burn.
+      let pinnedCids: Set<string> | null = null;
+      try {
+        if (ipfsConfigured) {
+          const readContract = await getReadContract();
+          const tokenIdBig = BigInt(tokenId);
+          const oldTokenUri = (await (readContract as any).tokenURI(tokenIdBig)) as string;
+          pinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+        }
+      } catch {
+        pinnedCids = null;
+      }
 
       const writeContract = await getWriteContract();
       const tokenIdBig = BigInt(tokenId);
@@ -368,6 +596,13 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
         : () => (writeContract as any).burnPost(tokenIdBig);
 
       await runContractTx("Burn post", send);
+
+      // Best-effort cleanup: stop pinning the burned post's metadata/media.
+      if (ipfsConfigured && pinnedCids) {
+        const referenced = collectReferencedIpfsCidsFromFeed({ chainId: postChainId ?? chainId, tokenId });
+        const safeToUnpin = Array.from(pinnedCids).filter((cid) => !referenced.has(cid));
+        void bestEffortUnpinCids(safeToUnpin);
+      }
 
       if (editingTokenId === tokenId) {
         cancelEditPost();
@@ -400,7 +635,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     } catch (error) {
       setStatus(getErrorMessage(error));
     }
-  }, [walletAddress, ensureMatchingNetwork, isOwner, getWriteContract, runContractTx, editingTokenId, cancelEditPost, feed, setStatus]);
+  }, [walletAddress, ensureMatchingNetwork, ipfsConfigured, getReadContract, getWriteContract, isOwner, runContractTx, editingTokenId, cancelEditPost, feed, setStatus, collectIpfsCidsFromTokenUri, bestEffortUnpinCids, collectReferencedIpfsCidsFromFeed, chainId]);
 
   const handleTip = useCallback(async (tokenId: string, postChainId?: string | null) => {
     try {
@@ -460,7 +695,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   }, [walletAddress, getWriteContract, runContractTx, refreshWalletPanel, setStatus]);
 
   const handleAction = useCallback(
-    async (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => {
+    async (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => {
       try {
         if (!walletAddress) {
           setStatus("Connect your wallet first.");
@@ -512,11 +747,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
           return true;
         }
 
-        if (action === "share") {
-          const already = (await (writeContract as any).hasShared(tokenIdBig, walletAddress)) as boolean;
+        if (action === "save") {
+          const already = (await (writeContract as any).hasSaved(tokenIdBig, walletAddress)) as boolean;
           const ok = await runContractTx<boolean>(
             already ? "Unsave" : "Save",
-            () => ((already ? (writeContract as any).unsharePost(tokenIdBig) : (writeContract as any).sharePost(tokenIdBig)) as any),
+            () => ((already ? (writeContract as any).unsavePost(tokenIdBig) : (writeContract as any).savePost(tokenIdBig)) as any),
             () => true
           );
           if (!ok) return false;
@@ -525,8 +760,8 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
             prev.map((post) => {
               if (post.tokenId !== tokenId) return post;
               if (postChainId && post.chainId && post.chainId !== postChainId) return post;
-              const next = already ? Math.max(0, post.shares - 1) : post.shares + 1;
-              return { ...post, shares: next, repostedByMe: !already };
+              const next = already ? Math.max(0, post.saves - 1) : post.saves + 1;
+              return { ...post, saves: next, savedByMe: !already };
             })
           );
           return true;

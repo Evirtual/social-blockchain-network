@@ -50,12 +50,12 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
     return false;
   }, [wallet.walletAddress, nudgeConnectWallet]);
 
-  // Reposts live here for now (not yet extracted into its own context).
+  // Saved posts live here for now (not yet extracted into its own context).
   // NOTE: Values are stored as `chainId:tokenId` keys to avoid collisions across networks.
-  const [repostTokenIdsByAddress, setRepostTokenIdsByAddress] = useState<Record<string, string[]>>({});
-  const [isLoadingRepostsByAddress, setIsLoadingRepostsByAddress] = useState<Record<string, boolean>>({});
-  const repostsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
-  const repostsLoadedByKeyRef = useRef<Record<string, boolean>>({});
+  const [savedTokenIdsByAddress, setSavedTokenIdsByAddress] = useState<Record<string, string[]>>({});
+  const [isLoadingSavedByAddress, setIsLoadingSavedByAddress] = useState<Record<string, boolean>>({});
+  const savedInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const savedLoadedByKeyRef = useRef<Record<string, boolean>>({});
 
   // Likes live here for now.
   // NOTE: Values are stored as `chainId:tokenId` keys to avoid collisions across networks.
@@ -66,27 +66,27 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
 
   // Session-only cache so Saved doesn't re-load on route remounts.
   // Keyed only by address so Saved is stable across chain switches within the session.
-  const REPOSTS_SESSION_CACHE_PREFIX = "repostsTokenKeysByAddress:";
+  const SAVED_SESSION_CACHE_PREFIX = "savedTokenKeysByAddress:";
 
   // Session-only cache so Liked doesn't re-load on route remounts.
   // Keyed only by address so Liked is stable across chain switches within the session.
   const LIKES_SESSION_CACHE_PREFIX = "likesTokenKeysByAddress:";
 
-  const makeRepostsSessionCacheKey = useCallback(
+  const makeSavedSessionCacheKey = useCallback(
     (addressLower: string) => {
       const addr = addressLower.trim().toLowerCase();
       if (!addr) return null;
-      return `${REPOSTS_SESSION_CACHE_PREFIX}${addr}`;
+      return `${SAVED_SESSION_CACHE_PREFIX}${addr}`;
     },
     []
   );
 
-  const readRepostsSessionCache = useCallback(
+  const readSavedSessionCache = useCallback(
     (addressLower: string): string[] | null => {
       /* c8 ignore next */
       if (typeof window === "undefined") return null;
       try {
-        const storageKey = makeRepostsSessionCacheKey(addressLower);
+        const storageKey = makeSavedSessionCacheKey(addressLower);
         if (!storageKey) return null;
         const raw = window.sessionStorage.getItem(storageKey);
         if (!raw) return null;
@@ -99,15 +99,15 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         return null;
       }
     },
-    [makeRepostsSessionCacheKey]
+    [makeSavedSessionCacheKey]
   );
 
-  const writeRepostsSessionCache = useCallback(
+  const writeSavedSessionCache = useCallback(
     (addressLower: string, tokenIds: string[]) => {
       /* c8 ignore next */
       if (typeof window === "undefined") return;
       try {
-        const storageKey = makeRepostsSessionCacheKey(addressLower);
+        const storageKey = makeSavedSessionCacheKey(addressLower);
         if (!storageKey) return;
         window.sessionStorage.setItem(
           storageKey,
@@ -121,7 +121,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         // ignore
       }
     },
-    [makeRepostsSessionCacheKey]
+    [makeSavedSessionCacheKey]
   );
 
   const makeLikesSessionCacheKey = useCallback(
@@ -213,13 +213,13 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
   }, [requireConnectedWallet, social, contract]);
 
   const handleAction = useCallback(
-    async (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => {
+    async (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => {
       if (!requireConnectedWallet()) return;
       const ok = await social.handleAction(tokenId, action, postChainId);
 
-      // Saved feed is driven by repostTokenIdsByAddress, which was previously only updated
-      // by an on-chain scan (loadRepostsForAddress). Update it immediately on successful save.
-      if (action === "share" && ok) {
+      // Saved feed is driven by savedTokenIdsByAddress, which was previously only updated
+      // by an on-chain scan (loadSavedForAddress). Update it immediately on successful save.
+      if (action === "save" && ok) {
         const key = wallet.walletAddress!.toLowerCase();
 
         const chainRaw = String(postChainId ?? wallet.chainId ?? "").trim();
@@ -229,11 +229,11 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         const chainKey = Number.isFinite(chainNum) ? String(chainNum) : chainRaw;
         const savedKey = chainKey ? `${chainKey}:${tokenId}` : tokenId;
 
-        setRepostTokenIdsByAddress((prev) => {
+        setSavedTokenIdsByAddress((prev) => {
           const current = prev[key] ?? [];
           const has = current.includes(savedKey);
           const next = has ? current.filter((id) => id !== savedKey) : [savedKey, ...current];
-          writeRepostsSessionCache(key, next);
+          writeSavedSessionCache(key, next);
           return { ...prev, [key]: next };
         });
 
@@ -263,7 +263,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         void feed.loadPostsByTokenIds([tokenId]);
       }
     },
-    [requireConnectedWallet, social, wallet.walletAddress, wallet.chainId, feed, writeRepostsSessionCache, writeLikesSessionCache]
+    [requireConnectedWallet, social, wallet.walletAddress, wallet.chainId, feed, writeSavedSessionCache, writeLikesSessionCache]
   );
 
   const loadLikesForAddress = useCallback(
@@ -493,7 +493,7 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
     [requireConnectedWallet, follow]
   );
 
-  const loadRepostsForAddress = useCallback(
+  const loadSavedForAddress = useCallback(
     async (address: string) => {
       try {
         if (!address) return;
@@ -501,26 +501,26 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
         const key = address.toLowerCase();
 
         // Avoid re-scanning (and flickering the Saved loading state) once we have
-        // successfully loaded reposts for this address on this network.
+        // successfully loaded saved posts for this address on this network.
         const networkKey = String(wallet.chainId ?? contract.contractAddress ?? "").toLowerCase();
         const loadedKey = `${networkKey}:${key}`;
-        if (loadedKey && repostsLoadedByKeyRef.current[loadedKey]) return;
+        if (loadedKey && savedLoadedByKeyRef.current[loadedKey]) return;
 
-        const cached = readRepostsSessionCache(key);
+        const cached = readSavedSessionCache(key);
         if (cached !== null) {
-          setRepostTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
-          repostsLoadedByKeyRef.current[loadedKey] = true;
+          setSavedTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
+          savedLoadedByKeyRef.current[loadedKey] = true;
           return;
         }
 
-        const existing = repostsInFlightRef.current[key];
+        const existing = savedInFlightRef.current[key];
         if (existing) {
           await existing;
           return;
         }
 
         const task = (async () => {
-          setIsLoadingRepostsByAddress((prev) => ({ ...prev, [key]: true }));
+          setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const env = import.meta.env as any;
             const chainIdRaw = wallet.chainId;
@@ -575,12 +575,12 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
             const pullRange = async (fromBlock: number, toBlock: number) => {
               const [shared, unshared] = await Promise.all([
                 (readContract as any).queryFilter(
-                  (readContract as any).filters.PostShared(address, null),
+                  (readContract as any).filters.PostSaved(address, null),
                   fromBlock,
                   toBlock
                 ),
                 (readContract as any).queryFilter(
-                  (readContract as any).filters.PostUnshared(address, null),
+                  (readContract as any).filters.PostUnsaved(address, null),
                   fromBlock,
                   toBlock
                 )
@@ -604,12 +604,12 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
                 if (start === 0) break;
                 end = start - 1;
               } catch {
-                if (windowSize <= minWindowSize) throw new Error("RPC could not serve repost log range.");
+                if (windowSize <= minWindowSize) throw new Error("RPC could not serve saved log range.");
                 windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
               }
             }
 
-            const state = new Map<string, { shared: boolean; lastBlock: number }>();
+            const state = new Map<string, { saved: boolean; lastBlock: number }>();
             for (const log of collected) {
               let parsed: ethers.LogDescription | null = null;
               try {
@@ -625,15 +625,15 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
               const tokenId = tokenIdBig.toString();
               const blockNumber = Number((log as any).blockNumber ?? 0);
 
-              if (parsed.name === "PostShared") {
-                state.set(tokenId, { shared: true, lastBlock: blockNumber });
-              } else if (parsed.name === "PostUnshared") {
-                state.set(tokenId, { shared: false, lastBlock: blockNumber });
+              if (parsed.name === "PostSaved") {
+                state.set(tokenId, { saved: true, lastBlock: blockNumber });
+              } else if (parsed.name === "PostUnsaved") {
+                state.set(tokenId, { saved: false, lastBlock: blockNumber });
               }
             }
 
             const activeTokenIds = Array.from(state.entries())
-              .filter(([, v]) => v.shared)
+              .filter(([, v]) => v.saved)
               .sort((a, b) => b[1].lastBlock - a[1].lastBlock)
               .map(([tokenId]) => tokenId);
 
@@ -646,35 +646,35 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
               ? activeTokenIds.map((id) => `${chainKey}:${id}`)
               : activeTokenIds;
 
-            setRepostTokenIdsByAddress((prev) => {
+            setSavedTokenIdsByAddress((prev) => {
               const existing = prev[key] ?? [];
               const preserved = chainKey
                 ? existing.filter((k) => !k.startsWith(`${chainKey}:`))
                 : existing;
               const merged = Array.from(new Set([...activeKeys, ...preserved]));
-              writeRepostsSessionCache(key, merged);
+              writeSavedSessionCache(key, merged);
               return { ...prev, [key]: merged };
             });
 
             await feed.loadPostsByTokenIds(activeTokenIds);
 
-            repostsLoadedByKeyRef.current[loadedKey] = true;
+            savedLoadedByKeyRef.current[loadedKey] = true;
           } finally {
-            setIsLoadingRepostsByAddress((prev) => ({ ...prev, [key]: false }));
+            setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: false }));
           }
         })();
 
-        repostsInFlightRef.current[key] = task;
+        savedInFlightRef.current[key] = task;
         try {
           await task;
         } finally {
-          if (repostsInFlightRef.current[key] === task) repostsInFlightRef.current[key] = null;
+          if (savedInFlightRef.current[key] === task) savedInFlightRef.current[key] = null;
         }
       } catch (err) {
         setStatus(getErrorMessage(err));
       }
     },
-    [wallet.provider, wallet.chainId, contract, contract.contractAddress, feed, setStatus, readRepostsSessionCache, writeRepostsSessionCache]
+    [wallet.provider, wallet.chainId, contract, contract.contractAddress, feed, setStatus, readSavedSessionCache, writeSavedSessionCache]
   );
 
   const value = useMemo<AppContextValue>(
@@ -786,10 +786,10 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       loadIsFollowing: follow.loadIsFollowing,
       toggleFollow,
 
-      // Reposts (shares)
-      repostTokenIdsByAddress,
-      isLoadingRepostsByAddress,
-      loadRepostsForAddress,
+      // Saved
+      savedTokenIdsByAddress,
+      isLoadingSavedByAddress,
+      loadSavedForAddress,
 
       // Likes
       likedTokenIdsByAddress,
@@ -899,9 +899,9 @@ function AppProviderInner({ children }: { children: React.ReactNode }) {
       follow.isFollowingByAddress,
       follow.loadIsFollowing,
       toggleFollow,
-      repostTokenIdsByAddress,
-      isLoadingRepostsByAddress,
-      loadRepostsForAddress,
+      savedTokenIdsByAddress,
+      isLoadingSavedByAddress,
+      loadSavedForAddress,
       likedTokenIdsByAddress,
       isLoadingLikesByAddress,
       loadLikesForAddress,

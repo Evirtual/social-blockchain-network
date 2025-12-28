@@ -29,6 +29,60 @@ export const ipfsToHttp = (uri: string) => {
 
 export const hasPinata = () => Boolean(import.meta.env.VITE_PINATA_JWT);
 
+export const extractIpfsCid = (uri: string): string | null => {
+  const raw = String(uri ?? "").trim();
+  if (!raw) return null;
+
+  // ipfs://<CID> or ipfs://ipfs/<CID>
+  if (raw.startsWith("ipfs://")) {
+    let rest = raw.slice("ipfs://".length);
+    if (rest.startsWith("ipfs/")) rest = rest.slice("ipfs/".length);
+    const cid = rest.split("/")[0]?.trim();
+    return cid ? cid : null;
+  }
+
+  // Common gateway form: https://.../ipfs/<CID>/...
+  try {
+    const u = new URL(raw);
+    const parts = u.pathname.split("/").filter(Boolean);
+    const ipfsIndex = parts.findIndex((p) => p === "ipfs");
+    if (ipfsIndex >= 0 && parts[ipfsIndex + 1]) {
+      const cid = String(parts[ipfsIndex + 1]).trim();
+      return cid ? cid : null;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+};
+
+export const pinataUnpinCid = async (cid: string) => {
+  const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
+  if (!jwt) {
+    throw new Error(
+      "Missing VITE_PINATA_JWT (Pinata). Note: do not ship a Pinata JWT in client-side env vars for production; use a backend/serverless pinning endpoint instead."
+    );
+  }
+
+  const hash = String(cid ?? "").trim();
+  if (!hash) return;
+
+  const res = await fetch(`https://api.pinata.cloud/pinning/unpin/${hash}` as string, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${jwt}`
+    }
+  });
+
+  // If the CID isn't pinned in this account, Pinata can return 404.
+  // Treat unpin as best-effort cleanup.
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Pinata unpin failed (${res.status}). ${text}`);
+  }
+};
+
 export const pinataPinFile = async (file: Blob, filename: string) => {
   const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
   if (!jwt) {

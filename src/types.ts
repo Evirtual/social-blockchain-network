@@ -12,10 +12,10 @@ export type Post = {
   mintTimestamp?: number;
   likes: number;
   comments: number;
-  shares: number;
+  saves: number;
   tipsWei: bigint;
   likedByMe?: boolean;
-  repostedByMe?: boolean;
+  savedByMe?: boolean;
   contextTag?: "saved" | "liked";
 };
 

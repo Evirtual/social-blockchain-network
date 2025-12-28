@@ -36,7 +36,7 @@ type Props = {
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
-  onAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => void;
+  onAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => void;
   onTip: (tokenId: string, postChainId?: string | null) => void;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;

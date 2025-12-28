@@ -97,7 +97,7 @@ export type AppContextValue = {
   saveEditedPost: () => Promise<void>;
 
   burnPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
-  handleAction: (tokenId: string, action: "like" | "comment" | "share", postChainId?: string | null) => Promise<void>;
+  handleAction: (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null) => Promise<void>;
   handleTip: (tokenId: string, postChainId?: string | null) => Promise<void>;
 
   // Follow graph (cache)
@@ -113,10 +113,10 @@ export type AppContextValue = {
   isLoadingPostComments: Record<string, boolean>;
   loadCommentsForPost: (tokenId: string) => Promise<void>;
 
-  // Reposts (shares)
-  repostTokenIdsByAddress: Record<string, string[]>;
-  isLoadingRepostsByAddress: Record<string, boolean>;
-  loadRepostsForAddress: (address: string) => Promise<void>;
+  // Saved
+  savedTokenIdsByAddress: Record<string, string[]>;
+  isLoadingSavedByAddress: Record<string, boolean>;
+  loadSavedForAddress: (address: string) => Promise<void>;
 
   // Likes
   likedTokenIdsByAddress: Record<string, string[]>;

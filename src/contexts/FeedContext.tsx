@@ -226,21 +226,21 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         let tokenUri = "";
         let likesRaw = 0n;
         let commentsRaw = 0n;
-        let sharesRaw = 0n;
+        let savesRaw = 0n;
         let tipsWei = 0n;
         let author = "";
         let likedByMe: boolean | undefined;
-        let repostedByMe: boolean | undefined;
+        let savedByMe: boolean | undefined;
         try {
-          [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei, author, likedByMe, repostedByMe] = await Promise.all([
+          [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, author, likedByMe, savedByMe] = await Promise.all([
             (readContract as any).tokenURI(tokenIdBig) as Promise<string>,
             (readContract as any).likesOf(tokenIdBig) as Promise<bigint>,
             (readContract as any).commentsOf(tokenIdBig) as Promise<bigint>,
-            (readContract as any).sharesOf(tokenIdBig) as Promise<bigint>,
+            (readContract as any).savesOf(tokenIdBig) as Promise<bigint>,
             (readContract as any).tipsOf(tokenIdBig) as Promise<bigint>,
             (readContract as any).authorOf(tokenIdBig) as Promise<string>,
             walletAddress ? ((readContract as any).hasLiked(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined),
-            walletAddress ? ((readContract as any).hasShared(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined)
+            walletAddress ? ((readContract as any).hasSaved(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined)
           ]);
         } catch {
           return null;
@@ -258,10 +258,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           author,
           likes: Number(likesRaw),
           comments: Number(commentsRaw),
-          shares: Number(sharesRaw),
+          saves: Number(savesRaw),
           tipsWei,
           likedByMe,
-          repostedByMe
+          savedByMe
         };
         return post;
       });
@@ -359,6 +359,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           const currentChainIdNumber = chainIdToNumber(chainId);
 
           const env = import.meta.env as any;
+          // Browser RPCs are frequently rate-limited and slow for historical `eth_getLogs`.
+          // Keep the default lookback small enough to avoid timeouts on fresh deployments.
+          const maxLookbackBlocksRaw = Number(env.VITE_FEED_MAX_LOOKBACK_BLOCKS ?? 200_000);
+          const maxLookbackBlocks =
+            Number.isFinite(maxLookbackBlocksRaw) && maxLookbackBlocksRaw > 0 ? maxLookbackBlocksRaw : 200_000;
           const configuredNetworks: FeedNetworkConfig[] = [
             { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
             { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },
@@ -447,7 +452,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
                 while (start <= toBlock) {
                   const end = Math.min(toBlock, start + chunkSize - 1);
                   try {
-                    const part = await readContract.queryFilter(filter, start, end);
+                    const part = (await withTimeout<any>(
+                      readContract.queryFilter(filter, start, end),
+                      10_000,
+                      `feed logs ${resolvedChainIdNum ?? chainIdNum ?? "?"} ${start}-${end}`
+                    )) as any[];
                     logs.push(...part);
                     start = end + 1;
                   } catch (err) {
@@ -460,24 +469,35 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
               };
 
               // Some RPC providers may fail when querying logs from block 0 to latest.
-              // Fetch logs in an adaptive window.
+              // Fetch logs in an adaptive window, but cap lookback to keep browsers responsive.
+              // (Freshly deployed contracts have no historical logs; scanning millions of blocks can hang.)
               const fetchMintedEvents = async () => {
-                const latest = await networkProvider.getBlockNumber();
+                const latestAny = await withTimeout<any>(networkProvider.getBlockNumber(), 6_000, "feed getBlockNumber");
+                const latest = Number(latestAny);
+                if (!Number.isFinite(latest) || latest < 0) {
+                  throw new Error("Feed RPC returned invalid blockNumber.");
+                }
 
-                let windowSize = 500_000;
-                const maxWindowSize = Math.max(windowSize, latest);
+                // Start small and do not aggressively expand when empty.
+                // This prevents timeouts immediately after redeploy (when there are 0 events).
+                const windowSize = Math.min(25_000, maxLookbackBlocks, latest);
                 const minWindowSize = 2_000;
 
+                const fromBlock = Math.max(0, latest - windowSize);
+
                 while (true) {
-                  const fromBlock = Math.max(0, latest - windowSize);
                   try {
                     const events = await queryPostMintedPaged(fromBlock, latest);
                     if (events.length > 0 || fromBlock === 0) return events;
 
-                    windowSize = Math.min(maxWindowSize, windowSize * 2);
+                    // No events found in the recent lookback window.
+                    // Return empty rather than expanding to deep history (slow + often rate-limited).
+                    return events;
                   } catch (err) {
+                    // If even the small window fails, try shrinking once, then give up.
                     if (windowSize <= minWindowSize) throw err;
-                    windowSize = Math.max(minWindowSize, Math.floor(windowSize / 2));
+                    const smallerFromBlock = Math.max(0, latest - minWindowSize);
+                    return await queryPostMintedPaged(smallerFromBlock, latest);
                   }
                 }
               };
@@ -503,7 +523,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
                 let mintTimestamp: number | undefined;
                 if (blockNumber && typeof networkProvider.getBlock === "function") {
                   try {
-                    const block = await networkProvider.getBlock(blockNumber);
+                    const block = await withTimeout<any>(networkProvider.getBlock(blockNumber), 6_000, "feed getBlock");
                     const ts = Number((block as any)?.timestamp ?? 0);
                     if (Number.isFinite(ts) && ts > 0) mintTimestamp = ts;
                   } catch {
@@ -514,22 +534,22 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
                 let tokenUri = "";
                 let likesRaw = 0n;
                 let commentsRaw = 0n;
-                let sharesRaw = 0n;
+                let savesRaw = 0n;
                 let tipsWei = 0n;
                 let likedByMe: boolean | undefined;
-                let repostedByMe: boolean | undefined;
+                let savedByMe: boolean | undefined;
                 try {
-                  [tokenUri, likesRaw, commentsRaw, sharesRaw, tipsWei, likedByMe, repostedByMe] = await Promise.all([
+                  [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, likedByMe, savedByMe] = await Promise.all([
                     readContract.tokenURI(tokenIdBig) as Promise<string>,
                     readContract.likesOf(tokenIdBig) as Promise<bigint>,
                     readContract.commentsOf(tokenIdBig) as Promise<bigint>,
-                    readContract.sharesOf(tokenIdBig) as Promise<bigint>,
+                    readContract.savesOf(tokenIdBig) as Promise<bigint>,
                     readContract.tipsOf(tokenIdBig) as Promise<bigint>,
                     account
                       ? ((readContract as any).hasLiked(tokenIdBig, account) as Promise<boolean>)
                       : Promise.resolve(undefined),
                     account
-                      ? ((readContract as any).hasShared(tokenIdBig, account) as Promise<boolean>)
+                      ? ((readContract as any).hasSaved(tokenIdBig, account) as Promise<boolean>)
                       : Promise.resolve(undefined)
                   ]);
                 } catch {
@@ -552,10 +572,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
                   mintTimestamp,
                   likes: Number(likesRaw),
                   comments: Number(commentsRaw),
-                  shares: Number(sharesRaw),
+                  saves: Number(savesRaw),
                   tipsWei,
                   likedByMe,
-                  repostedByMe
+                  savedByMe
                 };
                 return post;
               });
@@ -637,7 +657,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             (r): r is PromiseRejectedResult => r.status === "rejected"
           );
 
-          const anyFulfilled = fulfilled.some((r) => r.value.length > 0);
+          const anyFulfilled = fulfilled.length > 0;
           if (!anyFulfilled && rejected.length > 0) {
             const warnSomeNetworksFailedToLoad = [
               // Best-effort diagnostics for dev; only warn when the whole feed fails.
