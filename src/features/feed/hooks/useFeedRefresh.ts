@@ -260,7 +260,7 @@ export function useFeedRefresh(params: {
       });
     };
 
-    const id = window.setInterval(refreshNow, 15_000);
+    const id = window.setInterval(refreshNow, 60_000);
     const onVisibility = () => {
       if (document.visibilityState === "visible") refreshNow();
     };
