@@ -96,6 +96,29 @@ export function AccountPage(props: Props) {
 
   const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
 
+  const selectedNetworkSet = useMemo(() => new Set(selectedNetworkChainIds.map(String)), [selectedNetworkChainIds]);
+
+  const filterBySelectedNetworks = useMemo(() => {
+    return (posts: Post[]) => {
+      if (selectedNetworkSet.size === 0) return posts;
+      return posts.filter((post) => {
+        const id = post.chainId ?? null;
+        if (!id) return false;
+        return selectedNetworkSet.has(String(id));
+      });
+    };
+  }, [selectedNetworkSet]);
+
+  const postedCount = useMemo(() => filterBySelectedNetworks(props.posts).length, [props.posts, filterBySelectedNetworks]);
+  const savedCount = useMemo(
+    () => filterBySelectedNetworks(props.savedPosts).length,
+    [props.savedPosts, filterBySelectedNetworks]
+  );
+  const likedCount = useMemo(
+    () => filterBySelectedNetworks(props.likedPosts).length,
+    [props.likedPosts, filterBySelectedNetworks]
+  );
+
   useEffect(() => {
     if (hasStoredSelectedNetworks) return;
     if (!props.walletAddress) return;
@@ -129,12 +152,12 @@ export function AccountPage(props: Props) {
       <AccountFeedHeaderAction
         view={view}
         onViewChange={setView}
-        postedCount={props.posts.length}
-        savedCount={props.savedPosts.length}
-        likedCount={props.likedPosts.length}
+        postedCount={postedCount}
+        savedCount={savedCount}
+        likedCount={likedCount}
       />
     );
-  }, [view, props.posts.length, props.savedPosts.length, props.likedPosts.length]);
+  }, [view, setView, postedCount, savedCount, likedCount]);
 
   const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
   const pillText = hasAnyFilter
