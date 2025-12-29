@@ -5,7 +5,7 @@ import { ipfsToHttp } from "@features/ipfs";
 import { stableHueFromSeed } from "@shared/lib/format";
 
 import { Modal } from "../../Modal";
-import { useProfile } from "../../../providers/ProfileContext";
+import { useProfile } from "../../../providers/useProfile";
 
 export type AddressListModalProps = {
   open: boolean;

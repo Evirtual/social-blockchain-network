@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "../../Modal";
 import { useContract } from "../../../providers/ContractContext";
 import { useContractTx } from "../../../providers/useContractTx";
-import { useFeed } from "../../../providers/FeedContext";
+import { useFeed } from "../../../providers/useFeed";
 import { useWallet } from "../../../providers/WalletContext";
 import { ApprovalListRow } from "./approvals/ApprovalListRow";
 import { useApprovalActions } from "./approvals/useApprovalActions";
@@ -64,7 +64,8 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     isOwner: props.isOwner,
     pendingApprovals,
     onChainRequests,
-    getReadContract: contract.getReadContract
+    getReadContract: contract.getReadContract,
+    chainId: wallet.chainId
   });
 
   const { addPendingApproval, removePending, approvePending, disapprovePending, resetAllAndBlock } = useApprovalActions({

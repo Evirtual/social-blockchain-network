@@ -1,7 +1,7 @@
 import { memo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
-import { IconEdit, IconFlame } from "../../app";
+import { IconEdit, IconFlame, Modal } from "../../app";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
 import { PostCardFooter } from "./postCard/PostCardFooter";
 import { PostCardMedia } from "./postCard/PostCardMedia";
@@ -34,7 +34,7 @@ type Props = {
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
-  onSaveEditedPost: () => void;
+  onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 
@@ -54,6 +54,7 @@ type Props = {
 
 export const PostCard = memo(function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
+  const hasMedia = !!props.post.image || !!props.post.animationUrl;
   const explorer = props.post.mintTxHash
     ? props.getExplorerTxUrl(props.post.chainId ?? props.chainId, props.post.mintTxHash)
     : null;
@@ -75,6 +76,25 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   return (
     <article className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
+      <Modal open={props.isEditing} title="Edit post" onClose={props.onCancelEditPost}>
+        <PostCardEditBox
+          tokenId={tokenId}
+          postChainId={props.post.chainId}
+          avatarStyle={avatarStyle}
+          requiresNetworkSwitch={requiresNetworkSwitch}
+          interactionDisabledTitle={interactionDisabledTitle}
+          editDraft={props.editDraft}
+          isEditImageLoading={props.isEditImageLoading}
+          onSetEditDraft={props.onSetEditDraft}
+          onCancelEditPost={props.onCancelEditPost}
+          onSaveEditedPost={props.onSaveEditedPost}
+          onEditSelectFile={props.onEditSelectFile}
+          onEditClearImage={props.onEditClearImage}
+          onFreezePost={props.onFreezePost}
+          isMine={props.isMine}
+        />
+      </Modal>
+
       <div className="postHead">
         <div className="avatar small" style={avatarStyle} />
         <div className="postHeadMain">
@@ -144,47 +164,51 @@ export const PostCard = memo(function PostCard(props: Props) {
         </div>
       </div>
 
-      {props.isEditing ? (
-        <PostCardEditBox
+      <>
+        {!hasMedia && !!props.post.body?.trim() ? (
+          <div className="post-body">
+            <div className="postText">
+              <p>{props.post.body}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {hasMedia ? (
+          <PostCardMedia
+            postUrl={postUrl}
+            from={props.from}
+            postChainId={props.post.chainId ?? null}
+            tokenId={tokenId}
+            body={props.post.body}
+            image={props.post.image}
+            animationUrl={props.post.animationUrl}
+            showBody={false}
+          />
+        ) : null}
+
+        <PostCardFooter
+          className={hasMedia ? "afterMedia" : undefined}
+          post={props.post}
           tokenId={tokenId}
-          postChainId={props.post.chainId}
-          isMine={props.isMine}
+          chainId={props.chainId}
+          walletAddress={props.walletAddress}
           requiresNetworkSwitch={requiresNetworkSwitch}
           interactionDisabledTitle={interactionDisabledTitle}
-          editDraft={props.editDraft}
-          isEditImageLoading={props.isEditImageLoading}
-          onSetEditDraft={props.onSetEditDraft}
-          onCancelEditPost={props.onCancelEditPost}
-          onSaveEditedPost={props.onSaveEditedPost}
-          onEditSelectFile={props.onEditSelectFile}
-          onEditClearImage={props.onEditClearImage}
-          onFreezePost={props.onFreezePost}
+          openPanel={props.openPanel}
+          onTogglePanel={onTogglePanel}
+          onAction={props.onAction}
+          onTip={props.onTip}
+          getNativeSymbol={props.getNativeSymbol}
         />
-      ) : (
-        <PostCardMedia
-          postUrl={postUrl}
-          from={props.from}
-          postChainId={props.post.chainId ?? null}
-          tokenId={tokenId}
-          body={props.post.body}
-          image={props.post.image}
-          animationUrl={props.post.animationUrl}
-        />
-      )}
 
-      <PostCardFooter
-        post={props.post}
-        tokenId={tokenId}
-        chainId={props.chainId}
-        walletAddress={props.walletAddress}
-        requiresNetworkSwitch={requiresNetworkSwitch}
-        interactionDisabledTitle={interactionDisabledTitle}
-        openPanel={props.openPanel}
-        onTogglePanel={onTogglePanel}
-        onAction={props.onAction}
-        onTip={props.onTip}
-        getNativeSymbol={props.getNativeSymbol}
-      />
+        {hasMedia && !!props.post.body?.trim() ? (
+          <div className="postCaption">
+            <div className="postText">
+              <p>{props.post.body}</p>
+            </div>
+          </div>
+        ) : null}
+      </>
     </article>
   );
 });

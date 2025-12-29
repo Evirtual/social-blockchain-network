@@ -2,6 +2,7 @@ import { formatEther } from "ethers";
 import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@shared/hooks/useIsMobile";
+import { IconCoin } from "../icons";
 
 export type WalletCardProps = {
   walletAddress: string | null;
@@ -83,11 +84,12 @@ export function WalletCard(props: WalletCardProps) {
 
             <div className="walletContractActions">
               <button
-                className="secondary"
+                className="secondary btn cardActionButton"
                 type="button"
                 onClick={props.onWithdrawTips}
                 disabled={!props.walletAddress || props.withdrawableTipsWei === 0n}
               >
+                <IconCoin size={16} />
                 Withdraw tips
               </button>
             </div>

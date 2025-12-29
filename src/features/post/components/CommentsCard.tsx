@@ -25,6 +25,7 @@ type Props = {
 
 export function CommentsCard(props: Props) {
   const [commentDraft, setCommentDraft] = useState<string>("");
+  const [isSigning, setIsSigning] = useState(false);
 
   const requiresNetworkSwitch =
     !!props.walletAddress &&
@@ -39,9 +40,15 @@ export function CommentsCard(props: Props) {
   const explorerChainId = props.postChainId ?? props.chainId;
 
   const onSubmitComment = useCallback(async () => {
-    const ok = await props.onAction(props.tokenId, "comment", props.postChainId, commentDraft);
-    if (ok) setCommentDraft("");
-  }, [props, commentDraft]);
+    if (isSigning) return;
+    setIsSigning(true);
+    try {
+      const ok = await props.onAction(props.tokenId, "comment", props.postChainId, commentDraft);
+      if (ok) setCommentDraft("");
+    } finally {
+      setIsSigning(false);
+    }
+  }, [props, commentDraft, isSigning]);
 
   return (
     <section className="card">
@@ -53,16 +60,17 @@ export function CommentsCard(props: Props) {
             value={commentDraft}
             onChange={(event) => setCommentDraft(event.target.value)}
             placeholder="Write a comment to sign"
-            disabled={requiresNetworkSwitch}
+            disabled={requiresNetworkSwitch || isSigning}
             title={interactionDisabledTitle}
           />
           <button
-            className={`secondary${requiresNetworkSwitch ? " notAllowed" : ""}`}
+            className={`secondary buttonWithSpinner${requiresNetworkSwitch ? " notAllowed" : ""}`}
             type="button"
             onClick={onSubmitComment}
-            disabled={requiresNetworkSwitch}
+            disabled={requiresNetworkSwitch || isSigning}
             title={interactionDisabledTitle}
           >
+            {isSigning ? <span className="spinner" aria-hidden="true" /> : null}
             Sign
           </button>
         </div>

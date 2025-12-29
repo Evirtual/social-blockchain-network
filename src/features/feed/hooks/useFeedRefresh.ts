@@ -11,6 +11,8 @@ import { postKey } from "./utils";
 import { getFeedRefreshConfig } from "./refresh/getFeedRefreshConfig";
 import { createResolveRpcContractAddress } from "./refresh/createResolveRpcContractAddress";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { loadFeedFromSubgraph } from "../services/subgraph/loadFeedFromSubgraph";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -109,6 +111,21 @@ export function useFeedRefresh(params: {
           const resolveRpcContractAddress = createResolveRpcContractAddress({ withTimeout });
 
           const loadFromProvider = async (chainIdNum: number | null, networkProvider: any, readContract: any): Promise<Post[]> => {
+            const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+            if (subgraphUrl) {
+              const chainIdStr = chainIdNum != null ? String(chainIdNum) : undefined;
+              try {
+                return await loadFeedFromSubgraph({
+                  url: subgraphUrl,
+                  chainIdStr,
+                  first: 200,
+                  account: normalizedAccount
+                });
+              } catch {
+                // Subgraphs can take a few minutes to start syncing after deploy.
+                // During that warm-up window, keep the app functional by falling back to RPC scanning.
+              }
+            }
             return await loadFeedFromProvider({
               chainIdNum,
               networkProvider,

@@ -1,0 +1,89 @@
+/* Split from src/styles/cards.css (post cards + skeleton) */
+
+.posts {
+  column-count: 1;
+  column-gap: 0.75rem;
+}
+
+.posts.postsSingle {
+  column-count: 1;
+}
+
+@media (min-width: 47.5rem) {
+  .posts {
+    column-count: 2;
+  }
+}
+
+.post {
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.625rem);
+  -webkit-backdrop-filter: blur(0.625rem);
+  display: flex;
+  flex-direction: column;
+  break-inside: avoid;
+  margin: 0 0 0.75rem 0;
+  width: 100%;
+}
+
+.postSkeleton {
+  user-select: none;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 85%, var(--border) 15%);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface-2) 65%, var(--text) 10%),
+    transparent
+  );
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.skeletonLine {
+  position: relative;
+  height: 0.75rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 85%, var(--border) 15%);
+}
+
+.skeletonLine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface-2) 65%, var(--text) 10%),
+    transparent
+  );
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.postSkeleton .post-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

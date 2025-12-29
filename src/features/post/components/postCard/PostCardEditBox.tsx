@@ -1,9 +1,13 @@
 import type { Draft } from "@types";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
+import { useCallback, useState } from "react";
+import type { CSSProperties } from "react";
 
 export type PostCardEditBoxProps = {
   tokenId: string;
   postChainId?: string | null;
+
+  avatarStyle?: CSSProperties;
 
   isMine: boolean;
   requiresNetworkSwitch: boolean;
@@ -14,15 +18,34 @@ export type PostCardEditBoxProps = {
 
   onSetEditDraft: (next: Draft) => void;
   onCancelEditPost: () => void;
-  onSaveEditedPost: () => void;
+  onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 };
 
 export function PostCardEditBox(props: PostCardEditBoxProps) {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onSave = useCallback(async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await props.onSaveEditedPost();
+    } finally {
+      setIsSaving(false);
+    }
+  }, [props, isSaving]);
+
   return (
-    <div className="editBox">
+    <div className="composer">
+      <div className="composerHeader">
+        <div className="avatar small" style={props.avatarStyle} />
+        <div>
+          <div className="composerTitle">Edit post</div>
+          <div className="muted">Token #{props.tokenId}</div>
+        </div>
+      </div>
       <textarea
         className="textarea"
         rows={4}
@@ -84,7 +107,14 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         <button className="secondary" type="button" onClick={props.onCancelEditPost}>
           Cancel
         </button>
-        <button className="primary" type="button" onClick={props.onSaveEditedPost} disabled={props.isEditImageLoading}>
+        <button
+          className="primary buttonWithSpinner"
+          type="button"
+          onClick={onSave}
+          disabled={props.requiresNetworkSwitch || props.isEditImageLoading || isSaving}
+          title={props.interactionDisabledTitle}
+        >
+          {isSaving ? <span className="spinner" aria-hidden="true" /> : null}
           Save
         </button>
       </div>

@@ -3,6 +3,9 @@ import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { hasPinata } from "../../ipfs";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { parseChainIdNumber } from "@shared/lib/chainId";
 import { parseProfileTuple } from "./profilesState/parseProfileTuple";
 import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
 import { resetProfileUiState } from "./profilesState/resetProfileUiState";
@@ -95,12 +98,66 @@ export function useProfilesState({
 
   const loadProfile = useCallback(
     async (address: string) => {
-      if (!provider) return;
       const key = address.toLowerCase();
       if (profilesByAddressRef.current[key]) return;
 
       await runInFlight(profileLoadInFlightRef.current, key, async () => {
         try {
+          if (!provider) {
+            const env = import.meta.env as any;
+            const chainIdNum = parseChainIdNumber(chainId);
+            const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+            if (subgraphUrl) {
+              try {
+                const query = `
+                  query Profile($id: ID!) {
+                    account(id: $id) {
+                      name
+                      bio
+                      avatar
+                    }
+                  }
+                `;
+
+                const data = await querySubgraph<{
+                  account: { name?: string | null; bio?: string | null; avatar?: string | null } | null;
+                }>({
+                  url: subgraphUrl,
+                  query,
+                  variables: { id: key },
+                  timeoutMs: 10_000
+                });
+
+                const a = data?.account;
+                if (!a) return;
+
+                const parsed = {
+                  name: String(a.name ?? ""),
+                  bio: String(a.bio ?? ""),
+                  avatarUrl: String(a.avatar ?? "")
+                };
+
+                setProfilesByAddress((prev) => {
+                  if (prev[key]) return prev;
+                  return { ...prev, [key]: parsed };
+                });
+
+                const currentWalletAddress = walletAddressRef.current;
+                const currentIsEditingProfile = isEditingProfileRef.current;
+                if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
+                  setProfileName(parsed.name);
+                  setProfileBio(parsed.bio);
+                  setProfileAvatarUrl(parsed.avatarUrl);
+                }
+
+                return;
+              } catch {
+                // ignore
+              }
+            }
+            return;
+          }
+
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
           const tuple = (await (readContract as any).profileOf(address)) as
@@ -126,7 +183,7 @@ export function useProfilesState({
         }
       });
     },
-    [provider, ensureContractDeployedOnCurrentNetwork, getReadContract]
+    [provider, chainId, ensureContractDeployedOnCurrentNetwork, getReadContract]
   );
 
   useEffect(() => {

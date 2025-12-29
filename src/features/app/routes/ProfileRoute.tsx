@@ -67,7 +67,7 @@ export function ProfileRoute() {
   }, [social]);
 
   const onSaveEditedPost = useCallback(() => {
-    void social.saveEditedPost();
+    return social.saveEditedPost();
   }, [social]);
 
   const onEditSelectFile = useCallback((file: File | null) => {

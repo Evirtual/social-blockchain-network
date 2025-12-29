@@ -10,4 +10,7 @@ export * from "./FollowContext";
 export * from "./ComposerContext";
 export * from "./SocialActionsContext";
 
+export * from "./useFeed";
+export * from "./useProfile";
+export * from "./useFollow";
 export * from "./useContractTx";

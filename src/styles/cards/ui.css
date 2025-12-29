@@ -1,0 +1,96 @@
+/* Split from src/styles/cards.css (shared UI primitives) */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.625rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.pill.isCurrentNetwork {
+  border-color: var(--link);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pillIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.375rem;
+  flex: 0 0 auto;
+}
+
+.pillButton {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  box-shadow: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
+}
+
+.pillButton:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pillButton:active:not(:disabled) {
+  transform: translateY(0.03125rem);
+}
+
+.pillButton:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+.pillButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notAllowed {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.3);
+  pointer-events: auto !important;
+  /* Optionally add a red border or background for extra clarity */
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.listRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.listRow:hover {
+  background: var(--surface-2);
+}

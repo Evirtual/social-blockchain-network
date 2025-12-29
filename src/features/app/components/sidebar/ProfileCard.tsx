@@ -9,6 +9,7 @@ import { ApprovalsModal } from "./profile/ApprovalsModal";
 import { FollowersModal } from "./profile/FollowersModal";
 import { FollowingModal } from "./profile/FollowingModal";
 import { useOwnerAddress } from "./profile/useOwnerAddress";
+import { IconCheck, IconEdit, IconPower } from "../icons";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -55,6 +56,8 @@ export function ProfileCard(props: ProfileCardProps) {
   const followers = props.followers ?? [];
   const following = props.following ?? [];
 
+  const showPostsStat = props.isLoadingMyPostsCount || typeof props.myPostsCount === "number";
+
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
 
@@ -67,7 +70,7 @@ export function ProfileCard(props: ProfileCardProps) {
     : { background: `hsl(${props.selfAvatarHue} 75% 55%)` };
 
   const showHeaderStats = !!props.walletAddress;
-  const hasAnyHeaderPills = showHeaderStats;
+  const showHeaderStatsRow = showHeaderStats;
 
   const pillCountSkeleton = (widthRem: number) => (
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "0.85rem" }} aria-hidden="true" />
@@ -87,40 +90,36 @@ export function ProfileCard(props: ProfileCardProps) {
       <div className="cardDropdownBody">
         <div className="cardHeader">
           <div className="cardTitle">Profile</div>
-          {hasAnyHeaderPills ? (
-            <div className="cardHeaderPills">
+          {showHeaderStatsRow ? (
+            <div className="cardHeaderStats" aria-label="Profile stats">
               {props.isLoadingMyPostsCount ? (
-                <span className="pill buttonWithSpinner" aria-label="Loading post count" aria-busy="true">
+                <span className="cardHeaderStat buttonWithSpinner" aria-label="Loading post count" aria-busy="true">
                   {pillCountSkeleton(1.9)} posts
                 </span>
               ) : typeof props.myPostsCount === "number" ? (
-                <span className="pill">{props.myPostsCount} posts</span>
+                <span className="cardHeaderStat">{props.myPostsCount} posts</span>
               ) : null}
-              <button
-                type="button"
-                className="pill pillButton buttonWithSpinner"
-                onClick={() => setIsFollowersOpen(true)}
-                aria-label="View followers"
-              >
+              {showPostsStat ? (
+                <span className="cardHeaderStatSep" aria-hidden="true">
+                  ·
+                </span>
+              ) : null}
+              <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowersOpen(true)}>
                 {props.isLoadingFollowers ? (
                   <>
-                    {pillCountSkeleton(2.1)}
-                    followers
+                    {pillCountSkeleton(2.1)} followers
                   </>
                 ) : (
                   `${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`
                 )}
               </button>
-              <button
-                type="button"
-                className="pill pillButton buttonWithSpinner"
-                onClick={() => setIsFollowingOpen(true)}
-                aria-label="View following"
-              >
+              <span className="cardHeaderStatSep" aria-hidden="true">
+                ·
+              </span>
+              <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowingOpen(true)}>
                 {props.isLoadingFollowing ? (
                   <>
-                    {pillCountSkeleton(2.1)}
-                    following
+                    {pillCountSkeleton(2.1)} following
                   </>
                 ) : (
                   `${following.length} following`
@@ -146,18 +145,31 @@ export function ProfileCard(props: ProfileCardProps) {
           {props.walletAddress ? (
             <div className="profileActions">
               {!props.isEditingProfile ? (
-                <button className="secondary" type="button" onClick={props.onStartEditProfile}>
-                  Edit profile
+                <button className="cardActionLink" type="button" onClick={props.onStartEditProfile}>
+                  <IconEdit size={16} />
+                  Edit
                 </button>
               ) : null}
-              {isOwner ? (
-                <button className="secondary" type="button" onClick={() => setIsApprovalsOpen(true)}>
-                  Approvals
+              {props.walletAddress && !props.isEditingProfile && isOwner ? (
+                <button
+                  className="cardActionLink cardActionApprove"
+                  type="button"
+                  onClick={() => setIsApprovalsOpen(true)}
+                  aria-label="Approvals"
+                >
+                  <IconCheck size={16} />
+                  Approve
                 </button>
               ) : null}
-              {!props.isEditingProfile ? (
-                <button className="secondary" type="button" onClick={props.onDisconnectWallet}>
-                  Disconnect
+              {props.walletAddress && !props.isEditingProfile ? (
+                <button
+                  className="ghost iconButton profileDisconnectButton"
+                  type="button"
+                  onClick={props.onDisconnectWallet}
+                  aria-label="Disconnect"
+                  title="Disconnect"
+                >
+                  <IconPower size={20} strokeWidth={2.2} />
                 </button>
               ) : null}
             </div>

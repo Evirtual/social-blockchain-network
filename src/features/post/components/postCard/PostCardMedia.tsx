@@ -13,11 +13,14 @@ export type PostCardMediaProps = {
   image?: string;
   animationUrl?: string;
 
+  showBody?: boolean;
+
   fallbackGateway?: string;
 };
 
 export function PostCardMedia(props: PostCardMediaProps) {
   const fallbackGateway = props.fallbackGateway ?? "https://ipfs.io/ipfs/";
+  const showBody = props.showBody ?? true;
 
   const hasMedia = !!props.image || !!props.animationUrl;
 
@@ -91,9 +94,9 @@ export function PostCardMedia(props: PostCardMediaProps) {
         </Link>
       ) : null}
 
-      {hasMedia ? null : <div className="post-body">{description}</div>}
+      {showBody && !hasMedia ? <div className="post-body">{description}</div> : null}
 
-      {hasMedia && !!props.body?.trim() ? <div className="postCaption">{description}</div> : null}
+      {showBody && hasMedia && !!props.body?.trim() ? <div className="postCaption">{description}</div> : null}
     </>
   );
 }

@@ -1,0 +1,56 @@
+/* Split from src/styles/cards.css (hero) */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroClose {
+  position: absolute;
+  top: var(--pad-sm);
+  right: var(--pad-sm);
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.05rem;
+  z-index: 2;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(0.875rem);
+  -webkit-backdrop-filter: blur(0.875rem);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(56.25rem 22.5rem at 10% -20%, rgba(120, 140, 255, 0.24), transparent 60%),
+    radial-gradient(50rem 20rem at 105% -10%, rgba(60, 240, 190, 0.16), transparent 55%);
+  opacity: 1;
+}
+
+.hero > *:not(.heroClose) {
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-size: 1.55rem;
+  letter-spacing: 0.0125rem;
+}
+
+.heroSub {
+  line-height: 1.55;
+}
+
+.heroBullets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}

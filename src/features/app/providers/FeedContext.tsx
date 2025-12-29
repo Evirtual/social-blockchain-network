@@ -1,30 +1,11 @@
-import { createContext, useContext, useMemo } from "react";
-import type { Post, PostComment } from "@types";
+import { useMemo } from "react";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
 import { useWallet } from "./WalletContext";
 import { useFeedComments, useFeedRefresh, usePostsByTokenIds } from "../../feed";
+import { FeedContext, type FeedContextValue } from "./feedStateContext";
 
-export type FeedContextValue = {
-  posts: Post[];
-  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
-
-  isFeedLoading: boolean;
-  refreshFeed: (accountOverride?: string | null) => Promise<void>;
-
-  postComments: Record<string, PostComment[]>;
-  setPostComments: React.Dispatch<React.SetStateAction<Record<string, PostComment[]>>>;
-  isLoadingPostComments: Record<string, boolean>;
-  loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
-
-  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
-};
-
-const FeedContext: ReturnType<typeof createContext<FeedContextValue | null>> =
-  ((globalThis as any).__sbnetFeedContext as ReturnType<typeof createContext<FeedContextValue | null>> | undefined) ??
-  (((globalThis as any).__sbnetFeedContext = createContext<FeedContextValue | null>(null)) as ReturnType<
-    typeof createContext<FeedContextValue | null>
-  >);
+export type { FeedContextValue } from "./feedStateContext";
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId, walletEpoch } = useWallet();
@@ -90,8 +71,4 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   return <FeedContext.Provider value={value}>{children}</FeedContext.Provider>;
 }
 
-export function useFeed() {
-  const ctx = useContext(FeedContext);
-  if (!ctx) throw new Error("useFeed must be used within <FeedProvider>");
-  return ctx;
-}
+

@@ -82,7 +82,7 @@ export function useAccountPageProps(args: {
   onSaveProfile: () => void;
 
   onSetEditDraft: (next: Draft) => void;
-  onSaveEditedPost: () => void;
+  onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;
 
   onAction: (

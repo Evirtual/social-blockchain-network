@@ -5,8 +5,7 @@ export function getStatButtonClass(params: {
 }): string {
   const { requiresNetworkSwitch, extra, active } = params;
   return [
-    "statPill",
-    "statButton",
+    "postActionIcon",
     extra || "",
     requiresNetworkSwitch ? "notAllowed" : "",
     active || ""

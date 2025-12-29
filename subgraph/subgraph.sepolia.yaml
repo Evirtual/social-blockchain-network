@@ -1,0 +1,70 @@
+specVersion: 1.0.0
+schema:
+  file: ./schema.graphql
+
+dataSources:
+  - kind: ethereum
+    name: SocialPosts
+    network: sepolia
+    source:
+      abi: SocialPosts
+      address: "0x5dA8cE3123B2A41C4BcA221E38a66Cc903a851b7" # Ethereum Sepolia: SocialPosts
+      startBlock: 0 # set to contract deployment block for faster indexing
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Post
+        - Account
+        - FollowEdge
+        - LikeEdge
+        - SaveEdge
+        - Comment
+        - Tip
+        - Withdrawal
+      abis:
+        - name: SocialPosts
+          file: ./abis/SocialPosts.json
+      eventHandlers:
+        - event: PosterAllowed(indexed address,bool)
+          handler: handlePosterAllowed
+        - event: PosterApprovalRequested(indexed address)
+          handler: handlePosterApprovalRequested
+        - event: ProfileUpdated(indexed address,string,string,string)
+          handler: handleProfileUpdated
+        - event: ProfileModerated(indexed address,indexed address,string,string,string)
+          handler: handleProfileModerated
+        - event: ProfileClearedByAdmin(indexed address,indexed address)
+          handler: handleProfileClearedByAdmin
+        - event: PostMinted(indexed address,indexed uint256,string)
+          handler: handlePostMinted
+        - event: PostUpdated(indexed address,indexed uint256,string)
+          handler: handlePostUpdated
+        - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string)
+          handler: handlePostUpdatedByAdmin
+        - event: PostBurned(indexed address,indexed uint256)
+          handler: handlePostBurned
+        - event: PostBurnedByAdmin(indexed address,indexed address,indexed uint256)
+          handler: handlePostBurnedByAdmin
+        - event: PostFrozen(indexed address,indexed uint256)
+          handler: handlePostFrozen
+        - event: PostLiked(indexed address,indexed uint256)
+          handler: handlePostLiked
+        - event: PostUnliked(indexed address,indexed uint256)
+          handler: handlePostUnliked
+        - event: PostSaved(indexed address,indexed uint256)
+          handler: handlePostSaved
+        - event: PostUnsaved(indexed address,indexed uint256)
+          handler: handlePostUnsaved
+        - event: PostCommented(indexed address,indexed uint256,string)
+          handler: handlePostCommented
+        - event: PostTipped(indexed address,indexed address,indexed uint256,uint256)
+          handler: handlePostTipped
+        - event: TipsWithdrawn(indexed address,uint256)
+          handler: handleTipsWithdrawn
+        - event: Followed(indexed address,indexed address)
+          handler: handleFollowed
+        - event: Unfollowed(indexed address,indexed address)
+          handler: handleUnfollowed
+      file: ./src/mapping.ts

@@ -1,0 +1,115 @@
+type Post @entity(immutable: false) {
+  id: ID!
+
+  tokenId: String!
+  author: Bytes
+  tokenURI: String!
+
+  mintTxHash: Bytes
+  mintBlockNumber: BigInt!
+  mintTimestamp: BigInt
+
+  likes: BigInt!
+  comments: BigInt!
+  saves: BigInt!
+  tipsWei: BigInt!
+
+  frozenAtBlock: BigInt
+
+  burnedAtBlock: BigInt
+  updatedAtBlock: BigInt
+}
+
+type Account @entity(immutable: false) {
+  id: ID!
+
+  name: String
+  bio: String
+  avatar: String
+
+  posterAllowed: Boolean!
+  posterRequested: Boolean!
+  disapprovedEver: Boolean!
+
+  followersCount: BigInt!
+  followingCount: BigInt!
+
+  # Best-effort indexed value (authoritative value is still from contract when connected).
+  withdrawableWeiIndexed: BigInt!
+
+  updatedAtBlock: BigInt
+  updatedAtTimestamp: BigInt
+
+  # Relationships
+  followers: [FollowEdge!]! @derivedFrom(field: "followee")
+  following: [FollowEdge!]! @derivedFrom(field: "follower")
+}
+
+type FollowEdge @entity(immutable: false) {
+  id: ID!
+
+  follower: Account!
+  followee: Account!
+  active: Boolean!
+
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+}
+
+type LikeEdge @entity(immutable: false) {
+  id: ID!
+
+  tokenId: String!
+  account: Account!
+  active: Boolean!
+
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+}
+
+type SaveEdge @entity(immutable: false) {
+  id: ID!
+
+  tokenId: String!
+  account: Account!
+  active: Boolean!
+
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+}
+
+type Comment @entity(immutable: true) {
+  id: ID!
+
+  tokenId: String!
+  commenter: Account!
+  comment: String!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Tip @entity(immutable: true) {
+  id: ID!
+
+  tokenId: String!
+  tipper: Account!
+  author: Account!
+  amountWei: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Withdrawal @entity(immutable: true) {
+  id: ID!
+
+  author: Account!
+  amountWei: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}

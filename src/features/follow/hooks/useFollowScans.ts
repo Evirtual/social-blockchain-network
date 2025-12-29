@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { socialInterface } from "../../contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
 import { parseChainKey } from "@shared/lib/chainKey";
+import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 
 // In-memory caches to persist results across route navigation without using sessionStorage.
@@ -67,7 +70,6 @@ export function useFollowScans(params: {
 
   const loadFollowerCountForAddress = useCallback(
     async (address: string) => {
-      if (!params.provider) return;
       if (!address) return;
       const key = addressKey(address);
 
@@ -79,6 +81,38 @@ export function useFollowScans(params: {
       }
 
       if (loadedFollowerCountByAddressRef.current[key]) return;
+
+      const env = import.meta.env as any;
+      const chainIdNum = parseChainIdNumber(params.chainId);
+      const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+      if (subgraphUrl) {
+        try {
+          const query = `
+            query FollowerCount($id: ID!) {
+              account(id: $id) {
+                followersCount
+              }
+            }
+          `;
+
+          const data = await querySubgraph<{ account: { followersCount?: string } | null }>({
+            url: subgraphUrl,
+            query,
+            variables: { id: key },
+            timeoutMs: 10_000
+          });
+
+          const count = Number(data?.account?.followersCount ?? 0);
+          setFollowerCountByAddress((prev) => ({ ...prev, [key]: Number.isFinite(count) ? count : 0 }));
+          if (cacheKey) followerCountByKeyCache.set(cacheKey, Number.isFinite(count) ? count : 0);
+          loadedFollowerCountByAddressRef.current[key] = true;
+          return;
+        } catch {
+          // fall back to on-chain scan
+        }
+      }
+
+      if (!params.provider) return;
 
       await runInFlight(followerCountInFlightRef.current, key, async () => {
         setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
@@ -113,13 +147,59 @@ export function useFollowScans(params: {
 
   const loadFollowersForAddress = useCallback(
     async (address: string) => {
-      if (!params.provider) return;
       if (!address) return;
       const key = addressKey(address);
 
+      const cacheKey = makeCacheKey(params.chainId, key);
+
       if (loadedFollowersByAddressRef.current[key]) return;
 
-      const cacheKey = makeCacheKey(params.chainId, key);
+      const env = import.meta.env as any;
+      const chainIdNum = parseChainIdNumber(params.chainId);
+      const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+      if (subgraphUrl) {
+        try {
+          const query = `
+            query Followers($followee: ID!, $first: Int!) {
+              followEdges(
+                first: $first,
+                where: { followee: $followee, active: true },
+                orderBy: updatedAtBlock,
+                orderDirection: desc
+              ) {
+                follower {
+                  id
+                }
+              }
+            }
+          `;
+
+          const data = await querySubgraph<{ followEdges: Array<{ follower?: { id?: string } | null }> }>({
+            url: subgraphUrl,
+            query,
+            variables: { followee: key, first: 5000 },
+            timeoutMs: 12_000
+          });
+
+          const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
+            .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
+            .filter(Boolean);
+
+          setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+          setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
+          if (cacheKey) {
+            followersByKeyCache.set(cacheKey, normalizedActive);
+            followerCountByKeyCache.set(cacheKey, normalizedActive.length);
+          }
+          loadedFollowersByAddressRef.current[key] = true;
+          loadedFollowerCountByAddressRef.current[key] = true;
+          return;
+        } catch {
+          // fall back to on-chain scan
+        }
+      }
+
+      if (!params.provider) return;
       if (cacheKey && followersByKeyCache.has(cacheKey)) {
         const cached = followersByKeyCache.get(cacheKey)!;
         setFollowersByAddress((prev) => ({ ...prev, [key]: cached }));
@@ -167,13 +247,54 @@ export function useFollowScans(params: {
 
   const loadFollowingForAddress = useCallback(
     async (address: string) => {
-      if (!params.provider) return;
       if (!address) return;
       const key = addressKey(address);
 
+      const cacheKey = makeCacheKey(params.chainId, key);
+
       if (loadedFollowingByAddressRef.current[key]) return;
 
-      const cacheKey = makeCacheKey(params.chainId, key);
+      const env = import.meta.env as any;
+      const chainIdNum = parseChainIdNumber(params.chainId);
+      const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+      if (subgraphUrl) {
+        try {
+          const query = `
+            query Following($follower: ID!, $first: Int!) {
+              followEdges(
+                first: $first,
+                where: { follower: $follower, active: true },
+                orderBy: updatedAtBlock,
+                orderDirection: desc
+              ) {
+                followee {
+                  id
+                }
+              }
+            }
+          `;
+
+          const data = await querySubgraph<{ followEdges: Array<{ followee?: { id?: string } | null }> }>({
+            url: subgraphUrl,
+            query,
+            variables: { follower: key, first: 5000 },
+            timeoutMs: 12_000
+          });
+
+          const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
+            .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
+            .filter(Boolean);
+
+          setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+          if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
+          loadedFollowingByAddressRef.current[key] = true;
+          return;
+        } catch {
+          // fall back to on-chain scan
+        }
+      }
+
+      if (!params.provider) return;
       if (cacheKey && followingByKeyCache.has(cacheKey)) {
         setFollowingByAddress((prev) => ({ ...prev, [key]: followingByKeyCache.get(cacheKey)! }));
         loadedFollowingByAddressRef.current[key] = true;

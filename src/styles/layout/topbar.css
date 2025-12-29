@@ -1,0 +1,154 @@
+/* Split from src/styles/layout.css (topbar + brand) */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: var(--pad-sm);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0.75rem;
+  z-index: 10;
+  backdrop-filter: blur(0.625rem);
+}
+
+.brand {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-md);
+  background-image: url("/favicon.svg");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  flex: 0 0 auto;
+}
+
+.brand-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.0125rem;
+}
+
+.brand-sub {
+  font-size: 0.9rem;
+  line-height: 1.125    ;
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.25rem;
+  border-radius: 62.4375rem;
+  border: 0.0625rem solid var(--border);
+  background: transparent;
+}
+
+.topbarLogo {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.topbarControls {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.topbar-actions button,
+.topbar-actions .btn {
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbar-actions button:not(.iconButton),
+.topbar-actions .btn {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+@media (max-width: 56.25rem) {
+  .topbar {
+    position: sticky;
+    top: var(--app-pad);
+  }
+
+  /* Keep the brand subtext visible on mobile/tablet */
+  .brand-sub {
+    display: block;
+  }
+
+}
+
+@media (max-width: 40rem) {
+  .topbar {
+    gap: 0.625rem;
+    flex-wrap: nowrap;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Mobile: logo-only on the left */
+  .brand {
+    display: none;
+  }
+
+  .topbarLogo {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .topbarLogo .brand-mark {
+    width: 2.375rem;
+    height: 2.375rem;
+  }
+
+  /* Mobile: remove the big capsule; keep controls on the right */
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.25rem;
+    border: 0.0625rem solid var(--border);
+    background: var(--bg);
+    border-radius: var(--radius-md);
+    gap: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+
+  .topbarControls {
+    margin-left: auto;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 32.5rem) {
+  .brand {
+    gap: 0.625rem;
+  }
+}

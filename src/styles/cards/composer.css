@@ -1,0 +1,47 @@
+/* Split from src/styles/cards.css (composer card) */
+
+.statusLine {
+  margin-top: 0.625rem;
+  color: var(--muted);
+}
+
+.composerHeader {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+}
+
+.composerTitle {
+  font-weight: 700;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* In the modal, avoid a "card inside a card" look */
+.modalBody .card.composer {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.modalBody .card.composer .composerHeader {
+  background: var(--surface);
+  border-color: transparent;
+}
+
+.modalBody .card.composer .input,
+.modalBody .card.composer .textarea,
+.modalBody .card.composer .file-input {
+  background: var(--surface);
+  border-color: transparent;
+}

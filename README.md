@@ -105,6 +105,11 @@ See `.env.example` for the full list. Common ones:
    - `VITE_CONTRACT_ADDRESS_<NETWORK>` (recommended multi-network)
 - Optional multi-network feed reads (browser-side, must be CORS-enabled):
    - `VITE_<NETWORK>_RPC_URL` (e.g. `VITE_BASE_RPC_URL`)
+- Optional The Graph subgraph feeds (recommended for stability on long-lived networks):
+   - `VITE_<NETWORK>_SUBGRAPH_URL` (e.g. `VITE_BASE_SUBGRAPH_URL`)
+   - Use Subgraph Studio for testing/staging; publish to The Graph Network to appear in Graph Explorer.
+
+Tip: use `.env.subgraph.example` as a starter for the per-network subgraph endpoints.
 - Optional IPFS gateway override:
    - `VITE_IPFS_GATEWAY` (e.g. `https://gateway.pinata.cloud/ipfs/`)
 

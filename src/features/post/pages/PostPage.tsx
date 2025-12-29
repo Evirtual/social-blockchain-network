@@ -24,7 +24,7 @@ type Props = {
 
   onStartEditPost: (post: Post) => void;
   onCancelEditPost: () => void;
-  onSaveEditedPost: () => void;
+  onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;
   onEditClearImage: () => void;
 

@@ -1,0 +1,23 @@
+{
+  "name": "social-posts-subgraph",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "studio:commands": "node ./tools/printStudioCommands.mjs",
+    "codegen:base-sepolia": "graph codegen subgraph.yaml",
+    "build:base-sepolia": "graph build subgraph.yaml",
+    "codegen:sepolia": "graph codegen subgraph.sepolia.yaml",
+    "build:sepolia": "graph build subgraph.sepolia.yaml",
+    "codegen:bsc-testnet": "graph codegen subgraph.bsc-testnet.yaml",
+    "build:bsc-testnet": "graph build subgraph.bsc-testnet.yaml"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.97.1",
+    "@graphprotocol/graph-ts": "^0.38.0"
+  },
+  "devDependencies": {
+    "source-map-support": "^0.5.21"
+  }
+}

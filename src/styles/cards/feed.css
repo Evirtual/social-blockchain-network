@@ -1,0 +1,166 @@
+/* Split from src/styles/cards.css (feed header + filters) */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feed-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-areas: "title pill . action";
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0;
+  margin-top: 0.625rem;
+}
+
+.feedHeaderTitle {
+  grid-area: title;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.0125rem;
+  margin: 0;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.feedHeaderAction {
+  grid-area: action;
+  display: flex;
+  justify-content: flex-end;
+  justify-self: end;
+}
+
+.feedHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feedHeaderPill {
+  grid-area: pill;
+  justify-self: end;
+  align-self: center;
+}
+
+.feedSearch {
+  width: 18rem;
+}
+
+/* Make feed header controls visually consistent across browsers. */
+.feedSearch,
+.feedNetworkFilterSummary {
+  height: 2.75rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.feedNetworkFilter {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.feedNetworkFilterSummary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  list-style: none;
+  line-height: 1.25;
+}
+
+.feedNetworkFilterSummary::marker {
+  content: "";
+}
+
+.feedNetworkFilterSummary::-webkit-details-marker {
+  display: none;
+}
+
+.feedNetworkFilterMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  z-index: 20;
+  min-width: 14rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: color-mix(in srgb, var(--bg) 86%, var(--surface-2));
+  box-shadow: var(--shadow);
+}
+
+.feedNetworkFilterMenu input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.feedNetworkFilterMenu input[type="checkbox"]:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+.feedNetworkFilterOption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.feedNetworkFilterOption:hover {
+  background: var(--surface-2);
+}
+
+@media (max-width: 56.25rem) {
+  .feed-header {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title pill"
+      "action action";
+    align-items: center;
+  }
+
+  .feedHeaderAction {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .feedHeaderControls {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .feedSearch {
+    width: 100%;
+    flex: 1 0 100%;
+  }
+
+  .feedNetworkFilter {
+    width: 100%;
+  }
+
+  .feedNetworkFilterSummary {
+    width: 100%;
+  }
+
+  .feedNetworkFilterMenu {
+    left: 0;
+    right: 0;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 32.5rem) {
+  .feedSearch {
+    width: 100%;
+  }
+}

@@ -5,6 +5,8 @@ import { getErrorMessage } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
 import { readSessionTokenIds, writeSessionTokenIds } from "@shared/lib/sessionTokenCache";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
@@ -70,6 +72,56 @@ export function useLikedPostsByAddress(args: Args) {
           try {
             const env = import.meta.env as any;
             const resolvedChainIdNum = parseChainIdNumber(args.chainId);
+
+            const subgraphUrl = getSubgraphUrlForChainId(env, resolvedChainIdNum);
+            if (subgraphUrl) {
+              try {
+                const query = `
+                  query AccountLikes($account: ID!, $first: Int!) {
+                    likeEdges(
+                      first: $first,
+                      where: { account: $account, active: true },
+                      orderBy: updatedAtBlock,
+                      orderDirection: desc
+                    ) {
+                      tokenId
+                    }
+                  }
+                `;
+
+                const data = await querySubgraph<{ likeEdges: Array<{ tokenId: string }> }>({
+                  url: subgraphUrl,
+                  query,
+                  variables: { account: key, first: 1000 },
+                  timeoutMs: 10_000
+                });
+
+                const tokenIds = (Array.isArray(data?.likeEdges) ? data.likeEdges : [])
+                  .map((e) => String(e?.tokenId ?? "").trim())
+                  .filter(Boolean);
+
+                const chainKey = parseChainKey(args.chainId);
+                const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
+
+                setLikedTokenIdsByAddress((prev) => {
+                  const existingLikes = prev[key] ?? [];
+                  const preserved = chainKey
+                    ? existingLikes.filter((k) => !k.startsWith(`${chainKey}:`))
+                    : existingLikes;
+                  const merged = Array.from(new Set([...activeKeys, ...preserved]));
+                  writeSessionTokenIds(LIKES_SESSION_CACHE_PREFIX, key, merged);
+                  return { ...prev, [key]: merged };
+                });
+
+                await args.loadPostsByTokenIds(tokenIds);
+
+                likesLoadedByKeyRef.current[loadedKey] = true;
+                return;
+              } catch {
+                // If the subgraph is warming up or unavailable, fall back to on-chain scanning.
+              }
+            }
+
             const rpcUrl = getRpcUrlForChainId(env, resolvedChainIdNum);
 
             let readContract: any = null;

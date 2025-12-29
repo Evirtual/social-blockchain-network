@@ -3,7 +3,7 @@ import { hasPinata } from "../../ipfs";
 import type { Draft } from "@types";
 import { useComposerMedia, useMintPostFlow, usePosterApproval } from "../../composer";
 import { useContract } from "./ContractContext";
-import { useFeed } from "./FeedContext";
+import { useFeed } from "./useFeed";
 import { useStatus } from "./StatusContext";
 import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";

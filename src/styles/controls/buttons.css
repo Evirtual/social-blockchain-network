@@ -1,0 +1,146 @@
+/* Split from src/styles/controls.css (buttons + variants) */
+
+button {
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.5625rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.5625rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
+}
+
+@media (max-width: 32.5rem) {
+  .topbar-actions .btn,
+  .topbar-actions button {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.9rem;
+  }
+
+  .topbar-actions .iconButton {
+    width: 2.375rem;
+    height: 2.375rem;
+  }
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0.03125rem);
+}
+
+.btn:active {
+  transform: translateY(0.03125rem);
+}
+
+button:focus-visible,
+.input:focus-visible,
+.textarea:focus-visible,
+.file-input:focus-visible,
+.comment-box input:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.btn.primary:hover {
+  background: var(--accent);
+}
+
+.secondary {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn.secondary {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn.ghost:hover {
+  background: var(--surface-2);
+}
+
+.danger {
+  background: rgba(255, 120, 120, 0.18);
+  border-color: rgba(255, 120, 120, 0.35);
+  color: var(--danger);
+}

@@ -77,6 +77,23 @@ export function IconEdit(props: IconProps) {
   );
 }
 
+export function IconCheck(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M20 6 9 17l-5-5" />
+    </BaseIcon>
+  );
+}
+
+export function IconPower(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M12 2v8" />
+      <path d="M7.5 4.5a8 8 0 1 0 9 0" />
+    </BaseIcon>
+  );
+}
+
 export function IconFlame(props: IconProps) {
   return (
     <BaseIcon {...props}>

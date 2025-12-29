@@ -1,0 +1,9 @@
+/* Split from src/styles/controls.css (theme toggle colors) */
+
+.themeToggleSun {
+  color: rgba(255, 200, 70, 1);
+}
+
+.themeToggleMoon {
+  color: var(--link);
+}

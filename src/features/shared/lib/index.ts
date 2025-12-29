@@ -18,5 +18,7 @@ export * from "./postLimits";
 export * from "./resolveSocialPostsAddress";
 export * from "./rpc";
 export * from "./sessionTokenCache";
+export * from "./subgraph";
+export * from "./subgraphQuery";
 export * from "./time";
 export * from "./toggleScan";

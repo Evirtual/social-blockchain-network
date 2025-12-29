@@ -14,7 +14,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ComposerCard, Modal, Topbar, TxToaster, WalletProfileLink } from "./features/app";
 import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useConnectNudge, useConnectWallet } from "./features/app";
-import { useComposer, useContract, useFeed, useProfile, useStatus, useTheme, useWallet } from "./features/app";
+import { useComposer, useContract, useFeed, useStatus, useTheme, useWallet } from "./features/app";
+import { useProfile } from "./features/app/providers/useProfile";
 
 function AppInner() {
   const theme = useTheme();

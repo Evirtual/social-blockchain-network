@@ -1,0 +1,52 @@
+/* Split from src/styles/cards.css (mobile dropdown cards) */
+
+/* Mobile dropdown cards (Profile + Wallet) */
+.cardDropdown {
+  padding: 0;
+}
+
+.cardDropdownSummary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  padding: var(--pad);
+}
+
+.cardDropdownSummary::-webkit-details-marker {
+  display: none;
+}
+
+.cardDropdownSummary::marker {
+  content: "";
+}
+
+.cardDropdownMeta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cardDropdownBody {
+  padding: 0 var(--pad) var(--pad) var(--pad);
+}
+
+@media (min-width: 32.5rem) {
+  .cardDropdown {
+    padding: var(--pad);
+  }
+
+  .cardDropdownSummary {
+    display: none;
+  }
+
+  .cardDropdownBody {
+    padding: 0;
+  }
+}

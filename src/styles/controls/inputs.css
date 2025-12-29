@@ -1,0 +1,56 @@
+/* Split from src/styles/controls.css (inputs + file picker) */
+
+.input,
+.textarea,
+.file-input,
+.comment-box input {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.625rem 0.75rem;
+  outline: none;
+  box-shadow: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.08);
+}
+
+.input::placeholder,
+.textarea::placeholder,
+.comment-box input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.file-input::file-selector-button {
+  border-radius: 0.625rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.4375rem 0.625rem;
+  font: inherit;
+  font-weight: 650;
+  margin-right: 0.625rem;
+  cursor: pointer;
+}
+
+.file-input::-webkit-file-upload-button {
+  border-radius: 0.625rem;
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.4375rem 0.625rem;
+  font: inherit;
+  font-weight: 650;
+  margin-right: 0.625rem;
+  cursor: pointer;
+}
+
+.textarea {
+  resize: vertical;
+}

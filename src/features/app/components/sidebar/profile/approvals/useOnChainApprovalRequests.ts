@@ -3,6 +3,9 @@ import { isAddress } from "ethers";
 
 import { scanRecentUniqueAddressesFromEvent } from "@features/profile";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
+import { parseChainIdNumber } from "@shared/lib/chainId";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { querySubgraph } from "@shared/lib/subgraphQuery";
 
 type ApprovalsRequestsCacheEntry = {
   requesters: string[];
@@ -66,6 +69,55 @@ export function useOnChainApprovalRequests(args: {
       setIsLoadingOnChainRequests(true);
       setOnChainRequestsLoadError(false);
       try {
+        const env = import.meta.env as any;
+        const chainIdNum = parseChainIdNumber(args.chainId);
+        const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+        if (subgraphUrl) {
+          try {
+            const query = `
+              query ApprovalRequests($first: Int!) {
+                accounts(
+                  first: $first,
+                  where: { posterRequested: true },
+                  orderBy: updatedAtBlock,
+                  orderDirection: desc
+                ) {
+                  id
+                }
+              }
+            `;
+
+            const data = await querySubgraph<{ accounts: Array<{ id?: string }> }>({
+              url: subgraphUrl,
+              query,
+              variables: { first: 50 },
+              timeoutMs: 10_000
+            });
+
+            const uniq = (Array.isArray(data?.accounts) ? data.accounts : [])
+              .map((a) => String(a?.id ?? "").trim())
+              .filter((a) => isAddress(a));
+
+            // If the subgraph is reachable but has no data yet (common right after deploy),
+            // fall back to chain scanning so the admin UI remains functional.
+            if (uniq.length > 0) {
+              if (!cancelled) {
+                setOnChainRequests(uniq);
+                setOnChainRequestsLoadError(false);
+                approvalsRequestsCache.set(cacheKey, {
+                  requesters: uniq,
+                  hadQueryError: false,
+                  loadedAt: Date.now()
+                });
+                lastLoadedKeyRef.current = cacheKey;
+              }
+              return;
+            }
+          } catch {
+            // fall back to on-chain scan
+          }
+        }
+
         const readContract = await args.getReadContract();
         const provider: any = getScanProviderFromReadContract(readContract);
 

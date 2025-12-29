@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 
 export function useIsFollowing(params: {
@@ -49,6 +52,43 @@ export function useIsFollowing(params: {
         }
 
         await runInFlight(isFollowingInFlightRef.current, key, async () => {
+          const env = import.meta.env as any;
+          const chainIdNum = parseChainIdNumber(params.chainId);
+          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+
+          if (subgraphUrl) {
+            try {
+              const query = `
+                query IsFollowing($follower: ID!, $followee: ID!) {
+                  followEdges(first: 1, where: { follower: $follower, followee: $followee }) {
+                    active
+                  }
+                }
+              `;
+
+              const data = await querySubgraph<{ followEdges: Array<{ active?: boolean } | null> }>({
+                url: subgraphUrl,
+                query,
+                variables: {
+                  follower: String(params.walletAddress).toLowerCase(),
+                  followee: String(followee).toLowerCase()
+                },
+                timeoutMs: 8_000
+              });
+
+              const active = Boolean((Array.isArray(data?.followEdges) ? data.followEdges : [])[0]?.active);
+              setIsFollowingByAddress((prev) => {
+                const next = { ...prev, [key]: active };
+                isFollowingByAddressRef.current = next;
+                return next;
+              });
+              loadedIsFollowingByAddressRef.current[key] = true;
+              return;
+            } catch {
+              // fall back to on-chain read
+            }
+          }
+
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
           const ok = (await (readContract as any).isFollowing(params.walletAddress, followee)) as boolean;

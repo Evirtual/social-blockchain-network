@@ -3,7 +3,7 @@ import type { Draft, Post } from "@types";
 import { hasPinata } from "../../ipfs";
 import { useBestEffortUnpinCidsSafe, useEditPostFlow, useEnsureMatchingNetwork, usePostActions } from "../../social";
 import { useContract } from "./ContractContext";
-import { useFeed } from "./FeedContext";
+import { useFeed } from "./useFeed";
 import { useStatus } from "./StatusContext";
 import { useTxNotifications } from "./TxNotificationsContext";
 import { useWallet } from "./WalletContext";

@@ -1,0 +1,97 @@
+/* Split from src/styles/layout.css (app container + overall layout grids) */
+
+.app {
+  width: 100%;
+  max-width: 65rem;
+  margin: 0 auto;
+  --app-pad: var(--pad-lg);
+  padding: var(--app-pad);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 21.25rem 1fr;
+  gap: 0.875rem;
+  margin-top: 0.875rem;
+}
+
+.profileLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-top: 0.875rem;
+}
+
+.profileTop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.875rem;
+  align-items: stretch;
+}
+
+.profileTopSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.profileTop > * {
+  min-width: 0;
+}
+
+.profileTop .card {
+  height: 100%;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.home {
+  width: 100%;
+  max-width: 65rem;
+  margin: 1rem auto 0 auto;
+  padding-bottom: 1.5rem;
+}
+
+.homeHeroRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.875rem;
+  align-items: stretch;
+}
+
+.homeHeroRowSingle > * {
+  grid-column: 1 / -1;
+}
+
+.homeHeroRow > * {
+  min-width: 0;
+}
+
+@media (max-width: 56.25rem) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .homeHeroRow {
+    grid-template-columns: 1fr;
+  }
+
+  .profileTop {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 32.5rem) {
+  .app {
+    --app-pad: var(--pad-sm);
+    padding: var(--app-pad);
+  }
+}

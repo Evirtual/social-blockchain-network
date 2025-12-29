@@ -1,6 +1,8 @@
 import type { FeedNetworkConfig } from "../../services/feedNetworks";
 import { getConfiguredFeedNetworks } from "../../services/feedNetworks";
 
+const FEED_RPC_FALLBACK_LOOKBACK_BLOCKS = 200_000;
+
 export function getFeedRefreshConfig(params: {
   env: any;
   currentChainIdNumber: number | null;
@@ -11,9 +13,7 @@ export function getFeedRefreshConfig(params: {
 } {
   const { env, currentChainIdNumber } = params;
 
-  const maxLookbackBlocksRaw = Number(env.VITE_FEED_MAX_LOOKBACK_BLOCKS ?? 200_000);
-  const maxLookbackBlocks =
-    Number.isFinite(maxLookbackBlocksRaw) && maxLookbackBlocksRaw > 0 ? maxLookbackBlocksRaw : 200_000;
+  const maxLookbackBlocks = FEED_RPC_FALLBACK_LOOKBACK_BLOCKS;
 
   const configuredNetworks = getConfiguredFeedNetworks(env);
 
