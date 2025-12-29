@@ -1,4 +1,5 @@
 import type { AccountFeedView } from "../hooks/useAccountFeedView";
+import { IconBookmark, IconEdit, IconHeart } from "../../app";
 
 type Props = {
   view: AccountFeedView;
@@ -10,27 +11,36 @@ type Props = {
 
 export function AccountFeedHeaderAction(props: Props) {
   return (
-    <div className="row" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+    <div className="accountFeedHeaderTabs">
       <button
-        className={`pill pillButton ${props.view === "all" ? "isActive" : ""}`}
+        className={`accountFeedTabButton isPosted ${props.view === "all" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("all")}
+        aria-label={`Posted (${props.postedCount})`}
+        title={`Posted (${props.postedCount})`}
       >
-        Posted ({props.postedCount})
+        <IconEdit size={20} />
+        <span className="accountFeedTabCount">{props.postedCount}</span>
       </button>
       <button
-        className={`pill pillButton ${props.view === "saved" ? "isActive" : ""}`}
+        className={`accountFeedTabButton isSaved ${props.view === "saved" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("saved")}
+        aria-label={`Saved (${props.savedCount})`}
+        title={`Saved (${props.savedCount})`}
       >
-        Saved ({props.savedCount})
+        <IconBookmark size={20} filled={props.view === "saved"} />
+        <span className="accountFeedTabCount">{props.savedCount}</span>
       </button>
       <button
-        className={`pill pillButton ${props.view === "liked" ? "isActive" : ""}`}
+        className={`accountFeedTabButton isLiked ${props.view === "liked" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("liked")}
+        aria-label={`Liked (${props.likedCount})`}
+        title={`Liked (${props.likedCount})`}
       >
-        Liked ({props.likedCount})
+        <IconHeart size={20} filled={props.view === "liked"} />
+        <span className="accountFeedTabCount">{props.likedCount}</span>
       </button>
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ipfsToHttp } from "../../../ipfs";
 
 import { Modal } from "../Modal";
-import { useIsMobile } from "@shared/hooks/useIsMobile";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { ApprovalsModal } from "./profile/ApprovalsModal";
 import { FollowersModal } from "./profile/FollowersModal";
 import { FollowingModal } from "./profile/FollowingModal";

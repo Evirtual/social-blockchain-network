@@ -67,8 +67,8 @@ export function FeedHeaderControls(props: Props) {
           type="search"
           value={props.searchQuery}
           onChange={(e) => props.onSearchQueryChange(e.target.value)}
-          placeholder="Search posts or accounts"
-          aria-label="Search posts or accounts"
+          placeholder="Search"
+          aria-label="Search"
           style={searchStyle}
         />
       </div>

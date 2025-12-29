@@ -1,7 +1,8 @@
 import { memo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
-import { IconEdit, IconFlame, Modal } from "../../app";
+import { ChainLogo, IconEdit, IconFlame, Modal } from "../../app";
+import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/chain";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
 import { PostCardFooter } from "./postCard/PostCardFooter";
 import { PostCardMedia } from "./postCard/PostCardMedia";
@@ -67,6 +68,10 @@ export const PostCard = memo(function PostCard(props: Props) {
     walletAddress: props.walletAddress
   });
 
+  const postNetworkTitle = props.post.chainId ? getNetworkBadgeLabel(props.post.chainId) : "";
+  const postNetworkHue = props.post.chainId ? getNetworkBrandHue(props.post.chainId) : 210;
+  const postNetworkChainIdNum = props.post.chainId ? Number(props.post.chainId) : NaN;
+
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
       props.togglePanel(props.panelKey, panel);
@@ -114,11 +119,12 @@ export const PostCard = memo(function PostCard(props: Props) {
               {postNetworkLabel ? (
                 props.post.mintTxHash ? (
                   <a
-                    className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
+                    className={`postNetworkMarkLink ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
                     href={explorer ?? "#"}
                     target={explorer ? "_blank" : undefined}
                     rel={explorer ? "noreferrer" : undefined}
-                    title={explorer ? "View mint transaction" : "Copy mint transaction hash"}
+                    aria-label={postNetworkTitle ? `Network: ${postNetworkTitle}` : "Network"}
+                    title={postNetworkTitle || (explorer ? "View mint transaction" : "Copy mint transaction hash")}
                     onClick={(e) => {
                       if (explorer) return;
                       e.preventDefault();
@@ -127,11 +133,27 @@ export const PostCard = memo(function PostCard(props: Props) {
                       }
                     }}
                   >
-                    {postNetworkLabel}
+                    <span
+                      className="chainBrandMark"
+                      style={{ ["--brand-hue" as any]: postNetworkHue }}
+                      aria-hidden="true"
+                    >
+                      <ChainLogo chainId={postNetworkChainIdNum} size={12} />
+                    </span>
                   </a>
                 ) : (
-                  <span className={`badge networkBadge ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}>
-                    {postNetworkLabel}
+                  <span
+                    className={`postNetworkMarkLink ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
+                    aria-label={postNetworkTitle ? `Network: ${postNetworkTitle}` : "Network"}
+                    title={postNetworkTitle}
+                  >
+                    <span
+                      className="chainBrandMark"
+                      style={{ ["--brand-hue" as any]: postNetworkHue }}
+                      aria-hidden="true"
+                    >
+                      <ChainLogo chainId={postNetworkChainIdNum} size={12} />
+                    </span>
                   </span>
                 )
               ) : null}

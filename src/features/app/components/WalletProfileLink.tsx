@@ -1,7 +1,8 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { getNetworkBadgeLabel } from "@shared/lib/chain";
+import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/chain";
 import { shortAddress } from "@shared/lib/format";
+import { ChainLogo } from "./ChainLogos";
 
 export const WalletProfileLink = memo(function WalletProfileLink(props: {
   profileLink: string | null;
@@ -17,7 +18,14 @@ export const WalletProfileLink = memo(function WalletProfileLink(props: {
         <>
           {shortAddress(walletAddress)}
           {typeof chainId === "string" && chainId ? (
-            <span className="badge">{getNetworkBadgeLabel(chainId)}</span>
+            <span
+              className="chainBrandMark"
+              style={{ ["--brand-hue" as any]: getNetworkBrandHue(chainId) }}
+              aria-label={getNetworkBadgeLabel(chainId)}
+              title={getNetworkBadgeLabel(chainId)}
+            >
+              <ChainLogo chainId={Number(chainId)} size={12} />
+            </span>
           ) : null}
         </>
       ) : (

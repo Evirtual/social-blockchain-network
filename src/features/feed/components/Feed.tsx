@@ -2,7 +2,7 @@ import { memo, type ReactNode } from "react";
 import type { Draft, Post } from "@types";
 import { useLocation } from "react-router-dom";
 import { PostCard, type PostPanel } from "../../post";
-import { usePanelById } from "@shared/hooks/usePanelById";
+import { usePanelById } from "../hooks/usePanelById";
 import { getFeedFromLocation } from "./feed/getFeedFromLocation";
 import { getSkeletonCount } from "./feed/getSkeletonCount";
 import { FeedSkeleton } from "./feed/FeedSkeleton";

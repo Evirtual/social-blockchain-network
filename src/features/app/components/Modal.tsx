@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { IconX } from "./icons";
-import { hasDocument } from "@shared/lib/dom";
+import { hasDocument } from "../lib/dom";
 
 type Props = {
   open: boolean;

@@ -99,7 +99,7 @@
 
 }
 
-@media (max-width: 40rem) {
+@media (max-width: 56.25rem) {
   .topbar {
     gap: 0.625rem;
     flex-wrap: nowrap;
@@ -120,11 +120,6 @@
   .topbarLogo {
     display: inline-flex;
     flex: 0 0 auto;
-  }
-
-  .topbarLogo .brand-mark {
-    width: 2.375rem;
-    height: 2.375rem;
   }
 
   /* Mobile: remove the big capsule; keep controls on the right */

@@ -1,5 +1,5 @@
 import type { Draft } from "@types";
-import { fromBase64, toBase64 } from "@shared/lib/encoding";
+import { fromBase64, toBase64 } from "../../lib/encoding";
 
 function looksLikeVideoUrl(url: string) {
   const u = url.toLowerCase();

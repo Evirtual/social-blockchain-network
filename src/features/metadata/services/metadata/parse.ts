@@ -1,5 +1,5 @@
 import type { TokenMetadata } from "@types";
-import { fromBase64 } from "@shared/lib/encoding";
+import { fromBase64 } from "../../lib/encoding";
 
 export function parseTokenMetadataJson(json: any): TokenMetadata {
   return {

@@ -3,7 +3,7 @@ import type { FeedNetworkConfig } from "../../services/feedNetworks";
 import { getConfiguredFeedNetworks } from "../../services/feedNetworks";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getRpcProvider } from "@shared/lib/rpc";
-import { resolveSocialPostsAddress } from "@shared/lib/resolveSocialPostsAddress";
+import { resolveSocialPostsAddress } from "../../services/resolveSocialPostsAddress";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
