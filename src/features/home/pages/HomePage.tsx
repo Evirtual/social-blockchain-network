@@ -1,6 +1,6 @@
 import type { Draft, Post } from "@types";
 import { Feed } from "../../feed";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { FeedHeaderControls } from "../components/FeedHeaderControls";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
@@ -63,6 +63,12 @@ type Props = {
 export function HomePage(props: Props) {
   const [isHeroDismissed, setIsHeroDismissed] = usePersistedFlag("socialBlockchainNetwork.heroDismissed");
 
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+  const defaultSelectedNetworkChainIds = useMemo(
+    () => supportedNetworks.map((n) => String(n.chainId)),
+    [supportedNetworks]
+  );
+
   const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
     "socialBlockchainNetwork.home.searchQuery",
     "",
@@ -74,7 +80,7 @@ export function HomePage(props: Props) {
 
   const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
     string[]
-  >("socialBlockchainNetwork.feed.selectedNetworks", [], {
+  >("socialBlockchainNetwork.feed.selectedNetworks", defaultSelectedNetworkChainIds, {
     serialize: (v) => JSON.stringify({ ids: v }),
     parse: (raw) => {
       try {
@@ -93,7 +99,17 @@ export function HomePage(props: Props) {
     "socialBlockchainNetwork.supportedNetworksDismissed"
   );
 
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+  const didInitDisconnectedNetworksRef = useRef(false);
+
+  useEffect(() => {
+    if (props.walletAddress) {
+      didInitDisconnectedNetworksRef.current = false;
+      return;
+    }
+    if (didInitDisconnectedNetworksRef.current) return;
+    didInitDisconnectedNetworksRef.current = true;
+    setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
+  }, [props.walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
 
   useEffect(() => {
     // Default behavior: if nothing has been stored yet, pin to the connected supported chain.
@@ -147,7 +163,17 @@ export function HomePage(props: Props) {
     });
   }, [props.posts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
 
-  const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
+  const isNetworkFilterActive = useMemo(() => {
+    const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    const selected = new Set(selectedNetworkChainIds.map(String));
+    if (selected.size !== all.size) return true;
+    for (const id of selected) {
+      if (!all.has(id)) return true;
+    }
+    return false;
+  }, [selectedNetworkChainIds, supportedNetworks]);
+
+  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
   const pillText = hasAnyFilter ? `${filteredPosts.length} / ${props.posts.length} posts` : `${props.posts.length} posts`;
 
   const isDisconnected = !props.walletAddress;

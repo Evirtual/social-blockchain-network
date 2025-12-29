@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { ProfileCard, WalletCard, type Sidebar } from "../../app";
 import { Feed } from "../../feed";
 import type { Draft, Post } from "@types";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
 import { useAccountFeedView } from "../hooks/useAccountFeedView";
 import { FeedHeaderControls } from "../../home/components/FeedHeaderControls";
@@ -73,11 +73,17 @@ export function AccountPage(props: Props) {
     }
   );
 
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+  const defaultSelectedNetworkChainIds = useMemo(
+    () => supportedNetworks.map((n) => String(n.chainId)),
+    [supportedNetworks]
+  );
+
   const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
     string[]
   >(
     "socialBlockchainNetwork.feed.selectedNetworks",
-    [],
+    defaultSelectedNetworkChainIds,
     {
       serialize: (v) => JSON.stringify({ ids: v }),
       parse: (raw) => {
@@ -94,13 +100,23 @@ export function AccountPage(props: Props) {
     }
   );
 
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+  const didInitDisconnectedNetworksRef = useRef(false);
+
+  useEffect(() => {
+    if (props.walletAddress) {
+      didInitDisconnectedNetworksRef.current = false;
+      return;
+    }
+    if (didInitDisconnectedNetworksRef.current) return;
+    didInitDisconnectedNetworksRef.current = true;
+    setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
+  }, [props.walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
 
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworkChainIds.map(String)), [selectedNetworkChainIds]);
 
   const filterBySelectedNetworks = useMemo(() => {
     return (posts: Post[]) => {
-      if (selectedNetworkSet.size === 0) return posts;
+      if (selectedNetworkSet.size === 0) return [];
       return posts.filter((post) => {
         const id = post.chainId ?? null;
         if (!id) return false;
@@ -159,7 +175,17 @@ export function AccountPage(props: Props) {
     );
   }, [view, setView, postedCount, savedCount, likedCount]);
 
-  const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
+  const isNetworkFilterActive = useMemo(() => {
+    const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    const selected = new Set(selectedNetworkChainIds.map(String));
+    if (selected.size !== all.size) return true;
+    for (const id of selected) {
+      if (!all.has(id)) return true;
+    }
+    return false;
+  }, [selectedNetworkChainIds, supportedNetworks]);
+
+  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
   const pillText = hasAnyFilter
     ? `${filteredActivePosts.length} / ${activePosts.length} posts`
     : `${activePosts.length} posts`;

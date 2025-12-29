@@ -11,10 +11,7 @@ export function usePinCurrentNetworkFilter(params: {
   useEffect(() => {
     // UX requirement: when a wallet is connected and on a supported chain,
     // keep the Networks filter pinned to the current chain.
-    if (!walletAddress) {
-      setSelectedNetworkChainIds([]);
-      return;
-    }
+    if (!walletAddress) return;
 
     const currentChainId = chainId ? String(chainId) : null;
     if (!currentChainId) return;
