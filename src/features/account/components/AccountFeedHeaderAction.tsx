@@ -12,21 +12,21 @@ export function AccountFeedHeaderAction(props: Props) {
   return (
     <div className="row" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
       <button
-        className={props.view === "all" ? "btn secondary" : "btn ghost"}
+        className={`pill pillButton ${props.view === "all" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("all")}
       >
         Posted ({props.postedCount})
       </button>
       <button
-        className={props.view === "saved" ? "btn secondary" : "btn ghost"}
+        className={`pill pillButton ${props.view === "saved" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("saved")}
       >
         Saved ({props.savedCount})
       </button>
       <button
-        className={props.view === "liked" ? "btn secondary" : "btn ghost"}
+        className={`pill pillButton ${props.view === "liked" ? "isActive" : ""}`}
         type="button"
         onClick={() => props.onViewChange("liked")}
       >

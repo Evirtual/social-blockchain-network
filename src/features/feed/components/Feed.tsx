@@ -11,7 +11,9 @@ import { getAuthorPresentation } from "./feed/getAuthorPresentation";
 type Props = {
   title?: string;
   pillText?: string;
+  headerInlineAction?: ReactNode;
   headerAction?: ReactNode;
+  headerActionPlacement?: "right" | "inline";
   singleColumn?: boolean;
   hideHeader?: boolean;
   isLoading?: boolean;
@@ -53,7 +55,9 @@ type Props = {
 export const Feed = memo(function Feed({
   title,
   pillText,
+  headerInlineAction,
   headerAction,
+  headerActionPlacement,
   singleColumn,
   hideHeader,
   isLoading,
@@ -93,12 +97,20 @@ export const Feed = memo(function Feed({
     singleColumn
   });
 
+  const actionPlacement = headerActionPlacement ?? "right";
+  const inlineAction = headerInlineAction ?? (actionPlacement === "inline" ? headerAction : null);
+  const rightAction = actionPlacement === "inline" ? null : headerAction;
+
   return (
     <section className="feed">
       {hideHeader ? null : (
         <div className="feed-header">
-          <h2 className="feedHeaderTitle">{title ?? "Chain Feed"}</h2>
-          {headerAction ? <div className="feedHeaderAction">{headerAction}</div> : null}
+          <div className="feedHeaderLeft">
+            <h2 className="feedHeaderTitle">{title ?? "Chain Feed"}</h2>
+            {inlineAction ? <div className="feedHeaderInlineAction">{inlineAction}</div> : null}
+          </div>
+
+          {rightAction ? <div className="feedHeaderAction">{rightAction}</div> : null}
           {pillText === "" ? null : (
             <span className="pill feedHeaderPill">{pillText ?? `${posts.length} minted posts`}</span>
           )}

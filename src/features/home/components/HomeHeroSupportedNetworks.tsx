@@ -43,7 +43,7 @@ export function HomeHeroSupportedNetworks(props: Props) {
             className={`pill pillButton ${props.currentChainId === String(n.chainId) ? "isCurrentNetwork" : ""}`}
             type="button"
             role="listitem"
-            aria-label={n.name}
+            aria-label={n.displayName}
             aria-current={props.currentChainId === String(n.chainId) ? "true" : undefined}
             onClick={() => {
               void props.onRequestWalletNetworkSwitch(n.chainId);
@@ -51,10 +51,12 @@ export function HomeHeroSupportedNetworks(props: Props) {
             disabled={!props.canSwitchNetwork}
             title={!props.canSwitchNetwork ? "Connect a wallet to switch networks" : undefined}
           >
-            <span className="pillIcon" aria-hidden="true">
-              <ChainLogo chainId={n.chainId} size={16} />
-            </span>
-            {n.name}
+              <span className="pillIcon" aria-hidden="true">
+                <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }}>
+                  <ChainLogo chainId={n.chainId} size={14} />
+                </span>
+              </span>
+              {n.displayName}
           </button>
         ))}
       </div>

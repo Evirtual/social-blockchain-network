@@ -1,13 +1,13 @@
 import type { Draft, Post } from "@types";
 import { Feed } from "../../feed";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { FeedHeaderControls } from "../components/FeedHeaderControls";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
 import { getSupportedNetworks } from "../services/supportedNetworks";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
 import { filterPosts } from "../services/filterPosts";
-import { usePinCurrentNetworkFilter } from "../hooks/usePinCurrentNetworkFilter";
+import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
 type Props = {
   isOwner: boolean;
@@ -63,8 +63,31 @@ type Props = {
 export function HomePage(props: Props) {
   const [isHeroDismissed, setIsHeroDismissed] = usePersistedFlag("socialBlockchainNetwork.heroDismissed");
 
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedNetworkChainIds, setSelectedNetworkChainIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
+    "socialBlockchainNetwork.home.searchQuery",
+    "",
+    {
+      serialize: (v) => String(v ?? ""),
+      parse: (raw) => String(raw ?? "")
+    }
+  );
+
+  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
+    string[]
+  >("socialBlockchainNetwork.feed.selectedNetworks", [], {
+    serialize: (v) => JSON.stringify({ ids: v }),
+    parse: (raw) => {
+      try {
+        const parsed = JSON.parse(raw) as any;
+        const ids = Array.isArray(parsed?.ids)
+          ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+          : [];
+        return ids;
+      } catch {
+        return [];
+      }
+    }
+  });
 
   const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = usePersistedFlag(
     "socialBlockchainNetwork.supportedNetworksDismissed"
@@ -72,12 +95,16 @@ export function HomePage(props: Props) {
 
   const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
 
-  usePinCurrentNetworkFilter({
-    walletAddress: props.walletAddress,
-    chainId: props.chainId,
-    supportedNetworks,
-    setSelectedNetworkChainIds
-  });
+  useEffect(() => {
+    // Default behavior: if nothing has been stored yet, pin to the connected supported chain.
+    if (hasStoredSelectedNetworks) return;
+    if (!props.walletAddress) return;
+    const currentChainId = props.chainId ? String(props.chainId) : null;
+    if (!currentChainId) return;
+    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    if (!supported.has(currentChainId)) return;
+    setSelectedNetworkChainIds([currentChainId]);
+  }, [hasStoredSelectedNetworks, props.walletAddress, props.chainId, supportedNetworks, setSelectedNetworkChainIds]);
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
@@ -163,9 +190,10 @@ export function HomePage(props: Props) {
 
       <Feed
         title="Main Feed"
-        pillText={pillText}
+        pillText=""
         headerAction={
           <FeedHeaderControls
+            pillText={pillText}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             selectedNetworkChainIds={selectedNetworkChainIds}

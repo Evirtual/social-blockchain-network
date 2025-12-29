@@ -5,6 +5,32 @@
   padding: 0;
 }
 
+/* Give sidebar Profile/Wallet cards a richer surface like the hero. */
+.profileDropdown,
+.walletDropdown {
+  position: relative;
+  overflow: hidden;
+}
+
+.profileDropdown::before,
+.walletDropdown::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(56.25rem 22.5rem at 10% -20%, rgba(120, 140, 255, 0.24), transparent 60%),
+    radial-gradient(50rem 20rem at 105% -10%, rgba(60, 240, 190, 0.16), transparent 55%);
+  opacity: 1;
+}
+
+.profileDropdown > *,
+.walletDropdown > * {
+  position: relative;
+  z-index: 1;
+}
+
 .cardDropdownSummary {
   list-style: none;
   cursor: pointer;

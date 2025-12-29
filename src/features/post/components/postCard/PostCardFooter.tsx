@@ -3,7 +3,6 @@ import { memo, useCallback, useEffect, useState } from "react";
 import type { Post } from "@types";
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "../../../app";
 import type { PostPanel } from "../PostCard";
-import { formatTipsWei } from "./footer/formatTips";
 import { getCommentControlId, getTipControlId } from "./footer/getPanelControlIds";
 import { getStatButtonClass } from "./footer/getStatButtonClass";
 
@@ -150,7 +149,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         >
           <IconCoin size={18} />
           <span className="postActionCount">
-            {formatTipsWei({ tipsWei: props.post.tipsWei, nativeSymbol: props.getNativeSymbol(props.chainId) })}
+            {props.getNativeSymbol(props.chainId)}
           </span>
         </button>
       </div>

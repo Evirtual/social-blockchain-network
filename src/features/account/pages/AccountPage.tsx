@@ -2,9 +2,13 @@ import type { ComponentProps } from "react";
 import { ProfileCard, WalletCard, type Sidebar } from "../../app";
 import { Feed } from "../../feed";
 import type { Draft, Post } from "@types";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
 import { useAccountFeedView } from "../hooks/useAccountFeedView";
+import { FeedHeaderControls } from "../../home/components/FeedHeaderControls";
+import { getSupportedNetworks } from "../../home/services/supportedNetworks";
+import { filterPosts } from "../../home/services/filterPosts";
+import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
 type Props = {
   isOwner: boolean;
@@ -59,10 +63,68 @@ export function AccountPage(props: Props) {
     isLoadingSaved: props.isLoadingSaved,
     isLoadingLiked: props.isLoadingLiked
   });
+
+  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
+    "socialBlockchainNetwork.account.searchQuery",
+    "",
+    {
+      serialize: (v) => String(v ?? ""),
+      parse: (raw) => String(raw ?? "")
+    }
+  );
+
+  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
+    string[]
+  >(
+    "socialBlockchainNetwork.feed.selectedNetworks",
+    [],
+    {
+      serialize: (v) => JSON.stringify({ ids: v }),
+      parse: (raw) => {
+        try {
+          const parsed = JSON.parse(raw) as any;
+          const ids = Array.isArray(parsed?.ids)
+            ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+            : [];
+          return ids;
+        } catch {
+          return [];
+        }
+      }
+    }
+  );
+
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
+  useEffect(() => {
+    if (hasStoredSelectedNetworks) return;
+    if (!props.walletAddress) return;
+    const currentChainId = props.chainId ? String(props.chainId) : null;
+    if (!currentChainId) return;
+    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    if (!supported.has(currentChainId)) return;
+    setSelectedNetworkChainIds([currentChainId]);
+  }, [
+    hasStoredSelectedNetworks,
+    props.walletAddress,
+    props.chainId,
+    supportedNetworks,
+    setSelectedNetworkChainIds
+  ]);
+
+  const filteredActivePosts = useMemo(() => {
+    return filterPosts({
+      posts: activePosts,
+      authorIdentity: props.authorIdentity,
+      shortAddress: props.shortAddress,
+      searchQuery,
+      selectedNetworkChainIds
+    });
+  }, [activePosts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
   const activeTitle = "Your posts";
   const activePill = "";
 
-  const headerAction = useMemo(() => {
+  const headerInlineAction = useMemo(() => {
     return (
       <AccountFeedHeaderAction
         view={view}
@@ -73,6 +135,11 @@ export function AccountPage(props: Props) {
       />
     );
   }, [view, props.posts.length, props.savedPosts.length, props.likedPosts.length]);
+
+  const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
+  const pillText = hasAnyFilter
+    ? `${filteredActivePosts.length} / ${activePosts.length} posts`
+    : `${activePosts.length} posts`;
 
   return (
     <main className="profileLayout">
@@ -127,9 +194,19 @@ export function AccountPage(props: Props) {
         <Feed
           title={activeTitle}
           pillText={activePill}
-          headerAction={headerAction}
+          headerInlineAction={headerInlineAction}
+          headerAction={
+            <FeedHeaderControls
+              pillText={pillText}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              selectedNetworkChainIds={selectedNetworkChainIds}
+              onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+              supportedNetworks={supportedNetworks}
+            />
+          }
           isLoading={activeLoading}
-          posts={activePosts}
+          posts={filteredActivePosts}
           isOwner={props.isOwner}
           chainId={props.chainId}
           walletAddress={props.walletAddress}

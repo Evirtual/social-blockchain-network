@@ -1,6 +1,9 @@
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChainLogo } from "@features/app/components/ChainLogos";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {
+  pillText?: string;
   searchQuery: string;
   onSearchQueryChange: (next: string) => void;
   selectedNetworkChainIds: string[];
@@ -9,43 +12,119 @@ type Props = {
 };
 
 export function FeedHeaderControls(props: Props) {
+  const metaRef = useRef<HTMLSpanElement | null>(null);
+  const [metaWidthPx, setMetaWidthPx] = useState(0);
+
+  const pillText = (props.pillText ?? "").trim();
+  useLayoutEffect(() => {
+    const el = metaRef.current;
+    if (!el) {
+      setMetaWidthPx(0);
+      return;
+    }
+
+    const update = () => {
+      const w = Math.ceil(el.getBoundingClientRect().width);
+      setMetaWidthPx((prev) => (prev === w ? prev : w));
+    };
+
+    update();
+
+    // Keep it responsive (fonts, window resize, etc.)
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => update());
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [pillText]);
+
+  const searchStyle = useMemo<React.CSSProperties | undefined>(() => {
+    if (!pillText || metaWidthPx <= 0) return undefined;
+    // Base right padding is ~0.625rem. Add: label width + a small gap.
+    return { paddingRight: `calc(0.625rem + ${metaWidthPx}px + 0.75rem)` };
+  }, [pillText, metaWidthPx]);
+
+  const selectedNetworks = useMemo(() => {
+    if (!props.selectedNetworkChainIds.length) return [];
+    const selectedSet = new Set(props.selectedNetworkChainIds);
+    return props.supportedNetworks.filter((n) => selectedSet.has(String(n.chainId)));
+  }, [props.selectedNetworkChainIds, props.supportedNetworks]);
+
   return (
     <div className="feedHeaderControls">
-      <input
-        className="input feedSearch"
-        type="search"
-        value={props.searchQuery}
-        onChange={(e) => props.onSearchQueryChange(e.target.value)}
-        placeholder="Search posts or accounts"
-        aria-label="Search posts or accounts"
-      />
+      <div className="feedSearchWrap">
+        {pillText ? (
+          <span ref={metaRef} className="feedSearchMeta" aria-hidden="true">
+            {pillText}
+          </span>
+        ) : null}
 
-      <details className="feedNetworkFilter">
-        <summary className="input feedNetworkFilterSummary" aria-label="Filter networks">
-          Networks {props.selectedNetworkChainIds.length ? `(${props.selectedNetworkChainIds.length})` : "(All)"}
-        </summary>
-        <div className="feedNetworkFilterMenu" role="group" aria-label="Network filters">
-          {props.supportedNetworks.map((n) => {
-            const value = String(n.chainId);
-            const checked = props.selectedNetworkChainIds.includes(value);
-            return (
-              <label key={value} className="feedNetworkFilterOption">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => {
-                    props.onSelectedNetworkChainIdsChange((prev) => {
-                      if (e.target.checked) return Array.from(new Set([...prev, value]));
-                      return prev.filter((x) => x !== value);
-                    });
-                  }}
-                />
-                {n.name}
-              </label>
-            );
-          })}
-        </div>
-      </details>
+        <input
+          className="input feedSearch"
+          type="search"
+          value={props.searchQuery}
+          onChange={(e) => props.onSearchQueryChange(e.target.value)}
+          placeholder="Search posts or accounts"
+          aria-label="Search posts or accounts"
+          style={searchStyle}
+        />
+      </div>
+
+      <div className="feedHeaderFilterCluster">
+        <details className="feedNetworkFilter">
+          <summary className="input feedNetworkFilterSummary" aria-label="Filter networks">
+            <span className="feedNetworkFilterSummaryLabel">Networks</span>
+            {selectedNetworks.length ? (
+              <span className="feedNetworkFilterSummaryIcons" aria-label={`${selectedNetworks.length} selected networks`}>
+                {selectedNetworks.map((n) => (
+                  <span
+                    key={n.chainId}
+                    className="chainBrandMark"
+                    style={{ ["--brand-hue" as any]: n.brandHue }}
+                    aria-hidden="true"
+                  >
+                    <ChainLogo chainId={n.chainId} size={12} />
+                  </span>
+                ))}
+              </span>
+            ) : null}
+          </summary>
+          <div className="feedNetworkFilterMenu" role="group" aria-label="Network filters">
+            {props.supportedNetworks.map((n) => {
+              const value = String(n.chainId);
+              const checked = props.selectedNetworkChainIds.includes(value);
+              return (
+                <label key={value} className="feedNetworkFilterOption">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      props.onSelectedNetworkChainIdsChange((prev) => {
+                        if (e.target.checked) return Array.from(new Set([...prev, value]));
+                        return prev.filter((x) => x !== value);
+                      });
+                    }}
+                  />
+                  <span className="feedNetworkFilterOptionLabel">
+                    <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }} aria-hidden="true">
+                      <ChainLogo chainId={n.chainId} size={14} />
+                    </span>
+                    <span className="feedNetworkFilterOptionText">
+                      <span className="feedNetworkFilterOptionPrimary">{n.chainName}</span>
+                      {n.networkName ? (
+                        <span className="feedNetworkFilterOptionSecondary">{n.networkName}</span>
+                      ) : null}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </details>
+      </div>
     </div>
   );
 }

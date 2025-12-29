@@ -16,6 +16,21 @@
   margin-top: 0.625rem;
 }
 
+.feedHeaderLeft {
+  grid-area: title;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.feedHeaderInlineAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .feedHeaderTitle {
   grid-area: title;
   font-family: "Space Grotesk", sans-serif;
@@ -39,6 +54,19 @@
   gap: 0.5rem;
 }
 
+.feedSearchWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+
+.feedHeaderFilterCluster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
 .feedHeaderPill {
   grid-area: pill;
   justify-self: end;
@@ -49,12 +77,25 @@
   width: 18rem;
 }
 
-/* Make feed header controls visually consistent across browsers. */
+.feedSearchMeta {
+  position: absolute;
+  right: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--muted-2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Match the pill sizing in the feed header. */
 .feedSearch,
 .feedNetworkFilterSummary {
-  height: 2.75rem;
-  padding-top: 0;
-  padding-bottom: 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.5;
+  padding: 0.5rem 0.75rem;
 }
 
 .feedNetworkFilter {
@@ -65,11 +106,42 @@
 .feedNetworkFilterSummary {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
   list-style: none;
-  line-height: 1.25;
+  border-radius: var(--radius-sm);
+  gap: 0.5rem;
+  min-width: 8.5rem;
+}
+
+.feedNetworkFilterSummaryLabel {
+  flex: 0 0 auto;
+}
+
+.feedNetworkFilterSummaryIcons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.feedNetworkFilterSummaryIcons .chainBrandMark {
+  width: 18px;
+  height: 18px;
+}
+
+.feedNetworkFilterSummary::after {
+  content: "▾";
+  margin-left: 0.5rem;
+  opacity: 0.8;
+}
+
+.feedNetworkFilter[open] .feedNetworkFilterSummary {
+  background: var(--surface);
+  border-color: var(--link);
+  color: var(--text);
 }
 
 .feedNetworkFilterSummary::marker {
@@ -86,18 +158,72 @@
   top: calc(100% + 0.375rem);
   z-index: 20;
   min-width: 14rem;
-  padding: 0.5rem;
+  padding: 0.625rem;
   border-radius: var(--radius-md);
   border: 0.0625rem solid var(--border);
-  background: color-mix(in srgb, var(--bg) 86%, var(--surface-2));
+  background: var(--surface);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(0.75rem);
+  -webkit-backdrop-filter: blur(0.75rem);
+  overflow: hidden;
+  isolation: isolate;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.feedNetworkFilterMenu::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(56.25rem 22.5rem at 10% -20%, rgba(120, 140, 255, 0.24), transparent 60%),
+    radial-gradient(50rem 20rem at 105% -10%, rgba(60, 240, 190, 0.16), transparent 55%);
+}
+
+.feedNetworkFilterMenu > * {
+  position: relative;
+  z-index: 1;
 }
 
 .feedNetworkFilterMenu input[type="checkbox"] {
-  width: 1.05rem;
-  height: 1.05rem;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
   margin: 0;
-  accent-color: var(--accent);
+  display: inline-grid;
+  place-content: center;
+  border-radius: 0.35rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, var(--text) 18%);
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--bg) 18%);
+  box-shadow: none;
+}
+
+.feedNetworkFilterMenu input[type="checkbox"]::after {
+  content: "";
+  width: 0.55rem;
+  height: 0.3rem;
+  border-left: 0.14rem solid var(--accent-contrast);
+  border-bottom: 0.14rem solid var(--accent-contrast);
+  transform: rotate(-45deg) translateY(-0.03rem);
+  opacity: 0;
+}
+
+.feedNetworkFilterMenu input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--text) 10%);
+}
+
+.feedNetworkFilterMenu input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.feedNetworkFilterMenu input[type="checkbox"]:hover {
+  border-color: color-mix(in srgb, var(--border) 45%, var(--text) 28%);
 }
 
 .feedNetworkFilterMenu input[type="checkbox"]:focus-visible {
@@ -109,17 +235,50 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.375rem 0.5rem;
-  border-radius: 0.5rem;
+  padding: 0.5625rem 0.625rem;
+  border-radius: var(--radius-sm);
+  border: 0.0625rem solid transparent;
+  /* Opaque row surface so images behind don't bleed through (esp. dark theme). */
+  background: color-mix(in srgb, var(--bg) 86%, var(--surface-2));
   color: var(--text);
   cursor: pointer;
 }
+.feedNetworkFilterOptionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.feedNetworkFilterOptionText {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.feedNetworkFilterOptionPrimary {
+  color: var(--text);
+  font-weight: 700;
+}
+.feedNetworkFilterOptionSecondary {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.9em;
+}
 
 .feedNetworkFilterOption:hover {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--bg) 78%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--border) 70%, var(--bg) 30%);
+}
+
+.feedNetworkFilterOption:has(input[type="checkbox"]:focus-visible) {
+  border-color: var(--link);
 }
 
 @media (max-width: 56.25rem) {
+  .feedNetworkFilterSummary {
+    min-width: 9.25rem;
+  }
+
   .feed-header {
     grid-template-columns: 1fr auto;
     grid-template-areas:
@@ -135,31 +294,42 @@
 
   .feedHeaderControls {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: stretch;
+  }
+
+  .feedHeaderFilterCluster {
+    width: auto;
+    justify-content: flex-end;
+    flex: 0 0 auto;
   }
 
   .feedSearch {
     width: 100%;
-    flex: 1 0 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .feedSearchWrap {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .feedNetworkFilter {
-    width: 100%;
+    width: auto;
   }
 
   .feedNetworkFilterSummary {
-    width: 100%;
-  }
-
-  .feedNetworkFilterMenu {
-    left: 0;
-    right: 0;
-    min-width: 0;
+    width: auto;
   }
 }
 
 @media (max-width: 32.5rem) {
+  .feedNetworkFilterSummary {
+    min-width: 10rem;
+  }
+
   .feedSearch {
     width: 100%;
   }

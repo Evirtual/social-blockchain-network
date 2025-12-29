@@ -1,8 +1,12 @@
 import type { Draft, Post } from "@types";
 import { Feed } from "../../feed";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminProfileModal } from "../components/AdminProfileModal";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
+import { FeedHeaderControls } from "../../home/components/FeedHeaderControls";
+import { getSupportedNetworks } from "../../home/services/supportedNetworks";
+import { filterPosts } from "../../home/services/filterPosts";
+import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
 type Props = {
   isOwner: boolean;
@@ -68,6 +72,56 @@ export function ProfilePage(props: Props) {
   const canFollow =
     !!props.walletAddress && props.walletAddress.toLowerCase() !== props.address.toLowerCase();
 
+  const profileKey = String(props.address ?? "").trim().toLowerCase();
+
+  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
+    `socialBlockchainNetwork.profile.${profileKey}.searchQuery`,
+    "",
+    {
+      serialize: (v) => String(v ?? ""),
+      parse: (raw) => String(raw ?? "")
+    }
+  );
+
+  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
+    string[]
+  >(
+    `socialBlockchainNetwork.profile.${profileKey}.selectedNetworks`,
+    [],
+    {
+      serialize: (v) => JSON.stringify({ ids: v }),
+      parse: (raw) => {
+        try {
+          const parsed = JSON.parse(raw) as any;
+          const ids = Array.isArray(parsed?.ids)
+            ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+            : [];
+          return ids;
+        } catch {
+          return [];
+        }
+      }
+    }
+  );
+
+  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
+
+  useEffect(() => {
+    if (hasStoredSelectedNetworks) return;
+    if (!props.walletAddress) return;
+    const currentChainId = props.chainId ? String(props.chainId) : null;
+    if (!currentChainId) return;
+    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
+    if (!supported.has(currentChainId)) return;
+    setSelectedNetworkChainIds([currentChainId]);
+  }, [
+    hasStoredSelectedNetworks,
+    props.walletAddress,
+    props.chainId,
+    supportedNetworks,
+    setSelectedNetworkChainIds
+  ]);
+
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
   // Match Approvals modal semantics: unknown => treated as not allowed (Approve visible).
   const isAllowed = props.isPosterAllowed === true;
@@ -81,7 +135,19 @@ export function ProfilePage(props: Props) {
   const activePosts = useMemo(() => props.posts.map((p) => ({ ...p, contextTag: undefined })), [props.posts]);
   const activeLoading = props.isFeedLoading;
   const activeTitle = "Profile Feed";
-  const activePill = "";
+
+  const filteredPosts = useMemo(() => {
+    return filterPosts({
+      posts: activePosts,
+      authorIdentity: props.authorIdentity,
+      shortAddress: props.shortAddress,
+      searchQuery,
+      selectedNetworkChainIds
+    });
+  }, [activePosts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
+
+  const hasAnyFilter = !!searchQuery.trim() || selectedNetworkChainIds.length > 0;
+  const pillText = hasAnyFilter ? `${filteredPosts.length} / ${activePosts.length} posts` : `${activePosts.length} posts`;
 
   return (
     <main className="profileLayout">
@@ -117,10 +183,20 @@ export function ProfilePage(props: Props) {
       <section className="content">
         <Feed
           title={activeTitle}
-          pillText={activePill}
+          pillText=""
+          headerAction={
+            <FeedHeaderControls
+              pillText={pillText}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              selectedNetworkChainIds={selectedNetworkChainIds}
+              onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+              supportedNetworks={supportedNetworks}
+            />
+          }
           isLoading={activeLoading}
           loadingText={props.status}
-          posts={activePosts}
+          posts={filteredPosts}
           isOwner={props.isOwner}
           chainId={props.chainId}
           walletAddress={props.walletAddress}

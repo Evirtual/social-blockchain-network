@@ -22,6 +22,14 @@ export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
 
+  const formatEtherTrim = (wei: bigint, maxDecimals: number) => {
+    const raw = formatEther(wei);
+    const [intPart, fracRaw = ""] = raw.split(".");
+    const fracClamped = maxDecimals >= 0 ? fracRaw.slice(0, maxDecimals) : fracRaw;
+    const fracTrimmed = fracClamped.replace(/0+$/, "");
+    return fracTrimmed ? `${intPart}.${fracTrimmed}` : intPart;
+  };
+
   useEffect(() => {
     setIsOpen(!isMobile);
   }, [isMobile]);
@@ -66,9 +74,7 @@ export function WalletCard(props: WalletCardProps) {
             <div className="walletField">
               <div className="label">Tips</div>
               <div className="value">
-                {props.withdrawableTipsWei > 0n
-                  ? `${Number(formatEther(props.withdrawableTipsWei)).toFixed(4)} ${props.getNativeSymbol(props.chainId)}`
-                  : "0"}
+                {formatEtherTrim(props.withdrawableTipsWei, 4)} {props.getNativeSymbol(props.chainId)}
               </div>
             </div>
           </div>
@@ -84,13 +90,13 @@ export function WalletCard(props: WalletCardProps) {
 
             <div className="walletContractActions">
               <button
-                className="secondary btn cardActionButton"
+                className="btn primary cardActionButton"
                 type="button"
                 onClick={props.onWithdrawTips}
                 disabled={!props.walletAddress || props.withdrawableTipsWei === 0n}
               >
                 <IconCoin size={16} />
-                Withdraw tips
+                Withdraw
               </button>
             </div>
           </div>
