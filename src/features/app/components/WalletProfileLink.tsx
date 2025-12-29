@@ -24,7 +24,7 @@ export const WalletProfileLink = memo(function WalletProfileLink(props: {
               aria-label={getNetworkBadgeLabel(chainId)}
               title={getNetworkBadgeLabel(chainId)}
             >
-              <ChainLogo chainId={Number(chainId)} size={12} />
+              <ChainLogo chainId={Number(chainId)} size={20} />
             </span>
           ) : null}
         </>

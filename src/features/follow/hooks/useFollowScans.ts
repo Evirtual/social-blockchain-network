@@ -4,6 +4,7 @@ import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { withTimeout } from "@shared/lib/feedQuery";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
 import { parseChainKey } from "@shared/lib/chainKey";
 import { parseChainIdNumber } from "@shared/lib/chainId";
@@ -82,34 +83,51 @@ export function useFollowScans(params: {
 
       if (loadedFollowerCountByAddressRef.current[key]) return;
 
+      // Avoid slow RPC scans before chainId is known.
+      if (!params.chainId) return;
+
       const env = import.meta.env as any;
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
-        try {
-          const query = `
-            query FollowerCount($id: ID!) {
-              account(id: $id) {
-                followersCount
+        await runInFlight(followerCountInFlightRef.current, key, async () => {
+          setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
+          try {
+            const query = `
+              query FollowerCount($id: ID!) {
+                account(id: $id) {
+                  followersCount
+                }
               }
-            }
-          `;
+            `;
 
-          const data = await querySubgraph<{ account: { followersCount?: string } | null }>({
-            url: subgraphUrl,
-            query,
-            variables: { id: key },
-            timeoutMs: 10_000
-          });
+            const data = await querySubgraph<{ account: { followersCount?: string } | null }>({
+              url: subgraphUrl,
+              query,
+              variables: { id: key },
+              timeoutMs: 10_000
+            });
 
-          const count = Number(data?.account?.followersCount ?? 0);
-          setFollowerCountByAddress((prev) => ({ ...prev, [key]: Number.isFinite(count) ? count : 0 }));
-          if (cacheKey) followerCountByKeyCache.set(cacheKey, Number.isFinite(count) ? count : 0);
-          loadedFollowerCountByAddressRef.current[key] = true;
-          return;
-        } catch {
-          // fall back to on-chain scan
-        }
+            const count = Number(data?.account?.followersCount ?? 0);
+            const safeCount = Number.isFinite(count) ? count : 0;
+            setFollowerCountByAddress((prev) => ({ ...prev, [key]: safeCount }));
+            if (cacheKey) followerCountByKeyCache.set(cacheKey, safeCount);
+            loadedFollowerCountByAddressRef.current[key] = true;
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("FollowerCount subgraph query failed; falling back to RPC scan", {
+              chainId: params.chainId,
+              address: key,
+              subgraphUrl,
+              err
+            });
+            // fall back to on-chain scan
+          } finally {
+            setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+          }
+        });
+
+        if (loadedFollowerCountByAddressRef.current[key]) return;
       }
 
       if (!params.provider) return;
@@ -120,7 +138,8 @@ export function useFollowScans(params: {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
 
-          const activeFollowers = await scanActiveFollowAddresses({
+          const activeFollowers = await withTimeout(
+            scanActiveFollowAddresses({
             readContract,
             scanProvider: params.provider,
             iface: socialInterface,
@@ -129,7 +148,10 @@ export function useFollowScans(params: {
             addressArgIndex: 0,
             maxEvents: 5_000,
             errorLabel: "follower"
-          });
+            }),
+            8_000,
+            "follower scan"
+          );
 
           const count = activeFollowers.length;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
@@ -142,7 +164,7 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
   );
 
   const loadFollowersForAddress = useCallback(
@@ -154,49 +176,65 @@ export function useFollowScans(params: {
 
       if (loadedFollowersByAddressRef.current[key]) return;
 
+      // Avoid slow RPC scans before chainId is known.
+      if (!params.chainId) return;
+
       const env = import.meta.env as any;
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
-        try {
-          const query = `
-            query Followers($followee: ID!, $first: Int!) {
-              followEdges(
-                first: $first,
-                where: { followee: $followee, active: true },
-                orderBy: updatedAtBlock,
-                orderDirection: desc
-              ) {
-                follower {
-                  id
+        await runInFlight(followersInFlightRef.current, key, async () => {
+          setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
+          try {
+            const query = `
+              query Followers($followee: ID!, $first: Int!) {
+                followEdges(
+                  first: $first,
+                  where: { followee: $followee, active: true },
+                  orderBy: updatedAtBlock,
+                  orderDirection: desc
+                ) {
+                  follower {
+                    id
+                  }
                 }
               }
+            `;
+
+            const data = await querySubgraph<{ followEdges: Array<{ follower?: { id?: string } | null }> }>({
+              url: subgraphUrl,
+              query,
+              variables: { followee: key, first: 1000 },
+              timeoutMs: 12_000
+            });
+
+            const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
+              .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
+              .filter(Boolean);
+
+            setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+            setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
+            if (cacheKey) {
+              followersByKeyCache.set(cacheKey, normalizedActive);
+              followerCountByKeyCache.set(cacheKey, normalizedActive.length);
             }
-          `;
-
-          const data = await querySubgraph<{ followEdges: Array<{ follower?: { id?: string } | null }> }>({
-            url: subgraphUrl,
-            query,
-            variables: { followee: key, first: 5000 },
-            timeoutMs: 12_000
-          });
-
-          const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
-            .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
-            .filter(Boolean);
-
-          setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-          setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
-          if (cacheKey) {
-            followersByKeyCache.set(cacheKey, normalizedActive);
-            followerCountByKeyCache.set(cacheKey, normalizedActive.length);
+            loadedFollowersByAddressRef.current[key] = true;
+            loadedFollowerCountByAddressRef.current[key] = true;
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("Followers subgraph query failed; falling back to RPC scan", {
+              chainId: params.chainId,
+              address: key,
+              subgraphUrl,
+              err
+            });
+            // fall back to on-chain scan
+          } finally {
+            setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
           }
-          loadedFollowersByAddressRef.current[key] = true;
-          loadedFollowerCountByAddressRef.current[key] = true;
-          return;
-        } catch {
-          // fall back to on-chain scan
-        }
+        });
+
+        if (loadedFollowersByAddressRef.current[key]) return;
       }
 
       if (!params.provider) return;
@@ -215,7 +253,8 @@ export function useFollowScans(params: {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
 
-          const active = await scanActiveFollowAddresses({
+          const active = await withTimeout(
+            scanActiveFollowAddresses({
             readContract,
             scanProvider: params.provider,
             iface: socialInterface,
@@ -224,7 +263,10 @@ export function useFollowScans(params: {
             addressArgIndex: 0,
             maxEvents: 7_500,
             errorLabel: "follower"
-          });
+            }),
+            8_000,
+            "followers scan"
+          );
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
@@ -242,7 +284,7 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
   );
 
   const loadFollowingForAddress = useCallback(
@@ -254,44 +296,60 @@ export function useFollowScans(params: {
 
       if (loadedFollowingByAddressRef.current[key]) return;
 
+      // Avoid slow RPC scans before chainId is known.
+      if (!params.chainId) return;
+
       const env = import.meta.env as any;
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
-        try {
-          const query = `
-            query Following($follower: ID!, $first: Int!) {
-              followEdges(
-                first: $first,
-                where: { follower: $follower, active: true },
-                orderBy: updatedAtBlock,
-                orderDirection: desc
-              ) {
-                followee {
-                  id
+        await runInFlight(followingInFlightRef.current, key, async () => {
+          setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
+          try {
+            const query = `
+              query Following($follower: ID!, $first: Int!) {
+                followEdges(
+                  first: $first,
+                  where: { follower: $follower, active: true },
+                  orderBy: updatedAtBlock,
+                  orderDirection: desc
+                ) {
+                  followee {
+                    id
+                  }
                 }
               }
-            }
-          `;
+            `;
 
-          const data = await querySubgraph<{ followEdges: Array<{ followee?: { id?: string } | null }> }>({
-            url: subgraphUrl,
-            query,
-            variables: { follower: key, first: 5000 },
-            timeoutMs: 12_000
-          });
+            const data = await querySubgraph<{ followEdges: Array<{ followee?: { id?: string } | null }> }>({
+              url: subgraphUrl,
+              query,
+              variables: { follower: key, first: 1000 },
+              timeoutMs: 12_000
+            });
 
-          const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
-            .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
-            .filter(Boolean);
+            const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
+              .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
+              .filter(Boolean);
 
-          setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-          if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
-          loadedFollowingByAddressRef.current[key] = true;
-          return;
-        } catch {
-          // fall back to on-chain scan
-        }
+            setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+            if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
+            loadedFollowingByAddressRef.current[key] = true;
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("Following subgraph query failed; falling back to RPC scan", {
+              chainId: params.chainId,
+              address: key,
+              subgraphUrl,
+              err
+            });
+            // fall back to on-chain scan
+          } finally {
+            setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+          }
+        });
+
+        if (loadedFollowingByAddressRef.current[key]) return;
       }
 
       if (!params.provider) return;
@@ -307,7 +365,8 @@ export function useFollowScans(params: {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
 
-          const active = await scanActiveFollowAddresses({
+          const active = await withTimeout(
+            scanActiveFollowAddresses({
             readContract,
             scanProvider: params.provider,
             iface: socialInterface,
@@ -316,7 +375,10 @@ export function useFollowScans(params: {
             addressArgIndex: 1,
             maxEvents: 7_500,
             errorLabel: "following"
-          });
+            }),
+            8_000,
+            "following scan"
+          );
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
@@ -329,7 +391,7 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
   );
 
   return {

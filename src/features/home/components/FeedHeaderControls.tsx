@@ -86,7 +86,7 @@ export function FeedHeaderControls(props: Props) {
                     style={{ ["--brand-hue" as any]: n.brandHue }}
                     aria-hidden="true"
                   >
-                    <ChainLogo chainId={n.chainId} size={12} />
+                    <ChainLogo chainId={n.chainId} size={20} />
                   </span>
                 ))}
               </span>
@@ -110,7 +110,7 @@ export function FeedHeaderControls(props: Props) {
                   />
                   <span className="feedNetworkFilterOptionLabel">
                     <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }} aria-hidden="true">
-                      <ChainLogo chainId={n.chainId} size={14} />
+                      <ChainLogo chainId={n.chainId} size={20} />
                     </span>
                     <span className="feedNetworkFilterOptionText">
                       <span className="feedNetworkFilterOptionPrimary">{n.chainName}</span>

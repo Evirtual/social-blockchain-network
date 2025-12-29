@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useFollowScans, useIsFollowing } from "../../follow";
 import { useContract } from "./ContractContext";
 import { useStatus } from "./StatusContext";
@@ -46,6 +46,15 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
     getReadContract,
     setStatus
   });
+
+  // Prefetch self follow data so sidebar stats/modals don't wait on route-level effects.
+  useEffect(() => {
+    if (!walletAddress) return;
+    if (!chainId) return;
+    void loadFollowerCountForAddress(walletAddress);
+    void loadFollowersForAddress(walletAddress);
+    void loadFollowingForAddress(walletAddress);
+  }, [walletAddress, chainId, loadFollowerCountForAddress, loadFollowersForAddress, loadFollowingForAddress]);
 
   const value = useMemo<FollowContextValue>(
     () => ({

@@ -53,7 +53,7 @@ export function HomeHeroSupportedNetworks(props: Props) {
           >
               <span className="pillIcon" aria-hidden="true">
                 <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }}>
-                  <ChainLogo chainId={n.chainId} size={14} />
+                  <ChainLogo chainId={n.chainId} size={20} />
                 </span>
               </span>
               {n.displayName}

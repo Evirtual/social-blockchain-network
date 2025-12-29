@@ -35,9 +35,9 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
-  background: hsl(var(--brand-hue) 75% 55% / 0.12);
-  border: 1px solid hsl(var(--brand-hue) 75% 55% / 0.35);
+  border-radius: 0;
+  background: transparent;
+  border: 0;
   color: hsl(var(--brand-hue) 75% 55%);
 }
 

@@ -138,7 +138,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                       style={{ ["--brand-hue" as any]: postNetworkHue }}
                       aria-hidden="true"
                     >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={12} />
+                      <ChainLogo chainId={postNetworkChainIdNum} size={20} />
                     </span>
                   </a>
                 ) : (
@@ -152,7 +152,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                       style={{ ["--brand-hue" as any]: postNetworkHue }}
                       aria-hidden="true"
                     >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={12} />
+                      <ChainLogo chainId={postNetworkChainIdNum} size={20} />
                     </span>
                   </span>
                 )
