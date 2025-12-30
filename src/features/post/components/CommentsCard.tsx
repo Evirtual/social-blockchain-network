@@ -9,6 +9,7 @@ type Props = {
   chainId: string | null;
   walletAddress: string | null;
   useCardWrapper?: boolean;
+  allowCommenting?: boolean;
 
   comments: PostComment[];
   isLoadingComments: boolean;
@@ -50,31 +51,35 @@ export function CommentsCard(props: Props) {
 
   const wrapperClassName = props.useCardWrapper === false ? undefined : "card";
 
+  const allowCommenting = props.allowCommenting ?? !requiresNetworkSwitch;
+
   return (
     <section className={wrapperClassName}>
-      <div className="postForm">
-        <div className="postFormRow">
-          <input
-            className="postField"
-            type="text"
-            value={commentDraft}
-            onChange={(event) => setCommentDraft(event.target.value)}
-            placeholder="Write a comment to sign"
-            disabled={requiresNetworkSwitch || isSigning}
-            title={interactionDisabledTitle}
-          />
-          <button
-            className={`secondary buttonWithSpinner${requiresNetworkSwitch ? " notAllowed" : ""}`}
-            type="button"
-            onClick={onSubmitComment}
-            disabled={requiresNetworkSwitch || isSigning}
-            title={interactionDisabledTitle}
-          >
-            {isSigning ? <span className="spinner" aria-hidden="true" /> : null}
-            Sign
-          </button>
+      {allowCommenting ? (
+        <div className="postForm">
+          <div className="postFormRow">
+            <input
+              className="postField"
+              type="text"
+              value={commentDraft}
+              onChange={(event) => setCommentDraft(event.target.value)}
+              placeholder="Write a comment to sign"
+              disabled={isSigning}
+              title={interactionDisabledTitle}
+            />
+            <button
+              className={`secondary buttonWithSpinner${requiresNetworkSwitch ? " notAllowed" : ""}`}
+              type="button"
+              onClick={onSubmitComment}
+              disabled={isSigning}
+              title={interactionDisabledTitle}
+            >
+              {isSigning ? <span className="spinner" aria-hidden="true" /> : null}
+              Sign
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {props.isLoadingComments && props.comments.length === 0 ? (
         <div className="commentList" aria-busy={true} aria-label="Loading comments" role="status">

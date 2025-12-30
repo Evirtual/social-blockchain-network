@@ -1,5 +1,6 @@
 export * from "./approvalsCache";
 export * from "./async";
+export * from "./cache";
 export * from "./chain";
 export * from "./chainId";
 export * from "./chainKey";

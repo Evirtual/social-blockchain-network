@@ -1,7 +1,7 @@
 import type { Post } from "@types";
 import { mapWithConcurrency } from "@shared/lib/async";
 import { fetchTokenMetadata } from "@features/metadata";
-import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { querySubgraph, tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 
 function getErrMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -96,21 +96,23 @@ export async function loadFeedFromSubgraph(args: {
   `;
 
   let data: { posts: SubgraphPostRow[] };
-  try {
-    data = await querySubgraph<{ posts: SubgraphPostRow[] }>({
-      url: args.url,
-      query: queryWithBurned,
-      variables: { first },
-      timeoutMs: 12_000
-    });
-  } catch (err) {
-    if (!isLikelySchemaMismatch(err)) throw err;
-    data = await querySubgraph<{ posts: SubgraphPostRow[] }>({
+  const primary = await tryQuerySubgraph<{ posts: SubgraphPostRow[] }>({
+    url: args.url,
+    query: queryWithBurned,
+    variables: { first },
+    timeoutMs: 12_000
+  });
+  if (primary.ok) {
+    data = primary.data;
+  } else {
+    if (!isLikelySchemaMismatch(primary.error)) throw primary.error;
+    const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
       url: args.url,
       query: queryMinimal,
       variables: { first },
       timeoutMs: 12_000
     });
+    data = fallback;
   }
 
   const rows = Array.isArray(data?.posts) ? data.posts : [];

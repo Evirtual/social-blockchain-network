@@ -34,3 +34,17 @@ export async function querySubgraph<T>(args: {
 
   return await withTimeout(task, timeoutMs, "subgraph query");
 }
+
+export async function tryQuerySubgraph<T>(args: {
+  url: string;
+  query: string;
+  variables?: Record<string, unknown>;
+  timeoutMs?: number;
+}): Promise<{ ok: true; data: T } | { ok: false; error: unknown }> {
+  try {
+    const data = await querySubgraph<T>(args);
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}

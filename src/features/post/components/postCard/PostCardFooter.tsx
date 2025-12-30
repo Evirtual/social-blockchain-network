@@ -81,9 +81,12 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     }
   }, [inFlight, props.onAction, tokenId, postChainId]);
 
+  const canOpenComments = !(props.requiresNetworkSwitch && props.post.comments === 0);
+
   const onToggleComment = useCallback(() => {
+    if (!canOpenComments) return;
     props.onTogglePanel("comment");
-  }, [props.onTogglePanel]);
+  }, [props.onTogglePanel, canOpenComments]);
 
   const onToggleTip = useCallback(() => {
     props.onTogglePanel("tip");
@@ -127,12 +130,12 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         </button>
 
         <button
-          className={getStatButtonClass({ requiresNetworkSwitch: props.requiresNetworkSwitch })}
+          className={getStatButtonClass({ requiresNetworkSwitch: false })}
           type="button"
           onClick={onToggleComment}
           aria-label="Comment"
           aria-expanded={props.openPanel === "comment"}
-          disabled={props.requiresNetworkSwitch || isBusy}
+          disabled={isBusy || !canOpenComments}
           title={props.interactionDisabledTitle}
         >
           <IconMessage size={18} />
@@ -197,6 +200,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
           chainId={props.chainId}
           walletAddress={props.walletAddress}
           useCardWrapper={false}
+          allowCommenting={!props.requiresNetworkSwitch}
           comments={comments}
           isLoadingComments={isLoadingComments}
           onAction={props.onAction}

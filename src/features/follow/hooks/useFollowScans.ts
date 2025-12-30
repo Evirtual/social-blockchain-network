@@ -3,18 +3,25 @@ import { socialInterface } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { withTimeout } from "@shared/lib/feedQuery";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
 import { parseChainKey } from "@shared/lib/chainKey";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
+import { setMapWithLimit } from "@shared/lib/cache";
 
 // In-memory caches to persist results across route navigation without using sessionStorage.
 // Keys include chainId so data never bleeds across networks.
 const followersByKeyCache = new Map<string, string[]>();
 const followingByKeyCache = new Map<string, string[]>();
 const followerCountByKeyCache = new Map<string, number>();
+const MAX_FOLLOW_CACHE_ENTRIES = 250;
+
+function setFollowCache<T>(map: Map<string, T>, key: string | null, value: T) {
+  if (!key) return;
+  setMapWithLimit(map, key, value, MAX_FOLLOW_CACHE_ENTRIES);
+}
 
 function makeCacheKey(chainId: string | null, addressLower: string) {
   const addr = String(addressLower ?? "").trim().toLowerCase();
@@ -101,26 +108,29 @@ export function useFollowScans(params: {
               }
             `;
 
-            const data = await querySubgraph<{ account: { followersCount?: string } | null }>({
+            const result = await tryQuerySubgraph<{ account: { followersCount?: string } | null }>({
               url: subgraphUrl,
               query,
               variables: { id: key },
               timeoutMs: 10_000
             });
 
-            const count = Number(data?.account?.followersCount ?? 0);
-            const safeCount = Number.isFinite(count) ? count : 0;
-            setFollowerCountByAddress((prev) => ({ ...prev, [key]: safeCount }));
-            if (cacheKey) followerCountByKeyCache.set(cacheKey, safeCount);
-            loadedFollowerCountByAddressRef.current[key] = true;
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn("FollowerCount subgraph query failed; falling back to RPC scan", {
-              chainId: params.chainId,
-              address: key,
-              subgraphUrl,
-              err
-            });
+            if (result.ok) {
+              const count = Number(result.data?.account?.followersCount ?? 0);
+              const safeCount = Number.isFinite(count) ? count : 0;
+              setFollowerCountByAddress((prev) => ({ ...prev, [key]: safeCount }));
+              if (cacheKey) setFollowCache(followerCountByKeyCache, cacheKey, safeCount);
+              loadedFollowerCountByAddressRef.current[key] = true;
+            } else {
+              // eslint-disable-next-line no-console
+              console.warn("FollowerCount subgraph query failed; falling back to RPC scan", {
+                chainId: params.chainId,
+                address: key,
+                subgraphUrl,
+                err: result.error
+              });
+            }
+          } catch {
             // fall back to on-chain scan
           } finally {
             setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
@@ -155,7 +165,7 @@ export function useFollowScans(params: {
 
           const count = activeFollowers.length;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
-          if (cacheKey) followerCountByKeyCache.set(cacheKey, count);
+          if (cacheKey) setFollowCache(followerCountByKeyCache, cacheKey, count);
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));
@@ -201,33 +211,36 @@ export function useFollowScans(params: {
               }
             `;
 
-            const data = await querySubgraph<{ followEdges: Array<{ follower?: { id?: string } | null }> }>({
+            const result = await tryQuerySubgraph<{ followEdges: Array<{ follower?: { id?: string } | null }> }>({
               url: subgraphUrl,
               query,
               variables: { followee: key, first: 1000 },
               timeoutMs: 12_000
             });
 
-            const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
-              .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
-              .filter(Boolean);
+            if (result.ok) {
+              const normalizedActive = (Array.isArray(result.data?.followEdges) ? result.data.followEdges : [])
+                .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
+                .filter(Boolean);
 
-            setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-            setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
-            if (cacheKey) {
-              followersByKeyCache.set(cacheKey, normalizedActive);
-              followerCountByKeyCache.set(cacheKey, normalizedActive.length);
+              setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+              setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
+              if (cacheKey) {
+                setFollowCache(followersByKeyCache, cacheKey, normalizedActive);
+                setFollowCache(followerCountByKeyCache, cacheKey, normalizedActive.length);
+              }
+              loadedFollowersByAddressRef.current[key] = true;
+              loadedFollowerCountByAddressRef.current[key] = true;
+            } else {
+              // eslint-disable-next-line no-console
+              console.warn("Followers subgraph query failed; falling back to RPC scan", {
+                chainId: params.chainId,
+                address: key,
+                subgraphUrl,
+                err: result.error
+              });
             }
-            loadedFollowersByAddressRef.current[key] = true;
-            loadedFollowerCountByAddressRef.current[key] = true;
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn("Followers subgraph query failed; falling back to RPC scan", {
-              chainId: params.chainId,
-              address: key,
-              subgraphUrl,
-              err
-            });
+          } catch {
             // fall back to on-chain scan
           } finally {
             setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
@@ -272,8 +285,8 @@ export function useFollowScans(params: {
           setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
           if (cacheKey) {
-            followersByKeyCache.set(cacheKey, normalizedActive);
-            followerCountByKeyCache.set(cacheKey, normalizedActive.length);
+            setFollowCache(followersByKeyCache, cacheKey, normalizedActive);
+            setFollowCache(followerCountByKeyCache, cacheKey, normalizedActive.length);
           }
           loadedFollowersByAddressRef.current[key] = true;
           loadedFollowerCountByAddressRef.current[key] = true;
@@ -321,28 +334,31 @@ export function useFollowScans(params: {
               }
             `;
 
-            const data = await querySubgraph<{ followEdges: Array<{ followee?: { id?: string } | null }> }>({
+            const result = await tryQuerySubgraph<{ followEdges: Array<{ followee?: { id?: string } | null }> }>({
               url: subgraphUrl,
               query,
               variables: { follower: key, first: 1000 },
               timeoutMs: 12_000
             });
 
-            const normalizedActive = (Array.isArray(data?.followEdges) ? data.followEdges : [])
-              .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
-              .filter(Boolean);
+            if (result.ok) {
+              const normalizedActive = (Array.isArray(result.data?.followEdges) ? result.data.followEdges : [])
+                .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
+                .filter(Boolean);
 
-            setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-            if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
-            loadedFollowingByAddressRef.current[key] = true;
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn("Following subgraph query failed; falling back to RPC scan", {
-              chainId: params.chainId,
-              address: key,
-              subgraphUrl,
-              err
-            });
+              setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
+              if (cacheKey) setFollowCache(followingByKeyCache, cacheKey, normalizedActive);
+              loadedFollowingByAddressRef.current[key] = true;
+            } else {
+              // eslint-disable-next-line no-console
+              console.warn("Following subgraph query failed; falling back to RPC scan", {
+                chainId: params.chainId,
+                address: key,
+                subgraphUrl,
+                err: result.error
+              });
+            }
+          } catch {
             // fall back to on-chain scan
           } finally {
             setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
@@ -382,7 +398,7 @@ export function useFollowScans(params: {
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-          if (cacheKey) followingByKeyCache.set(cacheKey, normalizedActive);
+          if (cacheKey) setFollowCache(followingByKeyCache, cacheKey, normalizedActive);
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           params.setStatus(getErrorMessage(err));
@@ -412,7 +428,7 @@ export function useFollowScans(params: {
             : [...existing, followeeKey]
           : existing.filter((addr) => addr !== followeeKey);
         if (nextList === existing) return prev;
-        if (followerCacheKey) followingByKeyCache.set(followerCacheKey, nextList);
+        if (followerCacheKey) setFollowCache(followingByKeyCache, followerCacheKey, nextList);
         return { ...prev, [followerKey]: nextList };
       });
 
@@ -425,8 +441,8 @@ export function useFollowScans(params: {
             : [...existing, followerKey]
           : existing.filter((addr) => addr !== followerKey);
         if (nextList === existing) return prev;
-        if (followeeCacheKey) followersByKeyCache.set(followeeCacheKey, nextList);
-        if (followeeCacheKey) followerCountByKeyCache.set(followeeCacheKey, nextList.length);
+        if (followeeCacheKey) setFollowCache(followersByKeyCache, followeeCacheKey, nextList);
+        if (followeeCacheKey) setFollowCache(followerCountByKeyCache, followeeCacheKey, nextList.length);
         return { ...prev, [followeeKey]: nextList };
       });
 
@@ -436,7 +452,7 @@ export function useFollowScans(params: {
         const delta = args.isFollowing ? 1 : -1;
         const nextCount = Math.max(0, current + delta);
         if (nextCount === current) return prev;
-        if (followeeCacheKey) followerCountByKeyCache.set(followeeCacheKey, nextCount);
+        if (followeeCacheKey) setFollowCache(followerCountByKeyCache, followeeCacheKey, nextCount);
         return { ...prev, [followeeKey]: nextCount };
       });
     },

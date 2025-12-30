@@ -4,7 +4,7 @@ import { hasPinata } from "@features/ipfs";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { parseProfileTuple } from "./profilesState/parseProfileTuple";
 import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
@@ -119,7 +119,7 @@ export function useProfilesState({
                   }
                 `;
 
-                const data = await querySubgraph<{
+                const result = await tryQuerySubgraph<{
                   account: { name?: string | null; bio?: string | null; avatar?: string | null } | null;
                 }>({
                   url: subgraphUrl,
@@ -128,7 +128,9 @@ export function useProfilesState({
                   timeoutMs: 10_000
                 });
 
-                const a = data?.account;
+                if (!result.ok) return;
+
+                const a = result.data?.account;
                 if (!a) return;
 
                 const parsed = {

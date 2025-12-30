@@ -3,7 +3,9 @@ import { hasPinata } from "@features/ipfs";
 import { useBestEffortUnpinCidsSafe } from "../hooks/useBestEffortUnpinCidsSafe";
 import { useEditPostFlow } from "../hooks/useEditPostFlow";
 import { useEnsureMatchingNetwork } from "../hooks/useEnsureMatchingNetwork";
-import { usePostActions } from "../hooks/usePostActions";
+import { usePostEngagement } from "../hooks/usePostEngagement";
+import { usePostModeration } from "../hooks/usePostModeration";
+import { usePostTips } from "../hooks/usePostTips";
 import { useContractActions, useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
@@ -46,10 +48,9 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     bestEffortUnpinCidsSafe
   });
 
-  const actions = usePostActions({
+  const moderation = usePostModeration({
     walletAddress,
     chainId,
-    refreshWalletPanel,
     isOwner,
     ipfsConfigured,
     getReadContract,
@@ -59,7 +60,6 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       posts: feedState.posts,
       setPosts: feedActions.setPosts,
       refreshFeed: feedActions.refreshFeed,
-      loadCommentsForPost: feedActions.loadCommentsForPost,
       setPostComments: feedActions.setPostComments
     },
     setStatus,
@@ -67,6 +67,32 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     bestEffortUnpinCidsSafe,
     editingTokenId: edit.editingTokenId,
     cancelEditPost: edit.cancelEditPost
+  });
+
+  const engagement = usePostEngagement({
+    walletAddress,
+    chainId,
+    getWriteContract,
+    runContractTx,
+    feed: {
+      posts: feedState.posts,
+      setPosts: feedActions.setPosts,
+      loadCommentsForPost: feedActions.loadCommentsForPost
+    },
+    setStatus,
+    ensureMatchingNetwork
+  });
+
+  const tips = usePostTips({
+    walletAddress,
+    refreshWalletPanel,
+    getWriteContract,
+    runContractTx,
+    feed: {
+      setPosts: feedActions.setPosts
+    },
+    setStatus,
+    ensureMatchingNetwork
   });
 
   const value = useMemo<SocialActionsContextValue>(
@@ -81,11 +107,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       startEditPost: edit.startEditPost,
       cancelEditPost: edit.cancelEditPost,
       saveEditedPost: edit.saveEditedPost,
-      burnPost: actions.burnPost,
-      freezePost: actions.freezePost,
-      handleAction: actions.handleAction,
-      handleTip: actions.handleTip,
-      withdrawTips: actions.withdrawTips
+      burnPost: moderation.burnPost,
+      freezePost: moderation.freezePost,
+      handleAction: engagement.handleAction,
+      handleTip: tips.handleTip,
+      withdrawTips: tips.withdrawTips
     }),
     [
       isOwner,
@@ -98,11 +124,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       edit.startEditPost,
       edit.cancelEditPost,
       edit.saveEditedPost,
-      actions.burnPost,
-      actions.freezePost,
-      actions.handleAction,
-      actions.handleTip,
-      actions.withdrawTips
+      moderation.burnPost,
+      moderation.freezePost,
+      engagement.handleAction,
+      tips.handleTip,
+      tips.withdrawTips
     ]
   );
 

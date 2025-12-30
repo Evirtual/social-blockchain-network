@@ -1,16 +1,16 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { Draft, Post } from "@types";
-import { createMetadataUri } from "@features/metadata";
 import { getErrorMessage } from "@shared/lib/errors";
-import { buildIpfsTokenUri, collectIpfsCidsFromTokenUri } from "@features/ipfs";
+import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
-import { EMPTY_DRAFT, MAX_ONCHAIN_TOKEN_URI_CHARS } from "../services/editPost/constants";
+import { EMPTY_DRAFT } from "@features/post/services/draftConstants";
 import { buildBestImageDataUrl } from "../services/editPost/imageDataUrl";
 import { bestEffortFinalizeIpfsMedia } from "../services/editPost/ipfsFinalize";
 import { makeLocalNoticeId } from "@shared/lib/ids";
 import { collectPinnedCidsFromBuilt } from "../services/editPost/pinning";
 import { parsePostKey, postKey } from "@shared/lib/post";
+import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -234,49 +234,48 @@ export function useEditPostFlow(args: {
       let nextUiImage = "";
       let nextUiAnimationUrl: string | undefined;
 
-      // Match mint behavior: only pin to IPFS when media is present.
-      const willUseIpfs = ipfsConfigured && hasMedia;
+      const mediaTypeHint = editUploadedImageBlob
+        ? (((editUploadedImageBlob as any)?.type?.startsWith?.("video/") ?? false) ? "video" : "image")
+        : post?.animationUrl
+          ? "video"
+          : post?.image
+            ? "image"
+            : undefined;
 
+      const prepared = await preparePostMetadata({
+        draft: editDraft,
+        hasMedia,
+        ipfsConfigured,
+        uploadedImageBlob: editUploadedImageBlob,
+        uploadedImageFilename: editUploadedImageFilename,
+        mediaTypeHint
+      });
+
+      const willUseIpfs = prepared.willUseIpfs;
       if (willUseIpfs) {
         setStatus("Uploading update to IPFS (Pinata)...");
-        txNotifications.notifyPending({ hash: processingToastId, label: "Uploading update to IPFS…", explorerUrl: null });
+        txNotifications.notifyPending({ hash: processingToastId, label: "Uploading update to IPFS...", explorerUrl: null });
+      }
 
-        const mediaTypeHint = editUploadedImageBlob
-          ? (((editUploadedImageBlob as any)?.type?.startsWith?.("video/") ?? false) ? "video" : "image")
-          : post?.animationUrl
-            ? "video"
-            : post?.image
-              ? "image"
-              : undefined;
+      if (!prepared.ok) {
+        txNotifications.dismiss(processingToastId);
+        processingToastId = null;
+        setStatus("Updated metadata is too large. Configure IPFS (Pinata) or use a smaller image.");
+        return;
+      }
 
-        const built = await buildIpfsTokenUri({
-          draft: editDraft,
-          imageBlob: editUploadedImageBlob,
-          imageFilename: editUploadedImageFilename,
-          mediaTypeHint
-        });
-        tokenUri = built.tokenUri;
+      tokenUri = prepared.tokenUri;
+      nextUiImage = prepared.imageRef || (prepared.animationRef ? "" : imageDataUrlTrimmed || imageUrlTrimmed);
+      nextUiAnimationUrl = prepared.animationRef || undefined;
 
-        nextUiImage = built.imageRef || (built.animationRef ? "" : imageDataUrlTrimmed || imageUrlTrimmed);
-        nextUiAnimationUrl = built.animationRef || undefined;
-
+      if (willUseIpfs) {
         // Prefer the known refs from buildIpfsTokenUri (no extra gateway fetch needed).
         newPinnedCids = collectPinnedCidsFromBuilt({
-          tokenUri: built.tokenUri,
-          imageRef: built.imageRef,
-          animationRef: built.animationRef
+          tokenUri: prepared.tokenUri,
+          imageRef: prepared.imageRef,
+          animationRef: prepared.animationRef
         });
       } else {
-        tokenUri = createMetadataUri(editDraft);
-        nextUiImage = imageDataUrlTrimmed || imageUrlTrimmed;
-        nextUiAnimationUrl = undefined;
-        if (tokenUri.length > MAX_ONCHAIN_TOKEN_URI_CHARS) {
-          txNotifications.dismiss(processingToastId);
-          processingToastId = null;
-          setStatus("Updated metadata is too large. Configure IPFS (Pinata) or use a smaller image.");
-          return;
-        }
-
         // Not pinning in this mode.
         newPinnedCids = new Set<string>();
       }

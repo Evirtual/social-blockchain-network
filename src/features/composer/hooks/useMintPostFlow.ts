@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
-import { createMetadataUri } from "@features/metadata";
 import { getErrorMessage } from "@shared/lib/errors";
-import { buildIpfsTokenUri, ipfsToHttp } from "@features/ipfs";
+import { ipfsToHttp } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
 import { parseMintPostReceipt } from "../services/mintPost/parseMintPostReceipt";
 import { waitForMetadataReady } from "../services/mintPost/waitForMetadataReady";
 import { waitForUrlReachable } from "../services/mintPost/waitForUrlReachable";
+import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 
 type TxNotificationsLike = {
   notifyPending: (p: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -125,11 +125,18 @@ export function useMintPostFlow(params: {
       const writeContract = await contract.getWriteContract();
 
       const hasMedia = Boolean(uploadedImageBlob || imageUrlTrimmed || imageDataUrlTrimmed);
-      const willUseIpfs = ipfsConfigured && hasMedia;
+      const prepared = await preparePostMetadata({
+        draft,
+        hasMedia,
+        ipfsConfigured,
+        uploadedImageBlob,
+        uploadedImageFilename
+      });
+      const willUseIpfs = prepared.willUseIpfs;
 
       const processingToastId = willUseIpfs ? makeLocalNoticeId() : null;
       if (processingToastId) {
-        txNotifications.notifyPending({ hash: processingToastId, label: "Preparing post…", explorerUrl: null });
+        txNotifications.notifyPending({ hash: processingToastId, label: "Preparing post...", explorerUrl: null });
       }
 
       let metadataURI = "";
@@ -139,27 +146,20 @@ export function useMintPostFlow(params: {
       if (willUseIpfs) {
         setStatus("Uploading to IPFS (Pinata)...");
         if (processingToastId) {
-          txNotifications.notifyPending({ hash: processingToastId, label: "Uploading to IPFS…", explorerUrl: null });
-        }
-        const built = await buildIpfsTokenUri({
-          draft,
-          imageBlob: uploadedImageBlob,
-          imageFilename: uploadedImageFilename
-        });
-        metadataURI = built.tokenUri;
-        imageRefForUi = built.imageRef || (built.animationRef ? "" : imageRefForUi);
-        animationUrlForUi = built.animationRef || undefined;
-      } else {
-        metadataURI = createMetadataUri(draft);
-        const maxTokenUriChars = 140_000;
-        if (metadataURI.length > maxTokenUriChars) {
-          setStatus(
-            "Post metadata is too large to mint on-chain. Use IPFS pinning (recommended via a backend), or use a much smaller image."
-          );
-          return;
+          txNotifications.notifyPending({ hash: processingToastId, label: "Uploading to IPFS...", explorerUrl: null });
         }
       }
 
+      if (!prepared.ok) {
+        setStatus(
+          "Post metadata is too large to mint on-chain. Use IPFS pinning (recommended via a backend), or use a much smaller image."
+        );
+        return;
+      }
+
+      metadataURI = prepared.tokenUri;
+      imageRefForUi = prepared.imageRef || (prepared.animationRef ? "" : imageRefForUi);
+      animationUrlForUi = prepared.animationRef || undefined;
       const minted = await runContractTx(
         "Mint post NFT",
         () => (writeContract as any).mintPost(metadataURI),

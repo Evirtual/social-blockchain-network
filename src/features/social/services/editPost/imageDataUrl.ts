@@ -1,6 +1,10 @@
 import type { Draft } from "@types";
 import { createMetadataUri } from "@features/metadata";
-import { IMAGE_COMPRESSION_CANDIDATES, MAX_IMAGE_DATA_URL_CHARS, MAX_ONCHAIN_TOKEN_URI_CHARS } from "./constants";
+import {
+  IMAGE_COMPRESSION_CANDIDATES,
+  MAX_IMAGE_DATA_URL_CHARS,
+  MAX_ONCHAIN_TOKEN_URI_CHARS
+} from "@features/post/services/draftConstants";
 
 async function decodeImageFromObjectUrl(objectUrl: string) {
   const img = new Image();

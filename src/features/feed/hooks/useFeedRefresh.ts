@@ -1,18 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
 import { getErrorMessage } from "@shared/lib/errors";
-import { withTimeout } from "@shared/lib/feedQuery";
-import { loadFeedFromProvider, type MintedEventLite } from "../services/feedLoader";
-import { mergePosts } from "../services/feedPosts";
-import { getFeedNetworkTasks } from "../services/feedNetworkTasks";
-import { getRpcProvider } from "@shared/lib/rpc";
-import { parseChainIdNumber } from "@shared/lib/chainId";
-import { postKey } from "./utils";
-import { getFeedRefreshConfig } from "./refresh/getFeedRefreshConfig";
-import { createResolveRpcContractAddress } from "./refresh/createResolveRpcContractAddress";
+import { type MintedEventLite } from "../services/feedLoader";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
-import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { loadFeedFromSubgraph } from "../services/subgraph/loadFeedFromSubgraph";
+import { refreshFeedFromNetworks } from "../services/feedRefresh";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -98,89 +89,23 @@ export function useFeedRefresh(params: {
           shouldShowLoading = postsRef.current.length === 0;
           if (shouldShowLoading) setIsFeedLoading(true);
 
-          const currentChainIdNumber = parseChainIdNumber(chainId);
-
-          const env = import.meta.env as any;
-          const { maxLookbackBlocks, configuredNetworks, extraNetworks } = getFeedRefreshConfig({
-            env,
-            currentChainIdNumber
-          });
-
-          if (!provider && extraNetworks.length === 0) return;
-
-          const resolveRpcContractAddress = createResolveRpcContractAddress({ withTimeout });
-
-          const loadFromProvider = async (chainIdNum: number | null, networkProvider: any, readContract: any): Promise<Post[]> => {
-            const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-            if (subgraphUrl) {
-              const chainIdStr = chainIdNum != null ? String(chainIdNum) : undefined;
-              try {
-                return await loadFeedFromSubgraph({
-                  url: subgraphUrl,
-                  chainIdStr,
-                  first: 200,
-                  account: normalizedAccount
-                });
-              } catch {
-                // Subgraphs can take a few minutes to start syncing after deploy.
-                // During that warm-up window, keep the app functional by falling back to RPC scanning.
-              }
-            }
-            return await loadFeedFromProvider({
-              chainIdNum,
-              networkProvider,
-              readContract,
-              maxLookbackBlocks,
-              account: account ?? null,
-              lastRefreshedAccount: lastRefreshedAccountRef.current,
-              postsSnapshot: postsRef.current,
-              postKey,
+          await refreshFeedFromNetworks({
+            provider,
+            walletAddress,
+            chainId,
+            account,
+            contract,
+            postsSnapshot: postsRef.current,
+            setPosts,
+            setStatus,
+            lastRefreshedAccount: lastRefreshedAccountRef.current,
+            caches: {
               mintedEventsCache: mintedEventsCacheRef.current,
               blockTimestampCache: blockTimestampCacheRef.current,
-              existsPruneCursor: existsPruneCursorRef.current,
-              pruneByKeys: (keys) => setPosts((prev) => prev.filter((p) => !keys.has(postKey(p))))
-            });
-          };
-
-          const networkTasks = await getFeedNetworkTasks({
-            currentChainIdNumber,
-            configuredNetworks,
-            extraNetworks,
-            provider,
-            walletAddress: walletAddress ?? null,
-            ensureContractDeployedOnCurrentNetwork: contract.ensureContractDeployedOnCurrentNetwork,
-            getReadContract: contract.getReadContract,
-            getRpcProvider,
-            resolveRpcContractAddress,
-            taskTimeoutMs: 25_000,
-            withTimeout,
-            loadFromProvider,
-            onLoaded: (loaded) => setPosts((prev) => mergePosts(prev, loaded, postKey))
+              existsPruneCursor: existsPruneCursorRef.current
+            },
+            shouldReportStatus: shouldShowLoading
           });
-
-          const settled = await Promise.allSettled(networkTasks);
-          const fulfilled = settled.filter((r): r is PromiseFulfilledResult<Post[]> => r.status === "fulfilled");
-          const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-
-          const anyFulfilled = fulfilled.length > 0;
-          if (!anyFulfilled && rejected.length > 0) {
-            const warnSomeNetworksFailedToLoad = [
-              // eslint-disable-next-line no-console
-              console.warn.bind(console),
-              () => {}
-            ][Number(isVitest)];
-
-            warnSomeNetworksFailedToLoad(
-              "Some feed networks failed to load:",
-              rejected.map((r) => r.reason)
-            );
-
-            throw rejected[0].reason;
-          }
-
-          if (shouldShowLoading) {
-            setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");
-          }
         } catch (err) {
           setStatus(getErrorMessage(err));
           throw err;

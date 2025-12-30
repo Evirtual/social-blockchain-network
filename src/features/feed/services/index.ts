@@ -11,3 +11,4 @@ export * from "./feedLoader/resolveChainIdNum";
 export * from "./feedNetworks";
 export * from "./feedNetworkTasks";
 export * from "./feedPosts";
+export * from "./feedRefresh";
