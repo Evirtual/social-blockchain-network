@@ -3,7 +3,7 @@ import { useFollowScans, useIsFollowing } from "../hooks";
 import { useContractActions } from "@features/contract";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/app/providers/useContractTx";
+import { useContractTx } from "@features/contract";
 import { FollowContext, type FollowContextValue } from "./followStateContext";
 
 export type { FollowContextValue } from "./followStateContext";

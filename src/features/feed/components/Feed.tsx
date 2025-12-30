@@ -184,6 +184,8 @@ export const Feed = memo(function Feed({
               onTip={onTip}
               onBurn={onBurn}
               onFreezePost={onFreezePost}
+              shortAddress={shortAddress}
+              stableHueFromSeed={stableHueFromSeed}
               getNativeSymbol={getNativeSymbol}
               getExplorerTxUrl={getExplorerTxUrl}
             />

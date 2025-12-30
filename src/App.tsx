@@ -48,10 +48,13 @@ function AppInner() {
         }
       />
 
-      <Modal open={composer.isComposerOpen} title="Create a post" onClose={composer.closeComposer}>
+      <Modal
+        open={composer.isComposerOpen}
+        title="Create a post"
+        headerLeading={<div className="avatar small" style={{ background: `hsl(${profile.selfAvatarHue} 75% 55%)` }} />}
+        onClose={composer.closeComposer}
+      >
         <ComposerCard
-          selfAvatarHue={profile.selfAvatarHue}
-          ipfsConfigured={composer.ipfsConfigured}
           draft={composer.draft}
           isImageLoading={composer.isImageLoading}
           isPosting={composer.isPosting}

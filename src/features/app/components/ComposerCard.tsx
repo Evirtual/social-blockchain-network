@@ -2,8 +2,6 @@ import type { Draft } from "@types";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
 
 type Props = {
-  selfAvatarHue: number;
-  ipfsConfigured: boolean;
   draft: Draft;
   isImageLoading: boolean;
   isPosting: boolean;
@@ -15,8 +13,6 @@ type Props = {
 };
 
 export function ComposerCard({
-  selfAvatarHue,
-  ipfsConfigured,
   draft,
   isImageLoading,
   isPosting,
@@ -28,13 +24,6 @@ export function ComposerCard({
 }: Props) {
   return (
     <div className="composer">
-      <div className="composerHeader">
-        <div className="avatar small" style={{ background: `hsl(${selfAvatarHue} 75% 55%)` }} />
-        <div>
-          <div className="composerTitle">Create a post</div>
-          <div className="muted">Storage: {ipfsConfigured ? "IPFS (Pinata)" : "On-chain data URI (fallback)"}</div>
-        </div>
-      </div>
       <textarea
         className="textarea"
         rows={4}

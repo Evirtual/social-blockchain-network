@@ -1,10 +1,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Draft } from "@types";
-import {
-  useContractTx,
-  useTipWithRefresh
-} from "@features/app";
+import { useTipWithRefresh } from "@features/social";
 import { useContractActions, useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useFollow } from "@features/follow";
@@ -12,6 +9,7 @@ import { useProfileActions, useProfileState } from "@features/profile";
 import { useSocialActions } from "@features/social";
 import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
+import { useContractTx } from "@features/contract";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
 import { AccountPage } from "@features/account";

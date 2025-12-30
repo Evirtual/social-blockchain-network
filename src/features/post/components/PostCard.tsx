@@ -49,6 +49,8 @@ type Props = {
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
+  shortAddress: (address: string) => string;
+  stableHueFromSeed: (seed: string) => number;
   getNativeSymbol: (chainId: string | null) => string;
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
@@ -65,6 +67,7 @@ export const PostCard = memo(function PostCard(props: Props) {
   }, [props.post.mintTxHash, props.getExplorerTxUrl, postChainId, props.chainId]);
 
   const postUrl = useMemo(() => getPostUrl(postChainId, tokenId), [postChainId, tokenId]);
+  const postLinkState = useMemo(() => ({ from: props.from, chainId: postChainId }), [props.from, postChainId]);
 
   const avatarStyle = useMemo(
     () => getAvatarStyle({ authorAvatarUrl: props.authorAvatarUrl, authorHue: props.authorHue }),
@@ -111,11 +114,15 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   return (
     <article className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
-      <Modal open={props.isEditing} title="Edit post" onClose={props.onCancelEditPost}>
+      <Modal
+        open={props.isEditing}
+        title="Edit post"
+        headerLeading={<div className="avatar small" style={avatarStyle} />}
+        onClose={props.onCancelEditPost}
+      >
         <PostCardEditBox
           tokenId={tokenId}
           postChainId={postChainId}
-          avatarStyle={avatarStyle}
           requiresNetworkSwitch={requiresNetworkSwitch}
           interactionDisabledTitle={interactionDisabledTitle}
           editDraft={props.editDraft}
@@ -140,13 +147,6 @@ export const PostCard = memo(function PostCard(props: Props) {
               {props.isMine ? <span className="badge">You</span> : null}
             </div>
             <div className="postTokenArea">
-              <Link
-                className="postTokenLink"
-                to={postUrl}
-                state={{ from: props.from, chainId: postChainId }}
-              >
-                Token #{tokenId}
-              </Link>
               {postNetworkLabel ? (
                 props.post.mintTxHash ? (
                   <a
@@ -214,9 +214,11 @@ export const PostCard = memo(function PostCard(props: Props) {
       <>
         {!hasMedia && !!props.post.body?.trim() ? (
           <div className="post-body">
-            <div className="postText">
-              <p>{props.post.body}</p>
-            </div>
+            <Link className="postBodyLink" to={postUrl} state={postLinkState} aria-label="Open post">
+              <div className="postText">
+                <p>{props.post.body}</p>
+              </div>
+            </Link>
           </div>
         ) : null}
 
@@ -245,6 +247,10 @@ export const PostCard = memo(function PostCard(props: Props) {
           onTogglePanel={onTogglePanel}
           onAction={props.onAction}
           onTip={props.onTip}
+          avatarStyle={avatarStyle}
+          shortAddress={props.shortAddress}
+          stableHueFromSeed={props.stableHueFromSeed}
+          getExplorerTxUrl={props.getExplorerTxUrl}
           getNativeSymbol={props.getNativeSymbol}
         />
 

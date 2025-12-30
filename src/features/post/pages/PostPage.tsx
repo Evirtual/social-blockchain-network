@@ -58,7 +58,7 @@ export function PostPage(props: Props) {
       ? from
       : "/";
 
-  const title = props.post ? `Post #${props.post.tokenId}` : `Post #${props.tokenId}`;
+  const title = "Post";
 
   return (
     <main className="home">

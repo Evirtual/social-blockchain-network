@@ -1,10 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Post } from "@types";
-import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@features/app";
+import { IconBookmark, IconCoin, IconHeart, IconMessage, Modal } from "@features/app";
+import { commentKey, useFeedActions, useFeedState } from "@features/feed";
+import type { CSSProperties } from "react";
 import type { PostPanel } from "../PostCard";
-import { getCommentControlId, getTipControlId } from "./footer/getPanelControlIds";
 import { getStatButtonClass } from "./footer/getStatButtonClass";
+import { CommentsCard } from "../CommentsCard";
 
 export type PostCardFooterProps = {
   className?: string;
@@ -28,25 +30,39 @@ export type PostCardFooterProps = {
   ) => Promise<boolean>;
   onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
 
+  avatarStyle?: CSSProperties;
+  shortAddress: (address: string) => string;
+  stableHueFromSeed: (seed: string) => number;
   getNativeSymbol: (chainId: string | null) => string;
+  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
   const tokenId = props.tokenId;
   const postChainId = props.post.chainId ?? null;
-  const nativeSymbol = useMemo(() => props.getNativeSymbol(props.chainId), [props.getNativeSymbol, props.chainId]);
-  const commentControlId = useMemo(() => getCommentControlId(postChainId, tokenId), [postChainId, tokenId]);
-  const tipControlId = useMemo(() => getTipControlId(postChainId, tokenId), [postChainId, tokenId]);
+  const nativeSymbol = useMemo(
+    () => props.getNativeSymbol(postChainId ?? props.chainId),
+    [props.getNativeSymbol, postChainId, props.chainId]
+  );
+  const commentsKey = useMemo(() => commentKey(postChainId, tokenId), [postChainId, tokenId]);
 
   const [tipDraft, setTipDraft] = useState<string>("");
-  const [commentDraft, setCommentDraft] = useState<string>("");
-  const [inFlight, setInFlight] = useState<null | "like" | "save" | "tip" | "comment">(null);
+  const [inFlight, setInFlight] = useState<null | "like" | "save" | "tip">(null);
+
+  const feedState = useFeedState();
+  const feedActions = useFeedActions();
+  const comments = feedState.postComments[commentsKey] ?? [];
+  const isLoadingComments = !!feedState.isLoadingPostComments[commentsKey];
 
   useEffect(() => {
     setTipDraft("");
-    setCommentDraft("");
     setInFlight(null);
   }, [tokenId]);
+
+  useEffect(() => {
+    if (props.openPanel !== "comment") return;
+    void feedActions.loadCommentsForPost(tokenId, postChainId);
+  }, [props.openPanel, feedActions, tokenId, postChainId]);
 
   const onSubmitTip = useCallback(async () => {
     if (inFlight) return;
@@ -58,17 +74,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
       setInFlight(null);
     }
   }, [inFlight, props.onTip, tokenId, tipDraft, postChainId]);
-
-  const onSubmitComment = useCallback(async () => {
-    if (inFlight) return;
-    setInFlight("comment");
-    try {
-      const ok = await props.onAction(tokenId, "comment", postChainId, commentDraft);
-      if (ok) setCommentDraft("");
-    } finally {
-      setInFlight(null);
-    }
-  }, [inFlight, props.onAction, tokenId, commentDraft, postChainId]);
 
   const onLike = useCallback(async () => {
     if (inFlight) return;
@@ -95,6 +100,14 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
   }, [props.onTogglePanel]);
 
   const onToggleTip = useCallback(() => {
+    props.onTogglePanel("tip");
+  }, [props.onTogglePanel]);
+
+  const onCloseComments = useCallback(() => {
+    props.onTogglePanel("comment");
+  }, [props.onTogglePanel]);
+
+  const onCloseTip = useCallback(() => {
     props.onTogglePanel("tip");
   }, [props.onTogglePanel]);
 
@@ -141,7 +154,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
           onClick={onToggleComment}
           aria-label="Comment"
           aria-expanded={props.openPanel === "comment"}
-          aria-controls={commentControlId}
           disabled={props.requiresNetworkSwitch || isBusy}
           title={props.interactionDisabledTitle}
         >
@@ -157,7 +169,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
           onClick={onToggleTip}
           aria-label="Tip"
           aria-expanded={props.openPanel === "tip"}
-          aria-controls={tipControlId}
           disabled={props.requiresNetworkSwitch || isBusy}
           title={props.interactionDisabledTitle}
         >
@@ -166,8 +177,13 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         </button>
       </div>
 
-      {props.openPanel === "tip" ? (
-        <div className="postForm" id={tipControlId}>
+      <Modal
+        open={props.openPanel === "tip"}
+        title="Tip"
+        headerLeading={<div className="avatar small" style={props.avatarStyle} />}
+        onClose={onCloseTip}
+      >
+        <div className="postForm">
           <div className="postFormRow">
             <input
               className="postField"
@@ -189,32 +205,28 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
             </button>
           </div>
         </div>
-      ) : null}
+      </Modal>
 
-      {props.openPanel === "comment" ? (
-        <div className="postForm" id={commentControlId}>
-          <div className="postFormRow">
-            <input
-              className="postField"
-              type="text"
-              value={commentDraft}
-              onChange={(event) => setCommentDraft(event.target.value)}
-              placeholder="Write a comment to sign"
-              disabled={props.requiresNetworkSwitch || inFlight === "comment"}
-            />
-            <button
-              className={"secondary buttonWithSpinner"}
-              type="button"
-              onClick={onSubmitComment}
-              disabled={props.requiresNetworkSwitch || inFlight === "comment"}
-              title={props.interactionDisabledTitle}
-            >
-              {inFlight === "comment" ? <span className="spinner" aria-hidden="true" /> : null}
-              Sign
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <Modal
+        open={props.openPanel === "comment"}
+        title="Comments"
+        headerLeading={<div className="avatar small" style={props.avatarStyle} />}
+        onClose={onCloseComments}
+      >
+        <CommentsCard
+          tokenId={tokenId}
+          postChainId={postChainId}
+          chainId={props.chainId}
+          walletAddress={props.walletAddress}
+          useCardWrapper={false}
+          comments={comments}
+          isLoadingComments={isLoadingComments}
+          onAction={props.onAction}
+          shortAddress={props.shortAddress}
+          stableHueFromSeed={props.stableHueFromSeed}
+          getExplorerTxUrl={props.getExplorerTxUrl}
+        />
+      </Modal>
     </div>
   );
 });

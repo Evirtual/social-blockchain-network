@@ -1,4 +1,4 @@
-import { useTipWithRefresh } from "@features/app";
+import { useTipWithRefresh } from "@features/social";
 import { useContractState } from "@features/contract";
 import { useComposer } from "@features/composer";
 import { useFeedState } from "@features/feed";

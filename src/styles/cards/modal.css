@@ -67,6 +67,12 @@
   background: color-mix(in srgb, var(--bg) 70%, var(--surface));
 }
 
+.modalHeaderContent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .modalHeader .iconButton {
   width: 2.25rem;
   height: 2.25rem;

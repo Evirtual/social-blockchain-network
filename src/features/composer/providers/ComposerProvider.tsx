@@ -9,7 +9,7 @@ import { useFeedActions } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useTxNotifications } from "@features/tx";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/app/providers/useContractTx";
+import { useContractTx } from "@features/contract";
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from "@shared/lib/postLimits";
 import { ComposerContext, type ComposerContextValue } from "./composerStateContext";
 

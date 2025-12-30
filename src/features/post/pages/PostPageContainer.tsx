@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTipWithRefresh } from "@features/app";
+import { useTipWithRefresh } from "@features/social";
 import { useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useProfileState } from "@features/profile";

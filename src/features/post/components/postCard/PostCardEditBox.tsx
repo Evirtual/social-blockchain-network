@@ -1,13 +1,10 @@
 import type { Draft } from "@types";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
 import { useCallback, useState } from "react";
-import type { CSSProperties } from "react";
 
 export type PostCardEditBoxProps = {
   tokenId: string;
   postChainId?: string | null;
-
-  avatarStyle?: CSSProperties;
 
   isMine: boolean;
   canModerate?: boolean;
@@ -40,13 +37,6 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
 
   return (
     <div className="composer">
-      <div className="composerHeader">
-        <div className="avatar small" style={props.avatarStyle} />
-        <div>
-          <div className="composerTitle">Edit post</div>
-          <div className="muted">Token #{props.tokenId}</div>
-        </div>
-      </div>
       <textarea
         className="textarea"
         rows={4}

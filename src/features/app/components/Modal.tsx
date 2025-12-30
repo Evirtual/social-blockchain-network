@@ -6,12 +6,13 @@ import { hasDocument } from "@shared/lib/dom";
 
 type Props = {
   open: boolean;
-  title: string;
+  title: ReactNode;
+  headerLeading?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 };
 
-export function Modal({ open, title, onClose, children }: Props) {
+export function Modal({ open, title, headerLeading, onClose, children }: Props) {
   useEffect(() => {
     if (!open) return;
     if (!hasDocument()) return;
@@ -33,19 +34,24 @@ export function Modal({ open, title, onClose, children }: Props) {
   if (!open) return null;
   if (!hasDocument()) return null;
 
+  const ariaLabel = typeof title === "string" ? title : "Modal";
+
   return createPortal(
     <div
       className="modalOverlay"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-label={ariaLabel}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="modalContent">
         <div className="modalHeader">
-          <div className="modalTitle">{title}</div>
+          <div className="modalHeaderContent">
+            {headerLeading ? <div className="modalHeaderLeading">{headerLeading}</div> : null}
+            <div className="modalTitle">{title}</div>
+          </div>
           <button className="ghost iconButton" type="button" onClick={onClose} aria-label="Close">
             <IconX size={16} />
           </button>

@@ -7,7 +7,7 @@ import { useContractActions } from "@features/contract";
 import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/app/providers/useContractTx";
+import { useContractTx } from "@features/contract";
 import {
   ProfileActionsContext,
   ProfileContext,

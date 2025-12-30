@@ -7,6 +7,7 @@ type Props = {
   postChainId: string | null;
   chainId: string | null;
   walletAddress: string | null;
+  useCardWrapper?: boolean;
 
   comments: PostComment[];
   isLoadingComments: boolean;
@@ -50,8 +51,10 @@ export function CommentsCard(props: Props) {
     }
   }, [props, commentDraft, isSigning]);
 
+  const wrapperClassName = props.useCardWrapper === false ? undefined : "card";
+
   return (
-    <section className="card">
+    <section className={wrapperClassName}>
       <div className="postForm">
         <div className="postFormRow">
           <input

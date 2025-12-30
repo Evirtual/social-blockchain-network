@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Modal } from "@features/app/components/Modal";
 import { useContractActions, useContractState } from "@features/contract";
-import { useContractTx } from "@features/app/providers/useContractTx";
+import { useContractTx } from "@features/contract";
 import { useFeedState } from "@features/feed";
 import { useWalletState } from "@features/wallet";
 import { ApprovalListRow } from "./approvals/ApprovalListRow";
