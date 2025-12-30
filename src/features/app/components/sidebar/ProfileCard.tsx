@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { ipfsToHttp } from "../../../ipfs";
+import { ipfsToHttp } from "@features/ipfs";
 
 import { Modal } from "../Modal";
-import { useIsMobile } from "../../hooks/useIsMobile";
+import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { ApprovalsModal } from "./profile/ApprovalsModal";
 import { FollowersModal } from "./profile/FollowersModal";
 import { FollowingModal } from "./profile/FollowingModal";

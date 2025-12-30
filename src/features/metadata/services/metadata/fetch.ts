@@ -1,5 +1,5 @@
 import type { TokenMetadata } from "@types";
-import { ipfsToHttpCandidates } from "../../../ipfs";
+import { ipfsToHttpCandidates } from "@features/ipfs";
 import { parseTokenMetadataFromDataUri, parseTokenMetadataJson } from "./parse";
 import {
   clearInFlightTokenMetadata,

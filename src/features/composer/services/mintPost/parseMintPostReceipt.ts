@@ -1,4 +1,4 @@
-import { socialInterface } from "../../../contract";
+import { socialInterface } from "@features/contract";
 
 export function parseMintPostReceipt(receipt: any): {
   mintedTokenId: string | null;

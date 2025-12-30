@@ -44,10 +44,17 @@ export function useOnChainApprovalRequests(args: {
     setIsLoadingOnChainRequests(false);
     setOnChainRequestsLoadError(!!cached?.hadQueryError && (cached.requesters?.length ?? 0) === 0);
     lastLoadedKeyRef.current = cached ? cacheKey : null;
-  }, [args.chainId, args.contractAddress]);
+  }, [cacheKey]);
 
   useEffect(() => {
     if (!args.open) return;
+    if (!args.chainId || !args.contractAddress) {
+      setOnChainRequests([]);
+      setIsLoadingOnChainRequests(false);
+      setOnChainRequestsLoadError(false);
+      lastLoadedKeyRef.current = null;
+      return;
+    }
     if (!args.isOwner) {
       setOnChainRequests([]);
       setIsLoadingOnChainRequests(false);
@@ -171,7 +178,7 @@ export function useOnChainApprovalRequests(args: {
     return () => {
       cancelled = true;
     };
-  }, [args.open, args.isOwner, args.contractAddress, args.getReadContract]);
+  }, [args.open, args.isOwner, args.chainId, args.contractAddress, args.getReadContract, cacheKey]);
 
   useEffect(() => {
     if (args.open) return;

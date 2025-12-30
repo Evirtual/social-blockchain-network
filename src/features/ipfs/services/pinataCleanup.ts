@@ -1,5 +1,5 @@
 import { extractIpfsCid, hasPinata, pinataUnpinCid } from "./ipfs";
-import { fetchTokenMetadata } from "../../metadata";
+import { fetchTokenMetadata } from "@features/metadata";
 import type { Post } from "@types";
 
 export async function collectIpfsCidsFromTokenUri(tokenUri: string): Promise<Set<string>> {

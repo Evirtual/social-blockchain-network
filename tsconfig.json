@@ -7,7 +7,7 @@
     "baseUrl": ".",
     "paths": {
       "@features/*": ["src/features/*"],
-      "@shared/*": ["src/features/shared/*"],
+      "@shared/*": ["src/shared/*"],
       "@types": ["src/types.ts"]
     },
     "skipLibCheck": true,

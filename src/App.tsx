@@ -1,34 +1,29 @@
-import {
-  ComposerProvider,
-  ContractProvider,
-  FeedProvider,
-  FollowProvider,
-  ProfileProvider,
-  SocialActionsProvider,
-  StatusProvider,
-  ThemeProvider,
-  TxNotificationsProvider,
-  WalletProvider
-} from "./features/app";
+import { AppProviders } from "./features/app";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ComposerCard, Modal, Topbar, TxToaster, WalletProfileLink } from "./features/app";
 import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useConnectNudge, useConnectWallet } from "./features/app";
-import { useComposer, useContract, useFeed, useStatus, useTheme, useWallet } from "./features/app";
-import { useProfile } from "./features/app/providers/useProfile";
+import { useStatusActions } from "./features/status";
+import { useTheme } from "./features/theme";
+import { useComposer } from "./features/composer";
+import { useContractActions } from "./features/contract";
+import { useProfileState } from "./features/profile";
+import { useFeedActions } from "./features/feed";
+import { useWalletActions, useWalletState } from "./features/wallet";
 
 function AppInner() {
   const theme = useTheme();
-  const wallet = useWallet();
-  const contract = useContract();
-  const feed = useFeed();
-  const profile = useProfile();
+  const walletState = useWalletState();
+  const walletActions = useWalletActions();
+  const contract = useContractActions();
+  const feed = useFeedActions();
+  const profile = useProfileState();
   const composer = useComposer();
-  const { setStatus } = useStatus();
+  const { setStatus } = useStatusActions();
 
   const { connectNudge, triggerConnectNudge } = useConnectNudge();
   const connectWallet = useConnectWallet({
-    wallet,
+    wallet: walletActions,
     contract,
     feed,
     setStatus,
@@ -40,12 +35,16 @@ function AppInner() {
       <Topbar
         theme={theme.theme}
         connectNudge={connectNudge}
-        walletAddress={wallet.walletAddress}
+        walletAddress={walletState.walletAddress}
         onToggleTheme={theme.toggleTheme}
         onConnectWallet={connectWallet}
         onOpenComposer={composer.openComposer}
         rightSlot={
-          <WalletProfileLink profileLink={profile.profileLink} walletAddress={wallet.walletAddress} chainId={wallet.chainId} />
+          <WalletProfileLink
+            profileLink={profile.profileLink}
+            walletAddress={walletState.walletAddress}
+            chainId={walletState.chainId}
+          />
         }
       />
 
@@ -93,26 +92,8 @@ function AppInner() {
 
 export default function App() {
   return (
-    <TxNotificationsProvider>
-      <StatusProvider>
-        <ThemeProvider>
-          <WalletProvider>
-            <ContractProvider>
-              <FeedProvider>
-                <ProfileProvider>
-                  <FollowProvider>
-                    <ComposerProvider>
-                      <SocialActionsProvider>
-                        <AppInner />
-                      </SocialActionsProvider>
-                    </ComposerProvider>
-                  </FollowProvider>
-                </ProfileProvider>
-              </FeedProvider>
-            </ContractProvider>
-          </WalletProvider>
-        </ThemeProvider>
-      </StatusProvider>
-    </TxNotificationsProvider>
+    <AppProviders>
+      <AppInner />
+    </AppProviders>
   );
 }

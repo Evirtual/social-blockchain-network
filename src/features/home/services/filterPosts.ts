@@ -18,7 +18,7 @@ export function filterPosts(params: {
         if (!id) return false;
         return selectedSet.has(String(id));
       })
-    : [];
+    : posts;
 
   if (!q) return byNetwork;
 

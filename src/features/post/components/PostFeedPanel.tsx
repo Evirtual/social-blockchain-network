@@ -1,5 +1,5 @@
 import type { Draft, Post } from "@types";
-import { Feed } from "../../feed";
+import { Feed } from "@features/feed";
 
 type Props = {
   title: string;

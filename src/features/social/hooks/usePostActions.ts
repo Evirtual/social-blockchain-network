@@ -2,11 +2,12 @@ import { useCallback } from "react";
 import { parseEther } from "ethers";
 
 import { getErrorMessage } from "@shared/lib/errors";
-import { collectIpfsCidsFromTokenUri } from "../../ipfs";
+import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
 import { buildTokenKey, updateSessionTokenKeys } from "../services/postActions/sessionTokenKeys";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
+import { postKeyFromParts } from "@features/feed";
 
 import type { Post, PostComment } from "@types";
 
@@ -114,7 +115,7 @@ export function usePostActions(args: {
 
         const writeContract = await getWriteContract();
         const tokenIdBig = BigInt(tokenId);
-        const post = feed.posts.find((p) => p.tokenId === tokenId);
+        const post = feed.posts.find((p) => isSamePost({ post: p, tokenId, postChainId }));
         const author = post?.author;
         const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
         const send =
@@ -129,7 +130,8 @@ export function usePostActions(args: {
           void bestEffortUnpinCidsSafe(pinnedCids, { chainId: postChainId ?? chainId, tokenIds: [tokenId] });
         }
 
-        if (editingTokenId === tokenId) {
+        const editKey = editingTokenId ? postKeyFromParts(postChainId ?? null, tokenId) : null;
+        if (editingTokenId && editKey === editingTokenId) {
           cancelEditPost();
         }
 

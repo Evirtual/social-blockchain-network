@@ -1,13 +1,11 @@
 import type { Draft, Post } from "@types";
-import { Feed } from "../../feed";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Feed } from "@features/feed";
+import { useCallback, useMemo } from "react";
 import { FeedHeaderControls } from "../components/FeedHeaderControls";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
-import { getSupportedNetworks } from "../services/supportedNetworks";
+import { useFeedFilterViewModel } from "../hooks/useFeedFilterViewModel";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
-import { filterPosts } from "../services/filterPosts";
-import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
 type Props = {
   isOwner: boolean;
@@ -63,64 +61,27 @@ type Props = {
 export function HomePage(props: Props) {
   const [isHeroDismissed, setIsHeroDismissed] = usePersistedFlag("socialBlockchainNetwork.heroDismissed");
 
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
-  const defaultSelectedNetworkChainIds = useMemo(
-    () => supportedNetworks.map((n) => String(n.chainId)),
-    [supportedNetworks]
-  );
-
-  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
-    "socialBlockchainNetwork.home.searchQuery",
-    "",
-    {
-      serialize: (v) => String(v ?? ""),
-      parse: (raw) => String(raw ?? "")
-    }
-  );
-
-  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
-    string[]
-  >("socialBlockchainNetwork.feed.selectedNetworks", defaultSelectedNetworkChainIds, {
-    serialize: (v) => JSON.stringify({ ids: v }),
-    parse: (raw) => {
-      try {
-        const parsed = JSON.parse(raw) as any;
-        const ids = Array.isArray(parsed?.ids)
-          ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
-          : [];
-        return ids;
-      } catch {
-        return [];
-      }
-    }
+  const {
+    supportedNetworks,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    filteredPosts,
+    pillText
+  } = useFeedFilterViewModel({
+    posts: props.posts,
+    authorIdentity: props.authorIdentity,
+    shortAddress: props.shortAddress,
+    searchQueryKey: "socialBlockchainNetwork.home.searchQuery",
+    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    walletAddress: props.walletAddress,
+    chainId: props.chainId
   });
 
   const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = usePersistedFlag(
     "socialBlockchainNetwork.supportedNetworksDismissed"
   );
-
-  const didInitDisconnectedNetworksRef = useRef(false);
-
-  useEffect(() => {
-    if (props.walletAddress) {
-      didInitDisconnectedNetworksRef.current = false;
-      return;
-    }
-    if (didInitDisconnectedNetworksRef.current) return;
-    didInitDisconnectedNetworksRef.current = true;
-    setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
-  }, [props.walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
-
-  useEffect(() => {
-    // Default behavior: if nothing has been stored yet, pin to the connected supported chain.
-    if (hasStoredSelectedNetworks) return;
-    if (!props.walletAddress) return;
-    const currentChainId = props.chainId ? String(props.chainId) : null;
-    if (!currentChainId) return;
-    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    if (!supported.has(currentChainId)) return;
-    setSelectedNetworkChainIds([currentChainId]);
-  }, [hasStoredSelectedNetworks, props.walletAddress, props.chainId, supportedNetworks, setSelectedNetworkChainIds]);
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
@@ -153,29 +114,6 @@ export function HomePage(props: Props) {
     return !!eth?.request;
   }, []);
 
-  const filteredPosts = useMemo(() => {
-    return filterPosts({
-      posts: props.posts,
-      authorIdentity: props.authorIdentity,
-      shortAddress: props.shortAddress,
-      searchQuery,
-      selectedNetworkChainIds
-    });
-  }, [props.posts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
-
-  const isNetworkFilterActive = useMemo(() => {
-    const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    const selected = new Set(selectedNetworkChainIds.map(String));
-    if (selected.size !== all.size) return true;
-    for (const id of selected) {
-      if (!all.has(id)) return true;
-    }
-    return false;
-  }, [selectedNetworkChainIds, supportedNetworks]);
-
-  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
-  const pillText = hasAnyFilter ? `${filteredPosts.length} / ${props.posts.length} posts` : `${props.posts.length} posts`;
-
   const isDisconnected = !props.walletAddress;
   const isWrongNetwork =
     !!props.walletAddress && (props.contractAddress == null || props.contractDeployed === false);
@@ -190,6 +128,19 @@ export function HomePage(props: Props) {
     if (props.chainId) return `chainId ${props.chainId}`;
     return "";
   }, [props.walletAddress, props.networkName, props.chainId]);
+
+  const headerAction = useMemo(() => {
+    return (
+      <FeedHeaderControls
+        pillText={pillText}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    );
+  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
 
   return (
     <main className="home">
@@ -217,16 +168,7 @@ export function HomePage(props: Props) {
       <Feed
         title="Main Feed"
         pillText=""
-        headerAction={
-          <FeedHeaderControls
-            pillText={pillText}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            selectedNetworkChainIds={selectedNetworkChainIds}
-            onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-            supportedNetworks={supportedNetworks}
-          />
-        }
+        headerAction={headerAction}
         isLoading={props.isFeedLoading}
         posts={filteredPosts}
         isOwner={props.isOwner}

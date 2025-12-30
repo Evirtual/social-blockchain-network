@@ -2,16 +2,16 @@ import { useCallback } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { getExplorerTxUrl } from "@shared/lib/chain";
 import { getErrorMessage } from "@shared/lib/errors";
-import { useContract } from "./ContractContext";
-import { isUserRejectedTx, useTxNotifications } from "./TxNotificationsContext";
-import { useStatus } from "./StatusContext";
-import { useWallet } from "./WalletContext";
+import { useContractActions } from "@features/contract";
+import { isUserRejectedTx, useTxNotifications } from "@features/tx";
+import { useStatusActions } from "@features/status";
+import { useWalletState } from "@features/wallet";
 
 export function useContractTx() {
   const txNotifications = useTxNotifications();
-  const { setStatus } = useStatus();
-  const wallet = useWallet();
-  const contract = useContract();
+  const { setStatus } = useStatusActions();
+  const wallet = useWalletState();
+  const contract = useContractActions();
 
   const runContractTx = useCallback(
     async function runContractTx<T>(

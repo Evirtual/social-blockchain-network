@@ -1,0 +1,35 @@
+import type { ReactNode } from "react";
+import { ContractProvider } from "@features/contract";
+import { FeedProvider } from "@features/feed";
+import { FollowProvider } from "@features/follow";
+import { ProfileProvider } from "@features/profile";
+import { ComposerProvider } from "@features/composer";
+import { SocialActionsProvider } from "@features/social";
+import { StatusProvider } from "@features/status";
+import { ThemeProvider } from "@features/theme";
+import { TxNotificationsProvider } from "@features/tx";
+import { WalletProvider } from "@features/wallet";
+
+export function AppProviders({ children }: { children: ReactNode }) {
+  return (
+    <TxNotificationsProvider>
+      <StatusProvider>
+        <ThemeProvider>
+          <WalletProvider>
+            <ContractProvider>
+              <FeedProvider>
+                <ProfileProvider>
+                  <FollowProvider>
+                    <ComposerProvider>
+                      <SocialActionsProvider>{children}</SocialActionsProvider>
+                    </ComposerProvider>
+                  </FollowProvider>
+                </ProfileProvider>
+              </FeedProvider>
+            </ContractProvider>
+          </WalletProvider>
+        </ThemeProvider>
+      </StatusProvider>
+    </TxNotificationsProvider>
+  );
+}

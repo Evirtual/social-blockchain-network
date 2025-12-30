@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post, PostComment } from "@types";
-import { getSocialContract } from "../../contract";
+import { getSocialContract } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { queryLogsPaged, withTimeout } from "@shared/lib/feedQuery";
 import { runInFlight } from "@shared/lib/inFlight";

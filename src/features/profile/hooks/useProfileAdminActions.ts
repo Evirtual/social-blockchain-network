@@ -1,11 +1,10 @@
 import { useCallback } from "react";
 import { isAddress } from "ethers";
 
-import { hasPinata, pinataPinFile } from "../../ipfs";
+import { hasPinata, pinataPinFile } from "@features/ipfs";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscovery";
-import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts } from "../../ipfs";
-import { collectPinnedCidsForTokenIds } from "../../ipfs";
+import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
 
 export function useProfileAdminActions(args: {
   address: string;

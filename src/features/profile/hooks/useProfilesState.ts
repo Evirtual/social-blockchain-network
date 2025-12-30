@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
-import { hasPinata } from "../../ipfs";
+import { hasPinata } from "@features/ipfs";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -58,7 +58,7 @@ export function useProfilesState({
   const [profileUploadedAvatarFilename, setProfileUploadedAvatarFilename] = useState<string>("");
   const [isProfileAvatarLoading, setIsProfileAvatarLoading] = useState(false);
 
-  const ipfsConfigured = useMemo(() => hasPinata(), []);
+  const ipfsConfigured = hasPinata();
 
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { ChainLogo } from "../../app";
+import { ChainLogo } from "@features/app";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {

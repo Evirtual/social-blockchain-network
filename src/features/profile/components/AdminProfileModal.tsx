@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal } from "../../app";
+import { Modal } from "@features/app";
 
 type InitialDraft = {
   name: string;

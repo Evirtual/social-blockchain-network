@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
-import { createMetadataUri } from "../../metadata";
+import { createMetadataUri } from "@features/metadata";
 import { getErrorMessage } from "@shared/lib/errors";
-import { buildIpfsTokenUri, ipfsToHttp } from "../../ipfs";
+import { buildIpfsTokenUri, ipfsToHttp } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
 import { parseMintPostReceipt } from "../services/mintPost/parseMintPostReceipt";

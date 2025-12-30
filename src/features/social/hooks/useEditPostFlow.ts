@@ -1,15 +1,16 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { Draft, Post } from "@types";
-import { createMetadataUri } from "../../metadata";
+import { createMetadataUri } from "@features/metadata";
 import { getErrorMessage } from "@shared/lib/errors";
-import { buildIpfsTokenUri, collectIpfsCidsFromTokenUri } from "../../ipfs";
+import { buildIpfsTokenUri, collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { EMPTY_DRAFT, MAX_ONCHAIN_TOKEN_URI_CHARS } from "../services/editPost/constants";
 import { buildBestImageDataUrl } from "../services/editPost/imageDataUrl";
 import { bestEffortFinalizeIpfsMedia } from "../services/editPost/ipfsFinalize";
 import { makeLocalNoticeId } from "@shared/lib/ids";
 import { collectPinnedCidsFromBuilt } from "../services/editPost/pinning";
+import { parsePostKey, postKey } from "@features/feed";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -84,30 +85,30 @@ export function useEditPostFlow(args: {
 
   const startEditPost = useCallback(
     (post: Post) => {
+      setEditingTokenId(postKey(post));
+      setEditDraft({
+        title: post.title,
+        body: post.body,
+        imageUrl: post.animationUrl ?? post.image,
+        imageDataUrl: ""
+      });
+      setEditUploadedImageBlob(null);
+      setEditUploadedImageFilename("");
+
       void (async () => {
         try {
           const readContract = await getReadContract();
           const frozen = (await (readContract as any).isPostFrozen(BigInt(post.tokenId))) as boolean;
           if (frozen && !isOwner) {
             setStatus("This post is frozen and can no longer be edited.");
-            return;
+            cancelEditPost();
           }
         } catch {
           // ignore and allow edit
         }
-
-        setEditingTokenId(post.tokenId);
-        setEditDraft({
-          title: post.title,
-          body: post.body,
-          imageUrl: post.animationUrl ?? post.image,
-          imageDataUrl: ""
-        });
-        setEditUploadedImageBlob(null);
-        setEditUploadedImageFilename("");
       })();
     },
-    [getReadContract, isOwner, setStatus]
+    [getReadContract, isOwner, setStatus, cancelEditPost]
   );
 
   const onEditSelectFile = useCallback(
@@ -185,6 +186,9 @@ export function useEditPostFlow(args: {
         return;
       }
       if (!editingTokenId) return;
+      const parsedKey = parsePostKey(editingTokenId);
+      if (!parsedKey) return;
+      const { tokenId: editingTokenValue, chainId: editingPostChainId } = parsedKey;
       if (isEditImageLoading) {
         setStatus("Please wait for the uploaded image to finish processing.");
         return;
@@ -200,7 +204,7 @@ export function useEditPostFlow(args: {
       }
 
       const writeContract = await getWriteContract();
-      const tokenIdBig = BigInt(editingTokenId);
+      const tokenIdBig = BigInt(editingTokenValue);
 
       // Capture current tokenURI + related IPFS CIDs before we update it.
       // We only unpin after the tx succeeds.
@@ -221,7 +225,7 @@ export function useEditPostFlow(args: {
       txNotifications.notifyPending({ hash: processingToastId, label: "Updating post…", explorerUrl: null });
 
       // Existing post (used for media-type hints and permissioning).
-      const post = feed.posts.find((p) => p.tokenId === editingTokenId);
+      const post = feed.posts.find((p) => postKey(p) === editingTokenId);
 
       let tokenUri = "";
       let newPinnedCids: Set<string> | null = null;
@@ -313,7 +317,7 @@ export function useEditPostFlow(args: {
       // due to gateway timing or metadata fetch failures.
       feed.setPosts((prev) =>
         prev.map((p) => {
-          if (p.tokenId !== editingTokenId) return p;
+          if (postKey(p) !== editingTokenId) return p;
           return {
             ...p,
             body: editDraft.body,
@@ -330,7 +334,10 @@ export function useEditPostFlow(args: {
         for (const cid of oldPinnedCids) {
           if (!newPinnedCids.has(cid)) toRemove.push(cid);
         }
-        void bestEffortUnpinCidsSafe(toRemove, { chainId, tokenIds: [editingTokenId] });
+        void bestEffortUnpinCidsSafe(toRemove, {
+          chainId: editingPostChainId ?? chainId,
+          tokenIds: [editingTokenValue]
+        });
       }
 
       cancelEditPost();

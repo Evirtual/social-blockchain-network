@@ -1,4 +1,4 @@
-import { ipfsToHttp } from "../../ipfs";
+import { ipfsToHttp } from "@features/ipfs";
 
 type Props = {
   canAdminEdit: boolean;

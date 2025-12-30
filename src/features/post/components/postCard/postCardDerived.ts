@@ -1,5 +1,6 @@
-import { ipfsToHttp } from "../../../ipfs";
+import { ipfsToHttp } from "@features/ipfs";
 import { getNetworkBadgeLabel } from "@shared/lib/chain";
+import { parseChainIdNumber } from "@shared/lib/chainId";
 
 export function getPostUrl(postChainId: string | null | undefined, tokenId: string) {
   return postChainId ? `/post/${postChainId}/${tokenId}` : `/post/${tokenId}`;
@@ -20,8 +21,12 @@ export function getPostNetworkUi(params: {
   const { postChainId, chainId, walletAddress } = params;
 
   const postNetworkLabel = postChainId ? getNetworkBadgeLabel(postChainId) : "";
-  const isCurrentNetworkPost = !!chainId && !!postChainId && postChainId === chainId;
-  const requiresNetworkSwitch = !!walletAddress && !!chainId && !!postChainId && postChainId !== chainId;
+  const walletChainIdNum = parseChainIdNumber(chainId);
+  const postChainIdNum = parseChainIdNumber(postChainId ?? null);
+  const isCurrentNetworkPost =
+    walletChainIdNum != null && postChainIdNum != null && walletChainIdNum === postChainIdNum;
+  const requiresNetworkSwitch =
+    !!walletAddress && walletChainIdNum != null && postChainIdNum != null && walletChainIdNum !== postChainIdNum;
   const interactionDisabledTitle = requiresNetworkSwitch
     ? `Switch to ${postNetworkLabel} to interact with this post.`
     : undefined;

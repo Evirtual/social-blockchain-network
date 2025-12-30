@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { socialInterface } from "../../contract";
+import { socialInterface } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -394,6 +394,55 @@ export function useFollowScans(params: {
     [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
   );
 
+  const applyFollowUpdate = useCallback(
+    (args: { follower: string; followee: string; isFollowing: boolean }) => {
+      const followerKey = addressKey(args.follower);
+      const followeeKey = addressKey(args.followee);
+      if (!followerKey || !followeeKey) return;
+
+      const followerCacheKey = makeCacheKey(params.chainId, followerKey);
+      const followeeCacheKey = makeCacheKey(params.chainId, followeeKey);
+
+      setFollowingByAddress((prev) => {
+        const existing = prev[followerKey] ?? [];
+        const has = existing.includes(followeeKey);
+        const nextList = args.isFollowing
+          ? has
+            ? existing
+            : [...existing, followeeKey]
+          : existing.filter((addr) => addr !== followeeKey);
+        if (nextList === existing) return prev;
+        if (followerCacheKey) followingByKeyCache.set(followerCacheKey, nextList);
+        return { ...prev, [followerKey]: nextList };
+      });
+
+      setFollowersByAddress((prev) => {
+        const existing = prev[followeeKey] ?? [];
+        const has = existing.includes(followerKey);
+        const nextList = args.isFollowing
+          ? has
+            ? existing
+            : [...existing, followerKey]
+          : existing.filter((addr) => addr !== followerKey);
+        if (nextList === existing) return prev;
+        if (followeeCacheKey) followersByKeyCache.set(followeeCacheKey, nextList);
+        if (followeeCacheKey) followerCountByKeyCache.set(followeeCacheKey, nextList.length);
+        return { ...prev, [followeeKey]: nextList };
+      });
+
+      setFollowerCountByAddress((prev) => {
+        const current = prev[followeeKey];
+        if (typeof current !== "number") return prev;
+        const delta = args.isFollowing ? 1 : -1;
+        const nextCount = Math.max(0, current + delta);
+        if (nextCount === current) return prev;
+        if (followeeCacheKey) followerCountByKeyCache.set(followeeCacheKey, nextCount);
+        return { ...prev, [followeeKey]: nextCount };
+      });
+    },
+    [params.chainId]
+  );
+
   return {
     followerCountByAddress,
     isLoadingFollowerCountByAddress,
@@ -405,6 +454,7 @@ export function useFollowScans(params: {
 
     followingByAddress,
     isLoadingFollowingByAddress,
-    loadFollowingForAddress
+    loadFollowingForAddress,
+    applyFollowUpdate
   };
 }

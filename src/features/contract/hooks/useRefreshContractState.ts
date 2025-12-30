@@ -1,7 +1,7 @@
 import type { BrowserProvider } from "ethers";
 import { useCallback } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
-import { resolveConfiguredSocialPostsAddress } from "../services/configuredSocialPostsAddress";
+import { resolveConfiguredSocialPostsAddress } from "@shared/lib/configuredSocialPostsAddress";
 
 export function useRefreshContractState(params: {
   provider: BrowserProvider | null;

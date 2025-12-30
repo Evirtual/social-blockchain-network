@@ -1,12 +1,10 @@
 import type { Draft, Post } from "@types";
-import { Feed } from "../../feed";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Feed } from "@features/feed";
+import { useMemo, useState } from "react";
 import { AdminProfileModal } from "../components/AdminProfileModal";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
-import { FeedHeaderControls } from "../../home/components/FeedHeaderControls";
-import { getSupportedNetworks } from "../../home/services/supportedNetworks";
-import { filterPosts } from "../../home/services/filterPosts";
-import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
+import { FeedHeaderControls } from "@features/home/components/FeedHeaderControls";
+import { useFeedFilterViewModel } from "@features/home/hooks/useFeedFilterViewModel";
 
 type Props = {
   isOwner: boolean;
@@ -74,70 +72,6 @@ export function ProfilePage(props: Props) {
 
   const profileKey = String(props.address ?? "").trim().toLowerCase();
 
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
-  const defaultSelectedNetworkChainIds = useMemo(
-    () => supportedNetworks.map((n) => String(n.chainId)),
-    [supportedNetworks]
-  );
-
-  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
-    `socialBlockchainNetwork.profile.${profileKey}.searchQuery`,
-    "",
-    {
-      serialize: (v) => String(v ?? ""),
-      parse: (raw) => String(raw ?? "")
-    }
-  );
-
-  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
-    string[]
-  >(
-    `socialBlockchainNetwork.profile.${profileKey}.selectedNetworks`,
-    defaultSelectedNetworkChainIds,
-    {
-      serialize: (v) => JSON.stringify({ ids: v }),
-      parse: (raw) => {
-        try {
-          const parsed = JSON.parse(raw) as any;
-          const ids = Array.isArray(parsed?.ids)
-            ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
-            : [];
-          return ids;
-        } catch {
-          return [];
-        }
-      }
-    }
-  );
-
-  const didInitDisconnectedNetworksRef = useRef(false);
-
-  useEffect(() => {
-    if (props.walletAddress) {
-      didInitDisconnectedNetworksRef.current = false;
-      return;
-    }
-    if (didInitDisconnectedNetworksRef.current) return;
-    didInitDisconnectedNetworksRef.current = true;
-    setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
-  }, [props.walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
-
-  useEffect(() => {
-    if (hasStoredSelectedNetworks) return;
-    if (!props.walletAddress) return;
-    const currentChainId = props.chainId ? String(props.chainId) : null;
-    if (!currentChainId) return;
-    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    if (!supported.has(currentChainId)) return;
-    setSelectedNetworkChainIds([currentChainId]);
-  }, [
-    hasStoredSelectedNetworks,
-    props.walletAddress,
-    props.chainId,
-    supportedNetworks,
-    setSelectedNetworkChainIds
-  ]);
-
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
   // Match Approvals modal semantics: unknown => treated as not allowed (Approve visible).
   const isAllowed = props.isPosterAllowed === true;
@@ -152,28 +86,36 @@ export function ProfilePage(props: Props) {
   const activeLoading = props.isFeedLoading;
   const activeTitle = "Profile Feed";
 
-  const filteredPosts = useMemo(() => {
-    return filterPosts({
-      posts: activePosts,
-      authorIdentity: props.authorIdentity,
-      shortAddress: props.shortAddress,
-      searchQuery,
-      selectedNetworkChainIds
-    });
-  }, [activePosts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
+  const {
+    supportedNetworks,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    filteredPosts,
+    pillText
+  } = useFeedFilterViewModel({
+    posts: activePosts,
+    authorIdentity: props.authorIdentity,
+    shortAddress: props.shortAddress,
+    searchQueryKey: `socialBlockchainNetwork.profile.${profileKey}.searchQuery`,
+    selectedNetworksKey: `socialBlockchainNetwork.profile.${profileKey}.selectedNetworks`,
+    walletAddress: props.walletAddress,
+    chainId: props.chainId
+  });
 
-  const isNetworkFilterActive = useMemo(() => {
-    const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    const selected = new Set(selectedNetworkChainIds.map(String));
-    if (selected.size !== all.size) return true;
-    for (const id of selected) {
-      if (!all.has(id)) return true;
-    }
-    return false;
-  }, [selectedNetworkChainIds, supportedNetworks]);
-
-  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
-  const pillText = hasAnyFilter ? `${filteredPosts.length} / ${activePosts.length} posts` : `${activePosts.length} posts`;
+  const headerAction = useMemo(() => {
+    return (
+      <FeedHeaderControls
+        pillText={pillText}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    );
+  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
 
   return (
     <main className="profileLayout">
@@ -210,16 +152,7 @@ export function ProfilePage(props: Props) {
         <Feed
           title={activeTitle}
           pillText=""
-          headerAction={
-            <FeedHeaderControls
-              pillText={pillText}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              selectedNetworkChainIds={selectedNetworkChainIds}
-              onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-              supportedNetworks={supportedNetworks}
-            />
-          }
+          headerAction={headerAction}
           isLoading={activeLoading}
           loadingText={props.status}
           posts={filteredPosts}

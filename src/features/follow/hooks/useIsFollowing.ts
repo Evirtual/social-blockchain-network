@@ -107,17 +107,17 @@ export function useIsFollowing(params: {
   );
 
   const toggleFollow = useCallback(
-    async (followee: string) => {
+    async (followee: string): Promise<boolean | undefined> => {
       try {
         if (!params.walletAddress) {
           requestConnectNudge();
           params.setStatus("Connect your wallet first.");
-          return;
+          return undefined;
         }
         if (!followee) return;
         if (addressKey(followee) === addressKey(params.walletAddress)) {
           params.setStatus("You cannot follow yourself.");
-          return;
+          return undefined;
         }
 
         const writeContract = await params.getWriteContract();
@@ -136,15 +136,18 @@ export function useIsFollowing(params: {
               : (writeContract as any).follow(followee)) as any),
           () => true
         );
-        if (!ok) return;
+        if (!ok) return undefined;
+        const nextValue = !currently;
 
         setIsFollowingByAddress((prev) => {
-          const next = { ...prev, [key]: !currently };
+          const next = { ...prev, [key]: nextValue };
           isFollowingByAddressRef.current = next;
           return next;
         });
+        return nextValue;
       } catch (error) {
         params.setStatus(getErrorMessage(error));
+        return undefined;
       }
     },
     [params.walletAddress, params.getWriteContract, params.runContractTx, params.setStatus]

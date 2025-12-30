@@ -1,5 +1,5 @@
 import type { TokenMetadata } from "@types";
-import { ipfsToHttp } from "../../ipfs";
+import { ipfsToHttp } from "@features/ipfs";
 import { fetchTokenMetadata } from "./metadata/fetch";
 import { sleep } from "@shared/lib/time";
 

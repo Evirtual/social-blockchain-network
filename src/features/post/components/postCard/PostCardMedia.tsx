@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { ipfsToHttp, ipfsToHttpWithGateway } from "../../../ipfs";
+import { ipfsToHttp, ipfsToHttpWithGateway } from "@features/ipfs";
 
 export type PostCardMediaProps = {
   postUrl: string;
@@ -22,10 +22,18 @@ export function PostCardMedia(props: PostCardMediaProps) {
   const fallbackGateway = props.fallbackGateway ?? "https://ipfs.io/ipfs/";
   const showBody = props.showBody ?? true;
 
-  const hasMedia = !!props.image || !!props.animationUrl;
+  const hasMedia = useMemo(() => !!props.image || !!props.animationUrl, [props.image, props.animationUrl]);
 
-  const animationPrimaryUrl = props.animationUrl ? ipfsToHttp(props.animationUrl) : "";
-  const imagePrimaryUrl = props.image ? ipfsToHttp(props.image) : "";
+  const animationPrimaryUrl = useMemo(
+    () => (props.animationUrl ? ipfsToHttp(props.animationUrl) : ""),
+    [props.animationUrl]
+  );
+  const imagePrimaryUrl = useMemo(() => (props.image ? ipfsToHttp(props.image) : ""), [props.image]);
+
+  const postLinkState = useMemo(
+    () => ({ from: props.from, chainId: props.postChainId ?? null }),
+    [props.from, props.postChainId]
+  );
 
   const [animationSrc, setAnimationSrc] = useState<string>(animationPrimaryUrl);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
@@ -54,7 +62,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
         <Link
           className="postImageLink"
           to={props.postUrl}
-          state={{ from: props.from, chainId: props.postChainId ?? null }}
+          state={postLinkState}
           aria-label="Open post"
         >
           <video
@@ -76,7 +84,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
         <Link
           className="postImageLink"
           to={props.postUrl}
-          state={{ from: props.from, chainId: props.postChainId ?? null }}
+          state={postLinkState}
           aria-label="Open post"
         >
           <img

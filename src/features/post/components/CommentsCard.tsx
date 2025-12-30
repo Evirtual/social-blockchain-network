@@ -1,6 +1,6 @@
 import type { PostComment } from "@types";
 import { useCallback, useState } from "react";
-import { IconRepeat } from "../../app";
+import { IconRepeat } from "@features/app";
 
 type Props = {
   tokenId: string;

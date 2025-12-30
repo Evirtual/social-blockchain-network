@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { ipfsToHttp } from "@features/ipfs";
 import { stableHueFromSeed } from "@shared/lib/format";
 
-import { Modal } from "../../Modal";
-import { useProfile } from "../../../providers/useProfile";
+import { Modal } from "@features/app/components/Modal";
+import { useProfileActions, useProfileState } from "@features/profile";
 
 export type AddressListModalProps = {
   open: boolean;
@@ -18,7 +18,8 @@ export type AddressListModalProps = {
 };
 
 export function AddressListModal(props: AddressListModalProps) {
-  const profile = useProfile();
+  const profileState = useProfileState();
+  const profileActions = useProfileActions();
 
   const loadingSkeletonRows = props.isLoading
     ? Array.from({ length: 1 }).map((_, idx) => (
@@ -40,8 +41,8 @@ export function AddressListModal(props: AddressListModalProps) {
     if (!props.open) return;
     const addrs = props.addresses.slice(0, 24);
     if (addrs.length === 0) return;
-    void Promise.all(addrs.map((a) => profile.loadProfile(a)));
-  }, [profile, props.addresses, props.open]);
+    void Promise.all(addrs.map((a) => profileActions.loadProfile(a)));
+  }, [profileActions, props.addresses, props.open]);
 
   return (
     <Modal open={props.open} title={props.title} onClose={props.onClose}>
@@ -57,7 +58,7 @@ export function AddressListModal(props: AddressListModalProps) {
                 className="avatar tiny"
                 style={(() => {
                   const key = addr.toLowerCase();
-                  const p = profile.profilesByAddress[key];
+                  const p = profileState.profilesByAddress[key];
                   const av = p?.avatarUrl?.trim();
                   return av
                     ? { backgroundImage: `url(${ipfsToHttp(av)})` }

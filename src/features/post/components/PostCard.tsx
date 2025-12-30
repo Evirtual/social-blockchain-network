@@ -1,7 +1,7 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
-import { ChainLogo, IconEdit, IconFlame, Modal } from "../../app";
+import { ChainLogo, IconEdit, IconFlame, Modal } from "@features/app";
 import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/chain";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
 import { PostCardFooter } from "./postCard/PostCardFooter";
@@ -55,22 +55,33 @@ type Props = {
 
 export const PostCard = memo(function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
-  const hasMedia = !!props.post.image || !!props.post.animationUrl;
-  const explorer = props.post.mintTxHash
-    ? props.getExplorerTxUrl(props.post.chainId ?? props.chainId, props.post.mintTxHash)
-    : null;
-  const postUrl = getPostUrl(props.post.chainId, tokenId);
-  const avatarStyle = getAvatarStyle({ authorAvatarUrl: props.authorAvatarUrl, authorHue: props.authorHue });
+  const postChainId = props.post.chainId ?? null;
 
-  const { postNetworkLabel, isCurrentNetworkPost, requiresNetworkSwitch, interactionDisabledTitle } = getPostNetworkUi({
-    postChainId: props.post.chainId,
-    chainId: props.chainId,
-    walletAddress: props.walletAddress
-  });
+  const hasMedia = useMemo(() => !!props.post.image || !!props.post.animationUrl, [props.post.image, props.post.animationUrl]);
 
-  const postNetworkTitle = props.post.chainId ? getNetworkBadgeLabel(props.post.chainId) : "";
-  const postNetworkHue = props.post.chainId ? getNetworkBrandHue(props.post.chainId) : 210;
-  const postNetworkChainIdNum = props.post.chainId ? Number(props.post.chainId) : NaN;
+  const explorer = useMemo(() => {
+    if (!props.post.mintTxHash) return null;
+    return props.getExplorerTxUrl(postChainId ?? props.chainId, props.post.mintTxHash);
+  }, [props.post.mintTxHash, props.getExplorerTxUrl, postChainId, props.chainId]);
+
+  const postUrl = useMemo(() => getPostUrl(postChainId, tokenId), [postChainId, tokenId]);
+
+  const avatarStyle = useMemo(
+    () => getAvatarStyle({ authorAvatarUrl: props.authorAvatarUrl, authorHue: props.authorHue }),
+    [props.authorAvatarUrl, props.authorHue]
+  );
+
+  const { postNetworkLabel, isCurrentNetworkPost, requiresNetworkSwitch, interactionDisabledTitle } = useMemo(() => {
+    return getPostNetworkUi({
+      postChainId,
+      chainId: props.chainId,
+      walletAddress: props.walletAddress
+    });
+  }, [postChainId, props.chainId, props.walletAddress]);
+
+  const postNetworkTitle = useMemo(() => (postChainId ? getNetworkBadgeLabel(postChainId) : ""), [postChainId]);
+  const postNetworkHue = useMemo(() => (postChainId ? getNetworkBrandHue(postChainId) : 210), [postChainId]);
+  const postNetworkChainIdNum = useMemo(() => (postChainId ? Number(postChainId) : NaN), [postChainId]);
 
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
@@ -79,12 +90,31 @@ export const PostCard = memo(function PostCard(props: Props) {
     [props.togglePanel, props.panelKey]
   );
 
+  const onStartEdit = useCallback(() => {
+    props.onStartEditPost(props.post);
+  }, [props.onStartEditPost, props.post]);
+
+  const onBurn = useCallback(() => {
+    props.onBurn(tokenId, postChainId);
+  }, [props.onBurn, tokenId, postChainId]);
+
+  const onCopyMintTx = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      if (explorer) return;
+      event.preventDefault();
+      if (props.post.mintTxHash) {
+        void navigator.clipboard?.writeText(props.post.mintTxHash);
+      }
+    },
+    [explorer, props.post.mintTxHash]
+  );
+
   return (
     <article className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
       <Modal open={props.isEditing} title="Edit post" onClose={props.onCancelEditPost}>
         <PostCardEditBox
           tokenId={tokenId}
-          postChainId={props.post.chainId}
+          postChainId={postChainId}
           avatarStyle={avatarStyle}
           requiresNetworkSwitch={requiresNetworkSwitch}
           interactionDisabledTitle={interactionDisabledTitle}
@@ -112,7 +142,7 @@ export const PostCard = memo(function PostCard(props: Props) {
               <Link
                 className="postTokenLink"
                 to={postUrl}
-                state={{ from: props.from, chainId: props.post.chainId ?? null }}
+                state={{ from: props.from, chainId: postChainId }}
               >
                 Token #{tokenId}
               </Link>
@@ -125,13 +155,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                     rel={explorer ? "noreferrer" : undefined}
                     aria-label={postNetworkTitle ? `Network: ${postNetworkTitle}` : "Network"}
                     title={postNetworkTitle || (explorer ? "View mint transaction" : "Copy mint transaction hash")}
-                    onClick={(e) => {
-                      if (explorer) return;
-                      e.preventDefault();
-                      if (props.post.mintTxHash) {
-                        void navigator.clipboard?.writeText(props.post.mintTxHash);
-                      }
-                    }}
+                    onClick={onCopyMintTx}
                   >
                     <span
                       className="chainBrandMark"
@@ -162,7 +186,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                   <button
                     className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
                     type="button"
-                    onClick={() => props.onStartEditPost(props.post)}
+                    onClick={onStartEdit}
                     aria-label="Edit post"
                     title="Edit"
                     disabled={requiresNetworkSwitch}
@@ -172,7 +196,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                   <button
                     className={`danger iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
                     type="button"
-                    onClick={() => props.onBurn(tokenId, props.post.chainId)}
+                    onClick={onBurn}
                     aria-label="Burn post"
                     title="Burn"
                     disabled={requiresNetworkSwitch}
@@ -199,7 +223,7 @@ export const PostCard = memo(function PostCard(props: Props) {
           <PostCardMedia
             postUrl={postUrl}
             from={props.from}
-            postChainId={props.post.chainId ?? null}
+            postChainId={postChainId}
             tokenId={tokenId}
             body={props.post.body}
             image={props.post.image}

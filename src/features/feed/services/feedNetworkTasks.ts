@@ -1,5 +1,5 @@
 import type { Post } from "@types";
-import { getSocialContract } from "../../contract";
+import { getSocialContract } from "@features/contract";
 import type { FeedNetworkConfig } from "./feedNetworks";
 
 export async function getFeedNetworkTasks(args: {

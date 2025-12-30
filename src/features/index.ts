@@ -12,4 +12,3 @@ export * as ipfs from "./ipfs";
 export * as composer from "./composer";
 export * as contract from "./contract";
 export * as app from "./app";
-export * as shared from "./shared";

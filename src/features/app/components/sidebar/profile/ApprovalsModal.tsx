@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Modal } from "../../Modal";
-import { useContract } from "../../../providers/ContractContext";
-import { useContractTx } from "../../../providers/useContractTx";
-import { useFeed } from "../../../providers/useFeed";
-import { useWallet } from "../../../providers/WalletContext";
+import { Modal } from "@features/app/components/Modal";
+import { useContractActions, useContractState } from "@features/contract";
+import { useContractTx } from "@features/app/providers/useContractTx";
+import { useFeedState } from "@features/feed";
+import { useWalletState } from "@features/wallet";
 import { ApprovalListRow } from "./approvals/ApprovalListRow";
 import { useApprovalActions } from "./approvals/useApprovalActions";
 import { useOnChainApprovalRequests } from "./approvals/useOnChainApprovalRequests";
@@ -22,12 +22,13 @@ export type ApprovalsModalProps = {
 };
 
 export function ApprovalsModal(props: ApprovalsModalProps) {
-  const contract = useContract();
+  const contractState = useContractState();
+  const contractActions = useContractActions();
   const { runContractTx } = useContractTx();
-  const feed = useFeed();
-  const wallet = useWallet();
+  const feed = useFeedState();
+  const wallet = useWalletState();
 
-  const pendingCacheKey = `${String(wallet.chainId ?? "").trim()}:${String(contract.contractAddress ?? "")
+  const pendingCacheKey = `${String(wallet.chainId ?? "").trim()}:${String(contractState.contractAddress ?? "")
     .trim()
     .toLowerCase()}`;
 
@@ -50,8 +51,8 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     open: props.open,
     isOwner: props.isOwner,
     chainId: wallet.chainId,
-    contractAddress: contract.contractAddress,
-    getReadContract: contract.getReadContract
+    contractAddress: contractState.contractAddress,
+    getReadContract: contractActions.getReadContract
   });
 
   const {
@@ -64,7 +65,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     isOwner: props.isOwner,
     pendingApprovals,
     onChainRequests,
-    getReadContract: contract.getReadContract,
+    getReadContract: contractActions.getReadContract,
     chainId: wallet.chainId
   });
 
@@ -79,14 +80,66 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     setPosterAllowedByAddress,
     setPosterDisapprovedEverByAddress,
     runContractTx,
-    getReadContract: contract.getReadContract,
-    getWriteContract: contract.getWriteContract,
+    getReadContract: contractActions.getReadContract,
+    getWriteContract: contractActions.getWriteContract,
     feedPosts: feed.posts
   });
 
+  const pendingRows = useMemo(() => {
+    return pendingApprovals.map((addr) => {
+      const key = addr.toLowerCase();
+      return {
+        addr,
+        key,
+        isFlagged: !!posterDisapprovedEverByAddress[key],
+        isAllowed: !!posterAllowedByAddress[key]
+      };
+    });
+  }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
+
+  const chainRows = useMemo(() => {
+    return onChainRequests.map((addr) => {
+      const key = addr.toLowerCase();
+      return {
+        addr,
+        key,
+        isFlagged: !!posterDisapprovedEverByAddress[key],
+        isAllowed: !!posterAllowedByAddress[key]
+      };
+    });
+  }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress]);
+
+  const handleRemove = useCallback(
+    (addr: string) => {
+      removePending(addr);
+    },
+    [removePending]
+  );
+
+  const handleApprove = useCallback(
+    (addr: string) => {
+      void approvePending(addr);
+    },
+    [approvePending]
+  );
+
+  const handleDisapprove = useCallback(
+    (addr: string) => {
+      void disapprovePending(addr);
+    },
+    [disapprovePending]
+  );
+
+  const handleReset = useCallback(
+    (addr: string) => {
+      void resetAllAndBlock(addr);
+    },
+    [resetAllAndBlock]
+  );
+
   return (
     <Modal open={props.open} title="Approvals" onClose={props.onClose}>
-      <div className="composer">
+      <div className="composer approvalsModal">
         <div className="muted">Approve wallets that are allowed to mint posts during testing.</div>
 
         <div className="row">
@@ -103,28 +156,28 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
 
         {approvalsError ? <div className="muted">{approvalsError}</div> : null}
 
-        <div className="list">
-          {pendingApprovals.length === 0
-            ? null
-            : pendingApprovals.map((addr) => (
-                <ApprovalListRow
-                  key={addr}
-                  addr={addr}
-                  shortAddress={props.shortAddress}
-                  isFlagged={!!posterDisapprovedEverByAddress[addr.toLowerCase()]}
-                  isAllowed={!!posterAllowedByAddress[addr.toLowerCase()]}
-                  showRemove
-                  onRemove={() => removePending(addr)}
-                  onApprove={() => void approvePending(addr)}
-                  onDisapprove={() => void disapprovePending(addr)}
-                  onReset={() => void resetAllAndBlock(addr)}
-                />
-              ))}
-        </div>
+        {pendingRows.length === 0 ? null : (
+          <div className="list">
+            {pendingRows.map((row) => (
+              <ApprovalListRow
+                key={row.addr}
+                addr={row.addr}
+                shortAddress={props.shortAddress}
+                isFlagged={row.isFlagged}
+                isAllowed={row.isAllowed}
+                showRemove
+                onRemove={() => handleRemove(row.addr)}
+                onApprove={() => handleApprove(row.addr)}
+                onDisapprove={() => handleDisapprove(row.addr)}
+                onReset={() => handleReset(row.addr)}
+              />
+            ))}
+          </div>
+        )}
 
         {props.isOwner ? (
-          <>
-            <div className="muted">Requests from chain</div>
+          <div className="approvalsSection">
+            <div className="muted approvalsSectionTitle">Requests from chain</div>
 
             {isLoadingOnChainRequests ? (
               <div className="list" aria-busy={true} aria-label="Loading requests" role="status">
@@ -141,29 +194,29 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
               </div>
             ) : null}
 
-            {!isLoadingOnChainRequests && onChainRequestsLoadError ? <div className="muted">Failed to load requests.</div> : null}
+            {!isLoadingOnChainRequests && onChainRequestsLoadError ? <div className="list muted">Failed to load requests.</div> : null}
 
             {!isLoadingOnChainRequests && !onChainRequestsLoadError && onChainRequests.length === 0 ? (
-              <div className="muted">No requests found.</div>
+              <div className="list muted">No requests found.</div>
             ) : null}
 
-            {onChainRequests.length ? (
+            {chainRows.length ? (
               <div className="list">
-                {onChainRequests.map((addr) => (
+                {chainRows.map((row) => (
                   <ApprovalListRow
-                    key={addr}
-                    addr={addr}
+                    key={row.addr}
+                    addr={row.addr}
                     shortAddress={props.shortAddress}
-                    isFlagged={!!posterDisapprovedEverByAddress[addr.toLowerCase()]}
-                    isAllowed={!!posterAllowedByAddress[addr.toLowerCase()]}
-                    onApprove={() => void approvePending(addr)}
-                    onDisapprove={() => void disapprovePending(addr)}
-                    onReset={() => void resetAllAndBlock(addr)}
+                    isFlagged={row.isFlagged}
+                    isAllowed={row.isAllowed}
+                    onApprove={() => handleApprove(row.addr)}
+                    onDisapprove={() => handleDisapprove(row.addr)}
+                    onReset={() => handleReset(row.addr)}
                   />
                 ))}
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
       </div>
     </Modal>

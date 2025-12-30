@@ -1,5 +1,5 @@
 import type { PostComment } from "@types";
-import { socialInterface } from "../../../contract";
+import { socialInterface } from "@features/contract";
 
 export function parseCommentLogs(logs: any[]): PostComment[] {
   return logs.flatMap((log: any) => {

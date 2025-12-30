@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
-import { resolveConfiguredSocialPostsAddress } from "../services/configuredSocialPostsAddress";
+import { resolveConfiguredSocialPostsAddress } from "@shared/lib/configuredSocialPostsAddress";
 
 export function useContractAddress(params: {
   chainId: string | null;

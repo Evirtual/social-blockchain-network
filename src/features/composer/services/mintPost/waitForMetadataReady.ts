@@ -1,1 +1,1 @@
-export { waitForMetadataReady } from "../../../metadata";
+export { waitForMetadataReady } from "@features/metadata";

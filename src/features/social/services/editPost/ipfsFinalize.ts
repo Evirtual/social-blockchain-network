@@ -1,1 +1,1 @@
-export { bestEffortFinalizeIpfsMedia, waitForMetadataReady, waitForUrlReachable } from "../../../metadata";
+export { bestEffortFinalizeIpfsMedia, waitForMetadataReady, waitForUrlReachable } from "@features/metadata";

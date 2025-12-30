@@ -1,5 +1,5 @@
 import type { Draft } from "@types";
-import { createMetadataUri } from "../../../metadata";
+import { createMetadataUri } from "@features/metadata";
 import { IMAGE_COMPRESSION_CANDIDATES, MAX_IMAGE_DATA_URL_CHARS, MAX_ONCHAIN_TOKEN_URI_CHARS } from "./constants";
 
 async function decodeImageFromObjectUrl(objectUrl: string) {

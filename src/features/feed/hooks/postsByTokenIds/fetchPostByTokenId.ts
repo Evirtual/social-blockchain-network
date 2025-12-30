@@ -1,5 +1,5 @@
 import type { Post } from "@types";
-import { fetchTokenMetadata } from "../../../metadata";
+import { fetchTokenMetadata } from "@features/metadata";
 
 export async function fetchPostByTokenId(params: {
   id: string;

@@ -1,4 +1,4 @@
-import { pinataPinFile } from "../../../ipfs";
+import { pinataPinFile } from "@features/ipfs";
 
 export async function resolveAvatarForSave(params: {
   ipfsConfigured: boolean;

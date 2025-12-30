@@ -1,8 +1,8 @@
-import { memo, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import type { Draft, Post } from "@types";
 import { useLocation } from "react-router-dom";
-import { PostCard, type PostPanel } from "../../post";
-import { usePanelById } from "../hooks/usePanelById";
+import { PostCard, type PostPanel } from "@features/post";
+import { usePanelById } from "@shared/hooks/usePanelById";
 import { getFeedFromLocation } from "./feed/getFeedFromLocation";
 import { getSkeletonCount } from "./feed/getSkeletonCount";
 import { FeedSkeleton } from "./feed/FeedSkeleton";
@@ -86,20 +86,48 @@ export const Feed = memo(function Feed({
 }: Props) {
   const location = useLocation();
   const from = getFeedFromLocation(location);
-  const { getPanel, togglePanel } = usePanelById<PostPanel>();
+  const { panelById, togglePanel } = usePanelById<PostPanel>();
 
   const walletLower = walletAddress ? walletAddress.toLowerCase() : null;
   const guestHue = stableHueFromSeed("guest");
 
-  const { showSkeletons, skeletonCount } = getSkeletonCount({
-    isLoading,
-    postsLength: posts.length,
-    singleColumn
-  });
+  const { showSkeletons, skeletonCount } = useMemo(() => {
+    return getSkeletonCount({
+      isLoading,
+      postsLength: posts.length,
+      singleColumn
+    });
+  }, [isLoading, posts.length, singleColumn]);
 
   const actionPlacement = headerActionPlacement ?? "right";
   const inlineAction = headerInlineAction ?? (actionPlacement === "inline" ? headerAction : null);
   const rightAction = actionPlacement === "inline" ? null : headerAction;
+
+  const postEntries = useMemo(() => {
+    return posts.map((post) => {
+      const { authorLabel, authorHue, authorAvatarUrl } = getAuthorPresentation({
+        author: post.author,
+        authorIdentity,
+        shortAddress,
+        guestHue
+      });
+      const isMine = !!walletLower && !!post.author && walletLower === post.author.toLowerCase();
+      const canModerate = !!isOwner;
+      const panelKey = `${post.chainId ?? ""}:${post.tokenId}`;
+      const compositeKey = `${panelKey}:${post.contextTag ?? "post"}`;
+
+      return {
+        post,
+        authorLabel,
+        authorHue,
+        authorAvatarUrl,
+        isMine,
+        canModerate,
+        panelKey,
+        compositeKey
+      };
+    });
+  }, [posts, authorIdentity, shortAddress, guestHue, walletLower, isOwner]);
 
   return (
     <section className="feed">
@@ -123,38 +151,28 @@ export const Feed = memo(function Feed({
         aria-label={isLoading ? "Loading posts" : undefined}
         role={isLoading && posts.length === 0 ? "status" : undefined}
       >
-        {posts.map((post, index) => {
-          const { authorLabel, authorHue, authorAvatarUrl } = getAuthorPresentation({
-            author: post.author,
-            authorIdentity,
-            shortAddress,
-            guestHue
-          });
-          const isMine = !!walletLower && !!post.author && walletLower === post.author.toLowerCase();
-          const canModerate = !!isOwner;
-          const panelKey = `${post.chainId ?? ""}:${post.tokenId}`;
-          const openPanel = getPanel(panelKey);
-          const compositeKey = `${panelKey}:${post.contextTag ?? "post"}`;
-          const isEditing = editingTokenId === post.tokenId;
+        {postEntries.map((entry, index) => {
+          const openPanel = panelById[entry.panelKey] ?? null;
+          const isEditing = editingTokenId === entry.panelKey;
 
           return (
             <PostCard
-              key={compositeKey}
-              post={post}
+              key={entry.compositeKey}
+              post={entry.post}
               animationDelayMs={index * 80}
               from={from}
               chainId={chainId}
               walletAddress={walletAddress}
-              authorLabel={authorLabel}
-              authorHue={authorHue}
-              authorAvatarUrl={authorAvatarUrl}
-              isMine={isMine}
-              canModerate={canModerate}
+              authorLabel={entry.authorLabel}
+              authorHue={entry.authorHue}
+              authorAvatarUrl={entry.authorAvatarUrl}
+              isMine={entry.isMine}
+              canModerate={entry.canModerate}
               isEditing={isEditing}
               editDraft={isEditing ? editDraft : null}
               isEditImageLoading={isEditing ? isEditImageLoading : false}
               openPanel={openPanel}
-              panelKey={panelKey}
+              panelKey={entry.panelKey}
               togglePanel={togglePanel}
               onSetEditDraft={onSetEditDraft}
               onStartEditPost={onStartEditPost}

@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Post } from "@types";
-import { IconBookmark, IconCoin, IconHeart, IconMessage } from "../../../app";
+import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@features/app";
 import type { PostPanel } from "../PostCard";
 import { getCommentControlId, getTipControlId } from "./footer/getPanelControlIds";
 import { getStatButtonClass } from "./footer/getStatButtonClass";
@@ -32,6 +32,12 @@ export type PostCardFooterProps = {
 };
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
+  const tokenId = props.tokenId;
+  const postChainId = props.post.chainId ?? null;
+  const nativeSymbol = useMemo(() => props.getNativeSymbol(props.chainId), [props.getNativeSymbol, props.chainId]);
+  const commentControlId = useMemo(() => getCommentControlId(postChainId, tokenId), [postChainId, tokenId]);
+  const tipControlId = useMemo(() => getTipControlId(postChainId, tokenId), [postChainId, tokenId]);
+
   const [tipDraft, setTipDraft] = useState<string>("");
   const [commentDraft, setCommentDraft] = useState<string>("");
   const [inFlight, setInFlight] = useState<null | "like" | "save" | "tip" | "comment">(null);
@@ -40,49 +46,57 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     setTipDraft("");
     setCommentDraft("");
     setInFlight(null);
-  }, [props.tokenId]);
+  }, [tokenId]);
 
   const onSubmitTip = useCallback(async () => {
     if (inFlight) return;
     setInFlight("tip");
     try {
-      const ok = await props.onTip(props.tokenId, tipDraft, props.post.chainId);
+      const ok = await props.onTip(tokenId, tipDraft, postChainId);
       if (ok) setTipDraft("");
     } finally {
       setInFlight(null);
     }
-  }, [props, tipDraft, inFlight]);
+  }, [inFlight, props.onTip, tokenId, tipDraft, postChainId]);
 
   const onSubmitComment = useCallback(async () => {
     if (inFlight) return;
     setInFlight("comment");
     try {
-      const ok = await props.onAction(props.tokenId, "comment", props.post.chainId, commentDraft);
+      const ok = await props.onAction(tokenId, "comment", postChainId, commentDraft);
       if (ok) setCommentDraft("");
     } finally {
       setInFlight(null);
     }
-  }, [props, commentDraft, inFlight]);
+  }, [inFlight, props.onAction, tokenId, commentDraft, postChainId]);
 
   const onLike = useCallback(async () => {
     if (inFlight) return;
     setInFlight("like");
     try {
-      await props.onAction(props.tokenId, "like", props.post.chainId);
+      await props.onAction(tokenId, "like", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [props, inFlight]);
+  }, [inFlight, props.onAction, tokenId, postChainId]);
 
   const onSave = useCallback(async () => {
     if (inFlight) return;
     setInFlight("save");
     try {
-      await props.onAction(props.tokenId, "save", props.post.chainId);
+      await props.onAction(tokenId, "save", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [props, inFlight]);
+  }, [inFlight, props.onAction, tokenId, postChainId]);
+
+  const onToggleComment = useCallback(() => {
+    props.onTogglePanel("comment");
+  }, [props.onTogglePanel]);
+
+  const onToggleTip = useCallback(() => {
+    props.onTogglePanel("tip");
+  }, [props.onTogglePanel]);
 
   const isBusy = inFlight !== null;
 
@@ -124,10 +138,10 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         <button
           className={getStatButtonClass({ requiresNetworkSwitch: props.requiresNetworkSwitch })}
           type="button"
-          onClick={() => props.onTogglePanel("comment")}
+          onClick={onToggleComment}
           aria-label="Comment"
           aria-expanded={props.openPanel === "comment"}
-          aria-controls={getCommentControlId(props.post.chainId, props.tokenId)}
+          aria-controls={commentControlId}
           disabled={props.requiresNetworkSwitch || isBusy}
           title={props.interactionDisabledTitle}
         >
@@ -140,29 +154,27 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
             requiresNetworkSwitch: props.requiresNetworkSwitch
           })}
           type="button"
-          onClick={() => props.onTogglePanel("tip")}
+          onClick={onToggleTip}
           aria-label="Tip"
           aria-expanded={props.openPanel === "tip"}
-          aria-controls={getTipControlId(props.post.chainId, props.tokenId)}
+          aria-controls={tipControlId}
           disabled={props.requiresNetworkSwitch || isBusy}
           title={props.interactionDisabledTitle}
         >
           <IconCoin size={18} />
-          <span className="postActionCount">
-            {props.getNativeSymbol(props.chainId)}
-          </span>
+          <span className="postActionCount">{nativeSymbol}</span>
         </button>
       </div>
 
       {props.openPanel === "tip" ? (
-        <div className="postForm" id={getTipControlId(props.post.chainId, props.tokenId)}>
+        <div className="postForm" id={tipControlId}>
           <div className="postFormRow">
             <input
               className="postField"
               type="text"
               value={tipDraft}
               onChange={(event) => setTipDraft(event.target.value)}
-              placeholder={`Tip amount in ${props.getNativeSymbol(props.chainId)} (e.g. 0.001)`}
+              placeholder={`Tip amount in ${nativeSymbol} (e.g. 0.001)`}
               disabled={props.requiresNetworkSwitch || inFlight === "tip"}
             />
             <button
@@ -180,7 +192,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
       ) : null}
 
       {props.openPanel === "comment" ? (
-        <div className="postForm" id={getCommentControlId(props.post.chainId, props.tokenId)}>
+        <div className="postForm" id={commentControlId}>
           <div className="postFormRow">
             <input
               className="postField"

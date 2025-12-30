@@ -1,4 +1,4 @@
-import { getSocialContract } from "../../../contract";
+import { getSocialContract } from "@features/contract";
 import type { FeedNetworkConfig } from "../../services/feedNetworks";
 import { getConfiguredFeedNetworks } from "../../services/feedNetworks";
 import { parseChainIdNumber } from "@shared/lib/chainId";

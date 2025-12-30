@@ -1,4 +1,4 @@
-import { extractIpfsCid } from "../../../ipfs";
+import { extractIpfsCid } from "@features/ipfs";
 
 export function collectPinnedCidsFromBuilt(args: {
   tokenUri: string;

@@ -1,6 +1,6 @@
 import type { Post } from "@types";
 import { mapWithConcurrency } from "@shared/lib/async";
-import { fetchTokenMetadata } from "../../../metadata";
+import { fetchTokenMetadata } from "@features/metadata";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 
 function getErrMsg(err: unknown): string {

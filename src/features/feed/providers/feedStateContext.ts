@@ -1,0 +1,38 @@
+import { createContext } from "react";
+import type { Post, PostComment } from "@types";
+
+export type FeedState = {
+  posts: Post[];
+  isFeedLoading: boolean;
+  postComments: Record<string, PostComment[]>;
+  isLoadingPostComments: Record<string, boolean>;
+};
+
+export type FeedActions = {
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
+  refreshFeed: (accountOverride?: string | null) => Promise<void>;
+  setPostComments: React.Dispatch<React.SetStateAction<Record<string, PostComment[]>>>;
+  loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
+  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
+};
+
+export type FeedContextValue = FeedState & FeedActions;
+
+// Keep the contexts stable across HMR updates.
+export const FeedStateContext: ReturnType<typeof createContext<FeedState | null>> =
+  ((globalThis as any).__sbnetFeedStateContext as ReturnType<typeof createContext<FeedState | null>> | undefined) ??
+  (((globalThis as any).__sbnetFeedStateContext = createContext<FeedState | null>(null)) as ReturnType<
+    typeof createContext<FeedState | null>
+  >);
+
+export const FeedActionsContext: ReturnType<typeof createContext<FeedActions | null>> =
+  ((globalThis as any).__sbnetFeedActionsContext as ReturnType<typeof createContext<FeedActions | null>> | undefined) ??
+  (((globalThis as any).__sbnetFeedActionsContext = createContext<FeedActions | null>(null)) as ReturnType<
+    typeof createContext<FeedActions | null>
+  >);
+
+export const FeedContext: ReturnType<typeof createContext<FeedContextValue | null>> =
+  ((globalThis as any).__sbnetFeedContext as ReturnType<typeof createContext<FeedContextValue | null>> | undefined) ??
+  (((globalThis as any).__sbnetFeedContext = createContext<FeedContextValue | null>(null)) as ReturnType<
+    typeof createContext<FeedContextValue | null>
+  >);

@@ -1,1 +1,1 @@
-export { waitForUrlReachable } from "../../../metadata";
+export { waitForUrlReachable } from "@features/metadata";

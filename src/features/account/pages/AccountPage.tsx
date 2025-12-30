@@ -1,18 +1,14 @@
-import type { ComponentProps } from "react";
-import { ProfileCard, WalletCard, type Sidebar } from "../../app";
-import { Feed } from "../../feed";
+import type { ProfileCardProps, WalletCardProps } from "@features/app";
+import { Feed } from "@features/feed";
 import type { Draft, Post } from "@types";
-import { useEffect, useMemo, useRef } from "react";
-import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
-import { useAccountFeedView } from "../hooks/useAccountFeedView";
-import { FeedHeaderControls } from "../../home/components/FeedHeaderControls";
-import { getSupportedNetworks } from "../../home/services/supportedNetworks";
-import { filterPosts } from "../../home/services/filterPosts";
-import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
+import { FeedHeaderControls } from "@features/home/components/FeedHeaderControls";
+import { useAccountPageViewModel } from "../hooks/useAccountPageViewModel";
+import { AccountSidebar } from "../components/AccountSidebar";
+import { useMemo } from "react";
 
 type Props = {
   isOwner: boolean;
-  sidebar: ComponentProps<typeof Sidebar>;
+  sidebar: ProfileCardProps & WalletCardProps;
 
   status: string;
   isFeedLoading: boolean;
@@ -55,205 +51,54 @@ type Props = {
 };
 
 export function AccountPage(props: Props) {
-  const { view, setView, activePosts, activeLoading } = useAccountFeedView({
+  const {
+    activeLoading,
+    filteredActivePosts,
+    headerInlineAction,
+    pillText,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    supportedNetworks
+  } = useAccountPageViewModel({
     posts: props.posts,
     savedPosts: props.savedPosts,
     likedPosts: props.likedPosts,
     isFeedLoading: props.isFeedLoading,
     isLoadingSaved: props.isLoadingSaved,
-    isLoadingLiked: props.isLoadingLiked
+    isLoadingLiked: props.isLoadingLiked,
+    chainId: props.chainId,
+    walletAddress: props.walletAddress,
+    authorIdentity: props.authorIdentity,
+    shortAddress: props.shortAddress
   });
 
-  const [searchQuery, setSearchQuery] = useSessionStorageState<string>(
-    "socialBlockchainNetwork.account.searchQuery",
-    "",
-    {
-      serialize: (v) => String(v ?? ""),
-      parse: (raw) => String(raw ?? "")
-    }
-  );
-
-  const supportedNetworks = useMemo(() => getSupportedNetworks(), []);
-  const defaultSelectedNetworkChainIds = useMemo(
-    () => supportedNetworks.map((n) => String(n.chainId)),
-    [supportedNetworks]
-  );
-
-  const [selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks] = useSessionStorageState<
-    string[]
-  >(
-    "socialBlockchainNetwork.feed.selectedNetworks",
-    defaultSelectedNetworkChainIds,
-    {
-      serialize: (v) => JSON.stringify({ ids: v }),
-      parse: (raw) => {
-        try {
-          const parsed = JSON.parse(raw) as any;
-          const ids = Array.isArray(parsed?.ids)
-            ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
-            : [];
-          return ids;
-        } catch {
-          return [];
-        }
-      }
-    }
-  );
-
-  const didInitDisconnectedNetworksRef = useRef(false);
-
-  useEffect(() => {
-    if (props.walletAddress) {
-      didInitDisconnectedNetworksRef.current = false;
-      return;
-    }
-    if (didInitDisconnectedNetworksRef.current) return;
-    didInitDisconnectedNetworksRef.current = true;
-    setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
-  }, [props.walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
-
-  const selectedNetworkSet = useMemo(() => new Set(selectedNetworkChainIds.map(String)), [selectedNetworkChainIds]);
-
-  const filterBySelectedNetworks = useMemo(() => {
-    return (posts: Post[]) => {
-      if (selectedNetworkSet.size === 0) return [];
-      return posts.filter((post) => {
-        const id = post.chainId ?? null;
-        if (!id) return false;
-        return selectedNetworkSet.has(String(id));
-      });
-    };
-  }, [selectedNetworkSet]);
-
-  const postedCount = useMemo(() => filterBySelectedNetworks(props.posts).length, [props.posts, filterBySelectedNetworks]);
-  const savedCount = useMemo(
-    () => filterBySelectedNetworks(props.savedPosts).length,
-    [props.savedPosts, filterBySelectedNetworks]
-  );
-  const likedCount = useMemo(
-    () => filterBySelectedNetworks(props.likedPosts).length,
-    [props.likedPosts, filterBySelectedNetworks]
-  );
-
-  useEffect(() => {
-    if (hasStoredSelectedNetworks) return;
-    if (!props.walletAddress) return;
-    const currentChainId = props.chainId ? String(props.chainId) : null;
-    if (!currentChainId) return;
-    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    if (!supported.has(currentChainId)) return;
-    setSelectedNetworkChainIds([currentChainId]);
-  }, [
-    hasStoredSelectedNetworks,
-    props.walletAddress,
-    props.chainId,
-    supportedNetworks,
-    setSelectedNetworkChainIds
-  ]);
-
-  const filteredActivePosts = useMemo(() => {
-    return filterPosts({
-      posts: activePosts,
-      authorIdentity: props.authorIdentity,
-      shortAddress: props.shortAddress,
-      searchQuery,
-      selectedNetworkChainIds
-    });
-  }, [activePosts, props.authorIdentity, props.shortAddress, searchQuery, selectedNetworkChainIds]);
-  const activeTitle = "Your posts";
-  const activePill = "";
-
-  const headerInlineAction = useMemo(() => {
+  const headerAction = useMemo(() => {
     return (
-      <AccountFeedHeaderAction
-        view={view}
-        onViewChange={setView}
-        postedCount={postedCount}
-        savedCount={savedCount}
-        likedCount={likedCount}
+      <FeedHeaderControls
+        pillText={pillText}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
       />
     );
-  }, [view, setView, postedCount, savedCount, likedCount]);
-
-  const isNetworkFilterActive = useMemo(() => {
-    const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    const selected = new Set(selectedNetworkChainIds.map(String));
-    if (selected.size !== all.size) return true;
-    for (const id of selected) {
-      if (!all.has(id)) return true;
-    }
-    return false;
-  }, [selectedNetworkChainIds, supportedNetworks]);
-
-  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
-  const pillText = hasAnyFilter
-    ? `${filteredActivePosts.length} / ${activePosts.length} posts`
-    : `${activePosts.length} posts`;
+  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
 
   return (
     <main className="profileLayout">
       <section className="profileTop">
-        <ProfileCard
-          walletAddress={props.sidebar.walletAddress}
-          displayName={props.sidebar.displayName}
-          profileBio={props.sidebar.profileBio}
-          profileAvatarUrl={props.sidebar.profileAvatarUrl}
-          myPostsCount={props.sidebar.myPostsCount}
-          isLoadingMyPostsCount={props.sidebar.isLoadingMyPostsCount}
-          followerCount={props.sidebar.followerCount}
-          followers={props.sidebar.followers}
-          following={props.sidebar.following}
-          isLoadingFollowers={props.sidebar.isLoadingFollowers}
-          isLoadingFollowing={props.sidebar.isLoadingFollowing}
-          onDisconnectWallet={props.sidebar.onDisconnectWallet}
-          isEditingProfile={props.sidebar.isEditingProfile}
-          profileDraftName={props.sidebar.profileDraftName}
-          profileDraftBio={props.sidebar.profileDraftBio}
-          profileDraftAvatarUrl={props.sidebar.profileDraftAvatarUrl}
-          profileDraftAvatarDataUrl={props.sidebar.profileDraftAvatarDataUrl}
-          isProfileAvatarLoading={props.sidebar.isProfileAvatarLoading}
-          onProfileDraftNameChange={props.sidebar.onProfileDraftNameChange}
-          onProfileDraftBioChange={props.sidebar.onProfileDraftBioChange}
-          onProfileDraftAvatarUrlChange={props.sidebar.onProfileDraftAvatarUrlChange}
-          onSelectProfileAvatarFile={props.sidebar.onSelectProfileAvatarFile}
-          onClearProfileAvatar={props.sidebar.onClearProfileAvatar}
-          onStartEditProfile={props.sidebar.onStartEditProfile}
-          onCancelEditProfile={props.sidebar.onCancelEditProfile}
-          onSaveProfile={props.sidebar.onSaveProfile}
-          selfAvatarHue={props.sidebar.selfAvatarHue}
-          shortAddress={props.sidebar.shortAddress}
-        />
-
-        <WalletCard
-          walletAddress={props.sidebar.walletAddress}
-          chainId={props.sidebar.chainId}
-          networkName={props.sidebar.networkName}
-          nativeBalance={props.sidebar.nativeBalance}
-          withdrawableTipsWei={props.sidebar.withdrawableTipsWei}
-          contractAddress={props.sidebar.contractAddress}
-          contractDeployed={props.sidebar.contractDeployed}
-          status={props.sidebar.status}
-          onWithdrawTips={props.sidebar.onWithdrawTips}
-          shortAddress={props.sidebar.shortAddress}
-          getNativeSymbol={props.sidebar.getNativeSymbol}
-        />
+        <AccountSidebar {...props.sidebar} />
       </section>
 
       <section className="content">
         <Feed
-          title={activeTitle}
-          pillText={activePill}
+          title="Your posts"
+          pillText=""
           headerInlineAction={headerInlineAction}
-          headerAction={
-            <FeedHeaderControls
-              pillText={pillText}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              selectedNetworkChainIds={selectedNetworkChainIds}
-              onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-              supportedNetworks={supportedNetworks}
-            />
-          }
+          headerAction={headerAction}
           isLoading={activeLoading}
           posts={filteredActivePosts}
           isOwner={props.isOwner}

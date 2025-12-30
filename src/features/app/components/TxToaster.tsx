@@ -1,4 +1,4 @@
-import { formatTxState, useTxNotifications } from "../providers/TxNotificationsContext";
+import { formatTxState, useTxNotifications } from "@features/tx";
 import { IconX } from "./icons";
 
 export function TxToaster() {
