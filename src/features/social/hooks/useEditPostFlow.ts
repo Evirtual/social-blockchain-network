@@ -341,7 +341,10 @@ export function useEditPostFlow(args: {
       }
 
       cancelEditPost();
-      await feed.refreshFeed();
+      // Delay refresh so subgraph/indexers have time to catch up and we avoid UI reverting.
+      setTimeout(() => {
+        void feed.refreshFeed();
+      }, 15_000);
     } catch (error) {
       const message = getErrorMessage(error);
       if (processingToastId) {
