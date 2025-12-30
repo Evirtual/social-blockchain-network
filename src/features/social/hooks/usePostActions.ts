@@ -7,7 +7,7 @@ import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
 import { buildTokenKey, updateSessionTokenKeys } from "../services/postActions/sessionTokenKeys";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
-import { postKeyFromParts } from "@features/feed";
+import { postKeyFromParts } from "@shared/lib/post";
 
 import type { Post, PostComment } from "@types";
 

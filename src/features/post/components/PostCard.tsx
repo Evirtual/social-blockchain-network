@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
 import { ChainLogo, IconEdit, IconFlame, Modal } from "@features/app";
 import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/chain";
+import { getPostNetworkUi, getPostUrl } from "@shared/lib/post";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
 import { PostCardFooter } from "./postCard/PostCardFooter";
 import { PostCardMedia } from "./postCard/PostCardMedia";
-import { getAvatarStyle, getPostNetworkUi, getPostUrl } from "./postCard/postCardDerived";
+import { getAvatarStyle } from "./postCard/postCardDerived";
 
 export type PostPanel = "comment" | "tip";
 

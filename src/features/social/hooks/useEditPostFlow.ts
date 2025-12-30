@@ -10,7 +10,7 @@ import { buildBestImageDataUrl } from "../services/editPost/imageDataUrl";
 import { bestEffortFinalizeIpfsMedia } from "../services/editPost/ipfsFinalize";
 import { makeLocalNoticeId } from "@shared/lib/ids";
 import { collectPinnedCidsFromBuilt } from "../services/editPost/pinning";
-import { parsePostKey, postKey } from "@features/feed";
+import { parsePostKey, postKey } from "@shared/lib/post";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;

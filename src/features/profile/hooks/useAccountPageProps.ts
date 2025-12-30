@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type { Draft, Post } from "@types";
+import type { PostActionsController } from "@features/post";
 
 const EMPTY_DRAFT: Draft = { title: "", body: "", imageUrl: "", imageDataUrl: "" };
 
@@ -68,33 +69,11 @@ export function useAccountPageProps(args: {
   isLoadingSaved: boolean;
   isLoadingLiked: boolean;
 
-  social: {
-    editingTokenId: string | null;
-    editDraft: Draft | null;
-    isEditImageLoading: boolean;
-    startEditPost: (p: Post) => void;
-    cancelEditPost: () => void;
-    onEditClearImage: () => void;
-  };
-
   onDisconnectWallet: () => void;
   onWithdrawTips: () => void | Promise<void>;
   onSaveProfile: () => void;
 
-  onSetEditDraft: (next: Draft) => void;
-  onSaveEditedPost: () => Promise<void>;
-  onEditSelectFile: (file: File | null) => void;
-
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
-  onBurn: (tokenId: string, postChainId?: string | null) => void;
-  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
+  postActions: PostActionsController;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -115,17 +94,10 @@ export function useAccountPageProps(args: {
     likedPosts,
     isLoadingSaved,
     isLoadingLiked,
-    social,
+    postActions,
     onDisconnectWallet,
     onWithdrawTips,
     onSaveProfile,
-    onSetEditDraft,
-    onSaveEditedPost,
-    onEditSelectFile,
-    onAction,
-    onTip,
-    onBurn,
-    onFreezePost,
     shortAddress,
     stableHueFromSeed,
     getNativeSymbol,
@@ -184,19 +156,10 @@ export function useAccountPageProps(args: {
       chainId: wallet.chainId,
       walletAddress: wallet.walletAddress,
       authorIdentity: profileCtx.authorIdentity,
-      editingTokenId: social.editingTokenId,
-      editDraft: social.editDraft ?? EMPTY_DRAFT,
-      isEditImageLoading: social.isEditImageLoading,
-      onSetEditDraft,
-      onStartEditPost: social.startEditPost,
-      onCancelEditPost: social.cancelEditPost,
-      onSaveEditedPost,
-      onEditSelectFile,
-      onEditClearImage: social.onEditClearImage,
-      onAction,
-      onTip,
-      onBurn,
-      onFreezePost,
+      postActions: {
+        ...postActions,
+        editDraft: postActions.editDraft ?? EMPTY_DRAFT
+      },
       shortAddress,
       stableHueFromSeed,
       getNativeSymbol,
@@ -243,22 +206,22 @@ export function useAccountPageProps(args: {
     likedPosts,
     isLoadingSaved,
     isLoadingLiked,
-    social.editingTokenId,
-    social.editDraft,
-    social.isEditImageLoading,
-    social.startEditPost,
-    social.cancelEditPost,
-    social.onEditClearImage,
+    postActions.editingTokenId,
+    postActions.editDraft,
+    postActions.isEditImageLoading,
+    postActions.onStartEditPost,
+    postActions.onCancelEditPost,
+    postActions.onEditClearImage,
     onDisconnectWallet,
     onWithdrawTips,
     onSaveProfile,
-    onSetEditDraft,
-    onSaveEditedPost,
-    onEditSelectFile,
-    onAction,
-    onTip,
-    onBurn,
-    onFreezePost,
+    postActions.onSetEditDraft,
+    postActions.onSaveEditedPost,
+    postActions.onEditSelectFile,
+    postActions.onAction,
+    postActions.onTip,
+    postActions.onBurn,
+    postActions.onFreezePost,
     shortAddress,
     stableHueFromSeed,
     getNativeSymbol,

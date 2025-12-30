@@ -1,6 +1,7 @@
 import type { Draft, Post } from "@types";
 import { Feed } from "@features/feed";
 import { useCallback, useMemo } from "react";
+import type { PostActionsController } from "@features/post";
 import { FeedHeaderControls } from "../components/FeedHeaderControls";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
@@ -30,27 +31,7 @@ type Props = {
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
-  editingTokenId: string | null;
-  editDraft: Draft;
-  isEditImageLoading: boolean;
-
-  onSetEditDraft: (next: Draft) => void;
-
-  onStartEditPost: (post: Post) => void;
-  onCancelEditPost: () => void;
-  onSaveEditedPost: () => Promise<void>;
-  onEditSelectFile: (file: File | null) => void;
-  onEditClearImage: () => void;
-
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
-  onBurn: (tokenId: string, postChainId?: string | null) => void;
-  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
+  postActions: PostActionsController;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -175,19 +156,7 @@ export function HomePage(props: Props) {
         chainId={props.chainId}
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}
-        editingTokenId={props.editingTokenId}
-        editDraft={props.editDraft}
-        isEditImageLoading={props.isEditImageLoading}
-        onSetEditDraft={props.onSetEditDraft}
-        onStartEditPost={props.onStartEditPost}
-        onCancelEditPost={props.onCancelEditPost}
-        onSaveEditedPost={props.onSaveEditedPost}
-        onEditSelectFile={props.onEditSelectFile}
-        onEditClearImage={props.onEditClearImage}
-        onAction={props.onAction}
-        onTip={props.onTip}
-        onBurn={props.onBurn}
-        onFreezePost={props.onFreezePost}
+        postActions={props.postActions}
         shortAddress={props.shortAddress}
         stableHueFromSeed={props.stableHueFromSeed}
         getNativeSymbol={props.getNativeSymbol}

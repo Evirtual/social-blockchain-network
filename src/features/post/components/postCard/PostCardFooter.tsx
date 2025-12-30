@@ -1,12 +1,12 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback } from "react";
 
 import type { Post } from "@types";
 import { IconBookmark, IconCoin, IconHeart, IconMessage, Modal } from "@features/app";
-import { commentKey, useFeedActions, useFeedState } from "@features/feed";
 import type { CSSProperties } from "react";
 import type { PostPanel } from "../PostCard";
 import { getStatButtonClass } from "./footer/getStatButtonClass";
 import { CommentsCard } from "../CommentsCard";
+import { usePostActionPanels } from "./footer/usePostActionPanels";
 
 export type PostCardFooterProps = {
   className?: string;
@@ -40,40 +40,26 @@ export type PostCardFooterProps = {
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
   const tokenId = props.tokenId;
   const postChainId = props.post.chainId ?? null;
-  const nativeSymbol = useMemo(
-    () => props.getNativeSymbol(postChainId ?? props.chainId),
-    [props.getNativeSymbol, postChainId, props.chainId]
-  );
-  const commentsKey = useMemo(() => commentKey(postChainId, tokenId), [postChainId, tokenId]);
-
-  const [tipDraft, setTipDraft] = useState<string>("");
-  const [inFlight, setInFlight] = useState<null | "like" | "save" | "tip">(null);
-
-  const feedState = useFeedState();
-  const feedActions = useFeedActions();
-  const comments = feedState.postComments[commentsKey] ?? [];
-  const isLoadingComments = !!feedState.isLoadingPostComments[commentsKey];
-
-  useEffect(() => {
-    setTipDraft("");
-    setInFlight(null);
-  }, [tokenId]);
-
-  useEffect(() => {
-    if (props.openPanel !== "comment") return;
-    void feedActions.loadCommentsForPost(tokenId, postChainId);
-  }, [props.openPanel, feedActions, tokenId, postChainId]);
-
-  const onSubmitTip = useCallback(async () => {
-    if (inFlight) return;
-    setInFlight("tip");
-    try {
-      const ok = await props.onTip(tokenId, tipDraft, postChainId);
-      if (ok) setTipDraft("");
-    } finally {
-      setInFlight(null);
-    }
-  }, [inFlight, props.onTip, tokenId, tipDraft, postChainId]);
+  const {
+    comments,
+    isLoadingComments,
+    nativeSymbol,
+    tipDraft,
+    setTipDraft,
+    inFlight,
+    setInFlight,
+    onSubmitTip,
+    onCloseComments,
+    onCloseTip
+  } = usePostActionPanels({
+    tokenId,
+    postChainId,
+    chainId: props.chainId,
+    openPanel: props.openPanel,
+    onTogglePanel: props.onTogglePanel,
+    onTip: props.onTip,
+    getNativeSymbol: props.getNativeSymbol
+  });
 
   const onLike = useCallback(async () => {
     if (inFlight) return;
@@ -100,14 +86,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
   }, [props.onTogglePanel]);
 
   const onToggleTip = useCallback(() => {
-    props.onTogglePanel("tip");
-  }, [props.onTogglePanel]);
-
-  const onCloseComments = useCallback(() => {
-    props.onTogglePanel("comment");
-  }, [props.onTogglePanel]);
-
-  const onCloseTip = useCallback(() => {
     props.onTogglePanel("tip");
   }, [props.onTogglePanel]);
 

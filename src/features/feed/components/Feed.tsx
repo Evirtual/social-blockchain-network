@@ -1,7 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
-import type { Draft, Post } from "@types";
+import type { Post } from "@types";
 import { useLocation } from "react-router-dom";
-import { PostCard, type PostPanel } from "@features/post";
+import { PostCard, type PostPanel, type PostActionsController } from "@features/post";
 import { usePanelById } from "@shared/hooks/usePanelById";
 import { getFeedFromLocation } from "./feed/getFeedFromLocation";
 import { getSkeletonCount } from "./feed/getSkeletonCount";
@@ -24,27 +24,7 @@ type Props = {
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
-  editingTokenId: string | null;
-  editDraft: Draft;
-  isEditImageLoading: boolean;
-
-  onSetEditDraft: (next: Draft) => void;
-
-  onStartEditPost: (post: Post) => void;
-  onCancelEditPost: () => void;
-  onSaveEditedPost: () => Promise<void>;
-  onEditSelectFile: (file: File | null) => void;
-  onEditClearImage: () => void;
-
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
-  onBurn: (tokenId: string, postChainId?: string | null) => void;
-  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
+  postActions: PostActionsController;
 
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -66,19 +46,7 @@ export const Feed = memo(function Feed({
   chainId,
   walletAddress,
   authorIdentity,
-  editingTokenId,
-  editDraft,
-  isEditImageLoading,
-  onSetEditDraft,
-  onStartEditPost,
-  onCancelEditPost,
-  onSaveEditedPost,
-  onEditSelectFile,
-  onEditClearImage,
-  onAction,
-  onTip,
-  onBurn,
-  onFreezePost,
+  postActions,
   shortAddress,
   stableHueFromSeed,
   getNativeSymbol,
@@ -153,7 +121,7 @@ export const Feed = memo(function Feed({
       >
         {postEntries.map((entry, index) => {
           const openPanel = panelById[entry.panelKey] ?? null;
-          const isEditing = editingTokenId === entry.panelKey;
+          const isEditing = postActions.editingTokenId === entry.panelKey;
 
           return (
             <PostCard
@@ -169,21 +137,21 @@ export const Feed = memo(function Feed({
               isMine={entry.isMine}
               canModerate={entry.canModerate}
               isEditing={isEditing}
-              editDraft={isEditing ? editDraft : null}
-              isEditImageLoading={isEditing ? isEditImageLoading : false}
+              editDraft={isEditing ? postActions.editDraft : null}
+              isEditImageLoading={isEditing ? postActions.isEditImageLoading : false}
               openPanel={openPanel}
               panelKey={entry.panelKey}
               togglePanel={togglePanel}
-              onSetEditDraft={onSetEditDraft}
-              onStartEditPost={onStartEditPost}
-              onCancelEditPost={onCancelEditPost}
-              onSaveEditedPost={onSaveEditedPost}
-              onEditSelectFile={onEditSelectFile}
-              onEditClearImage={onEditClearImage}
-              onAction={onAction}
-              onTip={onTip}
-              onBurn={onBurn}
-              onFreezePost={onFreezePost}
+              onSetEditDraft={postActions.onSetEditDraft}
+              onStartEditPost={postActions.onStartEditPost}
+              onCancelEditPost={postActions.onCancelEditPost}
+              onSaveEditedPost={postActions.onSaveEditedPost}
+              onEditSelectFile={postActions.onEditSelectFile}
+              onEditClearImage={postActions.onEditClearImage}
+              onAction={postActions.onAction}
+              onTip={postActions.onTip}
+              onBurn={postActions.onBurn}
+              onFreezePost={postActions.onFreezePost}
               shortAddress={shortAddress}
               stableHueFromSeed={stableHueFromSeed}
               getNativeSymbol={getNativeSymbol}

@@ -1,6 +1,7 @@
 import type { PostComment } from "@types";
 import { useCallback, useState } from "react";
 import { IconRepeat } from "@features/app";
+import { getPostNetworkUi } from "@shared/lib/post";
 
 type Props = {
   tokenId: string;
@@ -28,15 +29,11 @@ export function CommentsCard(props: Props) {
   const [commentDraft, setCommentDraft] = useState<string>("");
   const [isSigning, setIsSigning] = useState(false);
 
-  const requiresNetworkSwitch =
-    !!props.walletAddress &&
-    !!props.chainId &&
-    !!props.postChainId &&
-    props.postChainId !== props.chainId;
-
-  const interactionDisabledTitle = requiresNetworkSwitch
-    ? "Switch networks to interact with this post."
-    : undefined;
+  const { requiresNetworkSwitch, interactionDisabledTitle } = getPostNetworkUi({
+    postChainId: props.postChainId,
+    chainId: props.chainId,
+    walletAddress: props.walletAddress
+  });
 
   const explorerChainId = props.postChainId ?? props.chainId;
 

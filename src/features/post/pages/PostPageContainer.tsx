@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useTipWithRefresh } from "@features/social";
 import { useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useProfileState } from "@features/profile";
-import { useSocialActions } from "@features/social";
+import { usePostActionsController } from "@features/post";
 import { useWalletState } from "@features/wallet";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { commentKey } from "@shared/lib/post";
 import { PostPage } from "./PostPage";
 
 type Props = {
@@ -20,7 +20,7 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   const feedState = useFeedState();
   const feedActions = useFeedActions();
   const profile = useProfileState();
-  const social = useSocialActions();
+  const postActions = usePostActionsController();
 
   const [isPostLoading, setIsPostLoading] = useState(false);
 
@@ -46,12 +46,10 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     };
   }, [tokenId, postChainId, loadPostsByTokenIds]);
 
-  const onTip = useTipWithRefresh();
-
   const post =
     feedState.posts.find((p) => p.tokenId === tokenId && (postChainId ? p.chainId === postChainId : true)) ?? null;
 
-  const commentsKey = postChainId ? `${postChainId}:${tokenId}` : tokenId;
+  const commentsKey = commentKey(postChainId, tokenId);
 
   return (
     <PostPage
@@ -66,19 +64,7 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
       chainId={wallet.chainId}
       walletAddress={wallet.walletAddress}
       authorIdentity={profile.authorIdentity}
-      editingTokenId={social.editingTokenId}
-      editDraft={social.editDraft}
-      isEditImageLoading={social.isEditImageLoading}
-      onSetEditDraft={social.setEditDraft}
-      onStartEditPost={social.startEditPost}
-      onCancelEditPost={social.cancelEditPost}
-      onSaveEditedPost={social.saveEditedPost}
-      onEditSelectFile={social.onEditSelectFile}
-      onEditClearImage={social.onEditClearImage}
-      onAction={social.handleAction}
-      onTip={onTip}
-      onBurn={social.burnPost}
-      onFreezePost={social.freezePost}
+      postActions={postActions}
       shortAddress={shortAddress}
       stableHueFromSeed={stableHueFromSeed}
       getNativeSymbol={getNativeSymbol}

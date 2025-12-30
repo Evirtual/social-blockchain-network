@@ -1,12 +1,11 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Draft } from "@types";
-import { useTipWithRefresh } from "@features/social";
 import { useContractActions, useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useFollow } from "@features/follow";
 import { useProfileActions, useProfileState } from "@features/profile";
 import { useSocialActions } from "@features/social";
+import { usePostActionsController } from "@features/post";
 import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
 import { useContractTx } from "@features/contract";
@@ -37,6 +36,7 @@ export function ProfilePageContainer({ address }: Props) {
   const profileActions = useProfileActions();
   const follow = useFollow();
   const social = useSocialActions();
+  const postActions = usePostActionsController();
   const { status } = useStatusState();
   const { setStatus } = useStatusActions();
   const contractState = useContractState();
@@ -72,44 +72,6 @@ export function ProfilePageContainer({ address }: Props) {
       // ignore
     }
   }, [social, contractActions]);
-
-  const onSetEditDraft = useCallback((next: Draft) => {
-    social.setEditDraft(next);
-  }, [social]);
-
-  const onSaveEditedPost = useCallback(() => {
-    return social.saveEditedPost();
-  }, [social]);
-
-  const onEditSelectFile = useCallback(
-    (file: File | null) => {
-      void social.onEditSelectFile(file);
-    },
-    [social]
-  );
-
-  const onAction = useCallback(
-    (tokenId: string, action: "like" | "comment" | "save", postChainId?: string | null, comment?: string) => {
-      return social.handleAction(tokenId, action, postChainId, comment);
-    },
-    [social]
-  );
-
-  const onTip = useTipWithRefresh();
-
-  const onBurn = useCallback(
-    (tokenId: string, postChainId?: string | null) => {
-      void social.burnPost(tokenId, postChainId);
-    },
-    [social]
-  );
-
-  const onFreeze = useCallback(
-    (tokenId: string, postChainId?: string | null) => {
-      void social.freezePost(tokenId, postChainId);
-    },
-    [social]
-  );
 
   const onToggleFollow = useCallback(() => {
     void follow.toggleFollow(address);
@@ -232,24 +194,10 @@ export function ProfilePageContainer({ address }: Props) {
     likedPosts,
     isLoadingSaved: !!(selfKey && isLoadingSavedByAddress[selfKey]),
     isLoadingLiked: !!(selfKey && isLoadingLikesByAddress[selfKey]),
-    social: {
-      editingTokenId: social.editingTokenId,
-      editDraft: social.editDraft,
-      isEditImageLoading: social.isEditImageLoading,
-      startEditPost: social.startEditPost,
-      cancelEditPost: social.cancelEditPost,
-      onEditClearImage: social.onEditClearImage
-    },
     onDisconnectWallet,
     onWithdrawTips,
     onSaveProfile,
-    onSetEditDraft,
-    onSaveEditedPost,
-    onEditSelectFile,
-    onAction,
-    onTip,
-    onBurn,
-    onFreezePost: onFreeze,
+    postActions,
     shortAddress,
     stableHueFromSeed,
     getNativeSymbol,
@@ -272,23 +220,11 @@ export function ProfilePageContainer({ address }: Props) {
     isFeedLoading: feedState.isFeedLoading,
     walletAddress: walletState.walletAddress,
     authorIdentity: profileState.authorIdentity,
-    editingTokenId: social.editingTokenId,
-    editDraft: social.editDraft,
-    isEditImageLoading: social.isEditImageLoading,
     onToggleFollow,
     onAdminSetPosterAllowed,
     onAdminReset,
     onAdminSetProfile,
-    onSetEditDraft,
-    onStartEditPost: social.startEditPost,
-    onCancelEditPost: social.cancelEditPost,
-    onSaveEditedPost,
-    onEditSelectFile,
-    onEditClearImage: social.onEditClearImage,
-    onAction,
-    onTip,
-    onBurn,
-    onFreezePost: onFreeze,
+    postActions,
     shortAddress,
     stableHueFromSeed,
     getNativeSymbol,

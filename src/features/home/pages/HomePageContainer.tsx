@@ -1,9 +1,8 @@
-import { useTipWithRefresh } from "@features/social";
+import { usePostActionsController } from "@features/post";
 import { useContractState } from "@features/contract";
 import { useComposer } from "@features/composer";
 import { useFeedState } from "@features/feed";
 import { useProfileState } from "@features/profile";
-import { useSocialActions } from "@features/social";
 import { useWalletState } from "@features/wallet";
 import { useStatusState } from "@features/status";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
@@ -16,9 +15,8 @@ export function HomePageContainer() {
   const feed = useFeedState();
   const profile = useProfileState();
   const composer = useComposer();
-  const social = useSocialActions();
   const { status } = useStatusState();
-  const onTip = useTipWithRefresh();
+  const postActions = usePostActionsController();
 
   return (
     <HomePage
@@ -42,19 +40,7 @@ export function HomePageContainer() {
       isFeedLoading={feed.isFeedLoading}
       walletAddress={wallet.walletAddress}
       authorIdentity={profile.authorIdentity}
-      editingTokenId={social.editingTokenId}
-      editDraft={social.editDraft}
-      isEditImageLoading={social.isEditImageLoading}
-      onSetEditDraft={social.setEditDraft}
-      onStartEditPost={social.startEditPost}
-      onCancelEditPost={social.cancelEditPost}
-      onSaveEditedPost={social.saveEditedPost}
-      onEditSelectFile={social.onEditSelectFile}
-      onEditClearImage={social.onEditClearImage}
-      onAction={social.handleAction}
-      onTip={onTip}
-      onBurn={social.burnPost}
-      onFreezePost={social.freezePost}
+      postActions={postActions}
       shortAddress={shortAddress}
       stableHueFromSeed={stableHueFromSeed}
       getNativeSymbol={getNativeSymbol}
