@@ -1,18 +1,18 @@
 import { usePostActionsController } from "@features/post";
 import { useContractState } from "@features/contract";
 import { useComposer } from "@features/composer";
-import { useFeedState } from "@features/feed";
+import { useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
 import { useWalletState } from "@features/wallet";
 import { useStatusState } from "@features/status";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
+import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
 import { HomePage } from "./HomePage";
 
 export function HomePageContainer() {
   const wallet = useWalletState();
   const contract = useContractState();
-  const feed = useFeedState();
+  const feed = useFeedQueries();
   const profile = useProfileState();
   const composer = useComposer();
   const { status } = useStatusState();

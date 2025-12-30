@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { getNetworkBadgeLabel } from "@shared/lib/chain";
+import { getNetworkBadgeLabel } from "@shared/lib/network";
 
 export function useEnsureMatchingNetwork(chainId: string | null, setStatus: (value: string) => void) {
   return useCallback(

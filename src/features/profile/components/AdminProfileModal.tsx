@@ -10,6 +10,7 @@ type InitialDraft = {
 type Props = {
   open: boolean;
   onClose: () => void;
+  headerLeading?: React.ReactNode;
   initialDraft: InitialDraft;
   onSave: (next: {
     name: string;
@@ -92,7 +93,12 @@ export function AdminProfileModal(props: Props) {
   }
 
   return (
-    <Modal open={props.open} title="Edit profile" onClose={props.onClose}>
+    <Modal
+      open={props.open}
+      title="Edit profile"
+      headerLeading={props.headerLeading}
+      onClose={props.onClose}
+    >
       <div className="composer">
         <input
           className="input"

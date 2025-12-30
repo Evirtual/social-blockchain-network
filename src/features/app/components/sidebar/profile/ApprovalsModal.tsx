@@ -19,6 +19,7 @@ export type ApprovalsModalProps = {
   isOwner: boolean;
   onClose: () => void;
   shortAddress: (address: string) => string;
+  headerLeading?: React.ReactNode;
 };
 
 export function ApprovalsModal(props: ApprovalsModalProps) {
@@ -138,7 +139,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   );
 
   return (
-    <Modal open={props.open} title="Approvals" onClose={props.onClose}>
+    <Modal open={props.open} title="Approvals" headerLeading={props.headerLeading} onClose={props.onClose}>
       <div className="composer approvalsModal">
         <div className="muted">Approve wallets that are allowed to mint posts during testing.</div>
 

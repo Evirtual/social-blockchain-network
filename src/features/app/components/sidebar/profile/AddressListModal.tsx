@@ -15,6 +15,7 @@ export type AddressListModalProps = {
   emptyText: string;
   onClose: () => void;
   shortAddress: (address: string) => string;
+  headerLeading?: React.ReactNode;
 };
 
 export function AddressListModal(props: AddressListModalProps) {
@@ -45,7 +46,7 @@ export function AddressListModal(props: AddressListModalProps) {
   }, [profileActions, props.addresses, props.open]);
 
   return (
-    <Modal open={props.open} title={props.title} onClose={props.onClose}>
+    <Modal open={props.open} title={props.title} headerLeading={props.headerLeading} onClose={props.onClose}>
       <div className="list">
         {loadingSkeletonRows}
 

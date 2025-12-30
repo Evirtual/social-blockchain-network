@@ -5,6 +5,7 @@ import { AdminProfileModal } from "../components/AdminProfileModal";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
 import { FeedHeaderControls } from "@features/home/components/FeedHeaderControls";
 import { useFeedFilterViewModel } from "@features/home/hooks/useFeedFilterViewModel";
+import { ipfsToHttp } from "@features/ipfs";
 import type { PostActionsController } from "@features/post";
 
 type Props = {
@@ -62,6 +63,12 @@ export function ProfilePage(props: Props) {
     () => ({ name: props.name ?? "", bio: props.bio ?? "", avatarUrl: props.avatarUrl ?? "" }),
     [props.name, props.bio, props.avatarUrl]
   );
+  const avatarStyle = useMemo(() => {
+    if (props.avatarUrl?.trim()) {
+      return { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` };
+    }
+    return { background: `hsl(${props.avatarHue} 75% 55%)` };
+  }, [props.avatarUrl, props.avatarHue]);
 
   const activePosts = useMemo(() => props.posts.map((p) => ({ ...p, contextTag: undefined })), [props.posts]);
   const activeLoading = props.isFeedLoading;
@@ -125,6 +132,7 @@ export function ProfilePage(props: Props) {
           open={isAdminEditing}
           onClose={() => setIsAdminEditing(false)}
           initialDraft={initialDraft}
+          headerLeading={<div className="avatar small" style={avatarStyle} />}
           onSave={(next) => props.onAdminSetProfile(next)}
         />
       ) : null}

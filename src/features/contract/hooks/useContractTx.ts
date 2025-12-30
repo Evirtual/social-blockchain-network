@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
-import { getExplorerTxUrl } from "@shared/lib/chain";
+import { getExplorerTxUrl } from "@shared/lib/network";
 import { getErrorMessage } from "@shared/lib/errors";
 import { useContractActions } from "../providers/useContractActions";
 import { isUserRejectedTx, useTxNotifications } from "@features/tx";

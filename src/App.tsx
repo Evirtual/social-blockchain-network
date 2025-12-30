@@ -10,6 +10,7 @@ import { useContractActions } from "./features/contract";
 import { useProfileState } from "./features/profile";
 import { useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";
+import { ipfsToHttp } from "./features/ipfs";
 
 function AppInner() {
   const theme = useTheme();
@@ -29,6 +30,12 @@ function AppInner() {
     setStatus,
     triggerConnectNudge
   });
+
+  const composerAvatarStyle = profile.profileDraftAvatarDataUrl?.startsWith("data:image/")
+    ? { backgroundImage: `url(${profile.profileDraftAvatarDataUrl})` }
+    : profile.profileAvatarUrl?.trim()
+      ? { backgroundImage: `url(${ipfsToHttp(profile.profileAvatarUrl)})` }
+      : { background: `hsl(${profile.selfAvatarHue} 75% 55%)` };
 
   return (
     <div className="app">
@@ -51,7 +58,7 @@ function AppInner() {
       <Modal
         open={composer.isComposerOpen}
         title="Create a post"
-        headerLeading={<div className="avatar small" style={{ background: `hsl(${profile.selfAvatarHue} 75% 55%)` }} />}
+        headerLeading={<div className="avatar small" style={composerAvatarStyle} />}
         onClose={composer.closeComposer}
       >
         <ComposerCard

@@ -1,7 +1,7 @@
 import type { PostComment } from "@types";
 import { useCallback, useState } from "react";
 import { IconRepeat } from "@features/app";
-import { getPostNetworkUi } from "@shared/lib/post";
+import { getPostNetworkUi } from "@shared/lib/network";
 
 type Props = {
   tokenId: string;

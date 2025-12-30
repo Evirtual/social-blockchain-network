@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useContractState } from "@features/contract";
-import { useFeedActions, useFeedState } from "@features/feed";
+import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
 import { usePostActionsController } from "@features/post";
 import { useWalletState } from "@features/wallet";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
+import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
 import { commentKey } from "@shared/lib/post";
 import { PostPage } from "./PostPage";
@@ -17,8 +17,8 @@ type Props = {
 export function PostPageContainer({ tokenId, postChainId }: Props) {
   const wallet = useWalletState();
   const contract = useContractState();
-  const feedState = useFeedState();
-  const feedActions = useFeedActions();
+  const feedState = useFeedQueries();
+  const feedActions = useFeedMutations();
   const profile = useProfileState();
   const postActions = usePostActionsController();
 

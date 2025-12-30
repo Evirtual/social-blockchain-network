@@ -1,4 +1,5 @@
 export * from "./useAccountPageProps";
+export * from "./useProfileAdminController";
 export * from "./usePosterAdminStatus";
 export * from "./useProfileAdminActions";
 export * from "./useProfilePageProps";

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContractActions, useContractState } from "@features/contract";
-import { useFeedActions, useFeedState } from "@features/feed";
+import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useFollow } from "@features/follow";
 import { useProfileActions, useProfileState } from "@features/profile";
 import { useSocialActions } from "@features/social";
@@ -10,12 +10,11 @@ import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
 import { useContractTx } from "@features/contract";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/chain";
+import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { AccountPage } from "@features/account";
 import { useAccountPageProps } from "../hooks/useAccountPageProps";
 import { useLikedPostsByAddress } from "../hooks/useLikedPostsByAddress";
-import { usePosterAdminStatus } from "../hooks/usePosterAdminStatus";
-import { useProfileAdminActions } from "../hooks/useProfileAdminActions";
+import { useProfileAdminController } from "../hooks/useProfileAdminController";
 import { useProfilePageProps } from "../hooks/useProfilePageProps";
 import { useProfileRouteEffects } from "../hooks/useProfileRouteEffects";
 import { useSavedPostsByAddress } from "../hooks/useSavedPostsByAddress";
@@ -30,8 +29,8 @@ export function ProfilePageContainer({ address }: Props) {
   const navigate = useNavigate();
   const walletState = useWalletState();
   const walletActions = useWalletActions();
-  const feedState = useFeedState();
-  const feedActions = useFeedActions();
+  const feedState = useFeedQueries();
+  const feedActions = useFeedMutations();
   const profileState = useProfileState();
   const profileActions = useProfileActions();
   const follow = useFollow();
@@ -46,13 +45,19 @@ export function ProfilePageContainer({ address }: Props) {
   const key = address.toLowerCase();
   const isSelf = !!walletState.walletAddress && walletState.walletAddress.toLowerCase() === key;
 
-  const posterAdminStatus = usePosterAdminStatus({
+  const admin = useProfileAdminController({
+    address,
     contract: {
       isOwner: contractState.isOwner,
       ensureContractDeployedOnCurrentNetwork: contractActions.ensureContractDeployedOnCurrentNetwork,
-      getReadContract: contractActions.getReadContract
+      getReadContract: contractActions.getReadContract,
+      getWriteContract: contractActions.getWriteContract
     },
-    address
+    runContractTx,
+    feedPosts: feedState.posts,
+    refreshFeed: feedActions.refreshFeed,
+    walletChainId: walletState.chainId,
+    loadProfile: () => profileActions.loadProfile(address)
   });
 
   const onDisconnectWallet = useCallback(() => {
@@ -77,21 +82,6 @@ export function ProfilePageContainer({ address }: Props) {
     void follow.toggleFollow(address);
   }, [follow, address]);
 
-  const { onAdminSetPosterAllowed, onAdminReset, onAdminSetProfile } = useProfileAdminActions({
-    address,
-    contract: {
-      isOwner: contractState.isOwner,
-      getReadContract: contractActions.getReadContract,
-      getWriteContract: contractActions.getWriteContract
-    },
-    runContractTx,
-    feedPosts: feedState.posts,
-    refreshFeed: feedActions.refreshFeed,
-    walletChainId: walletState.chainId,
-    loadProfile: profileActions.loadProfile,
-    setIsPosterAllowed: posterAdminStatus.setIsPosterAllowed,
-    setWasPosterDisapprovedEver: posterAdminStatus.setWasPosterDisapprovedEver
-  });
 
   const { likedTokenIdsByAddress, isLoadingLikesByAddress, loadLikesForAddress } = useLikedPostsByAddress({
     walletProvider: walletState.provider,
@@ -206,8 +196,8 @@ export function ProfilePageContainer({ address }: Props) {
 
   const profilePageProps = useProfilePageProps({
     isOwner: contractState.isOwner,
-    isPosterAllowed: posterAdminStatus.isPosterAllowed,
-    wasPosterDisapprovedEver: posterAdminStatus.wasPosterDisapprovedEver,
+    isPosterAllowed: admin.isPosterAllowed,
+    wasPosterDisapprovedEver: admin.wasPosterDisapprovedEver,
     address,
     key,
     name,
@@ -221,9 +211,9 @@ export function ProfilePageContainer({ address }: Props) {
     walletAddress: walletState.walletAddress,
     authorIdentity: profileState.authorIdentity,
     onToggleFollow,
-    onAdminSetPosterAllowed,
-    onAdminReset,
-    onAdminSetProfile,
+    onAdminSetPosterAllowed: admin.onAdminSetPosterAllowed,
+    onAdminReset: admin.onAdminReset,
+    onAdminSetProfile: admin.onAdminSetProfile,
     postActions,
     shortAddress,
     stableHueFromSeed,

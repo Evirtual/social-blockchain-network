@@ -181,9 +181,15 @@ export function ProfileCard(props: ProfileCardProps) {
           isOwner={isOwner}
           onClose={() => setIsApprovalsOpen(false)}
           shortAddress={props.shortAddress}
+          headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
-        <Modal open={props.isEditingProfile} title="Edit profile" onClose={props.onCancelEditProfile}>
+        <Modal
+          open={props.isEditingProfile}
+          title="Edit profile"
+          headerLeading={<div className="avatar small" style={avatarStyle} />}
+          onClose={props.onCancelEditProfile}
+        >
           <div className="composer">
             <input
               className="input"
@@ -239,6 +245,7 @@ export function ProfileCard(props: ProfileCardProps) {
           isLoadingFollowers={props.isLoadingFollowers}
           onClose={() => setIsFollowersOpen(false)}
           shortAddress={props.shortAddress}
+          headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
         <FollowingModal
@@ -247,6 +254,7 @@ export function ProfileCard(props: ProfileCardProps) {
           isLoadingFollowing={props.isLoadingFollowing}
           onClose={() => setIsFollowingOpen(false)}
           shortAddress={props.shortAddress}
+          headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
         {props.walletAddress && (

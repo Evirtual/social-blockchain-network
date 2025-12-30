@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/chain";
+import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/network";
 import { shortAddress } from "@shared/lib/format";
 import { ChainLogo } from "./ChainLogos";
 
