@@ -26,11 +26,17 @@ export function HomeHeroSupportedNetworks(props: Props) {
 
       <div className="heroTitle">Supported networks</div>
       <div className="heroSub muted">
-        {props.isDisconnected
-          ? "Connect your wallet on a supported testnet to post, react, and tip."
-          : props.isWrongNetwork
-            ? "Your wallet is connected, but this app isn’t configured for the current network."
-            : "Use one of these testnets to post, react, and tip."}
+        {props.isDisconnected ? (
+          <>
+            Connect your wallet on a supported testnet to
+            <br />
+            post, react, and tip.
+          </>
+        ) : props.isWrongNetwork ? (
+          "Your wallet is connected, but this app isn’t configured for the current network."
+        ) : (
+          "Use one of these testnets to post, react, and tip."
+        )}
       </div>
       {props.isWrongNetwork && props.currentNetworkLabel ? (
         <div className="pill">Current: {props.currentNetworkLabel}</div>
