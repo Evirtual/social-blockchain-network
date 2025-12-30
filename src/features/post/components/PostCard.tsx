@@ -127,6 +127,7 @@ export const PostCard = memo(function PostCard(props: Props) {
           onEditClearImage={props.onEditClearImage}
           onFreezePost={props.onFreezePost}
           isMine={props.isMine}
+          canModerate={props.canModerate}
         />
       </Modal>
 

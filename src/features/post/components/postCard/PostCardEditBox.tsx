@@ -10,6 +10,7 @@ export type PostCardEditBoxProps = {
   avatarStyle?: CSSProperties;
 
   isMine: boolean;
+  canModerate?: boolean;
   requiresNetworkSwitch: boolean;
   interactionDisabledTitle?: string;
 
@@ -93,7 +94,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
       )}
 
       <div className="rowActions">
-        {props.isMine ? (
+        {props.isMine || props.canModerate ? (
           <button
             className="danger"
             type="button"
