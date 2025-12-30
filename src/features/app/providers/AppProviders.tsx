@@ -21,7 +21,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 <ProfileProvider>
                   <FollowProvider>
                     <ComposerProvider>
-                      <SocialActionsProvider>{children}</SocialActionsProvider>
+                      <SocialActionsProvider>
+                        {children}
+                      </SocialActionsProvider>
                     </ComposerProvider>
                   </FollowProvider>
                 </ProfileProvider>
