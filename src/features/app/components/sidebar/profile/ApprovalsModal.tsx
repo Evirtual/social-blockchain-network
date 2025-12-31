@@ -9,6 +9,7 @@ import { ApprovalListRow } from "./approvals/ApprovalListRow";
 import { useApprovalActions } from "./approvals/useApprovalActions";
 import { useOnChainApprovalRequests } from "./approvals/useOnChainApprovalRequests";
 import { usePosterStatusMaps } from "./approvals/usePosterStatusMaps";
+import { useOwnerAddress } from "./useOwnerAddress";
 
 // In-memory cache to keep pending approvals across route navigation.
 // Resets on page refresh by design.
@@ -28,6 +29,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const { runContractTx } = useContractTx();
   const feed = useFeedState();
   const wallet = useWalletState();
+  const { ownerAddress } = useOwnerAddress(wallet.walletAddress);
 
   const pendingCacheKey = `${String(wallet.chainId ?? "").trim()}:${String(contractState.contractAddress ?? "")
     .trim()
@@ -99,16 +101,19 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
 
   const chainRows = useMemo(() => {
-    return onChainRequests.map((addr) => {
-      const key = addr.toLowerCase();
-      return {
-        addr,
-        key,
-        isFlagged: !!posterDisapprovedEverByAddress[key],
-        isAllowed: !!posterAllowedByAddress[key]
-      };
-    });
-  }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress]);
+    const ownerLower = ownerAddress?.toLowerCase() ?? "";
+    return onChainRequests
+      .filter((addr) => addr.toLowerCase() !== ownerLower)
+      .map((addr) => {
+        const key = addr.toLowerCase();
+        return {
+          addr,
+          key,
+          isFlagged: !!posterDisapprovedEverByAddress[key],
+          isAllowed: !!posterAllowedByAddress[key]
+        };
+      });
+  }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress, ownerAddress]);
 
   const handleRemove = useCallback(
     (addr: string) => {

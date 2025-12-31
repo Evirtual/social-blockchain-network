@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
 import { getErrorMessage } from "@shared/lib/errors";
+import { useEpochGuard } from "@shared/lib/epochGuard";
 import { type MintedEventLite } from "../services/feedLoader";
+import { refreshFeedWithCaches } from "../services/refreshCoordinator";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
-import { refreshFeedFromNetworks } from "../services/feedRefresh";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -30,6 +31,7 @@ export function useFeedRefresh(params: {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
+  const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
 
   const postsRef = useRef<Post[]>([]);
   useEffect(() => {
@@ -49,6 +51,7 @@ export function useFeedRefresh(params: {
     async (accountOverride?: string | null) => {
       const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
       const MIN_REFRESH_INTERVAL_MS = 1_500;
+      const refreshEpoch = snapshotEpoch();
 
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
       const normalizedAccount = typeof account === "string" ? account.toLowerCase() : null;
@@ -87,17 +90,28 @@ export function useFeedRefresh(params: {
         let shouldShowLoading = false;
         try {
           shouldShowLoading = postsRef.current.length === 0;
-          if (shouldShowLoading) setIsFeedLoading(true);
+          if (shouldShowLoading && !isStale(refreshEpoch)) {
+            setIsFeedLoading(true);
+          }
 
-          await refreshFeedFromNetworks({
+          const setPostsGuarded = (next: Parameters<typeof setPosts>[0]) => {
+            if (isStale(refreshEpoch)) return;
+            setPosts(next);
+          };
+          const setStatusGuarded = (message: string) => {
+            if (isStale(refreshEpoch)) return;
+            setStatus(message);
+          };
+
+          await refreshFeedWithCaches({
             provider,
             walletAddress,
             chainId,
             account,
             contract,
             postsSnapshot: postsRef.current,
-            setPosts,
-            setStatus,
+            setPosts: setPostsGuarded,
+            setStatus: setStatusGuarded,
             lastRefreshedAccount: lastRefreshedAccountRef.current,
             caches: {
               mintedEventsCache: mintedEventsCacheRef.current,
@@ -107,10 +121,14 @@ export function useFeedRefresh(params: {
             shouldReportStatus: shouldShowLoading
           });
         } catch (err) {
-          setStatus(getErrorMessage(err));
+          if (!isStale(refreshEpoch)) {
+            setStatus(getErrorMessage(err));
+          }
           throw err;
         } finally {
-          if (shouldShowLoading) setIsFeedLoading(false);
+          if (shouldShowLoading && !isStale(refreshEpoch)) {
+            setIsFeedLoading(false);
+          }
         }
       })();
 
@@ -152,6 +170,10 @@ export function useFeedRefresh(params: {
     lastWalletAddressLowerRef.current = walletAddressLower;
 
     // On network change, reset state and caches so we don't show stale data.
+    if ((chainChanged || walletChanged) && !isInitialEpoch) {
+      bumpEpoch();
+    }
+
     if (chainChanged && !isInitialEpoch) {
       setPosts([]);
       postsRef.current = [];

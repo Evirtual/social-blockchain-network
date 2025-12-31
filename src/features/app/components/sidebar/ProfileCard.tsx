@@ -100,9 +100,7 @@ export function ProfileCard(props: ProfileCardProps) {
                 <span className="cardHeaderStat">{props.myPostsCount} posts</span>
               ) : null}
               {showPostsStat ? (
-                <span className="cardHeaderStatSep" aria-hidden="true">
-                  ·
-                </span>
+                <span className="cardHeaderStatSep" aria-hidden="true">|</span>
               ) : null}
               <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowersOpen(true)}>
                 {props.isLoadingFollowers ? (
@@ -113,9 +111,7 @@ export function ProfileCard(props: ProfileCardProps) {
                   `${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`
                 )}
               </button>
-              <span className="cardHeaderStatSep" aria-hidden="true">
-                ·
-              </span>
+              <span className="cardHeaderStatSep" aria-hidden="true">|</span>
               <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowingOpen(true)}>
                 {props.isLoadingFollowing ? (
                   <>
@@ -266,3 +262,4 @@ export function ProfileCard(props: ProfileCardProps) {
     </details>
   );
 }
+

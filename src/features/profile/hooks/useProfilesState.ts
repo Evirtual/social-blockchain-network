@@ -10,6 +10,7 @@ import { parseProfileTuple } from "./profilesState/parseProfileTuple";
 import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
 import { resetProfileUiState } from "./profilesState/resetProfileUiState";
 import { resolveAvatarForSave } from "./profilesState/resolveAvatarForSave";
+import { useEpochGuard } from "@shared/lib/epochGuard";
 
 export type ProfileRecord = { name: string; bio: string; avatarUrl: string };
 
@@ -38,6 +39,7 @@ export function useProfilesState({
   runContractTx,
   setStatus
 }: UseProfilesStateArgs) {
+  const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
   const walletAddressRef = useRef<string | null>(null);
   const isEditingProfileRef = useRef(false);
   const profilesByAddressRef = useRef<Record<string, ProfileRecord>>({});
@@ -68,6 +70,7 @@ export function useProfilesState({
 
     if (isInitial) return;
 
+    bumpEpoch();
     profilesByAddressRef.current = {};
     profileLoadInFlightRef.current = {};
     setProfilesByAddress({});
@@ -99,6 +102,7 @@ export function useProfilesState({
   const loadProfile = useCallback(
     async (address: string) => {
       const key = address.toLowerCase();
+      const epoch = snapshotEpoch();
       if (profilesByAddressRef.current[key]) return;
 
       await runInFlight(profileLoadInFlightRef.current, key, async () => {
@@ -139,6 +143,7 @@ export function useProfilesState({
                   avatarUrl: String(a.avatar ?? "")
                 };
 
+                if (isStale(epoch)) return;
                 setProfilesByAddress((prev) => {
                   if (prev[key]) return prev;
                   return { ...prev, [key]: parsed };
@@ -147,6 +152,7 @@ export function useProfilesState({
                 const currentWalletAddress = walletAddressRef.current;
                 const currentIsEditingProfile = isEditingProfileRef.current;
                 if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
+                  if (isStale(epoch)) return;
                   setProfileName(parsed.name);
                   setProfileBio(parsed.bio);
                   setProfileAvatarUrl(parsed.avatarUrl);
@@ -168,6 +174,7 @@ export function useProfilesState({
 
           const parsed = parseProfileTuple(tuple);
 
+          if (isStale(epoch)) return;
           setProfilesByAddress((prev) => {
             if (prev[key]) return prev;
             return { ...prev, [key]: parsed };
@@ -176,6 +183,7 @@ export function useProfilesState({
           const currentWalletAddress = walletAddressRef.current;
           const currentIsEditingProfile = isEditingProfileRef.current;
           if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
+            if (isStale(epoch)) return;
             setProfileName(parsed.name);
             setProfileBio(parsed.bio);
             setProfileAvatarUrl(parsed.avatarUrl);

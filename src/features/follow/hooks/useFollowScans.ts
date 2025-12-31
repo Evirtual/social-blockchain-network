@@ -10,6 +10,7 @@ import { parseChainKey } from "@shared/lib/chainKey";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 import { setMapWithLimit } from "@shared/lib/cache";
+import { useEpochGuard } from "@shared/lib/epochGuard";
 
 // In-memory caches to persist results across route navigation without using sessionStorage.
 // Keys include chainId so data never bleeds across networks.
@@ -37,6 +38,7 @@ export function useFollowScans(params: {
   getReadContract: () => Promise<any>;
   setStatus: (v: string) => void;
 }) {
+  const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
   const loadedFollowerCountByAddressRef = useRef<Record<string, boolean>>({});
   const loadedFollowersByAddressRef = useRef<Record<string, boolean>>({});
   const loadedFollowingByAddressRef = useRef<Record<string, boolean>>({});
@@ -60,6 +62,7 @@ export function useFollowScans(params: {
     lastChainIdRef.current = params.chainId;
     if (isInitial) return;
 
+    bumpEpoch();
     loadedFollowerCountByAddressRef.current = {};
     loadedFollowersByAddressRef.current = {};
     loadedFollowingByAddressRef.current = {};
@@ -80,6 +83,7 @@ export function useFollowScans(params: {
     async (address: string) => {
       if (!address) return;
       const key = addressKey(address);
+      const epoch = snapshotEpoch();
 
       const cacheKey = makeCacheKey(params.chainId, key);
       if (cacheKey && followerCountByKeyCache.has(cacheKey)) {
@@ -116,6 +120,7 @@ export function useFollowScans(params: {
             });
 
             if (result.ok) {
+              if (isStale(epoch)) return;
               const count = Number(result.data?.account?.followersCount ?? 0);
               const safeCount = Number.isFinite(count) ? count : 0;
               setFollowerCountByAddress((prev) => ({ ...prev, [key]: safeCount }));
@@ -133,7 +138,9 @@ export function useFollowScans(params: {
           } catch {
             // fall back to on-chain scan
           } finally {
-            setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+            if (!isStale(epoch)) {
+              setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+            }
           }
         });
 
@@ -164,13 +171,18 @@ export function useFollowScans(params: {
           );
 
           const count = activeFollowers.length;
+          if (isStale(epoch)) return;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
           if (cacheKey) setFollowCache(followerCountByKeyCache, cacheKey, count);
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
-          params.setStatus(getErrorMessage(err));
+          if (!isStale(epoch)) {
+            params.setStatus(getErrorMessage(err));
+          }
         } finally {
-          setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+          if (!isStale(epoch)) {
+            setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+          }
         }
       });
     },
@@ -181,6 +193,7 @@ export function useFollowScans(params: {
     async (address: string) => {
       if (!address) return;
       const key = addressKey(address);
+      const epoch = snapshotEpoch();
 
       const cacheKey = makeCacheKey(params.chainId, key);
 
@@ -219,6 +232,7 @@ export function useFollowScans(params: {
             });
 
             if (result.ok) {
+              if (isStale(epoch)) return;
               const normalizedActive = (Array.isArray(result.data?.followEdges) ? result.data.followEdges : [])
                 .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
                 .filter(Boolean);
@@ -243,7 +257,9 @@ export function useFollowScans(params: {
           } catch {
             // fall back to on-chain scan
           } finally {
-            setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
+            if (!isStale(epoch)) {
+              setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
+            }
           }
         });
 
@@ -282,6 +298,7 @@ export function useFollowScans(params: {
           );
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
+          if (isStale(epoch)) return;
           setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
           if (cacheKey) {
@@ -291,9 +308,13 @@ export function useFollowScans(params: {
           loadedFollowersByAddressRef.current[key] = true;
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
-          params.setStatus(getErrorMessage(err));
+          if (!isStale(epoch)) {
+            params.setStatus(getErrorMessage(err));
+          }
         } finally {
-          setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
+          if (!isStale(epoch)) {
+            setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
+          }
         }
       });
     },
@@ -304,6 +325,7 @@ export function useFollowScans(params: {
     async (address: string) => {
       if (!address) return;
       const key = addressKey(address);
+      const epoch = snapshotEpoch();
 
       const cacheKey = makeCacheKey(params.chainId, key);
 
@@ -342,6 +364,7 @@ export function useFollowScans(params: {
             });
 
             if (result.ok) {
+              if (isStale(epoch)) return;
               const normalizedActive = (Array.isArray(result.data?.followEdges) ? result.data.followEdges : [])
                 .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
                 .filter(Boolean);
@@ -361,7 +384,9 @@ export function useFollowScans(params: {
           } catch {
             // fall back to on-chain scan
           } finally {
-            setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+            if (!isStale(epoch)) {
+              setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+            }
           }
         });
 
@@ -397,13 +422,18 @@ export function useFollowScans(params: {
           );
 
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
+          if (isStale(epoch)) return;
           setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           if (cacheKey) setFollowCache(followingByKeyCache, cacheKey, normalizedActive);
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
-          params.setStatus(getErrorMessage(err));
+          if (!isStale(epoch)) {
+            params.setStatus(getErrorMessage(err));
+          }
         } finally {
-          setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+          if (!isStale(epoch)) {
+            setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+          }
         }
       });
     },

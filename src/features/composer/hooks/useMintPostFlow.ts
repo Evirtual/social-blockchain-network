@@ -8,6 +8,7 @@ import { parseMintPostReceipt } from "../services/mintPost/parseMintPostReceipt"
 import { waitForMetadataReady } from "../services/mintPost/waitForMetadataReady";
 import { waitForUrlReachable } from "../services/mintPost/waitForUrlReachable";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
+import { getDraftMediaState } from "@features/post/services/draftMediaState";
 
 type TxNotificationsLike = {
   notifyPending: (p: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -97,7 +98,7 @@ export function useMintPostFlow(params: {
           closeComposer();
           setStatus(
             requested
-              ? "Posting is in closed beta. Approval requested — wait for an admin to approve your wallet."
+              ? "Posting is in closed beta. Approval requested - wait for an admin to approve your wallet."
               : "Posting is in closed beta. Request approval to post."
           );
           return;
@@ -114,9 +115,10 @@ export function useMintPostFlow(params: {
         return;
       }
 
-      const bodyTrimmed = (draft.body || "").trim();
-      const imageUrlTrimmed = (draft.imageUrl || "").trim();
-      const imageDataUrlTrimmed = (draft.imageDataUrl || "").trim();
+      const { bodyTrimmed, imageUrlTrimmed, imageDataUrlTrimmed, hasMedia } = getDraftMediaState(
+        draft,
+        uploadedImageBlob
+      );
       if (!bodyTrimmed && !imageUrlTrimmed && !imageDataUrlTrimmed) {
         setStatus("Add text or attach media (image/video) to post.");
         return;
@@ -124,7 +126,6 @@ export function useMintPostFlow(params: {
 
       const writeContract = await contract.getWriteContract();
 
-      const hasMedia = Boolean(uploadedImageBlob || imageUrlTrimmed || imageDataUrlTrimmed);
       const prepared = await preparePostMetadata({
         draft,
         hasMedia,
@@ -198,7 +199,7 @@ export function useMintPostFlow(params: {
       if (processingToastId && metadataURI.startsWith("ipfs://")) {
         txNotifications.notifyPending({
           hash: processingToastId,
-          label: "Post created — finalizing media…",
+          label: "Post created - finalizing media...",
           explorerUrl: null
         });
 

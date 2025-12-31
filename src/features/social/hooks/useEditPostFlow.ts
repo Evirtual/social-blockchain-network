@@ -11,6 +11,7 @@ import { makeLocalNoticeId } from "@shared/lib/ids";
 import { collectPinnedCidsFromBuilt } from "../services/editPost/pinning";
 import { parsePostKey, postKey } from "@shared/lib/post";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
+import { getDraftMediaState } from "@features/post/services/draftMediaState";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -194,10 +195,10 @@ export function useEditPostFlow(args: {
         return;
       }
 
-      const bodyTrimmed = (editDraft.body || "").trim();
-      const imageUrlTrimmed = (editDraft.imageUrl || "").trim();
-      const imageDataUrlTrimmed = (editDraft.imageDataUrl || "").trim();
-      const hasMedia = Boolean(editUploadedImageBlob || imageUrlTrimmed || imageDataUrlTrimmed);
+      const { bodyTrimmed, imageUrlTrimmed, imageDataUrlTrimmed, hasMedia } = getDraftMediaState(
+        editDraft,
+        editUploadedImageBlob
+      );
       if (!bodyTrimmed && !hasMedia) {
         setStatus("Add text or attach media (image/video) to post.");
         return;
@@ -222,7 +223,7 @@ export function useEditPostFlow(args: {
       // Match create-post UX: show an immediate "initializing" toast while we prepare the update
       // (e.g. building metadata / uploading to IPFS) before the wallet confirmation step.
       processingToastId = makeLocalNoticeId();
-      txNotifications.notifyPending({ hash: processingToastId, label: "Updating post…", explorerUrl: null });
+      txNotifications.notifyPending({ hash: processingToastId, label: "Updating post...", explorerUrl: null });
 
       // Existing post (used for media-type hints and permissioning).
       const post = feed.posts.find((p) => postKey(p) === editingTokenId);
@@ -298,7 +299,7 @@ export function useEditPostFlow(args: {
         const finalizingToastId = makeLocalNoticeId();
         txNotifications.notifyPending({
           hash: finalizingToastId,
-          label: "Post updated — finalizing media…",
+          label: "Post updated - finalizing media...",
           explorerUrl: null
         });
 
