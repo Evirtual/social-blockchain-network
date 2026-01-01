@@ -17,15 +17,17 @@ describe("SocialPosts", () => {
   it("blocks minting for non-allowed wallets unless owner approves", async () => {
     const { contract, author, other } = await deploy();
 
-    await expect(contract.connect(other).mintPost("ipfs://post-x")).to.be.revertedWith("Poster not allowed");
+    await expect(contract.connect(other).mintPost("ipfs://post-x", "Post X", "Body X")).to.be.revertedWith(
+      "Poster not allowed"
+    );
 
     await expect(contract.connect(author).setPosterAllowed(other.address, true))
       .to.emit(contract, "PosterAllowed")
       .withArgs(other.address, true);
 
-    await expect(contract.connect(other).mintPost("ipfs://post-x"))
+    await expect(contract.connect(other).mintPost("ipfs://post-x", "Post X", "Body X"))
       .to.emit(contract, "PostMinted")
-      .withArgs(other.address, 1n, "ipfs://post-x");
+      .withArgs(other.address, 1n, "Post X", "Body X", "ipfs://post-x");
   });
 
   it("reports whether a poster is allowed", async () => {
@@ -56,9 +58,9 @@ describe("SocialPosts", () => {
     const { contract, author } = await deploy();
 
     const tokenUri = "ipfs://post-1";
-    const tx = await contract.connect(author).mintPost(tokenUri);
+    const tx = await contract.connect(author).mintPost(tokenUri, "First Post", "Hello world");
 
-    await expect(tx).to.emit(contract, "PostMinted").withArgs(author.address, 1n, tokenUri);
+    await expect(tx).to.emit(contract, "PostMinted").withArgs(author.address, 1n, "First Post", "Hello world", tokenUri);
     expect(await contract.exists(1n)).to.equal(true);
     expect(await contract.authorOf(1n)).to.equal(author.address);
     expect(await contract.tokenURI(1n)).to.equal(tokenUri);
@@ -67,23 +69,30 @@ describe("SocialPosts", () => {
   it("prevents non-author from updating and prevents updates after freeze", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
-    await expect(contract.connect(other).updatePostURI(1n, "ipfs://hacked")).to.be.revertedWith("Only author");
+    await expect(contract.connect(other).updatePostURI(1n, "ipfs://hacked", "Hacked", "Hacked body")).to.be.revertedWith(
+      "Only author"
+    );
 
-    await expect(contract.connect(author).updatePostURI(1n, "ipfs://updated")).to.emit(contract, "PostUpdated");
+    await expect(contract.connect(author).updatePostURI(1n, "ipfs://updated", "Updated", "Updated body")).to.emit(
+      contract,
+      "PostUpdated"
+    );
     expect(await contract.tokenURI(1n)).to.equal("ipfs://updated");
 
     await expect(contract.connect(other).freezePost(1n)).to.be.revertedWith("Only author");
 
     await expect(contract.connect(author).freezePost(1n)).to.emit(contract, "PostFrozen");
-    await expect(contract.connect(author).updatePostURI(1n, "ipfs://nope")).to.be.revertedWith("Post frozen");
+    await expect(contract.connect(author).updatePostURI(1n, "ipfs://nope", "Nope", "Nope body")).to.be.revertedWith(
+      "Post frozen"
+    );
   });
 
   it("like/unlike is single-toggle per account", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     await expect(contract.connect(other).likePost(1n)).to.emit(contract, "PostLiked");
     expect(await contract.likesOf(1n)).to.equal(1n);
@@ -101,7 +110,7 @@ describe("SocialPosts", () => {
   it("records tips and allows withdraw", async () => {
     const { contract, author, tipper } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     const tipAmount = 1234n;
     const tipTx = await contract.connect(tipper).tipPost(1n, { value: tipAmount });
@@ -119,7 +128,7 @@ describe("SocialPosts", () => {
   it("burn removes post existence", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     await expect(contract.connect(other).burnPost(1n)).to.be.revertedWith("Only author");
 
@@ -154,7 +163,7 @@ describe("SocialPosts", () => {
   it("owner can burn any post (moderation)", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
     await expect(contract.connect(other).adminBurnPost(1n)).to.be.reverted;
 
     await expect(contract.connect(author).adminBurnPost(1n))
@@ -169,7 +178,7 @@ describe("SocialPosts", () => {
 
     await contract.connect(author).setPosterAllowed(other.address, true);
     await contract.connect(other).setProfile("name", "bio", "avatar");
-    await contract.connect(other).mintPost("ipfs://post-1");
+    await contract.connect(other).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     expect(await contract.isPosterAllowed(other.address)).to.equal(true);
     expect(await contract.profileOf(other.address)).to.deep.equal(["name", "bio", "avatar"]);
@@ -215,14 +224,14 @@ describe("SocialPosts", () => {
     const { contract, author, other } = await deploy();
 
     await contract.connect(author).setPosterAllowed(other.address, true);
-    await contract.connect(other).mintPost("ipfs://post-1");
+    await contract.connect(other).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
-    await expect(contract.connect(other).adminUpdatePostURI(1n, "ipfs://mod"))
+    await expect(contract.connect(other).adminUpdatePostURI(1n, "ipfs://mod", "Mod", "Mod body"))
       .to.be.reverted;
 
-    await expect(contract.connect(author).adminUpdatePostURI(1n, "ipfs://mod"))
+    await expect(contract.connect(author).adminUpdatePostURI(1n, "ipfs://mod", "Mod", "Mod body"))
       .to.emit(contract, "PostUpdatedByAdmin")
-      .withArgs(author.address, other.address, 1n, "ipfs://mod");
+      .withArgs(author.address, other.address, 1n, "Mod", "Mod body", "ipfs://mod");
 
     expect(await contract.tokenURI(1n)).to.equal("ipfs://mod");
   });
@@ -248,7 +257,7 @@ describe("SocialPosts", () => {
   it("commentPost validates and increments comment count", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     await expect(contract.connect(other).commentPost(1n, "")).to.be.revertedWith("Empty comment");
     await expect(contract.connect(other).commentPost(1n, "c".repeat(281))).to.be.revertedWith("Comment too long");
@@ -260,7 +269,7 @@ describe("SocialPosts", () => {
   it("save/unsave is single-toggle per account", async () => {
     const { contract, author, other } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
 
     await expect(contract.connect(other).savePost(1n)).to.emit(contract, "PostSaved");
     expect(await contract.savesOf(1n)).to.equal(1n);
@@ -297,7 +306,7 @@ describe("SocialPosts", () => {
   it("freezePost cannot be called twice", async () => {
     const { contract, author } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
     await expect(contract.connect(author).freezePost(1n)).to.emit(contract, "PostFrozen");
     await expect(contract.connect(author).freezePost(1n)).to.be.revertedWith("Post already frozen");
     expect(await contract.isPostFrozen(1n)).to.equal(true);
@@ -306,7 +315,7 @@ describe("SocialPosts", () => {
   it("tipPost requires value > 0", async () => {
     const { contract, author, tipper } = await deploy();
 
-    await contract.connect(author).mintPost("ipfs://post-1");
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
     await expect(contract.connect(tipper).tipPost(1n, { value: 0n })).to.be.revertedWith("No tip sent");
   });
 
@@ -314,7 +323,7 @@ describe("SocialPosts", () => {
     const { contract, author, other } = await deploy();
 
     await expect(contract.authorOf(999n)).to.be.revertedWith("Post does not exist");
-    await expect(contract.updatePostURI(999n, "ipfs://x")).to.be.revertedWith("Post does not exist");
+    await expect(contract.updatePostURI(999n, "ipfs://x", "X", "Body X")).to.be.revertedWith("Post does not exist");
     await expect(contract.freezePost(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.isPostFrozen(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.burnPost(999n)).to.be.revertedWith("Post does not exist");
@@ -343,7 +352,7 @@ describe("SocialPosts", () => {
 
     await contract.connect(author).setPosterAllowed(await reject.getAddress(), true);
 
-    await reject.mint("ipfs://post-1");
+    await reject.mint("ipfs://post-1", "Post 1", "Body 1");
 
     const tipAmount = 77n;
     await contract.connect(tipper).tipPost(1n, { value: tipAmount });
