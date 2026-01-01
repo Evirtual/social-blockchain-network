@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Post } from "@types";
 import { useSupportedNetworks } from "./useSupportedNetworks";
 import { useNetworkFilterState } from "./useNetworkFilterState";
 import { filterPosts } from "../services/filterPosts";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
+import { loadFeedFromSubgraph } from "@features/feed/services/subgraph/loadFeedFromSubgraph";
 
 type Args = {
   posts: Post[];
@@ -12,6 +15,9 @@ type Args = {
   selectedNetworksKey: string;
   walletAddress: string | null;
   chainId: string | null;
+  isFeedLoading?: boolean;
+  useSubgraphSearch?: boolean;
+  authorAddress?: string | null;
 };
 
 export function useFeedFilterViewModel(args: Args) {
@@ -24,19 +30,279 @@ export function useFeedFilterViewModel(args: Args) {
       chainId: args.chainId,
       supportedNetworks
     });
+  const [totalPostsCount, setTotalPostsCount] = useState<number | null>(null);
+  const [isTotalPostsLoading, setIsTotalPostsLoading] = useState(false);
+  const [authorPostsCount, setAuthorPostsCount] = useState<number | null>(null);
+  const [isAuthorPostsLoading, setIsAuthorPostsLoading] = useState(false);
+  const [remoteSearchPosts, setRemoteSearchPosts] = useState<Post[] | null>(null);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
 
+  const basePosts = remoteSearchPosts ?? args.posts;
+  const authorFilter = typeof args.authorAddress === "string" ? args.authorAddress.trim().toLowerCase() : "";
+  const scopedPosts = useMemo(() => {
+    if (!authorFilter) return basePosts;
+    return basePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter);
+  }, [basePosts, authorFilter]);
   const filteredPosts = useMemo(() => {
     return filterPosts({
-      posts: args.posts,
+      posts: scopedPosts,
       authorIdentity: args.authorIdentity,
       shortAddress: args.shortAddress,
       searchQuery,
       selectedNetworkChainIds
     });
-  }, [args.posts, args.authorIdentity, args.shortAddress, searchQuery, selectedNetworkChainIds]);
+  }, [scopedPosts, args.authorIdentity, args.shortAddress, searchQuery, selectedNetworkChainIds]);
 
-  const hasAnyFilter = !!searchQuery.trim() || isNetworkFilterActive;
-  const pillText = hasAnyFilter ? `${filteredPosts.length} / ${args.posts.length} posts` : `${args.posts.length} posts`;
+  useEffect(() => {
+    let active = true;
+    const env = import.meta.env as any;
+    const selectedIds = selectedNetworkChainIds.length
+      ? selectedNetworkChainIds
+      : supportedNetworks.map((n) => String(n.chainId));
+    const cacheKey = `socialBlockchainNetwork.feed.totalPosts.${selectedIds.slice().sort().join(",")}`;
+    const cacheTtlMs = 5 * 60 * 1000;
+
+    if (authorFilter) {
+      setTotalPostsCount(null);
+      setIsTotalPostsLoading(false);
+      setAuthorPostsCount(null);
+      setIsAuthorPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    if (selectedIds.length === 0) {
+      setTotalPostsCount(0);
+      setIsTotalPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadTotals = async () => {
+      if (active) setIsTotalPostsLoading(true);
+      try {
+        if (typeof window !== "undefined") {
+          try {
+            const cachedRaw = window.sessionStorage.getItem(cacheKey);
+            if (cachedRaw) {
+              const cached = JSON.parse(cachedRaw) as { count?: number; ts?: number };
+              if (
+                typeof cached?.count === "number" &&
+                typeof cached?.ts === "number" &&
+                Date.now() - cached.ts < cacheTtlMs
+              ) {
+                if (active) setTotalPostsCount(cached.count);
+                return;
+              }
+            }
+          } catch {
+            // Ignore cache read errors.
+          }
+        }
+
+        let sum = 0;
+        for (const id of selectedIds) {
+          const chainIdNum = Number(id);
+          if (!Number.isFinite(chainIdNum)) continue;
+          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+          if (!subgraphUrl) continue;
+          const result = await tryQuerySubgraph<{
+            globalStats: { totalPosts?: string | null } | null;
+          }>({
+            url: subgraphUrl,
+            query: `query GlobalStats { globalStats(id: "global") { totalPosts } }`,
+            variables: {},
+            timeoutMs: 8_000
+          });
+          if (!result.ok) continue;
+          const total = Number(result.data?.globalStats?.totalPosts ?? 0);
+          if (Number.isFinite(total)) sum += total;
+        }
+        if (active) setTotalPostsCount(sum);
+        if (typeof window !== "undefined") {
+          try {
+            window.sessionStorage.setItem(cacheKey, JSON.stringify({ count: sum, ts: Date.now() }));
+          } catch {
+            // Ignore cache write errors.
+          }
+        }
+      } finally {
+        if (active) setIsTotalPostsLoading(false);
+      }
+    };
+
+    void loadTotals();
+
+    return () => {
+      active = false;
+    };
+  }, [supportedNetworks, selectedNetworkChainIds, authorFilter]);
+
+  useEffect(() => {
+    let active = true;
+    const env = import.meta.env as any;
+    const selectedIds = selectedNetworkChainIds.length
+      ? selectedNetworkChainIds
+      : supportedNetworks.map((n) => String(n.chainId));
+    const cacheKey = `socialBlockchainNetwork.profile.posts.${authorFilter}.${selectedIds.slice().sort().join(",")}`;
+    const cacheTtlMs = 5 * 60 * 1000;
+
+    if (!authorFilter) {
+      setAuthorPostsCount(null);
+      setIsAuthorPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    if (selectedIds.length === 0) {
+      setAuthorPostsCount(0);
+      setIsAuthorPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadAuthorTotals = async () => {
+      if (active) setIsAuthorPostsLoading(true);
+      try {
+        if (typeof window !== "undefined") {
+          try {
+            const cachedRaw = window.sessionStorage.getItem(cacheKey);
+            if (cachedRaw) {
+              const cached = JSON.parse(cachedRaw) as { count?: number; ts?: number };
+              if (
+                typeof cached?.count === "number" &&
+                typeof cached?.ts === "number" &&
+                Date.now() - cached.ts < cacheTtlMs
+              ) {
+                if (active) setAuthorPostsCount(cached.count);
+                return;
+              }
+            }
+          } catch {
+            // Ignore cache read errors.
+          }
+        }
+
+        let sum = 0;
+        for (const id of selectedIds) {
+          const chainIdNum = Number(id);
+          if (!Number.isFinite(chainIdNum)) continue;
+          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+          if (!subgraphUrl) continue;
+          const result = await tryQuerySubgraph<{
+            account: { postedCount?: string | null } | null;
+          }>({
+            url: subgraphUrl,
+            query: `query AccountPosts($id: ID!) { account(id: $id) { postedCount } }`,
+            variables: { id: authorFilter },
+            timeoutMs: 8_000
+          });
+          if (!result.ok) continue;
+          const count = Number(result.data?.account?.postedCount ?? 0);
+          if (Number.isFinite(count)) sum += count;
+        }
+        if (active) setAuthorPostsCount(sum);
+        if (typeof window !== "undefined") {
+          try {
+            window.sessionStorage.setItem(cacheKey, JSON.stringify({ count: sum, ts: Date.now() }));
+          } catch {
+            // Ignore cache write errors.
+          }
+        }
+      } finally {
+        if (active) setIsAuthorPostsLoading(false);
+      }
+    };
+
+    void loadAuthorTotals();
+
+    return () => {
+      active = false;
+    };
+  }, [supportedNetworks, selectedNetworkChainIds, authorFilter]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    let active = true;
+    const trimmedQuery = debouncedSearchQuery.trim();
+
+    if (!args.useSubgraphSearch || !trimmedQuery) {
+      setRemoteSearchPosts(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    const env = import.meta.env as any;
+    const selectedIds = selectedNetworkChainIds.length
+      ? selectedNetworkChainIds
+      : supportedNetworks.map((n) => String(n.chainId));
+
+    if (selectedIds.length === 0) {
+      setRemoteSearchPosts([]);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadSearch = async () => {
+      const collected: Post[] = [];
+      for (const id of selectedIds) {
+        const chainIdNum = Number(id);
+        if (!Number.isFinite(chainIdNum)) continue;
+        const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+        if (!subgraphUrl) continue;
+        const found = await loadFeedFromSubgraph({
+          url: subgraphUrl,
+          chainIdStr: String(chainIdNum),
+          first: 200,
+          account: args.walletAddress ? args.walletAddress.toLowerCase() : null,
+          searchQuery: trimmedQuery,
+          author: authorFilter || null
+        });
+        collected.push(...found);
+      }
+      if (!active) return;
+      setRemoteSearchPosts(collected.length ? collected : null);
+    };
+
+    void loadSearch();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    args.useSubgraphSearch,
+    debouncedSearchQuery,
+    selectedNetworkChainIds,
+    supportedNetworks,
+    args.walletAddress,
+    authorFilter
+  ]);
+
+  const trimmedQuery = searchQuery.trim();
+  const noNetworksSelected = selectedNetworkChainIds.length === 0;
+  const isPillLoading =
+    !noNetworksSelected &&
+    !trimmedQuery &&
+    (Boolean(args.isFeedLoading) || (authorFilter ? isAuthorPostsLoading : isTotalPostsLoading));
+  const pillText = noNetworksSelected
+    ? ""
+    : isPillLoading
+      ? ""
+      : trimmedQuery
+        ? `${filteredPosts.length} ${filteredPosts.length === 1 ? "post" : "posts"}`
+        : `${authorFilter ? authorPostsCount ?? scopedPosts.length : totalPostsCount ?? scopedPosts.length} posts`;
 
   return {
     supportedNetworks,
@@ -46,6 +312,7 @@ export function useFeedFilterViewModel(args: Args) {
     setSelectedNetworkChainIds,
     filteredPosts,
     pillText,
+    isPillLoading,
     isNetworkFilterActive
   };
 }

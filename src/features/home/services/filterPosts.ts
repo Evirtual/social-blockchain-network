@@ -18,7 +18,7 @@ export function filterPosts(params: {
         if (!id) return false;
         return selectedSet.has(String(id));
       })
-    : posts;
+    : [];
 
   if (!q) return byNetwork;
 
@@ -28,10 +28,8 @@ export function filterPosts(params: {
     const identityName = authorKey ? authorIdentity.get(authorKey)?.name ?? "" : "";
     const short = author ? shortAddress(author) : "";
 
-    const haystack = [post.tokenId, post.title, post.body, author, identityName, short]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+    const base = post.searchText ? [post.searchText] : [post.tokenId, post.title, post.body, author];
+    const haystack = [...base, identityName, short].filter(Boolean).join(" ").toLowerCase();
 
     return haystack.includes(q);
   });

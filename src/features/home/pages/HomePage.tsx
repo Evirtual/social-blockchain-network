@@ -49,15 +49,18 @@ export function HomePage(props: Props) {
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     filteredPosts,
-    pillText
+    pillText,
+    isPillLoading
   } = useFeedFilterViewModel({
     posts: props.posts,
     authorIdentity: props.authorIdentity,
     shortAddress: props.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.home.searchQuery",
+    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
     selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
     walletAddress: props.walletAddress,
-    chainId: props.chainId
+    chainId: props.chainId,
+    isFeedLoading: props.isFeedLoading,
+    useSubgraphSearch: true
   });
 
   const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = usePersistedFlag(
@@ -114,6 +117,7 @@ export function HomePage(props: Props) {
     return (
       <FeedHeaderControls
         pillText={pillText}
+        isPillLoading={isPillLoading}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         selectedNetworkChainIds={selectedNetworkChainIds}
@@ -121,7 +125,15 @@ export function HomePage(props: Props) {
         supportedNetworks={supportedNetworks}
       />
     );
-  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
+  }, [
+    pillText,
+    isPillLoading,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    supportedNetworks
+  ]);
 
   return (
     <main className="home">

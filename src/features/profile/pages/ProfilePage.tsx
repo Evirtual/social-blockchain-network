@@ -52,8 +52,6 @@ export function ProfilePage(props: Props) {
   const canFollow =
     !!props.walletAddress && props.walletAddress.toLowerCase() !== props.address.toLowerCase();
 
-  const profileKey = String(props.address ?? "").trim().toLowerCase();
-
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
   const [isAdminEditing, setIsAdminEditing] = useState(false);
 
@@ -79,21 +77,26 @@ export function ProfilePage(props: Props) {
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     filteredPosts,
-    pillText
+    pillText,
+    isPillLoading
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: props.authorIdentity,
     shortAddress: props.shortAddress,
-    searchQueryKey: `socialBlockchainNetwork.profile.${profileKey}.searchQuery`,
-    selectedNetworksKey: `socialBlockchainNetwork.profile.${profileKey}.selectedNetworks`,
+    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
+    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
     walletAddress: props.walletAddress,
-    chainId: props.chainId
+    chainId: props.chainId,
+    isFeedLoading: props.isFeedLoading,
+    useSubgraphSearch: true,
+    authorAddress: props.address
   });
 
   const headerAction = useMemo(() => {
     return (
       <FeedHeaderControls
         pillText={pillText}
+        isPillLoading={isPillLoading}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         selectedNetworkChainIds={selectedNetworkChainIds}
@@ -101,7 +104,15 @@ export function ProfilePage(props: Props) {
         supportedNetworks={supportedNetworks}
       />
     );
-  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
+  }, [
+    pillText,
+    isPillLoading,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    supportedNetworks
+  ]);
 
   return (
     <main className="profileLayout">

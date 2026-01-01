@@ -41,7 +41,8 @@ export function AccountPage(props: Props) {
     setSearchQuery,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
-    supportedNetworks
+    supportedNetworks,
+    isPillLoading
   } = useAccountPageViewModel({
     posts: props.posts,
     savedPosts: props.savedPosts,
@@ -59,6 +60,7 @@ export function AccountPage(props: Props) {
     return (
       <FeedHeaderControls
         pillText={pillText}
+        isPillLoading={isPillLoading}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         selectedNetworkChainIds={selectedNetworkChainIds}
@@ -66,7 +68,15 @@ export function AccountPage(props: Props) {
         supportedNetworks={supportedNetworks}
       />
     );
-  }, [pillText, searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, supportedNetworks]);
+  }, [
+    pillText,
+    isPillLoading,
+    searchQuery,
+    setSearchQuery,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    supportedNetworks
+  ]);
 
   return (
     <main className="profileLayout">

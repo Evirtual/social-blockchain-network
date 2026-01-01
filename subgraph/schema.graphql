@@ -4,6 +4,9 @@ type Post @entity(immutable: false) {
   tokenId: String!
   author: Bytes
   tokenURI: String!
+  title: String!
+  body: String!
+  searchText: String!
 
   mintTxHash: Bytes
   mintBlockNumber: BigInt!
@@ -33,6 +36,10 @@ type Account @entity(immutable: false) {
 
   followersCount: BigInt!
   followingCount: BigInt!
+  postedCount: BigInt!
+  likedCount: BigInt!
+  savedCount: BigInt!
+  commentsCount: BigInt!
 
   # Best-effort indexed value (authoritative value is still from contract when connected).
   withdrawableWeiIndexed: BigInt!
@@ -43,6 +50,17 @@ type Account @entity(immutable: false) {
   # Relationships
   followers: [FollowEdge!]! @derivedFrom(field: "followee")
   following: [FollowEdge!]! @derivedFrom(field: "follower")
+}
+
+type GlobalStats @entity(immutable: false) {
+  id: ID!
+
+  totalAccounts: BigInt!
+  totalPosts: BigInt!
+  totalLikes: BigInt!
+  totalComments: BigInt!
+  totalSaves: BigInt!
+  totalTipsWei: BigInt!
 }
 
 type FollowEdge @entity(immutable: false) {

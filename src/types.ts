@@ -3,6 +3,7 @@ export type Post = {
   chainId?: string;
   title: string;
   body: string;
+  searchText?: string;
   image: string;
   animationUrl?: string;
   metadataURI: string;

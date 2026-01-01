@@ -4,6 +4,7 @@ import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {
   pillText?: string;
+  isPillLoading?: boolean;
   searchQuery: string;
   onSearchQueryChange: (next: string) => void;
   selectedNetworkChainIds: string[];
@@ -59,6 +60,10 @@ export function FeedHeaderControls(props: Props) {
         {pillText ? (
           <span ref={metaRef} className="feedSearchMeta" aria-hidden="true">
             {pillText}
+          </span>
+        ) : props.isPillLoading ? (
+          <span ref={metaRef} className="feedSearchMeta" aria-hidden="true">
+            <span className="skeletonLine" style={{ width: "2.1rem", height: "0.7rem" }} />
           </span>
         ) : null}
 

@@ -27,6 +27,9 @@ export function useAccountPageViewModel(args: Args) {
     isLoadingLiked: args.isLoadingLiked
   });
 
+  const authorAddress = view === "all" ? args.walletAddress : null;
+  const useSubgraphSearch = view === "all";
+
   const {
     supportedNetworks,
     searchQuery,
@@ -34,15 +37,19 @@ export function useAccountPageViewModel(args: Args) {
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     filteredPosts,
-    pillText
+    pillText,
+    isPillLoading
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: args.authorIdentity,
     shortAddress: args.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.account.searchQuery",
+    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
     selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
     walletAddress: args.walletAddress,
-    chainId: args.chainId
+    chainId: args.chainId,
+    isFeedLoading: activeLoading,
+    useSubgraphSearch,
+    authorAddress
   });
 
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworkChainIds.map(String)), [selectedNetworkChainIds]);
@@ -86,6 +93,7 @@ export function useAccountPageViewModel(args: Args) {
     filteredActivePosts: filteredPosts,
     headerInlineAction,
     pillText,
+    isPillLoading,
     searchQuery,
     setSearchQuery,
     selectedNetworkChainIds,

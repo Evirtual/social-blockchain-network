@@ -55,6 +55,8 @@
 }
 
 .skeletonLine {
+  display: inline-block;
+  vertical-align: middle;
   position: relative;
   height: 0.75rem;
   border-radius: 0.5rem;
