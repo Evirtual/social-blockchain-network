@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
 import { getErrorMessage } from "@shared/lib/errors";
 import { useEpochGuard } from "@shared/lib/epochGuard";
-import { type MintedEventLite } from "../services/feedLoader";
-import { refreshFeedWithCaches } from "../services/refreshCoordinator";
+import { refreshFeed as refreshFeedFromCoordinator } from "../services/refreshCoordinator";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
 
 type ContractLike = {
@@ -42,10 +41,6 @@ export function useFeedRefresh(params: {
   const queuedRefreshAccountRef = useRef<string | null | undefined>(undefined);
   const lastRefreshedAccountRef = useRef<string | null>(null);
   const lastRefreshCompletedAtRef = useRef<number>(0);
-
-  const blockTimestampCacheRef = useRef<Map<string, Map<number, number>>>(new Map());
-  const mintedEventsCacheRef = useRef<Map<string, { lastScannedBlock: number; events: MintedEventLite[] }>>(new Map());
-  const existsPruneCursorRef = useRef<Map<string, number>>(new Map());
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
@@ -103,7 +98,7 @@ export function useFeedRefresh(params: {
             setStatus(message);
           };
 
-          await refreshFeedWithCaches({
+          await refreshFeedFromCoordinator({
             provider,
             walletAddress,
             chainId,
@@ -113,11 +108,6 @@ export function useFeedRefresh(params: {
             setPosts: setPostsGuarded,
             setStatus: setStatusGuarded,
             lastRefreshedAccount: lastRefreshedAccountRef.current,
-            caches: {
-              mintedEventsCache: mintedEventsCacheRef.current,
-              blockTimestampCache: blockTimestampCacheRef.current,
-              existsPruneCursor: existsPruneCursorRef.current
-            },
             shouldReportStatus: shouldShowLoading
           });
         } catch (err) {
@@ -169,7 +159,7 @@ export function useFeedRefresh(params: {
     lastChainIdRef.current = chainId;
     lastWalletAddressLowerRef.current = walletAddressLower;
 
-    // On network change, reset state and caches so we don't show stale data.
+    // On network change, reset state so we don't show stale data.
     if ((chainChanged || walletChanged) && !isInitialEpoch) {
       bumpEpoch();
     }
@@ -181,9 +171,6 @@ export function useFeedRefresh(params: {
       queuedRefreshAccountRef.current = undefined;
       lastRefreshedAccountRef.current = null;
       lastRefreshCompletedAtRef.current = 0;
-      blockTimestampCacheRef.current = new Map();
-      mintedEventsCacheRef.current = new Map();
-      existsPruneCursorRef.current = new Map();
     }
 
     if (!walletChanged && !chainChanged && !isInitialEpoch) return;

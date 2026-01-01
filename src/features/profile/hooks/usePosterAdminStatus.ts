@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isAddress } from "ethers";
 import { fetchPosterStatuses } from "@shared/lib/posterStatus";
+import { onPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 
 type ContractLike = {
   isOwner: boolean;
@@ -15,8 +16,18 @@ export function usePosterAdminStatus(params: { contract: ContractLike; address: 
   const [wasPosterDisapprovedEver, setWasPosterDisapprovedEver] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
-    if (!contract.isOwner) return;
-    if (!isAddress(address)) return;
+    if (!contract.isOwner || !isAddress(address)) {
+      setIsPosterAllowed(undefined);
+      setWasPosterDisapprovedEver(undefined);
+      return;
+    }
+
+    const off = onPosterAllowedChanged((detail) => {
+      const target = address.toLowerCase();
+      if (String(detail.address ?? "").trim().toLowerCase() !== target) return;
+      setIsPosterAllowed(!!detail.allowed);
+      if (detail.disapprovedEver === true) setWasPosterDisapprovedEver(true);
+    });
 
     let cancelled = false;
     void (async () => {
@@ -39,8 +50,14 @@ export function usePosterAdminStatus(params: { contract: ContractLike; address: 
 
     return () => {
       cancelled = true;
+      off();
     };
-  }, [address, contract]);
+  }, [
+    address,
+    contract.isOwner,
+    contract.ensureContractDeployedOnCurrentNetwork,
+    contract.getReadContract
+  ]);
 
   return {
     isPosterAllowed,

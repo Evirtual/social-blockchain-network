@@ -55,7 +55,6 @@ export function ProfilePage(props: Props) {
   const profileKey = String(props.address ?? "").trim().toLowerCase();
 
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
-  // Match Approvals modal semantics: unknown => treated as not allowed (Approve visible).
   const isAllowed = props.isPosterAllowed === true;
   const [isAdminEditing, setIsAdminEditing] = useState(false);
 

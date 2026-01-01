@@ -5,6 +5,7 @@ import { hasPinata, pinataPinFile } from "@features/ipfs";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscovery";
 import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
+import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 
 export function useProfileAdminActions(args: {
   address: string;
@@ -35,6 +36,7 @@ export function useProfileAdminActions(args: {
 
       args.setIsPosterAllowed(allowed);
       if (!allowed) args.setWasPosterDisapprovedEver(true);
+      emitPosterAllowedChanged({ address: args.address, allowed, disapprovedEver: !allowed });
     },
     [args]
   );
@@ -92,6 +94,7 @@ export function useProfileAdminActions(args: {
 
     args.setIsPosterAllowed(false);
     args.setWasPosterDisapprovedEver(true);
+    emitPosterAllowedChanged({ address: normalized, allowed: false, disapprovedEver: true });
 
     try {
       await args.loadProfile(normalized);

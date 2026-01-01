@@ -107,40 +107,36 @@ export function useProfilesState({
 
       await runInFlight(profileLoadInFlightRef.current, key, async () => {
         try {
-          if (!provider) {
-            const env = import.meta.env as any;
-            const chainIdNum = parseChainIdNumber(chainId);
-            const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-            if (subgraphUrl) {
-              try {
-                const query = `
-                  query Profile($id: ID!) {
-                    account(id: $id) {
-                      name
-                      bio
-                      avatar
-                    }
+          const env = import.meta.env as any;
+          const chainIdNum = parseChainIdNumber(chainId);
+          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+          if (subgraphUrl) {
+            try {
+              const query = `
+                query Profile($id: ID!) {
+                  account(id: $id) {
+                    name
+                    bio
+                    avatar
                   }
-                `;
+                }
+              `;
 
-                const result = await tryQuerySubgraph<{
-                  account: { name?: string | null; bio?: string | null; avatar?: string | null } | null;
-                }>({
-                  url: subgraphUrl,
-                  query,
-                  variables: { id: key },
-                  timeoutMs: 10_000
-                });
+              const result = await tryQuerySubgraph<{
+                account: { name?: string | null; bio?: string | null; avatar?: string | null } | null;
+              }>({
+                url: subgraphUrl,
+                query,
+                variables: { id: key },
+                timeoutMs: 10_000
+              });
 
-                if (!result.ok) return;
-
+              if (result.ok) {
                 const a = result.data?.account;
-                if (!a) return;
-
                 const parsed = {
-                  name: String(a.name ?? ""),
-                  bio: String(a.bio ?? ""),
-                  avatarUrl: String(a.avatar ?? "")
+                  name: String(a?.name ?? ""),
+                  bio: String(a?.bio ?? ""),
+                  avatarUrl: String(a?.avatar ?? "")
                 };
 
                 if (isStale(epoch)) return;
@@ -159,12 +155,13 @@ export function useProfilesState({
                 }
 
                 return;
-              } catch {
-                // ignore
               }
+            } catch {
+              // fall back to on-chain read
             }
-            return;
           }
+
+          if (!provider) return;
 
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
@@ -215,11 +212,11 @@ export function useProfilesState({
     }
 
     const key = walletAddress.toLowerCase();
-    const cached = profilesByAddress[key];
-    if (cached && !isEditingProfile) {
-      setProfileName(cached.name);
-      setProfileBio(cached.bio);
-      setProfileAvatarUrl(cached.avatarUrl);
+    const existingProfile = profilesByAddress[key];
+    if (existingProfile && !isEditingProfile) {
+      setProfileName(existingProfile.name);
+      setProfileBio(existingProfile.bio);
+      setProfileAvatarUrl(existingProfile.avatarUrl);
     }
 
     void loadProfile(walletAddress);

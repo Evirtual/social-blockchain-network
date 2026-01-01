@@ -1,17 +1,11 @@
 export const WALLET_DISCONNECTED_KEY = "socialBlockchainNetwork.walletDisconnected";
 
+let walletAutoConnectDisabled = false;
+
 export function readWalletAutoConnectDisabled(): boolean {
-  try {
-    return localStorage.getItem(WALLET_DISCONNECTED_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return walletAutoConnectDisabled;
 }
 
 export function writeWalletAutoConnectDisabled(disabled: boolean) {
-  try {
-    localStorage.setItem(WALLET_DISCONNECTED_KEY, disabled ? "1" : "0");
-  } catch {
-    // ignore
-  }
+  walletAutoConnectDisabled = disabled;
 }

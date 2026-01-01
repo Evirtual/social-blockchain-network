@@ -29,7 +29,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Bump when account/chain changes so other contexts can react.
   const [walletEpoch, setWalletEpoch] = useState<number>(0);
 
-  // Ethers BrowserProvider caches network info. When the wallet network changes,
+  // Ethers BrowserProvider can keep prior network info; when the wallet network changes,
   // recreate the provider so reads use the new chain immediately.
   const [providerNonce, setProviderNonce] = useState<number>(0);
 

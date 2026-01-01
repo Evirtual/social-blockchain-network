@@ -1,5 +1,5 @@
-// NOTE: Intentionally no sessionStorage persistence.
-// These helpers exist for compatibility but are non-persistent to avoid cross-network stale data.
+// NOTE: Intentionally non-persistent.
+// These helpers exist for compatibility but avoid cross-network stale data.
 
 export function readApprovalsChainRequestsCache(contractAddress: string | undefined): {
   requesters: string[];

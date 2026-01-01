@@ -1,16 +1,8 @@
 import { JsonRpcProvider } from "ethers";
 import { parseChainIdNumber } from "./chainId";
 
-const rpcProviderCache = new Map<string, JsonRpcProvider>();
-
 export function getRpcProvider(url: string, chainIdNum: number): JsonRpcProvider {
-  const key = `${chainIdNum}:${url}`;
-  const existing = rpcProviderCache.get(key);
-  if (existing) return existing;
-
-  const p = new JsonRpcProvider(url, chainIdNum);
-  rpcProviderCache.set(key, p);
-  return p;
+  return new JsonRpcProvider(url, chainIdNum);
 }
 
 export { parseChainIdNumber };

@@ -1,7 +1,7 @@
 import { createContext } from "react";
 
 export type FollowContextValue = {
-  // Follow graph (cache)
+  // Follow graph
   isFollowingByAddress: Record<string, boolean | undefined>;
   loadIsFollowing: (followee: string) => Promise<void>;
   toggleFollow: (followee: string) => Promise<boolean | undefined>;

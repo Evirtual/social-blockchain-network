@@ -9,7 +9,10 @@ import { ApprovalsModal } from "./profile/ApprovalsModal";
 import { FollowersModal } from "./profile/FollowersModal";
 import { FollowingModal } from "./profile/FollowingModal";
 import { useOwnerAddress } from "./profile/useOwnerAddress";
-import { IconCheck, IconEdit, IconPower } from "../icons";
+import { IconEdit, IconPower } from "../icons";
+import { useContractActions, useContractState } from "@features/contract";
+import { useWalletState } from "@features/wallet";
+import { useOnChainApprovalRequests } from "./profile/approvals/useOnChainApprovalRequests";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -61,7 +64,17 @@ export function ProfileCard(props: ProfileCardProps) {
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
 
-  const { isOwner } = useOwnerAddress(props.walletAddress);
+  const { ownerAddress, isOwner, isLoadingOwner } = useOwnerAddress(props.walletAddress);
+  const contractState = useContractState();
+  const contractActions = useContractActions();
+  const wallet = useWalletState();
+  const { onChainRequests, isLoadingOnChainRequests } = useOnChainApprovalRequests({
+    open: !!props.walletAddress,
+    isOwner,
+    chainId: wallet.chainId,
+    contractAddress: contractState.contractAddress,
+    getReadContract: contractActions.getReadContract
+  });
 
   const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
 
@@ -71,10 +84,13 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const showHeaderStats = !!props.walletAddress;
   const showHeaderStatsRow = showHeaderStats;
+  const ownerLower = ownerAddress?.toLowerCase() ?? "";
+  const approvalsCount = onChainRequests.filter((addr) => addr.toLowerCase() !== ownerLower).length;
 
   const pillCountSkeleton = (widthRem: number) => (
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "0.85rem" }} aria-hidden="true" />
   );
+
 
   return (
     <details
@@ -146,15 +162,23 @@ export function ProfileCard(props: ProfileCardProps) {
                   Edit
                 </button>
               ) : null}
-              {props.walletAddress && !props.isEditingProfile && isOwner ? (
+              {props.walletAddress && !props.isEditingProfile && (isOwner || isLoadingOwner) ? (
+                <span className="cardHeaderStatSep" aria-hidden="true">|</span>
+              ) : null}
+              {props.walletAddress && !props.isEditingProfile && (isOwner || isLoadingOwner) ? (
                 <button
-                  className="cardActionLink cardActionApprove"
+                  className="cardHeaderStatLink buttonWithSpinner cardActionApprove"
                   type="button"
                   onClick={() => setIsApprovalsOpen(true)}
                   aria-label="Approvals"
                 >
-                  <IconCheck size={16} />
-                  Approve
+                  {isLoadingOwner || isLoadingOnChainRequests ? (
+                    <>
+                      {pillCountSkeleton(2.1)} approve
+                    </>
+                  ) : (
+                    `${approvalsCount} approve`
+                  )}
                 </button>
               ) : null}
               {props.walletAddress && !props.isEditingProfile ? (

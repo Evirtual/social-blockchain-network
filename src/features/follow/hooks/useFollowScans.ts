@@ -6,30 +6,9 @@ import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { withTimeout } from "@shared/lib/feedQuery";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
-import { parseChainKey } from "@shared/lib/chainKey";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
-import { setMapWithLimit } from "@shared/lib/cache";
 import { useEpochGuard } from "@shared/lib/epochGuard";
-
-// In-memory caches to persist results across route navigation without using sessionStorage.
-// Keys include chainId so data never bleeds across networks.
-const followersByKeyCache = new Map<string, string[]>();
-const followingByKeyCache = new Map<string, string[]>();
-const followerCountByKeyCache = new Map<string, number>();
-const MAX_FOLLOW_CACHE_ENTRIES = 250;
-
-function setFollowCache<T>(map: Map<string, T>, key: string | null, value: T) {
-  if (!key) return;
-  setMapWithLimit(map, key, value, MAX_FOLLOW_CACHE_ENTRIES);
-}
-
-function makeCacheKey(chainId: string | null, addressLower: string) {
-  const addr = String(addressLower ?? "").trim().toLowerCase();
-  if (!addr) return null;
-  const chainKey = parseChainKey(chainId);
-  return `${chainKey}:${addr}`;
-}
 
 export function useFollowScans(params: {
   provider: any | null;
@@ -85,13 +64,6 @@ export function useFollowScans(params: {
       const key = addressKey(address);
       const epoch = snapshotEpoch();
 
-      const cacheKey = makeCacheKey(params.chainId, key);
-      if (cacheKey && followerCountByKeyCache.has(cacheKey)) {
-        setFollowerCountByAddress((prev) => ({ ...prev, [key]: followerCountByKeyCache.get(cacheKey)! }));
-        loadedFollowerCountByAddressRef.current[key] = true;
-        return;
-      }
-
       if (loadedFollowerCountByAddressRef.current[key]) return;
 
       // Avoid slow RPC scans before chainId is known.
@@ -124,7 +96,6 @@ export function useFollowScans(params: {
               const count = Number(result.data?.account?.followersCount ?? 0);
               const safeCount = Number.isFinite(count) ? count : 0;
               setFollowerCountByAddress((prev) => ({ ...prev, [key]: safeCount }));
-              if (cacheKey) setFollowCache(followerCountByKeyCache, cacheKey, safeCount);
               loadedFollowerCountByAddressRef.current[key] = true;
             } else {
               // eslint-disable-next-line no-console
@@ -173,7 +144,6 @@ export function useFollowScans(params: {
           const count = activeFollowers.length;
           if (isStale(epoch)) return;
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
-          if (cacheKey) setFollowCache(followerCountByKeyCache, cacheKey, count);
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           if (!isStale(epoch)) {
@@ -194,8 +164,6 @@ export function useFollowScans(params: {
       if (!address) return;
       const key = addressKey(address);
       const epoch = snapshotEpoch();
-
-      const cacheKey = makeCacheKey(params.chainId, key);
 
       if (loadedFollowersByAddressRef.current[key]) return;
 
@@ -239,10 +207,6 @@ export function useFollowScans(params: {
 
               setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
               setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
-              if (cacheKey) {
-                setFollowCache(followersByKeyCache, cacheKey, normalizedActive);
-                setFollowCache(followerCountByKeyCache, cacheKey, normalizedActive.length);
-              }
               loadedFollowersByAddressRef.current[key] = true;
               loadedFollowerCountByAddressRef.current[key] = true;
             } else {
@@ -267,14 +231,6 @@ export function useFollowScans(params: {
       }
 
       if (!params.provider) return;
-      if (cacheKey && followersByKeyCache.has(cacheKey)) {
-        const cached = followersByKeyCache.get(cacheKey)!;
-        setFollowersByAddress((prev) => ({ ...prev, [key]: cached }));
-        setFollowerCountByAddress((prev) => ({ ...prev, [key]: cached.length }));
-        loadedFollowersByAddressRef.current[key] = true;
-        loadedFollowerCountByAddressRef.current[key] = true;
-        return;
-      }
 
       await runInFlight(followersInFlightRef.current, key, async () => {
         setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
@@ -301,10 +257,6 @@ export function useFollowScans(params: {
           if (isStale(epoch)) return;
           setFollowersByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
           setFollowerCountByAddress((prev) => ({ ...prev, [key]: normalizedActive.length }));
-          if (cacheKey) {
-            setFollowCache(followersByKeyCache, cacheKey, normalizedActive);
-            setFollowCache(followerCountByKeyCache, cacheKey, normalizedActive.length);
-          }
           loadedFollowersByAddressRef.current[key] = true;
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
@@ -326,8 +278,6 @@ export function useFollowScans(params: {
       if (!address) return;
       const key = addressKey(address);
       const epoch = snapshotEpoch();
-
-      const cacheKey = makeCacheKey(params.chainId, key);
 
       if (loadedFollowingByAddressRef.current[key]) return;
 
@@ -367,10 +317,9 @@ export function useFollowScans(params: {
               if (isStale(epoch)) return;
               const normalizedActive = (Array.isArray(result.data?.followEdges) ? result.data.followEdges : [])
                 .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
-                .filter(Boolean);
+              .filter(Boolean);
 
               setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-              if (cacheKey) setFollowCache(followingByKeyCache, cacheKey, normalizedActive);
               loadedFollowingByAddressRef.current[key] = true;
             } else {
               // eslint-disable-next-line no-console
@@ -394,11 +343,6 @@ export function useFollowScans(params: {
       }
 
       if (!params.provider) return;
-      if (cacheKey && followingByKeyCache.has(cacheKey)) {
-        setFollowingByAddress((prev) => ({ ...prev, [key]: followingByKeyCache.get(cacheKey)! }));
-        loadedFollowingByAddressRef.current[key] = true;
-        return;
-      }
 
       await runInFlight(followingInFlightRef.current, key, async () => {
         setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
@@ -424,7 +368,6 @@ export function useFollowScans(params: {
           const normalizedActive = (active ?? []).map((a) => String(a ?? "").trim().toLowerCase()).filter(Boolean);
           if (isStale(epoch)) return;
           setFollowingByAddress((prev) => ({ ...prev, [key]: normalizedActive }));
-          if (cacheKey) setFollowCache(followingByKeyCache, cacheKey, normalizedActive);
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           if (!isStale(epoch)) {
@@ -446,9 +389,6 @@ export function useFollowScans(params: {
       const followeeKey = addressKey(args.followee);
       if (!followerKey || !followeeKey) return;
 
-      const followerCacheKey = makeCacheKey(params.chainId, followerKey);
-      const followeeCacheKey = makeCacheKey(params.chainId, followeeKey);
-
       setFollowingByAddress((prev) => {
         const existing = prev[followerKey] ?? [];
         const has = existing.includes(followeeKey);
@@ -458,7 +398,6 @@ export function useFollowScans(params: {
             : [...existing, followeeKey]
           : existing.filter((addr) => addr !== followeeKey);
         if (nextList === existing) return prev;
-        if (followerCacheKey) setFollowCache(followingByKeyCache, followerCacheKey, nextList);
         return { ...prev, [followerKey]: nextList };
       });
 
@@ -471,8 +410,6 @@ export function useFollowScans(params: {
             : [...existing, followerKey]
           : existing.filter((addr) => addr !== followerKey);
         if (nextList === existing) return prev;
-        if (followeeCacheKey) setFollowCache(followersByKeyCache, followeeCacheKey, nextList);
-        if (followeeCacheKey) setFollowCache(followerCountByKeyCache, followeeCacheKey, nextList.length);
         return { ...prev, [followeeKey]: nextList };
       });
 
@@ -482,7 +419,6 @@ export function useFollowScans(params: {
         const delta = args.isFollowing ? 1 : -1;
         const nextCount = Math.max(0, current + delta);
         if (nextCount === current) return prev;
-        if (followeeCacheKey) setFollowCache(followerCountByKeyCache, followeeCacheKey, nextCount);
         return { ...prev, [followeeKey]: nextCount };
       });
     },

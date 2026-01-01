@@ -1,5 +1,4 @@
 import { parseChainKey } from "@shared/lib/chainKey";
-import { readSessionTokenIds, writeSessionTokenIds } from "@shared/lib/sessionTokenCache";
 
 export function buildTokenKey(args: {
   tokenId: string;
@@ -16,11 +15,5 @@ export function updateSessionTokenKeys(args: {
   tokenKey: string;
   add: boolean;
 }) {
-  const prev = readSessionTokenIds(args.prefix, args.addressLower) ?? [];
-  const next = args.add
-    ? prev.includes(args.tokenKey)
-      ? prev
-      : [args.tokenKey, ...prev]
-    : prev.filter((k) => k !== args.tokenKey);
-  writeSessionTokenIds(args.prefix, args.addressLower, next);
+  void args;
 }

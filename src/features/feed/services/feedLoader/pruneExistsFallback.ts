@@ -1,11 +1,9 @@
 import { mapWithConcurrency } from "@shared/lib/async";
-import type { ExistsPruneCursor } from "../feedLoader";
 import type { Post } from "@types";
 
 export async function pruneExistsFallback(args: {
   resolvedChainIdNum: number | null;
   postsSnapshot: Post[];
-  existsPruneCursor: ExistsPruneCursor;
   postKey: (p: Pick<Post, "tokenId" | "chainId">) => string;
   pruneByKeys: (keys: Set<string>) => void;
   readContract: any;
@@ -14,10 +12,8 @@ export async function pruneExistsFallback(args: {
 
   const chainIdStr = String(args.resolvedChainIdNum);
   const chainPosts = args.postsSnapshot.filter((p) => p.chainId === chainIdStr);
-  const cursor = args.existsPruneCursor.get(chainIdStr) ?? 0;
   const batchSize = 10;
-  const sample = chainPosts.slice(cursor, cursor + batchSize);
-  args.existsPruneCursor.set(chainIdStr, (cursor + batchSize) % Math.max(1, chainPosts.length));
+  const sample = chainPosts.slice(0, batchSize);
 
   if (sample.length === 0) return;
 

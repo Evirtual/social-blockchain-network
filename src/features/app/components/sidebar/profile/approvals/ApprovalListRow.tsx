@@ -6,6 +6,7 @@ export function ApprovalListRow(props: {
 
   isFlagged: boolean;
   isAllowed: boolean;
+  isLoading?: boolean;
 
   showRemove?: boolean;
   onRemove?: () => void;
@@ -13,6 +14,10 @@ export function ApprovalListRow(props: {
   onDisapprove: () => void;
   onReset: () => void;
 }) {
+  const actionSkeleton = (widthRem: number) => (
+    <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />
+  );
+
   return (
     <div key={props.addr} className="listRow" role="listitem">
       <span className="listRowLeft">
@@ -23,24 +28,32 @@ export function ApprovalListRow(props: {
       </span>
       <span className="rowActions">
         {props.showRemove ? (
-          <button className="secondary" type="button" onClick={props.onRemove}>
+          <button className="secondary buttonWithSpinner" type="button" onClick={props.onRemove} disabled={props.isLoading}>
+            {props.isLoading ? <span className="spinner" aria-hidden="true" /> : null}
             Remove
           </button>
         ) : null}
 
-        {props.isAllowed ? null : (
+        {props.isLoading ? (
+          <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
+            {actionSkeleton(5)}
+          </button>
+        ) : null}
+
+        {!props.isLoading && !props.isAllowed ? (
           <button className="primary" type="button" onClick={props.onApprove}>
             Approve
           </button>
-        )}
+        ) : null}
 
-        {props.isAllowed ? (
+        {!props.isLoading && props.isAllowed ? (
           <button className="secondary" type="button" onClick={props.onDisapprove}>
             Disapprove
           </button>
         ) : null}
 
-        <button className="secondary" type="button" onClick={props.onReset}>
+        <button className="secondary buttonWithSpinner" type="button" onClick={props.onReset} disabled={props.isLoading}>
+          {props.isLoading ? <span className="spinner" aria-hidden="true" /> : null}
           Reset
         </button>
       </span>

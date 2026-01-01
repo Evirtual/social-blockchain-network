@@ -1,7 +1,7 @@
 import type { Post } from "@types";
 import { mapWithConcurrency } from "@shared/lib/async";
 import { fetchTokenMetadata } from "@features/metadata";
-import type { MintedEventLite, BlockTimestampCache } from "../feedLoader";
+import type { MintedEventLite } from "../feedLoader";
 import { getMintTimestampIfNeeded } from "./getMintTimestampIfNeeded";
 
 export type RefreshTarget = {
@@ -21,7 +21,6 @@ export async function loadRefreshTargets(args: {
   chainCacheKey: string;
   chainIdNum: number | null;
   networkProvider: any;
-  blockTimestampCache: BlockTimestampCache;
   account: string | null;
 }) {
   return await mapWithConcurrency<RefreshTarget, Post | null>(args.refreshTargets, 6, async (t) => {
@@ -37,9 +36,7 @@ export async function loadRefreshTargets(args: {
       needsFull: t.needsFull,
       existing,
       eventBlockNumber: t.event.blockNumber,
-      networkProvider: args.networkProvider,
-      chainCacheKey: args.chainCacheKey,
-      blockTimestampCache: args.blockTimestampCache
+      networkProvider: args.networkProvider
     });
 
     let likesRaw = 0n;

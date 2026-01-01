@@ -6,15 +6,6 @@ import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 
-type PosterStatusCacheEntry = {
-  allowed: boolean;
-  disapprovedEver: boolean;
-  loadedAt: number;
-};
-
-const posterStatusCache = new Map<string, PosterStatusCacheEntry>();
-const POSTER_STATUS_CACHE_TTL_MS = 60_000;
-
 export function usePosterStatusMaps(args: {
   open: boolean;
   isOwner: boolean;
@@ -25,6 +16,7 @@ export function usePosterStatusMaps(args: {
 }) {
   const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
   const [posterDisapprovedEverByAddress, setPosterDisapprovedEverByAddress] = useState<Record<string, boolean>>({});
+  const [isLoadingPosterStatuses, setIsLoadingPosterStatuses] = useState(false);
 
   useEffect(() => {
     if (!args.open) return;
@@ -42,33 +34,12 @@ export function usePosterStatusMaps(args: {
     const addrs = Array.from(byKey.values());
     if (addrs.length === 0) return;
 
-    const chainKey = String(args.chainId ?? "").trim();
-    const now = Date.now();
-    const cachedAllowed: Record<string, boolean> = {};
-    const cachedDisapproved: Record<string, boolean> = {};
-    const missing: string[] = [];
-
-    for (const addr of addrs) {
-      const key = `${chainKey}:${addr.toLowerCase()}`;
-      const cached = posterStatusCache.get(key);
-      if (cached && now - cached.loadedAt < POSTER_STATUS_CACHE_TTL_MS) {
-        cachedAllowed[addr.toLowerCase()] = cached.allowed;
-        cachedDisapproved[addr.toLowerCase()] = cached.disapprovedEver;
-      } else {
-        missing.push(addr);
-      }
-    }
+    const missing: string[] = addrs.slice();
 
     let cancelled = false;
     void (async () => {
+      setIsLoadingPosterStatuses(true);
       try {
-        if (Object.keys(cachedAllowed).length) {
-          setPosterAllowedByAddress((prev) => ({ ...prev, ...cachedAllowed }));
-          setPosterDisapprovedEverByAddress((prev) => ({ ...prev, ...cachedDisapproved }));
-        }
-
-        if (missing.length === 0) return;
-
         const env = import.meta.env as any;
         const chainIdNum = parseChainIdNumber(args.chainId ?? null);
         const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
@@ -99,36 +70,23 @@ export function usePosterStatusMaps(args: {
             const byId = new Map(accounts.map((a) => [a.id.toLowerCase(), a] as const));
 
             if (cancelled) return;
-            setPosterAllowedByAddress((prev) => {
-              const next = { ...prev };
-              for (const addr of missing) {
-                const row = byId.get(addr.toLowerCase());
-                if (row) {
-                  next[addr.toLowerCase()] = !!row.posterAllowed;
-                }
-              }
-              return next;
-            });
+            const nextAllowed: Record<string, boolean> = {};
+            const nextDisapproved: Record<string, boolean> = {};
+            const missingAfterSubgraph: string[] = [];
 
-            setPosterDisapprovedEverByAddress((prev) => {
-              const next = { ...prev };
-              for (const addr of missing) {
-                const row = byId.get(addr.toLowerCase());
-                if (row) {
-                  next[addr.toLowerCase()] = !!row.disapprovedEver;
-                }
+            for (const addr of missing) {
+              const key = addr.toLowerCase();
+              const row = byId.get(key);
+              if (!row) {
+                missingAfterSubgraph.push(addr);
+                continue;
               }
-              return next;
-            });
-
-            const missingAfterSubgraph = missing.filter((addr) => !byId.has(addr.toLowerCase()));
-            for (const [id, row] of byId.entries()) {
-              posterStatusCache.set(`${chainKey}:${id}`, {
-                allowed: !!row.posterAllowed,
-                disapprovedEver: !!row.disapprovedEver,
-                loadedAt: now
-              });
+              nextAllowed[key] = !!row.posterAllowed;
+              nextDisapproved[key] = !!row.disapprovedEver;
             }
+
+            if (Object.keys(nextAllowed).length) setPosterAllowedByAddress((prev) => ({ ...prev, ...nextAllowed }));
+            if (Object.keys(nextDisapproved).length) setPosterDisapprovedEverByAddress((prev) => ({ ...prev, ...nextDisapproved }));
 
             if (missingAfterSubgraph.length === 0) return;
             missing.length = 0;
@@ -153,21 +111,16 @@ export function usePosterStatusMaps(args: {
           for (const c of checks) next[c.address.toLowerCase()] = c.disapprovedEver;
           return next;
         });
-
-        for (const c of checks) {
-          posterStatusCache.set(`${chainKey}:${c.address.toLowerCase()}`, {
-            allowed: c.allowed,
-            disapprovedEver: c.disapprovedEver,
-            loadedAt: now
-          });
-        }
       } catch {
         // ignore
+      } finally {
+        if (!cancelled) setIsLoadingPosterStatuses(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      setIsLoadingPosterStatuses(false);
     };
   }, [args.open, args.isOwner, args.pendingApprovals, args.onChainRequests, args.getReadContract, args.chainId]);
 
@@ -175,6 +128,7 @@ export function usePosterStatusMaps(args: {
     posterAllowedByAddress,
     posterDisapprovedEverByAddress,
     setPosterAllowedByAddress,
-    setPosterDisapprovedEverByAddress
+    setPosterDisapprovedEverByAddress,
+    isLoadingPosterStatuses
   };
 }

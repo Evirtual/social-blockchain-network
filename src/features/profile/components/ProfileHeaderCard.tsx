@@ -33,19 +33,35 @@ export function ProfileHeaderCard(props: Props) {
           {props.canAdminEdit ? (
             <>
               {props.wasPosterDisapprovedEver ? <span className="pill">Flagged</span> : null}
-              <button className="secondary" type="button" onClick={props.onToggleAdminEdit}>
+              <button
+                className="secondary"
+                type="button"
+                onClick={props.onToggleAdminEdit}
+              >
                 {props.isAdminEditing ? "Close" : "Edit Profile"}
               </button>
               {props.isAllowed ? (
-                <button className="secondary" type="button" onClick={() => props.onAdminSetPosterAllowed(false)}>
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={() => props.onAdminSetPosterAllowed(false)}
+                >
                   Disapprove
                 </button>
               ) : (
-                <button className="primary" type="button" onClick={() => props.onAdminSetPosterAllowed(true)}>
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() => props.onAdminSetPosterAllowed(true)}
+                >
                   Approve
                 </button>
               )}
-              <button className="secondary" type="button" onClick={props.onAdminReset}>
+              <button
+                className="secondary"
+                type="button"
+                onClick={props.onAdminReset}
+              >
                 Reset
               </button>
             </>

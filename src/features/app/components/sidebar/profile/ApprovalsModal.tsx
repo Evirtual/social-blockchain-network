@@ -11,10 +11,6 @@ import { useOnChainApprovalRequests } from "./approvals/useOnChainApprovalReques
 import { usePosterStatusMaps } from "./approvals/usePosterStatusMaps";
 import { useOwnerAddress } from "./useOwnerAddress";
 
-// In-memory cache to keep pending approvals across route navigation.
-// Resets on page refresh by design.
-const pendingApprovalsCache = new Map<string, string[]>();
-
 export type ApprovalsModalProps = {
   open: boolean;
   isOwner: boolean;
@@ -31,11 +27,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const wallet = useWalletState();
   const { ownerAddress } = useOwnerAddress(wallet.walletAddress);
 
-  const pendingCacheKey = `${String(wallet.chainId ?? "").trim()}:${String(contractState.contractAddress ?? "")
-    .trim()
-    .toLowerCase()}`;
-
-  const [pendingApprovals, setPendingApprovals] = useState<string[]>(() => pendingApprovalsCache.get(pendingCacheKey) ?? []);
+  const [pendingApprovals, setPendingApprovals] = useState<string[]>([]);
   const [pendingInput, setPendingInput] = useState("");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
 
@@ -44,11 +36,6 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     setApprovalsError(null);
     setPendingInput("");
   }, [props.open]);
-
-  useEffect(() => {
-    // On network/contract change, hydrate from cache for that network.
-    setPendingApprovals(pendingApprovalsCache.get(pendingCacheKey) ?? []);
-  }, [pendingCacheKey]);
 
   const { onChainRequests, isLoadingOnChainRequests, onChainRequestsLoadError } = useOnChainApprovalRequests({
     open: props.open,
@@ -62,7 +49,8 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     posterAllowedByAddress,
     posterDisapprovedEverByAddress,
     setPosterAllowedByAddress,
-    setPosterDisapprovedEverByAddress
+    setPosterDisapprovedEverByAddress,
+    isLoadingPosterStatuses
   } = usePosterStatusMaps({
     open: props.open,
     isOwner: props.isOwner,
@@ -74,10 +62,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
 
   const { addPendingApproval, removePending, approvePending, disapprovePending, resetAllAndBlock } = useApprovalActions({
     pendingApprovals,
-    setPendingApprovals: (next) => {
-      setPendingApprovals(next);
-      pendingApprovalsCache.set(pendingCacheKey, next);
-    },
+    setPendingApprovals,
     setApprovalsError,
     setPendingInput,
     setPosterAllowedByAddress,
@@ -171,6 +156,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
                 shortAddress={props.shortAddress}
                 isFlagged={row.isFlagged}
                 isAllowed={row.isAllowed}
+                isLoading={isLoadingPosterStatuses}
                 showRemove
                 onRemove={() => handleRemove(row.addr)}
                 onApprove={() => handleApprove(row.addr)}
@@ -215,6 +201,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
                     shortAddress={props.shortAddress}
                     isFlagged={row.isFlagged}
                     isAllowed={row.isAllowed}
+                    isLoading={isLoadingPosterStatuses}
                     onApprove={() => handleApprove(row.addr)}
                     onDisapprove={() => handleDisapprove(row.addr)}
                     onReset={() => handleReset(row.addr)}

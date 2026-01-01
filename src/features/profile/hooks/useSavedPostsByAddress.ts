@@ -4,7 +4,6 @@ import { getSocialContract, socialInterface } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
-import { readSessionTokenIds, writeSessionTokenIds } from "@shared/lib/sessionTokenCache";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
@@ -22,8 +21,6 @@ type Args = {
   loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
   setStatus: (status: string) => void;
 };
-
-const SAVED_SESSION_CACHE_PREFIX = "savedTokenKeysByAddress:";
 
 export function useSavedPostsByAddress(args: Args) {
   const [savedTokenIdsByAddress, setSavedTokenIdsByAddress] = useState<Record<string, string[]>>({});
@@ -43,7 +40,6 @@ export function useSavedPostsByAddress(args: Args) {
       const current = prev[key] ?? [];
       const has = current.includes(savedKey);
       const next = has ? current.filter((id) => id !== savedKey) : [savedKey, ...current];
-      writeSessionTokenIds(SAVED_SESSION_CACHE_PREFIX, key, next);
       return { ...prev, [key]: next };
     });
   }, []);
@@ -59,13 +55,6 @@ export function useSavedPostsByAddress(args: Args) {
         const networkKey = String(args.chainId ?? args.contractAddress ?? "").toLowerCase();
         const loadedKey = `${networkKey}:${key}`;
         if (loadedKey && savedLoadedByKeyRef.current[loadedKey]) return;
-
-        const cached = readSessionTokenIds(SAVED_SESSION_CACHE_PREFIX, key);
-        if (cached !== null) {
-          setSavedTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
-          savedLoadedByKeyRef.current[loadedKey] = true;
-          return;
-        }
 
         await runInFlight(savedInFlightRef.current, key, async () => {
           setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: true }));
@@ -107,7 +96,6 @@ export function useSavedPostsByAddress(args: Args) {
                   const existing = prev[key] ?? [];
                   const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
                   const merged = Array.from(new Set([...activeKeys, ...preserved]));
-                  writeSessionTokenIds(SAVED_SESSION_CACHE_PREFIX, key, merged);
                   return { ...prev, [key]: merged };
                 });
 
@@ -156,7 +144,6 @@ export function useSavedPostsByAddress(args: Args) {
               const existing = prev[key] ?? [];
               const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
               const merged = Array.from(new Set([...activeKeys, ...preserved]));
-              writeSessionTokenIds(SAVED_SESSION_CACHE_PREFIX, key, merged);
               return { ...prev, [key]: merged };
             });
 

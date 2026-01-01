@@ -1,7 +1,7 @@
 import { createContext } from "react";
 
 export type ProfileState = {
-  // On-chain profiles (cache)
+  // On-chain profiles
   profilesByAddress: Record<string, { name: string; bio: string; avatarUrl: string }>;
 
   // Profile (self)

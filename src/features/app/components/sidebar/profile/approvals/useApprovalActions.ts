@@ -5,6 +5,7 @@ import { hasPinata } from "@features/ipfs";
 import { discoverMintedTokenIdsForAuthor } from "@features/profile";
 import { bestEffortUnpinCids, collectPinnedCidsForTokenIds, collectReferencedIpfsCidsFromPosts } from "@features/ipfs";
 import type { Post } from "@types";
+import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 
 type RunContractTxLike = <T = unknown>(
   label: string,
@@ -58,6 +59,7 @@ export function useApprovalActions(args: {
     });
 
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
+    emitPosterAllowedChanged({ address: addr, allowed: true, disapprovedEver: false });
   }
 
   async function disapprovePending(addr: string) {
@@ -69,6 +71,7 @@ export function useApprovalActions(args: {
 
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: false }));
     args.setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
+    emitPosterAllowedChanged({ address: addr, allowed: false, disapprovedEver: true });
   }
 
   async function resetAllAndBlock(addr: string) {
@@ -125,6 +128,7 @@ export function useApprovalActions(args: {
 
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
     args.setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: true }));
+    emitPosterAllowedChanged({ address: normalized, allowed: false, disapprovedEver: true });
 
     if (tokenDiscoveryFailed) {
       args.setApprovalsError("Blocked user, but failed to load their posts for deletion.");

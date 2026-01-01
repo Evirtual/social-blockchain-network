@@ -4,7 +4,6 @@ import { getSocialContract, socialInterface } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
-import { readSessionTokenIds, writeSessionTokenIds } from "@shared/lib/sessionTokenCache";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
@@ -22,8 +21,6 @@ type Args = {
   loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
   setStatus: (status: string) => void;
 };
-
-const LIKES_SESSION_CACHE_PREFIX = "likesTokenKeysByAddress:";
 
 export function useLikedPostsByAddress(args: Args) {
   const [likedTokenIdsByAddress, setLikedTokenIdsByAddress] = useState<Record<string, string[]>>({});
@@ -43,7 +40,6 @@ export function useLikedPostsByAddress(args: Args) {
       const current = prev[key] ?? [];
       const has = current.includes(likedKey);
       const next = has ? current.filter((id) => id !== likedKey) : [likedKey, ...current];
-      writeSessionTokenIds(LIKES_SESSION_CACHE_PREFIX, key, next);
       return { ...prev, [key]: next };
     });
   }, []);
@@ -59,13 +55,6 @@ export function useLikedPostsByAddress(args: Args) {
         const networkKey = String(args.chainId ?? args.contractAddress ?? "").toLowerCase();
         const loadedKey = `${networkKey}:${key}`;
         if (loadedKey && likesLoadedByKeyRef.current[loadedKey]) return;
-
-        const cached = readSessionTokenIds(LIKES_SESSION_CACHE_PREFIX, key);
-        if (cached !== null) {
-          setLikedTokenIdsByAddress((prev) => ({ ...prev, [key]: cached }));
-          likesLoadedByKeyRef.current[loadedKey] = true;
-          return;
-        }
 
         await runInFlight(likesInFlightRef.current, key, async () => {
           setIsLoadingLikesByAddress((prev) => ({ ...prev, [key]: true }));
@@ -109,7 +98,6 @@ export function useLikedPostsByAddress(args: Args) {
                     ? existingLikes.filter((k) => !k.startsWith(`${chainKey}:`))
                     : existingLikes;
                   const merged = Array.from(new Set([...activeKeys, ...preserved]));
-                  writeSessionTokenIds(LIKES_SESSION_CACHE_PREFIX, key, merged);
                   return { ...prev, [key]: merged };
                 });
 
@@ -160,7 +148,6 @@ export function useLikedPostsByAddress(args: Args) {
                 ? existingLikes.filter((k) => !k.startsWith(`${chainKey}:`))
                 : existingLikes;
               const merged = Array.from(new Set([...activeKeys, ...preserved]));
-              writeSessionTokenIds(LIKES_SESSION_CACHE_PREFIX, key, merged);
               return { ...prev, [key]: merged };
             });
 

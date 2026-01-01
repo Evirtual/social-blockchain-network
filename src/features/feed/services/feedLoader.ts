@@ -11,10 +11,6 @@ export type MintedEventLite = {
   txHash?: string;
 };
 
-export type MintedEventsCache = Map<string, { lastScannedBlock: number; events: MintedEventLite[] }>;
-export type BlockTimestampCache = Map<string, Map<number, number>>;
-export type ExistsPruneCursor = Map<string, number>;
-
 export async function loadFeedFromProvider(args: {
   chainIdNum: number | null;
   networkProvider: any;
@@ -24,9 +20,6 @@ export async function loadFeedFromProvider(args: {
   lastRefreshedAccount: string | null;
   postsSnapshot: Post[];
   postKey: (p: Pick<Post, "tokenId" | "chainId">) => string;
-  mintedEventsCache: MintedEventsCache;
-  blockTimestampCache: BlockTimestampCache;
-  existsPruneCursor: ExistsPruneCursor;
   pruneByKeys: (keys: Set<string>) => void;
 }): Promise<Post[]> {
   const {
@@ -38,9 +31,6 @@ export async function loadFeedFromProvider(args: {
     lastRefreshedAccount,
     postsSnapshot,
     postKey,
-    mintedEventsCache,
-    blockTimestampCache,
-    existsPruneCursor,
     pruneByKeys
   } = args;
 
@@ -57,8 +47,7 @@ export async function loadFeedFromProvider(args: {
       chainCacheKey,
       maxLookbackBlocks,
       networkProvider,
-      readContract,
-      mintedEventsCache
+      readContract
     });
 
   if (accountChanged && resolvedChainIdNum != null) {
@@ -81,7 +70,6 @@ export async function loadFeedFromProvider(args: {
   await pruneExistsFallback({
     resolvedChainIdNum,
     postsSnapshot,
-    existsPruneCursor,
     postKey,
     pruneByKeys,
     readContract
@@ -118,7 +106,6 @@ export async function loadFeedFromProvider(args: {
     chainCacheKey,
     chainIdNum,
     networkProvider,
-    blockTimestampCache,
     account
   });
 

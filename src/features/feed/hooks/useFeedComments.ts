@@ -30,7 +30,6 @@ export function useFeedComments(params: {
   const [isLoadingPostComments, setIsLoadingPostComments] = useState<Record<string, boolean>>({});
 
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
-  const commentsCacheRef = useRef<Map<string, { lastScannedBlock: number; comments: PostComment[] }>>(new Map());
 
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
   const lastProviderRef = useRef<any>(undefined);
@@ -46,7 +45,6 @@ export function useFeedComments(params: {
     setPostComments({});
     setIsLoadingPostComments({});
     commentsInFlightRef.current = {};
-    commentsCacheRef.current = new Map();
   }, [chainId, provider]);
 
   const loadCommentsForPost = useCallback(
@@ -74,20 +72,13 @@ export function useFeedComments(params: {
             return;
           }
 
-          const cached = commentsCacheRef.current.get(key);
-
           const mintHint = findMintBlockHint(postsRef.current, tokenId, postChainId);
           const fromBlock = computeCommentsFromBlock({
             latestBlock: latest,
-            cachedLastScannedBlock: cached ? cached.lastScannedBlock : null,
+            cachedLastScannedBlock: null,
             mintHintBlockNumber: mintHint
           });
-          if (fromBlock > latest) {
-            if (cached) {
-              setPostComments((prev) => (prev[key] === cached.comments ? prev : { ...prev, [key]: cached.comments }));
-            }
-            return;
-          }
+          if (fromBlock > latest) return;
 
           const filter = readContract.filters.PostCommented(null, tokenIdBig);
           const logs = await queryLogsPaged({
@@ -102,10 +93,10 @@ export function useFeedComments(params: {
           });
 
           const parsedNew: PostComment[] = parseCommentLogs(logs);
-          const merged = mergeComments(cached?.comments ?? [], parsedNew);
-
-          commentsCacheRef.current.set(key, { lastScannedBlock: latest, comments: merged });
-          setPostComments((prev) => ({ ...prev, [key]: merged }));
+          setPostComments((prev) => {
+            const merged = mergeComments(prev[key] ?? [], parsedNew);
+            return { ...prev, [key]: merged };
+          });
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {

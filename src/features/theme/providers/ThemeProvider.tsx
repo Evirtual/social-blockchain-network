@@ -12,14 +12,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    try {
-      const stored =
-        localStorage.getItem("socialBlockchainNetwork.theme") ?? localStorage.getItem("mintedSocial.theme");
-      if (stored === "light" || stored === "dark") return stored;
-      return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
-    } catch {
-      return "light";
-    }
+    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
   });
 
   const toggleTheme = useCallback(() => {
@@ -27,12 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    try {
-      document.documentElement.dataset.theme = theme;
-      localStorage.setItem("socialBlockchainNetwork.theme", theme);
-    } catch {
-      // ignore
-    }
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   const value = useMemo<ThemeContextValue>(

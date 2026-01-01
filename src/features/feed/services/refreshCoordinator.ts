@@ -1,6 +1,4 @@
 import type { Post } from "@types";
-
-import type { MintedEventLite } from "./feedLoader";
 import { refreshFeedFromNetworks } from "./feedRefresh";
 
 type ContractLike = {
@@ -10,13 +8,7 @@ type ContractLike = {
 
 type SetPosts = (next: Post[] | ((prev: Post[]) => Post[])) => void;
 
-export type FeedRefreshCaches = {
-  mintedEventsCache: Map<string, { lastScannedBlock: number; events: MintedEventLite[] }>;
-  blockTimestampCache: Map<string, Map<number, number>>;
-  existsPruneCursor: Map<string, number>;
-};
-
-export async function refreshFeedWithCaches(args: {
+export async function refreshFeed(args: {
   provider: any;
   walletAddress: string | null;
   chainId: string | null;
@@ -26,7 +18,6 @@ export async function refreshFeedWithCaches(args: {
   setPosts: SetPosts;
   setStatus: (s: string) => void;
   lastRefreshedAccount: string | null;
-  caches: FeedRefreshCaches;
   shouldReportStatus: boolean;
 }) {
   return refreshFeedFromNetworks({
@@ -39,7 +30,6 @@ export async function refreshFeedWithCaches(args: {
     setPosts: args.setPosts,
     setStatus: args.setStatus,
     lastRefreshedAccount: args.lastRefreshedAccount,
-    caches: args.caches,
     shouldReportStatus: args.shouldReportStatus
   });
 }

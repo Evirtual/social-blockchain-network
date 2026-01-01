@@ -4,8 +4,7 @@ import { getRpcProvider } from "@shared/lib/rpc";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { postKey } from "@shared/lib/post";
-import { pruneMapToSize } from "@shared/lib/cache";
-import { loadFeedFromProvider, type MintedEventLite } from "./feedLoader";
+import { loadFeedFromProvider } from "./feedLoader";
 import { mergePosts } from "./feedPosts";
 import { getFeedNetworkTasks } from "./feedNetworkTasks";
 import { loadFeedFromSubgraph } from "./subgraph/loadFeedFromSubgraph";
@@ -15,12 +14,6 @@ import { createResolveRpcContractAddress } from "../hooks/refresh/createResolveR
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: () => Promise<any>;
-};
-
-export type FeedRefreshCaches = {
-  blockTimestampCache: Map<string, Map<number, number>>;
-  mintedEventsCache: Map<string, { lastScannedBlock: number; events: MintedEventLite[] }>;
-  existsPruneCursor: Map<string, number>;
 };
 
 type FeedRefreshArgs = {
@@ -33,17 +26,8 @@ type FeedRefreshArgs = {
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   setStatus: (s: string) => void;
   lastRefreshedAccount: string | null;
-  caches: FeedRefreshCaches;
   shouldReportStatus: boolean;
 };
-
-const MAX_CHAIN_CACHE_ENTRIES = 8;
-
-function pruneFeedCaches(caches: FeedRefreshCaches) {
-  pruneMapToSize(caches.blockTimestampCache, MAX_CHAIN_CACHE_ENTRIES);
-  pruneMapToSize(caches.mintedEventsCache, MAX_CHAIN_CACHE_ENTRIES);
-  pruneMapToSize(caches.existsPruneCursor, MAX_CHAIN_CACHE_ENTRIES);
-}
 
 export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<void> {
   const {
@@ -56,7 +40,6 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     setPosts,
     setStatus,
     lastRefreshedAccount,
-    caches,
     shouldReportStatus
   } = args;
 
@@ -99,9 +82,6 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
       lastRefreshedAccount,
       postsSnapshot,
       postKey,
-      mintedEventsCache: caches.mintedEventsCache,
-      blockTimestampCache: caches.blockTimestampCache,
-      existsPruneCursor: caches.existsPruneCursor,
       pruneByKeys: (keys) => setPosts((prev) => prev.filter((p) => !keys.has(postKey(p))))
     });
   };
@@ -141,8 +121,6 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
 
     throw rejected[0].reason;
   }
-
-  pruneFeedCaches(caches);
 
   if (shouldReportStatus) {
     setStatus(rejected.length > 0 ? "Feed loaded (some networks failed)." : "Feed loaded.");

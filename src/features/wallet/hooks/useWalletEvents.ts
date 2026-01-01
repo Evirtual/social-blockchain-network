@@ -56,7 +56,7 @@ export function useWalletEvents(params: {
           params.setChainId(n == null ? null : String(n));
         }
 
-        // Recreate provider to avoid stale network cache.
+        // Recreate provider to avoid stale network info.
         params.bumpProviderNonce();
         params.bumpWalletEpoch();
       } catch {
