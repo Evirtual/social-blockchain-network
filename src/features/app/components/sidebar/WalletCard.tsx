@@ -21,6 +21,15 @@ export type WalletCardProps = {
 export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+  const isBalanceLoading = props.nativeBalance === "?";
+  const isTipsLoading = props.contractDeployed === null && !!props.walletAddress;
+  const balanceSkeleton = (
+    <span
+      className="skeletonLine"
+      style={{ width: "2.1rem", height: "0.85rem", display: "inline-block" }}
+      aria-hidden="true"
+    />
+  );
 
   const formatEtherTrim = (wei: bigint, maxDecimals: number) => {
     const raw = formatEther(wei);
@@ -54,12 +63,12 @@ export function WalletCard(props: WalletCardProps) {
           <div className="walletRow">
             <div className="walletField">
               <div className="label">Address</div>
-              <div className="value">{props.walletAddress ? props.shortAddress(props.walletAddress) : "—"}</div>
+              <div className="value">{props.walletAddress ? props.shortAddress(props.walletAddress) : "?"}</div>
             </div>
             <div className="walletField">
               <div className="label">Network</div>
               <div className="value">
-                {props.networkName ? `${props.networkName} (${props.chainId})` : props.chainId ? props.chainId : "—"}
+                {props.networkName ? `${props.networkName} (${props.chainId})` : props.chainId ? props.chainId : "?"}
               </div>
             </div>
           </div>
@@ -68,13 +77,13 @@ export function WalletCard(props: WalletCardProps) {
             <div className="walletField">
               <div className="label">Balance</div>
               <div className="value">
-                {props.nativeBalance} {props.getNativeSymbol(props.chainId)}
+                {isBalanceLoading ? balanceSkeleton : props.nativeBalance} {props.getNativeSymbol(props.chainId)}
               </div>
             </div>
             <div className="walletField">
               <div className="label">Tips</div>
               <div className="value">
-                {formatEtherTrim(props.withdrawableTipsWei, 4)} {props.getNativeSymbol(props.chainId)}
+                {isTipsLoading ? balanceSkeleton : formatEtherTrim(props.withdrawableTipsWei, 4)} {props.getNativeSymbol(props.chainId)}
               </div>
             </div>
           </div>
@@ -83,7 +92,7 @@ export function WalletCard(props: WalletCardProps) {
             <div className="walletField">
               <div className="label">Contract</div>
               <div className="value">
-                {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "—"}
+                {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "?"}
                 {props.contractDeployed === false ? " (not on this chain)" : ""}
               </div>
             </div>

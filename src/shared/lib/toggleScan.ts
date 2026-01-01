@@ -7,6 +7,7 @@ function getLogOrderIndex(log: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+
 export type ScanActiveToggleKeysArgs = {
   readContract: any;
   scanProvider: any;

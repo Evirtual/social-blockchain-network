@@ -3,7 +3,7 @@ import { ipfsToHttp } from "@features/ipfs";
 type Props = {
   canAdminEdit: boolean;
   wasPosterDisapprovedEver?: boolean;
-  isAllowed: boolean;
+  isPosterAllowed?: boolean;
   isAdminEditing: boolean;
   onToggleAdminEdit: () => void;
   onAdminSetPosterAllowed: (allowed: boolean) => void;
@@ -21,9 +21,18 @@ type Props = {
 };
 
 export function ProfileHeaderCard(props: Props) {
+  const isPosterAllowedKnown = typeof props.isPosterAllowed === "boolean";
+  const isAllowed = props.isPosterAllowed === true;
+  const isAdminLoading = props.canAdminEdit && !isPosterAllowedKnown;
+  const isFollowLoading = props.canFollow && typeof props.isFollowing !== "boolean";
+
   const avatarStyle = props.avatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
     : { background: `hsl(${props.avatarHue} 75% 55%)` };
+
+  const actionSkeleton = (widthRem: number) => (
+    <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />
+  );
 
   return (
     <div className="card">
@@ -40,41 +49,62 @@ export function ProfileHeaderCard(props: Props) {
               >
                 {props.isAdminEditing ? "Close" : "Edit Profile"}
               </button>
-              {props.isAllowed ? (
-                <button
-                  className="secondary"
-                  type="button"
-                  onClick={() => props.onAdminSetPosterAllowed(false)}
-                >
-                  Disapprove
-                </button>
+              {isAdminLoading ? (
+                <>
+                  <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
+                    {actionSkeleton(4.5)} approve
+                  </button>
+                  <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
+                    {actionSkeleton(3)} reset
+                  </button>
+                </>
               ) : (
-                <button
-                  className="primary"
-                  type="button"
-                  onClick={() => props.onAdminSetPosterAllowed(true)}
-                >
-                  Approve
-                </button>
+                <>
+                  {isAllowed ? (
+                    <button
+                      className="secondary"
+                      type="button"
+                      onClick={() => props.onAdminSetPosterAllowed(false)}
+                    >
+                      Disapprove
+                    </button>
+                  ) : (
+                    <button
+                      className="primary"
+                      type="button"
+                      onClick={() => props.onAdminSetPosterAllowed(true)}
+                    >
+                      Approve
+                    </button>
+                  )}
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={props.onAdminReset}
+                  >
+                    Reset
+                  </button>
+                </>
               )}
-              <button
-                className="secondary"
-                type="button"
-                onClick={props.onAdminReset}
-              >
-                Reset
-              </button>
             </>
           ) : null}
 
           {props.canFollow ? (
             <button
-              className="secondary"
+              className="secondary buttonWithSpinner"
               type="button"
               onClick={props.onToggleFollow}
-              disabled={typeof props.isFollowing !== "boolean"}
+              disabled={isFollowLoading}
             >
-              {props.isFollowing ? "Unfollow" : "Follow"}
+              {isFollowLoading ? (
+                <>
+                  {actionSkeleton(3)} follow
+                </>
+              ) : props.isFollowing ? (
+                "Unfollow"
+              ) : (
+                "Follow"
+              )}
             </button>
           ) : null}
         </div>

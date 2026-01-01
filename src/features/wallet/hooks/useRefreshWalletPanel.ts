@@ -1,5 +1,5 @@
 import { formatEther, type BrowserProvider } from "ethers";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 
 export function useRefreshWalletPanel(params: {
   provider: BrowserProvider | null;
@@ -9,16 +9,10 @@ export function useRefreshWalletPanel(params: {
   setNativeBalance: (v: string) => void;
 }) {
   const refreshWalletInFlightRef = useRef<Promise<void> | null>(null);
-  const walletAddressRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    walletAddressRef.current = params.walletAddress;
-  }, [params.walletAddress]);
-
   return useCallback(async () => {
     const provider = params.provider;
     if (!provider) return;
-    const addr = walletAddressRef.current;
+    const addr = params.walletAddress;
     if (!addr) return;
     if (refreshWalletInFlightRef.current) {
       await refreshWalletInFlightRef.current;
@@ -42,5 +36,5 @@ export function useRefreshWalletPanel(params: {
     } finally {
       if (refreshWalletInFlightRef.current === task) refreshWalletInFlightRef.current = null;
     }
-  }, [params.provider, params.setChainId, params.setNativeBalance, params.setNetworkName]);
+  }, [params.provider, params.walletAddress, params.setChainId, params.setNativeBalance, params.setNetworkName]);
 }

@@ -55,7 +55,6 @@ export function ProfilePage(props: Props) {
   const profileKey = String(props.address ?? "").trim().toLowerCase();
 
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
-  const isAllowed = props.isPosterAllowed === true;
   const [isAdminEditing, setIsAdminEditing] = useState(false);
 
   const initialDraft = useMemo(
@@ -110,7 +109,7 @@ export function ProfilePage(props: Props) {
         <ProfileHeaderCard
           canAdminEdit={canAdminEdit}
           wasPosterDisapprovedEver={props.wasPosterDisapprovedEver}
-          isAllowed={isAllowed}
+          isPosterAllowed={props.isPosterAllowed}
           isAdminEditing={isAdminEditing}
           onToggleAdminEdit={() => setIsAdminEditing((v) => !v)}
           onAdminSetPosterAllowed={props.onAdminSetPosterAllowed}
