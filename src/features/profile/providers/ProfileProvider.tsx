@@ -151,7 +151,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profileBio,
       profileAvatarUrl,
       displayName,
-      myPostsCount: myPostsCountFromSubgraph ?? 0,
+      myPostsCount: Math.max(myPostsCountFromSubgraph ?? 0, myPostsCount),
       isEditingProfile,
       profileDraftName,
       profileDraftBio,

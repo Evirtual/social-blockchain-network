@@ -157,9 +157,12 @@ export function useAccountPageViewModel(args: Args) {
   }, [args.walletAddress, selectedNetworkChainIds]);
 
   const headerInlineAction = useMemo(() => {
-    const resolvedPosted = accountCounts?.posted ?? 0;
-    const resolvedSaved = accountCounts?.saved ?? 0;
-    const resolvedLiked = accountCounts?.liked ?? 0;
+    const localPosted = args.posts.length;
+    const localSaved = args.savedPosts.length;
+    const localLiked = args.likedPosts.length;
+    const resolvedPosted = Math.max(accountCounts?.posted ?? 0, localPosted);
+    const resolvedSaved = Math.max(accountCounts?.saved ?? 0, localSaved);
+    const resolvedLiked = Math.max(accountCounts?.liked ?? 0, localLiked);
     const isLoading = activeLoading || isAccountCountsLoading;
     return (
       <AccountFeedHeaderAction
@@ -171,7 +174,7 @@ export function useAccountPageViewModel(args: Args) {
         isLoading={isLoading}
       />
     );
-  }, [view, setView, accountCounts, activeLoading, isAccountCountsLoading]);
+  }, [view, setView, accountCounts, activeLoading, isAccountCountsLoading, args.posts.length, args.savedPosts.length, args.likedPosts.length]);
 
   return {
     activeLoading,
