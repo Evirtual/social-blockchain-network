@@ -73,6 +73,7 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
         // During that warm-up window, keep the app functional by falling back to RPC scanning.
       }
     }
+    if (!networkProvider || !readContract) return [];
     return await loadFeedFromProvider({
       chainIdNum,
       networkProvider,

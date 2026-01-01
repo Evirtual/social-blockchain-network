@@ -152,8 +152,17 @@ export function useFeedRefresh(params: {
 
     const walletAddressLower = walletAddress ? walletAddress.toLowerCase() : null;
 
-    const chainChanged = lastChainIdRef.current !== chainId;
-    const walletChanged = lastWalletAddressLowerRef.current !== walletAddressLower;
+    const rawChainChanged = lastChainIdRef.current !== chainId;
+    const rawWalletChanged = lastWalletAddressLowerRef.current !== walletAddressLower;
+
+    if (!isInitialEpoch && hasAnyReadOnlyRpc && (rawChainChanged || rawWalletChanged)) {
+      lastChainIdRef.current = chainId;
+      lastWalletAddressLowerRef.current = walletAddressLower;
+      return;
+    }
+
+    const chainChanged = rawChainChanged;
+    const walletChanged = rawWalletChanged;
 
     if (!chainChanged && !walletChanged) return;
     lastChainIdRef.current = chainId;

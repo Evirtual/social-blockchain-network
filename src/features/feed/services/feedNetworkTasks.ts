@@ -72,6 +72,8 @@ export async function getFeedNetworkTasks(args: {
       } catch {
         // If the connected network isn't configured, still try any configured read-only networks.
       }
+    } else if (currentCfg) {
+      enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, null, null));
     }
   } else if (provider) {
     // ChainId not resolved yet; fall back to injected provider.
@@ -86,16 +88,20 @@ export async function getFeedNetworkTasks(args: {
 
   // Other chains
   for (const cfg of extraNetworks) {
-    const url = String(cfg.rpcUrl).trim();
-    const rpcProvider: any = getRpcProvider(url, cfg.chainId);
-    enqueueLoad(
-      `Feed network ${cfg.chainId}`,
-      (async () => {
-        const addr = await resolveRpcContractAddress(cfg, rpcProvider);
-        const remoteReadContract = getSocialContract(addr, rpcProvider);
-        return loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract);
-      })()
-    );
+    const url = typeof cfg.rpcUrl === "string" ? cfg.rpcUrl.trim() : "";
+    if (url) {
+      const rpcProvider: any = getRpcProvider(url, cfg.chainId);
+      enqueueLoad(
+        `Feed network ${cfg.chainId}`,
+        (async () => {
+          const addr = await resolveRpcContractAddress(cfg, rpcProvider);
+          const remoteReadContract = getSocialContract(addr, rpcProvider);
+          return loadFromProvider(cfg.chainId, rpcProvider, remoteReadContract);
+        })()
+      );
+    } else {
+      enqueueLoad(`Feed network ${cfg.chainId}`, loadFromProvider(cfg.chainId, null, null));
+    }
   }
 
   return tasks;

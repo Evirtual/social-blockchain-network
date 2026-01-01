@@ -14,7 +14,6 @@ export function useNetworkFilterState({
   searchQueryKey,
   selectedNetworksKey,
   walletAddress,
-  chainId,
   supportedNetworks
 }: Args) {
   const [searchQuery, setSearchQuery] = useSessionStorageState<string>(searchQueryKey, "", {
@@ -55,16 +54,6 @@ export function useNetworkFilterState({
     didInitDisconnectedNetworksRef.current = true;
     setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
   }, [walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
-
-  useEffect(() => {
-    if (hasStoredSelectedNetworks) return;
-    if (!walletAddress) return;
-    const currentChainId = chainId ? String(chainId) : null;
-    if (!currentChainId) return;
-    const supported = new Set(supportedNetworks.map((n) => String(n.chainId)));
-    if (!supported.has(currentChainId)) return;
-    setSelectedNetworkChainIds([currentChainId]);
-  }, [hasStoredSelectedNetworks, walletAddress, chainId, supportedNetworks, setSelectedNetworkChainIds]);
 
   const isNetworkFilterActive = useMemo(() => {
     const all = new Set(supportedNetworks.map((n) => String(n.chainId)));

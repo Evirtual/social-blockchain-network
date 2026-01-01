@@ -7,9 +7,13 @@ type Props = {
   postedCount: number;
   savedCount: number;
   likedCount: number;
+  isLoading?: boolean;
 };
 
 export function AccountFeedHeaderAction(props: Props) {
+  const countNode = (value: number) =>
+    props.isLoading ? <span className="skeletonLine" style={{ width: "1.5rem", height: "0.85rem" }} /> : value;
+
   return (
     <div className="accountFeedHeaderTabs">
       <button
@@ -20,7 +24,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Posted (${props.postedCount})`}
       >
         <IconEdit size={20} />
-        <span className="accountFeedTabCount">{props.postedCount}</span>
+        <span className="accountFeedTabCount">{countNode(props.postedCount)}</span>
       </button>
       <button
         className={`accountFeedTabButton isSaved ${props.view === "saved" ? "isActive" : ""}`}
@@ -30,7 +34,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Saved (${props.savedCount})`}
       >
         <IconBookmark size={20} filled={props.view === "saved"} />
-        <span className="accountFeedTabCount">{props.savedCount}</span>
+        <span className="accountFeedTabCount">{countNode(props.savedCount)}</span>
       </button>
       <button
         className={`accountFeedTabButton isLiked ${props.view === "liked" ? "isActive" : ""}`}
@@ -40,7 +44,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Liked (${props.likedCount})`}
       >
         <IconHeart size={20} filled={props.view === "liked"} />
-        <span className="accountFeedTabCount">{props.likedCount}</span>
+        <span className="accountFeedTabCount">{countNode(props.likedCount)}</span>
       </button>
     </div>
   );

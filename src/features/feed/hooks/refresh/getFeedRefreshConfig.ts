@@ -18,10 +18,7 @@ export function getFeedRefreshConfig(params: {
   const configuredNetworks = getConfiguredFeedNetworks(env);
 
   const extraNetworks = configuredNetworks.filter(
-    (n) =>
-      typeof n.rpcUrl === "string" &&
-      n.rpcUrl.trim().length > 0 &&
-      (currentChainIdNumber == null || n.chainId !== currentChainIdNumber)
+    (n) => currentChainIdNumber == null || n.chainId !== currentChainIdNumber
   );
 
   return { maxLookbackBlocks, configuredNetworks, extraNetworks };
