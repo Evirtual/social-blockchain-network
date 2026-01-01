@@ -74,6 +74,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       mintPost: mintFlow.mintPost,
       approvalRequired: posterApproval.approvalRequired,
       approvalRequested: posterApproval.approvalRequested,
+      isApprovalLoading: posterApproval.isApprovalLoading,
       requestApproval: posterApproval.requestApproval,
       dismissApproval: posterApproval.dismissApproval
     }),
@@ -92,6 +93,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       handleDraftChange,
       posterApproval.approvalRequired,
       posterApproval.approvalRequested,
+      posterApproval.isApprovalLoading,
       posterApproval.requestApproval,
       posterApproval.dismissApproval
     ]

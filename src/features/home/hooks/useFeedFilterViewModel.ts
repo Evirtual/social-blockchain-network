@@ -235,8 +235,9 @@ export function useFeedFilterViewModel(args: Args) {
   useEffect(() => {
     let active = true;
     const trimmedQuery = debouncedSearchQuery.trim();
+    const minQueryLength = 3;
 
-    if (!args.useSubgraphSearch || !trimmedQuery) {
+    if (!args.useSubgraphSearch || !trimmedQuery || trimmedQuery.length < minQueryLength) {
       setRemoteSearchPosts(null);
       return () => {
         active = false;
@@ -257,23 +258,98 @@ export function useFeedFilterViewModel(args: Args) {
 
     const loadSearch = async () => {
       const collected: Post[] = [];
+      let hadSuccess = false;
+      let hadFailure = false;
       for (const id of selectedIds) {
         const chainIdNum = Number(id);
         if (!Number.isFinite(chainIdNum)) continue;
         const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
         if (!subgraphUrl) continue;
-        const found = await loadFeedFromSubgraph({
-          url: subgraphUrl,
-          chainIdStr: String(chainIdNum),
-          first: 200,
-          account: args.walletAddress ? args.walletAddress.toLowerCase() : null,
-          searchQuery: trimmedQuery,
-          author: authorFilter || null
-        });
-        collected.push(...found);
+        const authorIds: string[] = [];
+        const cacheKey = `socialBlockchainNetwork.search.authors.${subgraphUrl}.${trimmedQuery.toLowerCase()}`;
+
+        if (typeof window !== "undefined") {
+          try {
+            const cachedRaw = window.sessionStorage.getItem(cacheKey);
+            if (cachedRaw) {
+              const cached = JSON.parse(cachedRaw) as { ids?: string[]; ts?: number };
+              if (Array.isArray(cached?.ids) && typeof cached?.ts === "number" && Date.now() - cached.ts < 5 * 60 * 1000) {
+                authorIds.push(...cached.ids);
+              }
+            }
+          } catch {
+            // Ignore cache read errors.
+          }
+        }
+
+        if (!authorIds.length) {
+          try {
+            const byName = await tryQuerySubgraph<{ accounts: Array<{ id: string }> }>({
+              url: subgraphUrl,
+              query: `query AccountByName($query: String!, $first: Int!) { accounts(first: $first, where: { name_contains_nocase: $query }) { id } }`,
+              variables: { query: trimmedQuery, first: 50 },
+              timeoutMs: 8_000
+            });
+            if (byName.ok) {
+              authorIds.push(...(byName.data?.accounts ?? []).map((a) => a.id));
+            }
+          } catch {
+            // Ignore schema mismatches / query errors.
+          }
+
+          try {
+            const byId = await tryQuerySubgraph<{ accounts: Array<{ id: string }> }>({
+              url: subgraphUrl,
+              query: `query AccountById($query: String!, $first: Int!) { accounts(first: $first, where: { id_contains_nocase: $query }) { id } }`,
+              variables: { query: trimmedQuery, first: 50 },
+              timeoutMs: 8_000
+            });
+            if (byId.ok) {
+              authorIds.push(...(byId.data?.accounts ?? []).map((a) => a.id));
+            }
+          } catch {
+            // Ignore schema mismatches / query errors.
+          }
+
+          if (typeof window !== "undefined") {
+            try {
+              window.sessionStorage.setItem(
+                cacheKey,
+                JSON.stringify({ ids: Array.from(new Set(authorIds)), ts: Date.now() })
+              );
+            } catch {
+              // Ignore cache write errors.
+            }
+          }
+        }
+
+        try {
+          const uniqueAuthorIds = Array.from(new Set(authorIds));
+          const found = await loadFeedFromSubgraph({
+            url: subgraphUrl,
+            chainIdStr: String(chainIdNum),
+            first: 200,
+            account: args.walletAddress ? args.walletAddress.toLowerCase() : null,
+            searchQuery: trimmedQuery,
+            author: authorFilter || null,
+            authorIds: uniqueAuthorIds.length ? uniqueAuthorIds : null
+          });
+          hadSuccess = true;
+          collected.push(...found);
+        } catch {
+          hadFailure = true;
+        }
       }
       if (!active) return;
-      setRemoteSearchPosts(collected.length ? collected : null);
+      if (!hadSuccess) {
+        setRemoteSearchPosts(null);
+        return;
+      }
+      if (!collected.length && hadFailure) {
+        setRemoteSearchPosts(null);
+        return;
+      }
+      setRemoteSearchPosts(collected.length ? collected : []);
     };
 
     void loadSearch();
@@ -302,7 +378,7 @@ export function useFeedFilterViewModel(args: Args) {
       ? ""
       : trimmedQuery
         ? `${filteredPosts.length} ${filteredPosts.length === 1 ? "post" : "posts"}`
-        : `${authorFilter ? authorPostsCount ?? scopedPosts.length : totalPostsCount ?? scopedPosts.length} posts`;
+        : `${authorFilter ? Math.max(authorPostsCount ?? 0, scopedPosts.length) : Math.max(totalPostsCount ?? 0, scopedPosts.length)} posts`;
 
   return {
     supportedNetworks,

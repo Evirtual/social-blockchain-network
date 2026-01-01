@@ -1,6 +1,8 @@
 specVersion: 1.0.0
 schema:
   file: ./schema.graphql
+features:
+  - ipfsOnEthereumContracts
 
 dataSources:
   - kind: ethereum
@@ -8,7 +10,7 @@ dataSources:
     network: base-sepolia # change to your target chain (e.g. base, mainnet, sepolia)
     source:
       abi: SocialPosts
-      address: "0x8A4d0730dF393e3ec11b6e7b65911eeF4dcCffAE" # Base Sepolia: SocialPosts
+      address: "0xF3008CC92Efd8b5158A944501e382dAAFf88D2D5" # Base Sepolia: SocialPosts
       startBlock: 0 # set to contract deployment block for faster indexing
     mapping:
       kind: ethereum/events
@@ -38,11 +40,11 @@ dataSources:
           handler: handleProfileModerated
         - event: ProfileClearedByAdmin(indexed address,indexed address)
           handler: handleProfileClearedByAdmin
-        - event: PostMinted(indexed address,indexed uint256,string)
+        - event: PostMinted(indexed address,indexed uint256,string,string,string)
           handler: handlePostMinted
-        - event: PostUpdated(indexed address,indexed uint256,string)
+        - event: PostUpdated(indexed address,indexed uint256,string,string,string)
           handler: handlePostUpdated
-        - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string)
+        - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string,string,string)
           handler: handlePostUpdatedByAdmin
         - event: PostBurned(indexed address,indexed uint256)
           handler: handlePostBurned

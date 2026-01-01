@@ -119,6 +119,7 @@ export function useMintPostFlow(params: {
         draft,
         uploadedImageBlob
       );
+      const titleTrimmed = draft.title.trim();
       if (!bodyTrimmed && !imageUrlTrimmed && !imageDataUrlTrimmed) {
         setStatus("Add text or attach media (image/video) to post.");
         return;
@@ -163,7 +164,7 @@ export function useMintPostFlow(params: {
       animationUrlForUi = prepared.animationRef || undefined;
       const minted = await runContractTx(
         "Mint post NFT",
-        () => (writeContract as any).mintPost(metadataURI),
+        () => (writeContract as any).mintPost(metadataURI, titleTrimmed, bodyTrimmed),
         async (receipt) => parseMintPostReceipt(receipt)
       );
 
@@ -177,8 +178,8 @@ export function useMintPostFlow(params: {
       const newPost: Post = {
         tokenId: minted.mintedTokenId,
         chainId: normalizeChainIdToString(chainId),
-        title: draft.title,
-        body: draft.body,
+        title: titleTrimmed,
+        body: bodyTrimmed,
         image: imageRefForUi,
         animationUrl: animationUrlForUi,
         metadataURI,

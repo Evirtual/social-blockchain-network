@@ -80,7 +80,13 @@ function AppInner() {
             <button className="secondary" type="button" onClick={composer.dismissApproval}>
               Close
             </button>
-            <button className="primary" type="button" onClick={composer.requestApproval}>
+            <button
+              className="primary buttonWithSpinner"
+              type="button"
+              onClick={composer.requestApproval}
+              disabled={composer.isApprovalLoading || composer.approvalRequested}
+            >
+              {composer.isApprovalLoading ? <span className="spinner" aria-hidden="true" /> : null}
               {composer.approvalRequested ? "Requested" : "Request approval"}
             </button>
           </div>

@@ -199,6 +199,7 @@ export function useEditPostFlow(args: {
         editDraft,
         editUploadedImageBlob
       );
+      const titleTrimmed = editDraft.title.trim();
       if (!bodyTrimmed && !hasMedia) {
         setStatus("Add text or attach media (image/video) to post.");
         return;
@@ -290,8 +291,8 @@ export function useEditPostFlow(args: {
       const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
       const send =
         isOwner && !isMine
-          ? () => (writeContract as any).adminUpdatePostURI(tokenIdBig, tokenUri)
-          : () => (writeContract as any).updatePostURI(tokenIdBig, tokenUri);
+          ? () => (writeContract as any).adminUpdatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed)
+          : () => (writeContract as any).updatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed);
 
       await runContractTx("Edit post", send);
 
@@ -320,7 +321,8 @@ export function useEditPostFlow(args: {
           if (postKey(p) !== editingTokenId) return p;
           return {
             ...p,
-            body: editDraft.body,
+            title: titleTrimmed,
+            body: bodyTrimmed,
             image: nextUiImage,
             animationUrl: nextUiAnimationUrl,
             metadataURI: tokenUri

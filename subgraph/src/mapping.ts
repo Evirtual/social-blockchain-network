@@ -1,4 +1,4 @@
-import { Address, BigInt } from "@graphprotocol/graph-ts";
+import { Address, BigInt, ByteArray, Bytes, JSONValueKind, json, ipfs } from "@graphprotocol/graph-ts";
 
 import {
   Followed,
@@ -36,6 +36,7 @@ import {
 } from "../generated/schema";
 
 const GLOBAL_STATS_ID = "global";
+const DATA_URI_PREFIX = "data:application/json;base64,";
 
 function getOrCreateGlobalStats(): GlobalStats {
   let s = GlobalStats.load(GLOBAL_STATS_ID);
@@ -96,7 +97,6 @@ function getOrCreatePost(tokenId: BigInt): Post {
     p.tokenURI = "";
     p.title = "";
     p.body = "";
-    p.searchText = id;
     p.mintBlockNumber = BigInt.zero();
     p.mintTimestamp = null;
     p.likes = BigInt.zero();
@@ -124,21 +124,90 @@ function getLogId(txHashHex: string, logIndex: BigInt): string {
   return txHashHex + "-" + logIndex.toString();
 }
 
-function updatePostSearchText(post: Post): void {
-  let search = post.tokenId;
-  if (post.author !== null) {
-    const authorText = post.author!.toHexString();
-    if (authorText.length > 0) {
-      search = search + " " + authorText;
-    }
+function decodeBase64Char(code: i32): i32 {
+  if (code >= 65 && code <= 90) return code - 65;
+  if (code >= 97 && code <= 122) return code - 97 + 26;
+  if (code >= 48 && code <= 57) return code - 48 + 52;
+  if (code == 43) return 62;
+  if (code == 47) return 63;
+  return -1;
+}
+
+function decodeBase64(data: string): Bytes | null {
+  const len = data.length;
+  if (len == 0 || len % 4 != 0) return null;
+
+  let padding = 0;
+  if (data.charCodeAt(len - 1) == 61) padding += 1;
+  if (data.charCodeAt(len - 2) == 61) padding += 1;
+
+  const outLen = (len / 4) * 3 - padding;
+  const out = new ByteArray(outLen);
+  let outIndex = 0;
+
+  for (let i = 0; i < len; i += 4) {
+    const c1 = data.charCodeAt(i);
+    const c2 = data.charCodeAt(i + 1);
+    const c3 = data.charCodeAt(i + 2);
+    const c4 = data.charCodeAt(i + 3);
+
+    const n1 = decodeBase64Char(c1);
+    const n2 = decodeBase64Char(c2);
+    const n3 = c3 == 61 ? 0 : decodeBase64Char(c3);
+    const n4 = c4 == 61 ? 0 : decodeBase64Char(c4);
+
+    if (n1 < 0 || n2 < 0 || (c3 != 61 && n3 < 0) || (c4 != 61 && n4 < 0)) return null;
+
+    const triple = (n1 << 18) | (n2 << 12) | (n3 << 6) | n4;
+
+    if (outIndex < outLen) out[outIndex++] = ((triple >> 16) & 0xff) as u8;
+    if (outIndex < outLen) out[outIndex++] = ((triple >> 8) & 0xff) as u8;
+    if (outIndex < outLen) out[outIndex++] = (triple & 0xff) as u8;
   }
-  if (post.title.length > 0) {
-    search = search + " " + post.title;
+
+  return Bytes.fromByteArray(out);
+}
+
+function applyMetadataFromJson(post: Post, data: Bytes): void {
+  const parsed = json.try_fromBytes(data);
+  if (!parsed.isOk) return;
+
+  const value = parsed.value;
+  if (value.kind != JSONValueKind.OBJECT) return;
+
+  const obj = value.toObject();
+  const name = obj.get("name");
+  if (name !== null && name.kind == JSONValueKind.STRING) {
+    post.title = name.toString();
   }
-  if (post.body.length > 0) {
-    search = search + " " + post.body;
+  const description = obj.get("description");
+  if (description !== null && description.kind == JSONValueKind.STRING) {
+    post.body = description.toString();
   }
-  post.searchText = search;
+}
+
+function extractIpfsPath(tokenURI: string): string | null {
+  if (!tokenURI.startsWith("ipfs://")) return null;
+  let path = tokenURI.slice(7);
+  if (path.startsWith("ipfs/")) path = path.slice(5);
+  return path.length > 0 ? path : null;
+}
+
+function applyMetadataFromTokenURI(post: Post, tokenURI: string): void {
+  if (!tokenURI) return;
+
+  if (tokenURI.startsWith(DATA_URI_PREFIX)) {
+    const encoded = tokenURI.slice(DATA_URI_PREFIX.length);
+    const data = decodeBase64(encoded);
+    if (data !== null) applyMetadataFromJson(post, data);
+    return;
+  }
+
+  const ipfsPath = extractIpfsPath(tokenURI);
+  if (ipfsPath !== null) {
+    const data = ipfs.cat(ipfsPath);
+    if (data !== null) applyMetadataFromJson(post, data as Bytes);
+  }
 }
 
 export function handlePosterAllowed(event: PosterAllowed): void {
@@ -250,8 +319,12 @@ export function handlePostMinted(event: PostMinted): void {
   const author = getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp);
 
   p.author = event.params.author;
+  p.title = event.params.title;
+  p.body = event.params.body;
   p.tokenURI = event.params.tokenURI;
-  updatePostSearchText(p);
+  if (p.title.length == 0 || p.body.length == 0) {
+    applyMetadataFromTokenURI(p, p.tokenURI);
+  }
   p.mintTxHash = event.transaction.hash;
   p.mintBlockNumber = event.block.number;
   p.mintTimestamp = event.block.timestamp;
@@ -274,8 +347,12 @@ export function handlePostUpdated(event: PostUpdated): void {
   getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp).save();
 
   p.author = event.params.author;
+  p.title = event.params.title;
+  p.body = event.params.body;
   p.tokenURI = event.params.tokenURI;
-  updatePostSearchText(p);
+  if (p.title.length == 0 || p.body.length == 0) {
+    applyMetadataFromTokenURI(p, p.tokenURI);
+  }
   p.updatedAtBlock = event.block.number;
 
   p.save();
@@ -288,8 +365,12 @@ export function handlePostUpdatedByAdmin(event: PostUpdatedByAdmin): void {
   getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp).save();
 
   p.author = event.params.author;
+  p.title = event.params.title;
+  p.body = event.params.body;
   p.tokenURI = event.params.tokenURI;
-  updatePostSearchText(p);
+  if (p.title.length == 0 || p.body.length == 0) {
+    applyMetadataFromTokenURI(p, p.tokenURI);
+  }
   p.updatedAtBlock = event.block.number;
 
   p.save();

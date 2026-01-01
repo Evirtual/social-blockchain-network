@@ -19,6 +19,7 @@ export type ComposerContextValue = {
 
   approvalRequired: boolean;
   approvalRequested: boolean;
+  isApprovalLoading: boolean;
   requestApproval: () => Promise<void>;
   dismissApproval: () => void;
 };

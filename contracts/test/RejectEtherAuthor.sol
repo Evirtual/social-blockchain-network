@@ -6,7 +6,7 @@ interface IERC721Receiver {
 }
 
 interface ISocialPosts {
-    function mintPost(string calldata tokenUri) external returns (uint256);
+    function mintPost(string calldata tokenUri, string calldata title, string calldata body) external returns (uint256);
     function withdrawTips() external;
 }
 
@@ -17,8 +17,8 @@ contract RejectEtherAuthor is IERC721Receiver {
         social = ISocialPosts(social_);
     }
 
-    function mint(string calldata tokenUri) external returns (uint256) {
-        return social.mintPost(tokenUri);
+    function mint(string calldata tokenUri, string calldata title, string calldata body) external returns (uint256) {
+        return social.mintPost(tokenUri, title, body);
     }
 
     function withdraw() external {

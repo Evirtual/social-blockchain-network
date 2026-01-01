@@ -9,7 +9,6 @@ export function filterPosts(params: {
 }): Post[] {
   const { posts, authorIdentity, shortAddress, searchQuery, selectedNetworkChainIds } = params;
 
-  const q = searchQuery.trim().toLowerCase();
   const selectedSet = new Set(selectedNetworkChainIds);
 
   const byNetwork = selectedSet.size
@@ -20,6 +19,9 @@ export function filterPosts(params: {
       })
     : [];
 
+  const trimmedQuery = searchQuery.trim();
+  const q = trimmedQuery.toLowerCase();
+  if (q.length < 3) return byNetwork;
   if (!q) return byNetwork;
 
   return byNetwork.filter((post) => {
@@ -28,9 +30,7 @@ export function filterPosts(params: {
     const identityName = authorKey ? authorIdentity.get(authorKey)?.name ?? "" : "";
     const short = author ? shortAddress(author) : "";
 
-    const base = post.searchText ? [post.searchText] : [post.tokenId, post.title, post.body, author];
-    const haystack = [...base, identityName, short].filter(Boolean).join(" ").toLowerCase();
-
+    const haystack = [post.body ?? "", author, identityName, short].filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(q);
   });
 }

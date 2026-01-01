@@ -6,7 +6,6 @@ type Post @entity(immutable: false) {
   tokenURI: String!
   title: String!
   body: String!
-  searchText: String!
 
   mintTxHash: Bytes
   mintBlockNumber: BigInt!

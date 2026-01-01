@@ -24,7 +24,8 @@ type SubgraphPostRow = {
   tokenId: string;
   author?: string;
   tokenURI?: string;
-  searchText?: string;
+  title?: string;
+  body?: string;
   mintTxHash?: string;
   mintBlockNumber?: string;
   mintTimestamp?: string;
@@ -55,28 +56,34 @@ export async function loadFeedFromSubgraph(args: {
   account?: string | null;
   searchQuery?: string | null;
   author?: string | null;
+  authorIds?: string[] | null;
 }): Promise<Post[]> {
   const first = Math.max(1, Math.min(500, Number(args.first ?? 200)));
-  const searchQuery = typeof args.searchQuery === "string" ? args.searchQuery.trim() : "";
-  const author = typeof args.author === "string" ? args.author.trim() : "";
+  const bodyQuery = typeof args.searchQuery === "string" ? args.searchQuery.trim() : "";
+  const authorFilter = typeof args.author === "string" ? args.author.trim() : "";
+  const authorIds =
+    Array.isArray(args.authorIds) && args.authorIds.length
+      ? Array.from(new Set(args.authorIds.filter((id) => typeof id === "string" && id.trim()))).slice(0, 200)
+      : [];
 
   // Expected schema (minimal):
   // posts(orderBy: mintBlockNumber, orderDirection: desc) {
   //   tokenId author tokenURI mintTxHash mintBlockNumber mintTimestamp likes comments saves tipsWei
   // }
   // Optional fields vary by subgraph deployment; treat them as best-effort.
-  const queryWithBurnedSearchAndAuthor = `
+  const queryWithBurnedBodyAndAuthor = `
     query FeedPosts($first: Int!, $query: String!, $author: Bytes!) {
       posts(
         first: $first,
         orderBy: mintBlockNumber,
         orderDirection: desc,
-        where: { searchText_contains_nocase: $query, author: $author }
+        where: { body_contains_nocase: $query, author: $author }
       ) {
         tokenId
         author
         tokenURI
-        searchText
+        title
+        body
         mintTxHash
         mintBlockNumber
         mintTimestamp
@@ -89,18 +96,69 @@ export async function loadFeedFromSubgraph(args: {
     }
   `;
 
-  const queryWithBurnedAndSearch = `
+  const queryWithBurnedBodyAndAuthorIn = `
+    query FeedPosts($first: Int!, $query: String!, $authors: [Bytes!]!) {
+      posts(
+        first: $first,
+        orderBy: mintBlockNumber,
+        orderDirection: desc,
+        where: { body_contains_nocase: $query, author_in: $authors }
+      ) {
+        tokenId
+        author
+        tokenURI
+        title
+        body
+        mintTxHash
+        mintBlockNumber
+        mintTimestamp
+        likes
+        comments
+        saves
+        tipsWei
+        burnedAtBlock
+      }
+    }
+  `;
+
+  const queryWithBurnedAndBody = `
     query FeedPosts($first: Int!, $query: String!) {
       posts(
         first: $first,
         orderBy: mintBlockNumber,
         orderDirection: desc,
-        where: { searchText_contains_nocase: $query }
+        where: { body_contains_nocase: $query }
       ) {
         tokenId
         author
         tokenURI
-        searchText
+        title
+        body
+        mintTxHash
+        mintBlockNumber
+        mintTimestamp
+        likes
+        comments
+        saves
+        tipsWei
+        burnedAtBlock
+      }
+    }
+  `;
+
+  const queryWithBurnedAndAuthorIn = `
+    query FeedPosts($first: Int!, $authors: [Bytes!]!) {
+      posts(
+        first: $first,
+        orderBy: mintBlockNumber,
+        orderDirection: desc,
+        where: { author_in: $authors }
+      ) {
+        tokenId
+        author
+        tokenURI
+        title
+        body
         mintTxHash
         mintBlockNumber
         mintTimestamp
@@ -124,6 +182,8 @@ export async function loadFeedFromSubgraph(args: {
         tokenId
         author
         tokenURI
+        title
+        body
         mintTxHash
         mintBlockNumber
         mintTimestamp
@@ -142,6 +202,8 @@ export async function loadFeedFromSubgraph(args: {
         tokenId
         author
         tokenURI
+        title
+        body
         mintTxHash
         mintBlockNumber
         mintTimestamp
@@ -160,6 +222,8 @@ export async function loadFeedFromSubgraph(args: {
         tokenId
         author
         tokenURI
+        title
+        body
         mintTxHash
         mintBlockNumber
         mintTimestamp
@@ -173,21 +237,29 @@ export async function loadFeedFromSubgraph(args: {
 
   let data: { posts: SubgraphPostRow[] };
   const query =
-    searchQuery && author
-      ? queryWithBurnedSearchAndAuthor
-      : searchQuery
-        ? queryWithBurnedAndSearch
-        : author
-          ? queryWithBurnedAndAuthor
-          : queryWithBurned;
+    authorFilter && bodyQuery
+      ? queryWithBurnedBodyAndAuthor
+      : authorFilter
+        ? queryWithBurnedAndAuthor
+        : authorIds.length && bodyQuery
+          ? queryWithBurnedBodyAndAuthorIn
+          : authorIds.length
+            ? queryWithBurnedAndAuthorIn
+            : bodyQuery
+              ? queryWithBurnedAndBody
+              : queryWithBurned;
   const variables =
-    searchQuery && author
-      ? { first, query: searchQuery, author }
-      : searchQuery
-        ? { first, query: searchQuery }
-        : author
-          ? { first, author }
-          : { first };
+    authorFilter && bodyQuery
+      ? { first, query: bodyQuery, author: authorFilter }
+      : authorFilter
+        ? { first, author: authorFilter }
+        : authorIds.length && bodyQuery
+          ? { first, query: bodyQuery, authors: authorIds }
+          : authorIds.length
+            ? { first, authors: authorIds }
+            : bodyQuery
+              ? { first, query: bodyQuery }
+              : { first };
   const primary = await tryQuerySubgraph<{ posts: SubgraphPostRow[] }>({
     url: args.url,
     query,
@@ -222,14 +294,19 @@ export async function loadFeedFromSubgraph(args: {
 
   // Filter burned posts if the schema provides burnedAtBlock.
   const visible = rows.filter((p) => !(p?.burnedAtBlock && String(p.burnedAtBlock).length > 0));
-  const authorLower = author.toLowerCase();
+  const authorLower = authorFilter.toLowerCase();
+  const authorIdSet = new Set(authorIds.map((id) => id.toLowerCase()));
   const filtered = visible.filter((p) => {
     if (authorLower) {
       const postAuthor = String(p.author ?? "").toLowerCase();
       if (postAuthor !== authorLower) return false;
     }
-    if (searchQuery) {
-      return String(p.searchText ?? "").toLowerCase().includes(searchQuery.toLowerCase());
+    if (!authorLower && authorIdSet.size) {
+      const postAuthor = String(p.author ?? "").toLowerCase();
+      if (!authorIdSet.has(postAuthor)) return false;
+    }
+    if (bodyQuery) {
+      return String(p.body ?? "").toLowerCase().includes(bodyQuery.toLowerCase());
     }
     return true;
   });
@@ -309,13 +386,14 @@ export async function loadFeedFromSubgraph(args: {
   const basePosts = filtered.map((p) => {
     const tokenId = String(p.tokenId);
     const tokenURI = String(p.tokenURI ?? "");
+    const title = typeof p.title === "string" ? p.title : `Token #${tokenId}`;
+    const body = typeof p.body === "string" ? p.body : "";
 
     return {
       tokenId,
       chainId: args.chainIdStr,
-      title: `Token #${tokenId}`,
-      body: "",
-      searchText: typeof p.searchText === "string" ? p.searchText : undefined,
+      title,
+      body,
       image: "",
       animationUrl: undefined,
       metadataURI: tokenURI,

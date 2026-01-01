@@ -1,6 +1,8 @@
 specVersion: 1.0.0
 schema:
   file: ./schema.graphql
+features:
+  - ipfsOnEthereumContracts
 
 dataSources:
   - kind: ethereum
@@ -8,7 +10,7 @@ dataSources:
     network: chapel
     source:
       abi: SocialPosts
-      address: "0x25319DC8F9a5c32C177A86ba489D0704378030a2" # BSC Testnet: SocialPosts
+      address: "0x870EeEb128a90163079152255b483E2e438bf5be" # BSC Testnet: SocialPosts
       startBlock: 0 # set to contract deployment block for faster indexing
     mapping:
       kind: ethereum/events
@@ -38,11 +40,11 @@ dataSources:
           handler: handleProfileModerated
         - event: ProfileClearedByAdmin(indexed address,indexed address)
           handler: handleProfileClearedByAdmin
-        - event: PostMinted(indexed address,indexed uint256,string)
+        - event: PostMinted(indexed address,indexed uint256,string,string,string)
           handler: handlePostMinted
-        - event: PostUpdated(indexed address,indexed uint256,string)
+        - event: PostUpdated(indexed address,indexed uint256,string,string,string)
           handler: handlePostUpdated
-        - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string)
+        - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string,string,string)
           handler: handlePostUpdatedByAdmin
         - event: PostBurned(indexed address,indexed uint256)
           handler: handlePostBurned

@@ -12,6 +12,8 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     uint256 public constant MAX_BIO_LENGTH = 280;
     uint256 public constant MAX_AVATAR_LENGTH = 512;
     uint256 public constant MAX_COMMENT_LENGTH = 280;
+    uint256 public constant MAX_POST_TITLE_LENGTH = 64;
+    uint256 public constant MAX_POST_BODY_LENGTH = 280;
 
     struct Profile {
         string name;
@@ -43,7 +45,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(address => bool) private _posterDisapprovedEver;
 
-    event PostMinted(address indexed author, uint256 indexed tokenId, string tokenURI);
+    event PostMinted(address indexed author, uint256 indexed tokenId, string title, string body, string tokenURI);
     event PosterAllowed(address indexed account, bool allowed);
     event PosterApprovalRequested(address indexed account);
     event ProfileUpdated(address indexed account, string name, string bio, string avatar);
@@ -58,8 +60,15 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event Unfollowed(address indexed follower, address indexed followee);
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
     event TipsWithdrawn(address indexed author, uint256 amountWei);
-    event PostUpdated(address indexed author, uint256 indexed tokenId, string tokenURI);
-    event PostUpdatedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId, string tokenURI);
+    event PostUpdated(address indexed author, uint256 indexed tokenId, string title, string body, string tokenURI);
+    event PostUpdatedByAdmin(
+        address indexed admin,
+        address indexed author,
+        uint256 indexed tokenId,
+        string title,
+        string body,
+        string tokenURI
+    );
     event PostBurned(address indexed author, uint256 indexed tokenId);
     event PostBurnedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId);
     event PostFrozen(address indexed author, uint256 indexed tokenId);
@@ -179,7 +188,14 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return (p.name, p.bio, p.avatar);
     }
 
-    function mintPost(string calldata tokenUri) external onlyAllowedPoster returns (uint256 tokenId) {
+    function mintPost(
+        string calldata tokenUri,
+        string calldata title,
+        string calldata body
+    ) external onlyAllowedPoster returns (uint256 tokenId) {
+        require(bytes(title).length <= MAX_POST_TITLE_LENGTH, "Title too long");
+        require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
+
         tokenId = _nextTokenId;
         _nextTokenId += 1;
 
@@ -188,7 +204,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
         _author[tokenId] = msg.sender;
 
-        emit PostMinted(msg.sender, tokenId, tokenUri);
+        emit PostMinted(msg.sender, tokenId, title, body, tokenUri);
     }
 
     function exists(uint256 tokenId) external view returns (bool) {
@@ -200,21 +216,30 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return _author[tokenId];
     }
 
-    function updatePostURI(uint256 tokenId, string calldata tokenUri) external {
+    function updatePostURI(uint256 tokenId, string calldata tokenUri, string calldata title, string calldata body) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(_author[tokenId] == msg.sender, "Only author");
         require(!_postFrozen[tokenId], "Post frozen");
+        require(bytes(title).length <= MAX_POST_TITLE_LENGTH, "Title too long");
+        require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
 
         _setTokenURI(tokenId, tokenUri);
-        emit PostUpdated(msg.sender, tokenId, tokenUri);
+        emit PostUpdated(msg.sender, tokenId, title, body, tokenUri);
     }
 
-    function adminUpdatePostURI(uint256 tokenId, string calldata tokenUri) external onlyOwner {
+    function adminUpdatePostURI(
+        uint256 tokenId,
+        string calldata tokenUri,
+        string calldata title,
+        string calldata body
+    ) external onlyOwner {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         address author = _author[tokenId];
+        require(bytes(title).length <= MAX_POST_TITLE_LENGTH, "Title too long");
+        require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
 
         _setTokenURI(tokenId, tokenUri);
-        emit PostUpdatedByAdmin(msg.sender, author, tokenId, tokenUri);
+        emit PostUpdatedByAdmin(msg.sender, author, tokenId, title, body, tokenUri);
     }
 
     function freezePost(uint256 tokenId) external {

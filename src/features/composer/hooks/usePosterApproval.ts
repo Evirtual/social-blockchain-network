@@ -18,6 +18,7 @@ export function usePosterApproval(params: {
 
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [approvalRequested, setApprovalRequested] = useState(false);
+  const [isApprovalLoading, setIsApprovalLoading] = useState(false);
   const approvalPollInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   useEffect(() => {
@@ -81,24 +82,28 @@ export function usePosterApproval(params: {
       return;
     }
 
+    if (isApprovalLoading) return;
     if (approvalRequested) {
       setStatus("Approval already requested. Please wait for an admin to approve your wallet.");
       return;
     }
 
     try {
+      setIsApprovalLoading(true);
       await runContractTx("Request posting approval", async () => {
         const writeContract = await contract.getWriteContract();
         return (writeContract as any).requestPosterApproval();
       });
     } catch {
+      setIsApprovalLoading(false);
       return;
     }
 
     setApprovalRequired(true);
     setApprovalRequested(true);
+    setIsApprovalLoading(false);
     setStatus("Approval requested. An admin must approve your wallet before you can post.");
-  }, [walletAddress, approvalRequested, runContractTx, contract, setStatus]);
+  }, [walletAddress, isApprovalLoading, approvalRequested, runContractTx, contract, setStatus]);
 
   const checkPosterAllowed = useCallback(
     async (addr: string) => {
@@ -115,12 +120,13 @@ export function usePosterApproval(params: {
     () => ({
       approvalRequired,
       approvalRequested,
+      isApprovalLoading,
       setApprovalRequired,
       setApprovalRequested,
       dismissApproval,
       requestApproval,
       checkPosterAllowed
     }),
-    [approvalRequired, approvalRequested, dismissApproval, requestApproval, checkPosterAllowed]
+    [approvalRequired, approvalRequested, isApprovalLoading, dismissApproval, requestApproval, checkPosterAllowed]
   );
 }

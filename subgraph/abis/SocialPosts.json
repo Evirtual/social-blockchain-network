@@ -4,6 +4,8 @@
     "inputs": [
       { "indexed": true, "internalType": "address", "name": "author", "type": "address" },
       { "indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "title", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "body", "type": "string" },
       { "indexed": false, "internalType": "string", "name": "tokenURI", "type": "string" }
     ],
     "name": "PostMinted",
@@ -63,6 +65,8 @@
     "inputs": [
       { "indexed": true, "internalType": "address", "name": "author", "type": "address" },
       { "indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "title", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "body", "type": "string" },
       { "indexed": false, "internalType": "string", "name": "tokenURI", "type": "string" }
     ],
     "name": "PostUpdated",
@@ -74,6 +78,8 @@
       { "indexed": true, "internalType": "address", "name": "admin", "type": "address" },
       { "indexed": true, "internalType": "address", "name": "author", "type": "address" },
       { "indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "title", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "body", "type": "string" },
       { "indexed": false, "internalType": "string", "name": "tokenURI", "type": "string" }
     ],
     "name": "PostUpdatedByAdmin",
