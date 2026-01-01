@@ -26,7 +26,6 @@
 .commentItem .avatar {
   width: 1.625rem;
   height: 1.625rem;
-  border-radius: calc(var(--radius-sm) - 0.125rem);
 }
 
 .commentMain {

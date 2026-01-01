@@ -38,9 +38,6 @@ export function HomeHeroSupportedNetworks(props: Props) {
           "Use one of these testnets to post, react, and tip."
         )}
       </div>
-      {props.isWrongNetwork && props.currentNetworkLabel ? (
-        <div className="pill">Current: {props.currentNetworkLabel}</div>
-      ) : null}
 
       <div className="heroBullets" role="list">
         {props.supportedNetworks.map((n) => (
