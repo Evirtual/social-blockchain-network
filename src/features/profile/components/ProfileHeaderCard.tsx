@@ -52,10 +52,10 @@ export function ProfileHeaderCard(props: Props) {
               {isAdminLoading ? (
                 <>
                   <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
-                    {actionSkeleton(4.5)} approve
+                    {actionSkeleton(6)}
                   </button>
                   <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
-                    {actionSkeleton(3)} reset
+                    {actionSkeleton(4)}
                   </button>
                 </>
               ) : (
@@ -97,9 +97,7 @@ export function ProfileHeaderCard(props: Props) {
               disabled={isFollowLoading}
             >
               {isFollowLoading ? (
-                <>
-                  {actionSkeleton(3)} follow
-                </>
+                actionSkeleton(5)
               ) : props.isFollowing ? (
                 "Unfollow"
               ) : (
