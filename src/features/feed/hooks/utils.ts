@@ -1,1 +1,1 @@
-export { commentKey, parsePostKey, postKey, postKeyFromParts } from "@shared/lib/post";
+export { commentKey, parsePostKey, postKey, postKeyFromParts } from "@features/post/services";

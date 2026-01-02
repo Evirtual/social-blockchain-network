@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -146,7 +146,7 @@ export function useIsFollowing(params: {
         });
         return nextValue;
       } catch (error) {
-        params.setStatus(getErrorMessage(error as ErrorInput));
+        setStatusFromError(params.setStatus, error as ErrorInput);
         return undefined;
       }
     },

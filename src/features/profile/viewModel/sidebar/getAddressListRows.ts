@@ -1,5 +1,5 @@
-import { ipfsToHttp } from "@features/ipfs";
 import { stableHueFromSeed } from "@shared/lib/formatters";
+import { getAvatarStyle } from "@shared/lib/avatar";
 
 export type AddressListRow = {
   addr: string;
@@ -16,9 +16,7 @@ export function getAddressListRows(args: {
     const key = addr.toLowerCase();
     const profile = args.profilesByAddress[key];
     const avatarUrl = profile?.avatarUrl?.trim();
-    const avatarStyle = avatarUrl
-      ? { backgroundImage: `url(${ipfsToHttp(avatarUrl)})` }
-      : { background: `hsl(${stableHueFromSeed(addr)} 75% 55%)` };
+    const avatarStyle = getAvatarStyle({ avatarUrl, hue: stableHueFromSeed(addr) });
     return {
       addr,
       label: args.shortAddress(addr),

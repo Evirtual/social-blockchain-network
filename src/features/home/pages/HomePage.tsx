@@ -1,13 +1,12 @@
 import type { Draft, Post } from "@types";
-import { Feed, FeedHeaderControls, useFeedFilterViewModel } from "@features/feed";
+import { Feed, FeedHeaderControls } from "@features/feed";
+import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
-
-type EthereumRequestArgs = { method: string; params?: Array<{ chainId?: string }> };
-type EthereumLike = { request?: (args: EthereumRequestArgs) => Promise<null> };
+import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
 
 type Props = {
   isOwner: boolean;
@@ -70,24 +69,13 @@ export function HomePage(props: Props) {
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
-      const eth = window.ethereum as EthereumLike | undefined;
-      if (!eth?.request) return;
-      if (props.chainId && props.chainId === String(targetChainId)) return;
-
-      try {
-        await eth.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: `0x${targetChainId.toString(16)}` }]
-        });
-      } catch {
-        // Ignore (user rejection, wallet missing chain, etc.)
-      }
+      await requestNetworkSwitch(targetChainId, props.chainId);
     },
     [props.chainId]
   );
 
   const canSwitchNetwork = useMemo(() => {
-    const eth = window.ethereum as EthereumLike | undefined;
+    const eth = window.ethereum as { request?: unknown } | undefined;
     return !!eth?.request;
   }, []);
 

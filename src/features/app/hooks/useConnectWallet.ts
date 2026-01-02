@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
+import { fail, ok, type ActionResult } from "@shared/lib/result";
 
 type WalletLike = {
   connectWallet: () => Promise<string | null>;
@@ -24,11 +25,11 @@ export function useConnectWallet(params: {
 }) {
   const { wallet, contract, feed, setStatus, triggerConnectNudge } = params;
 
-  return useCallback(async () => {
+  return useCallback(async (): Promise<ActionResult<void>> => {
     const addr = await wallet.connectWallet();
     if (!addr) {
       triggerConnectNudge();
-      return;
+      return fail();
     }
 
     try {
@@ -40,10 +41,12 @@ export function useConnectWallet(params: {
     try {
       await contract.ensureContractDeployedOnCurrentNetwork();
     } catch (err) {
-      setStatus(getErrorMessage(err as ErrorInput));
+      setStatusFromError(setStatus, err as ErrorInput);
+      return fail();
     }
 
     void wallet.refreshWalletPanel();
     void feed.refreshFeed(addr);
+    return ok(undefined);
   }, [wallet, contract, feed, setStatus, triggerConnectNudge]);
 }

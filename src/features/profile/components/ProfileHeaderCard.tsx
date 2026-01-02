@@ -1,4 +1,4 @@
-import { ipfsToHttp } from "@features/ipfs";
+import { buildProfileHeaderCardState } from "@features/profile/viewModel";
 
 type Props = {
   canAdminEdit: boolean;
@@ -23,20 +23,28 @@ type Props = {
 };
 
 export function ProfileHeaderCard(props: Props) {
-  const isPosterAllowedKnown = typeof props.isPosterAllowed === "boolean";
-  const isAllowed = props.isPosterAllowed === true;
-  const isAdminLoading = props.canAdminEdit && !isPosterAllowedKnown;
-  const isAdminSubmitting = !!props.adminActionInFlight;
-  const isApproveBusy = props.adminActionInFlight === "approve";
-  const isDisapproveBusy = props.adminActionInFlight === "disapprove";
-  const isResetBusy = props.adminActionInFlight === "reset";
-  const isFollowLoading = props.canFollow && typeof props.isFollowing !== "boolean";
-  const isFollowSubmitting = !!props.isFollowSubmitting;
-  const isFollowBusy = isFollowLoading || isFollowSubmitting;
-
-  const avatarStyle = props.avatarUrl?.trim()
-    ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
-    : { background: `hsl(${props.avatarHue} 75% 55%)` };
+  const {
+    isAllowed,
+    isAdminLoading,
+    isAdminSubmitting,
+    isApproveBusy,
+    isDisapproveBusy,
+    isResetBusy,
+    isFollowLoading,
+    isFollowSubmitting,
+    isFollowBusy,
+    avatarStyle
+  } = buildProfileHeaderCardState({
+    canAdminEdit: props.canAdminEdit,
+    wasPosterDisapprovedEver: props.wasPosterDisapprovedEver,
+    isPosterAllowed: props.isPosterAllowed,
+    adminActionInFlight: props.adminActionInFlight,
+    canFollow: props.canFollow,
+    isFollowing: props.isFollowing,
+    isFollowSubmitting: props.isFollowSubmitting,
+    avatarHue: props.avatarHue,
+    avatarUrl: props.avatarUrl
+  });
 
   const actionSkeleton = (widthRem: number) => (
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />

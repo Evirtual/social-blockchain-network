@@ -7,7 +7,7 @@ import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
 import { parseMintPostReceipt, waitForMetadataReady, waitForUrlReachable } from "../services/mintPost";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
-import { getDraftMediaState } from "@features/post/services/draftMediaState";
+import { validateDraftForMint } from "../services/validateDraftForMint";
 import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 type TxNotificationsLike = {
@@ -115,21 +115,19 @@ export function useMintPostFlow(params: {
         return;
       }
 
-      const { bodyTrimmed, imageUrlTrimmed, imageDataUrlTrimmed, hasMedia } = getDraftMediaState(
-        draft,
-        uploadedImageBlob
-      );
       const titleTrimmed = draft.title.trim();
-      if (!bodyTrimmed && !imageUrlTrimmed && !imageDataUrlTrimmed) {
-        setStatus("Add text or attach media (image/video) to post.");
+      const validation = validateDraftForMint({ draft, uploadedImageBlob });
+      if (!validation.ok) {
+        setStatus(validation.error);
         return;
       }
+      const bodyTrimmed = validation.bodyTrimmed;
 
       const writeContract = await contract.getWriteContract();
 
       const prepared = await preparePostMetadata({
         draft,
-        hasMedia,
+        hasMedia: validation.hasMedia,
         ipfsConfigured,
         uploadedImageBlob,
         uploadedImageFilename
@@ -142,7 +140,7 @@ export function useMintPostFlow(params: {
       }
 
       let metadataURI = "";
-      let imageRefForUi = imageDataUrlTrimmed || imageUrlTrimmed;
+      let imageRefForUi = validation.imageDataUrlTrimmed || validation.imageUrlTrimmed;
       let animationUrlForUi: string | undefined;
 
       if (willUseIpfs) {

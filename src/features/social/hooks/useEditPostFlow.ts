@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { Draft, Post } from "@types";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { getErrorMessage, setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { EMPTY_DRAFT } from "@features/post/services/draftConstants";
@@ -354,7 +354,7 @@ export function useEditPostFlow(args: {
       if (processingToastId) {
         txNotifications.notifyFailed({ hash: processingToastId, label: "Updating post", error: message });
       }
-      setStatus(message);
+      setStatusFromError(setStatus, error as ErrorInput);
     }
   }, [
     walletAddress,

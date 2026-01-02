@@ -3,7 +3,7 @@ import { withTimeout } from "@shared/lib/feedQuery";
 import { getRpcProvider } from "@shared/lib/rpc";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { postKey } from "@shared/lib/post";
+import { postKey } from "@features/post/services";
 import { loadFeedFromProvider } from "./feedLoader";
 import { mergePosts } from "./feedPosts";
 import { getFeedNetworkTasks } from "./feedNetworkTasks";

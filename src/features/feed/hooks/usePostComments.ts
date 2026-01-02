@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { commentKey } from "@shared/lib/post";
+import { commentKey } from "@features/post/services";
 import { useFeedActions } from "../providers/useFeedActions";
 import { useFeedState } from "../providers/useFeedState";
 

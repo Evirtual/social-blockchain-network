@@ -1,5 +1,6 @@
 import type { Post } from "@types";
-import { Feed, FeedHeaderControls, useFeedFilterViewModel } from "@features/feed";
+import { Feed, FeedHeaderControls } from "@features/feed";
+import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import type { PostActionsController } from "@features/post";
 import { useMemo } from "react";
 
