@@ -1,7 +1,7 @@
-import { memo, useCallback, useMemo, type MouseEvent } from "react";
+import { memo, useCallback, useMemo, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
-import { ChainLogo, IconEdit, IconFlame, Modal } from "@features/app";
+import { ChainLogo, IconEdit, IconFlame, IconFlag, Modal } from "@features/app";
 import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@shared/lib/network";
 import { getPostUrl } from "@shared/lib/post";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
@@ -47,6 +47,14 @@ type Props = {
     comment?: string
   ) => Promise<boolean>;
   onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
+  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
+  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
+  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
@@ -59,6 +67,9 @@ type Props = {
 export const PostCard = memo(function PostCard(props: Props) {
   const tokenId = props.post.tokenId;
   const postChainId = props.post.chainId ?? null;
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportDraft, setReportDraft] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
 
   const hasMedia = useMemo(() => !!props.post.image || !!props.post.animationUrl, [props.post.image, props.post.animationUrl]);
 
@@ -102,6 +113,20 @@ export const PostCard = memo(function PostCard(props: Props) {
     props.onBurn(tokenId, postChainId);
   }, [props.onBurn, tokenId, postChainId]);
 
+  const onSubmitReport = useCallback(async () => {
+    if (isReporting) return;
+    setIsReporting(true);
+    try {
+      const ok = await props.onReportPost(tokenId, reportDraft, postChainId);
+      if (ok) {
+        setReportDraft("");
+        setIsReportOpen(false);
+      }
+    } finally {
+      setIsReporting(false);
+    }
+  }, [isReporting, props.onReportPost, tokenId, reportDraft, postChainId]);
+
   const onCopyMintTx = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
       if (explorer) return;
@@ -138,6 +163,35 @@ export const PostCard = memo(function PostCard(props: Props) {
           canModerate={props.canModerate}
         />
       </Modal>
+      <Modal
+        open={isReportOpen}
+        title="Report post"
+        headerLeading={<div className="avatar small" style={avatarStyle} />}
+        onClose={() => setIsReportOpen(false)}
+      >
+        <div className="postForm">
+          <div className="postFormRow">
+            <input
+              className="postField"
+              type="text"
+              value={reportDraft}
+              onChange={(event) => setReportDraft(event.target.value)}
+              placeholder="Report reason"
+              disabled={isReporting}
+            />
+            <button
+              className={"secondary buttonWithSpinner"}
+              type="button"
+              onClick={onSubmitReport}
+              disabled={requiresNetworkSwitch || isReporting}
+              title={interactionDisabledTitle}
+            >
+              {isReporting ? <span className="spinner" aria-hidden="true" /> : null}
+              Report
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="postHead">
         <div className="avatar small" style={avatarStyle} />
@@ -164,7 +218,7 @@ export const PostCard = memo(function PostCard(props: Props) {
                       style={{ ["--brand-hue" as any]: postNetworkHue }}
                       aria-hidden="true"
                     >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={20} />
+                      <ChainLogo chainId={postNetworkChainIdNum} size={24} />
                     </span>
                   </a>
                 ) : (
@@ -178,10 +232,24 @@ export const PostCard = memo(function PostCard(props: Props) {
                       style={{ ["--brand-hue" as any]: postNetworkHue }}
                       aria-hidden="true"
                     >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={20} />
+                      <ChainLogo chainId={postNetworkChainIdNum} size={24} />
                     </span>
                   </span>
                 )
+              ) : null}
+              {!props.isEditing ? (
+                <span className="postTokenActions">
+                  <button
+                    className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
+                    type="button"
+                    onClick={() => setIsReportOpen(true)}
+                    aria-label="Report post"
+                    title="Report"
+                    disabled={requiresNetworkSwitch}
+                  >
+                    <IconFlag size={16} />
+                  </button>
+                </span>
               ) : null}
               {(props.isMine || props.canModerate) && !props.isEditing ? (
                 <span className="postTokenActions">
@@ -248,7 +316,16 @@ export const PostCard = memo(function PostCard(props: Props) {
           onTogglePanel={onTogglePanel}
           onAction={props.onAction}
           onTip={props.onTip}
+          onReply={props.onReply}
+          onEditComment={props.onEditComment}
+          onDeleteComment={props.onDeleteComment}
+          onToggleCommentLike={props.onToggleCommentLike}
+          onToggleCommentSave={props.onToggleCommentSave}
+          onTipComment={props.onTipComment}
+          onReportPost={props.onReportPost}
+          onReportComment={props.onReportComment}
           avatarStyle={avatarStyle}
+          canModerateComments={props.isMine || props.canModerate}
           shortAddress={props.shortAddress}
           stableHueFromSeed={props.stableHueFromSeed}
           getExplorerTxUrl={props.getExplorerTxUrl}

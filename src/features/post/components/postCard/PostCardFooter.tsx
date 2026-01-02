@@ -29,8 +29,17 @@ export type PostCardFooterProps = {
     comment?: string
   ) => Promise<boolean>;
   onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
+  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
+  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
+  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
 
   avatarStyle?: CSSProperties;
+  canModerateComments?: boolean;
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
   getNativeSymbol: (chainId: string | null) => string;
@@ -201,12 +210,22 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
           walletAddress={props.walletAddress}
           useCardWrapper={false}
           allowCommenting={!props.requiresNetworkSwitch}
+          canModerateComments={props.canModerateComments}
           comments={comments}
           isLoadingComments={isLoadingComments}
           onAction={props.onAction}
+          onReply={props.onReply}
+          onEditComment={props.onEditComment}
+          onDeleteComment={props.onDeleteComment}
+          onToggleCommentLike={props.onToggleCommentLike}
+          onToggleCommentSave={props.onToggleCommentSave}
+          onTipComment={props.onTipComment}
+          onReportPost={props.onReportPost}
+          onReportComment={props.onReportComment}
           shortAddress={props.shortAddress}
           stableHueFromSeed={props.stableHueFromSeed}
           getExplorerTxUrl={props.getExplorerTxUrl}
+          getNativeSymbol={props.getNativeSymbol}
         />
       </Modal>
     </div>

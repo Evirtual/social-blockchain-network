@@ -74,12 +74,22 @@ export function PostPage(props: Props) {
             postChainId={props.postChainId}
             chainId={props.chainId}
             walletAddress={props.walletAddress}
+            canModerateComments={props.isOwner}
             comments={props.comments}
             isLoadingComments={props.isLoadingComments}
             onAction={props.postActions.onAction}
+            onReply={props.postActions.replyToComment}
+            onEditComment={props.postActions.editComment}
+            onDeleteComment={props.postActions.deleteComment}
+            onToggleCommentLike={props.postActions.toggleCommentLike}
+            onToggleCommentSave={props.postActions.toggleCommentSave}
+            onTipComment={props.postActions.tipComment}
+            onReportPost={props.postActions.reportPost}
+            onReportComment={props.postActions.reportComment}
             shortAddress={props.shortAddress}
             stableHueFromSeed={props.stableHueFromSeed}
             getExplorerTxUrl={props.getExplorerTxUrl}
+            getNativeSymbol={props.getNativeSymbol}
           />
         </div>
       </div>

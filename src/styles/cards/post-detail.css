@@ -105,8 +105,8 @@
 }
 
 .postNetworkMarkLink .chainBrandMark {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .badge.networkBadge.isCurrentNetwork {
@@ -196,6 +196,11 @@
 
 .postFooter.afterMedia {
   border-top: 0;
+}
+
+.postFooterForm {
+  width: 100%;
+  padding: 0 0.5rem 0.5rem;
 }
 
 .postStats {

@@ -24,6 +24,11 @@ dataSources:
         - LikeEdge
         - SaveEdge
         - Comment
+        - CommentLikeEdge
+        - CommentSaveEdge
+        - CommentTip
+        - PostReport
+        - CommentReport
         - Tip
         - Withdrawal
       abis:
@@ -46,6 +51,8 @@ dataSources:
           handler: handlePostUpdated
         - event: PostUpdatedByAdmin(indexed address,indexed address,indexed uint256,string,string,string)
           handler: handlePostUpdatedByAdmin
+        - event: PostEditedStatus(indexed address,indexed uint256,bool)
+          handler: handlePostEditedStatus
         - event: PostBurned(indexed address,indexed uint256)
           handler: handlePostBurned
         - event: PostBurnedByAdmin(indexed address,indexed address,indexed uint256)
@@ -60,10 +67,28 @@ dataSources:
           handler: handlePostSaved
         - event: PostUnsaved(indexed address,indexed uint256)
           handler: handlePostUnsaved
-        - event: PostCommented(indexed address,indexed uint256,string)
-          handler: handlePostCommented
+        - event: CommentAdded(indexed address,indexed uint256,indexed uint256,uint256,string)
+          handler: handleCommentAdded
+        - event: CommentEdited(indexed address,indexed uint256,indexed uint256,string)
+          handler: handleCommentEdited
+        - event: CommentDeleted(indexed address,indexed uint256,indexed uint256)
+          handler: handleCommentDeleted
+        - event: CommentLiked(indexed address,indexed uint256,indexed uint256)
+          handler: handleCommentLiked
+        - event: CommentUnliked(indexed address,indexed uint256,indexed uint256)
+          handler: handleCommentUnliked
+        - event: CommentSaved(indexed address,indexed uint256,indexed uint256)
+          handler: handleCommentSaved
+        - event: CommentUnsaved(indexed address,indexed uint256,indexed uint256)
+          handler: handleCommentUnsaved
+        - event: CommentTipped(indexed address,indexed address,indexed uint256,uint256,uint256)
+          handler: handleCommentTipped
         - event: PostTipped(indexed address,indexed address,indexed uint256,uint256)
           handler: handlePostTipped
+        - event: PostReported(indexed address,indexed uint256,string)
+          handler: handlePostReported
+        - event: CommentReported(indexed address,indexed uint256,indexed uint256,string)
+          handler: handleCommentReported
         - event: TipsWithdrawn(indexed address,uint256)
           handler: handleTipsWithdrawn
         - event: Followed(indexed address,indexed address)

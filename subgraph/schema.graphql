@@ -17,6 +17,8 @@ type Post @entity(immutable: false) {
   tipsWei: BigInt!
 
   frozenAtBlock: BigInt
+  edited: Boolean!
+  editedAtBlock: BigInt
 
   burnedAtBlock: BigInt
   updatedAtBlock: BigInt
@@ -39,6 +41,8 @@ type Account @entity(immutable: false) {
   likedCount: BigInt!
   savedCount: BigInt!
   commentsCount: BigInt!
+  commentLikesCount: BigInt!
+  commentSavesCount: BigInt!
 
   # Best-effort indexed value (authoritative value is still from contract when connected).
   withdrawableWeiIndexed: BigInt!
@@ -60,6 +64,11 @@ type GlobalStats @entity(immutable: false) {
   totalComments: BigInt!
   totalSaves: BigInt!
   totalTipsWei: BigInt!
+  totalCommentLikes: BigInt!
+  totalCommentSaves: BigInt!
+  totalCommentTipsWei: BigInt!
+  totalPostReports: BigInt!
+  totalCommentReports: BigInt!
 }
 
 type FollowEdge @entity(immutable: false) {
@@ -95,16 +104,25 @@ type SaveEdge @entity(immutable: false) {
   updatedAtBlock: BigInt!
 }
 
-type Comment @entity(immutable: true) {
+type Comment @entity(immutable: false) {
   id: ID!
 
+  commentId: String!
   tokenId: String!
-  commenter: Account!
+  author: Account!
+  parentId: String
   comment: String!
+  deleted: Boolean!
+  edited: Boolean!
+  likeCount: BigInt!
+  saveCount: BigInt!
+  tipWei: BigInt!
 
-  txHash: Bytes!
-  blockNumber: BigInt!
-  timestamp: BigInt!
+  createdTxHash: Bytes!
+  createdAtBlock: BigInt!
+  createdAtTimestamp: BigInt!
+  updatedAtBlock: BigInt
+  updatedAtTimestamp: BigInt
 }
 
 type Tip @entity(immutable: true) {
@@ -114,6 +132,67 @@ type Tip @entity(immutable: true) {
   tipper: Account!
   author: Account!
   amountWei: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type CommentLikeEdge @entity(immutable: false) {
+  id: ID!
+
+  commentId: String!
+  account: Account!
+  active: Boolean!
+
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+}
+
+type CommentSaveEdge @entity(immutable: false) {
+  id: ID!
+
+  commentId: String!
+  account: Account!
+  active: Boolean!
+
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+}
+
+type CommentTip @entity(immutable: true) {
+  id: ID!
+
+  tokenId: String!
+  commentId: String!
+  tipper: Account!
+  author: Account!
+  amountWei: BigInt!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type PostReport @entity(immutable: true) {
+  id: ID!
+
+  tokenId: String!
+  reporter: Account!
+  reason: String!
+
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type CommentReport @entity(immutable: true) {
+  id: ID!
+
+  tokenId: String!
+  commentId: String!
+  reporter: Account!
+  reason: String!
 
   txHash: Bytes!
   blockNumber: BigInt!

@@ -14,11 +14,23 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     uint256 public constant MAX_COMMENT_LENGTH = 280;
     uint256 public constant MAX_POST_TITLE_LENGTH = 64;
     uint256 public constant MAX_POST_BODY_LENGTH = 280;
+    uint256 public constant MAX_REPORT_LENGTH = 280;
 
     struct Profile {
         string name;
         string bio;
         string avatar;
+    }
+
+    struct Comment {
+        address author;
+        uint256 tokenId;
+        uint256 parentId;
+        bool deleted;
+        bool edited;
+        uint256 likeCount;
+        uint256 saveCount;
+        uint256 tipWei;
     }
 
     mapping(address => Profile) private _profiles;
@@ -38,6 +50,12 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     mapping(address => mapping(address => bool)) private _isFollowing;
 
     mapping(uint256 => bool) private _postFrozen;
+    mapping(uint256 => bool) private _postEdited;
+
+    uint256 private _nextCommentId;
+    mapping(uint256 => Comment) private _commentById;
+    mapping(uint256 => mapping(address => bool)) private _hasCommentLiked;
+    mapping(uint256 => mapping(address => bool)) private _hasCommentSaved;
 
     mapping(address => bool) private _posterAllowed;
 
@@ -61,6 +79,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
     event TipsWithdrawn(address indexed author, uint256 amountWei);
     event PostUpdated(address indexed author, uint256 indexed tokenId, string title, string body, string tokenURI);
+    event PostEditedStatus(address indexed author, uint256 indexed tokenId, bool edited);
     event PostUpdatedByAdmin(
         address indexed admin,
         address indexed author,
@@ -72,9 +91,32 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event PostBurned(address indexed author, uint256 indexed tokenId);
     event PostBurnedByAdmin(address indexed admin, address indexed author, uint256 indexed tokenId);
     event PostFrozen(address indexed author, uint256 indexed tokenId);
+    event CommentAdded(
+        address indexed commenter,
+        uint256 indexed tokenId,
+        uint256 indexed commentId,
+        uint256 parentId,
+        string comment
+    );
+    event CommentEdited(address indexed editor, uint256 indexed tokenId, uint256 indexed commentId, string comment);
+    event CommentDeleted(address indexed deleter, uint256 indexed tokenId, uint256 indexed commentId);
+    event CommentLiked(address indexed liker, uint256 indexed tokenId, uint256 indexed commentId);
+    event CommentUnliked(address indexed unliker, uint256 indexed tokenId, uint256 indexed commentId);
+    event CommentSaved(address indexed saver, uint256 indexed tokenId, uint256 indexed commentId);
+    event CommentUnsaved(address indexed unsaver, uint256 indexed tokenId, uint256 indexed commentId);
+    event CommentTipped(
+        address indexed tipper,
+        address indexed author,
+        uint256 indexed tokenId,
+        uint256 commentId,
+        uint256 amountWei
+    );
+    event PostReported(address indexed reporter, uint256 indexed tokenId, string reason);
+    event CommentReported(address indexed reporter, uint256 indexed tokenId, uint256 indexed commentId, string reason);
 
     constructor() ERC721("Minted Social Posts", "MSP") Ownable(msg.sender) {
         _nextTokenId = 1;
+        _nextCommentId = 1;
         _posterAllowed[msg.sender] = true;
         emit PosterAllowed(msg.sender, true);
     }
@@ -176,6 +218,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
             delete _saves[tokenId];
             delete _tipsWei[tokenId];
             delete _postFrozen[tokenId];
+            delete _postEdited[tokenId];
 
             emit PostBurnedByAdmin(msg.sender, account, tokenId);
         }
@@ -224,7 +267,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
 
         _setTokenURI(tokenId, tokenUri);
+        _postEdited[tokenId] = true;
         emit PostUpdated(msg.sender, tokenId, title, body, tokenUri);
+        emit PostEditedStatus(msg.sender, tokenId, true);
     }
 
     function adminUpdatePostURI(
@@ -239,7 +284,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
 
         _setTokenURI(tokenId, tokenUri);
+        _postEdited[tokenId] = true;
         emit PostUpdatedByAdmin(msg.sender, author, tokenId, title, body, tokenUri);
+        emit PostEditedStatus(author, tokenId, true);
     }
 
     function freezePost(uint256 tokenId) external {
@@ -256,6 +303,11 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         return _postFrozen[tokenId];
     }
 
+    function isPostEdited(uint256 tokenId) external view returns (bool) {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        return _postEdited[tokenId];
+    }
+
     function burnPost(uint256 tokenId) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(_author[tokenId] == msg.sender, "Only author");
@@ -268,6 +320,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _saves[tokenId];
         delete _tipsWei[tokenId];
         delete _postFrozen[tokenId];
+        delete _postEdited[tokenId];
 
         emit PostBurned(msg.sender, tokenId);
     }
@@ -284,6 +337,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _saves[tokenId];
         delete _tipsWei[tokenId];
         delete _postFrozen[tokenId];
+        delete _postEdited[tokenId];
 
         emit PostBurnedByAdmin(msg.sender, author, tokenId);
     }
@@ -309,12 +363,93 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     }
 
     function commentPost(uint256 tokenId, string calldata comment) external {
-        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        _createComment(tokenId, 0, comment);
+    }
+
+    function replyToComment(uint256 tokenId, uint256 parentCommentId, string calldata comment) external {
+        _createComment(tokenId, parentCommentId, comment);
+    }
+
+    function editComment(uint256 tokenId, uint256 commentId, string calldata comment) external {
+        Comment storage c = _commentById[commentId];
+        require(c.author != address(0), "Comment does not exist");
+        require(c.tokenId == tokenId, "Comment does not exist");
+        require(!c.deleted, "Comment deleted");
+        require(c.author == msg.sender, "Only comment author");
         require(bytes(comment).length > 0, "Empty comment");
         require(bytes(comment).length <= MAX_COMMENT_LENGTH, "Comment too long");
 
-        _comments[tokenId] += 1;
-        emit PostCommented(msg.sender, tokenId, comment);
+        c.edited = true;
+        emit CommentEdited(msg.sender, tokenId, commentId, comment);
+    }
+
+    function deleteComment(uint256 tokenId, uint256 commentId) external {
+        Comment storage c = _commentById[commentId];
+        require(c.author != address(0), "Comment does not exist");
+        require(c.tokenId == tokenId, "Comment does not exist");
+        require(!c.deleted, "Comment deleted");
+        require(
+            c.author == msg.sender || _author[tokenId] == msg.sender || msg.sender == owner(),
+            "Not authorized"
+        );
+
+        c.deleted = true;
+        if (_comments[tokenId] > 0) {
+            _comments[tokenId] -= 1;
+        }
+        emit CommentDeleted(msg.sender, tokenId, commentId);
+    }
+
+    function likeComment(uint256 tokenId, uint256 commentId) external {
+        _requireCommentActive(tokenId, commentId);
+        require(!_hasCommentLiked[commentId][msg.sender], "Already liked");
+
+        _hasCommentLiked[commentId][msg.sender] = true;
+        _commentById[commentId].likeCount += 1;
+
+        emit CommentLiked(msg.sender, tokenId, commentId);
+    }
+
+    function unlikeComment(uint256 tokenId, uint256 commentId) external {
+        _requireCommentActive(tokenId, commentId);
+        require(_hasCommentLiked[commentId][msg.sender], "Not liked");
+
+        _hasCommentLiked[commentId][msg.sender] = false;
+        _commentById[commentId].likeCount -= 1;
+
+        emit CommentUnliked(msg.sender, tokenId, commentId);
+    }
+
+    function saveComment(uint256 tokenId, uint256 commentId) external {
+        _requireCommentActive(tokenId, commentId);
+        require(!_hasCommentSaved[commentId][msg.sender], "Already saved");
+
+        _hasCommentSaved[commentId][msg.sender] = true;
+        _commentById[commentId].saveCount += 1;
+
+        emit CommentSaved(msg.sender, tokenId, commentId);
+    }
+
+    function unsaveComment(uint256 tokenId, uint256 commentId) external {
+        _requireCommentActive(tokenId, commentId);
+        require(_hasCommentSaved[commentId][msg.sender], "Not saved");
+
+        _hasCommentSaved[commentId][msg.sender] = false;
+        _commentById[commentId].saveCount -= 1;
+
+        emit CommentUnsaved(msg.sender, tokenId, commentId);
+    }
+
+    function tipComment(uint256 tokenId, uint256 commentId) external payable {
+        _requireCommentActive(tokenId, commentId);
+        require(msg.value > 0, "No tip sent");
+
+        address author = _commentById[commentId].author;
+
+        _commentById[commentId].tipWei += msg.value;
+        _withdrawableWei[author] += msg.value;
+
+        emit CommentTipped(msg.sender, author, tokenId, commentId, msg.value);
     }
 
     function savePost(uint256 tokenId) external {
@@ -414,5 +549,111 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     function hasSaved(uint256 tokenId, address account) external view returns (bool) {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         return _hasSaved[tokenId][account];
+    }
+
+    function commentInfo(
+        uint256 commentId
+    )
+        external
+        view
+        returns (
+            address author,
+            uint256 tokenId,
+            uint256 parentId,
+            bool deleted,
+            bool edited,
+            uint256 likeCount,
+            uint256 saveCount,
+            uint256 tipWei
+        )
+    {
+        Comment storage c = _commentById[commentId];
+        require(c.author != address(0), "Comment does not exist");
+        return (c.author, c.tokenId, c.parentId, c.deleted, c.edited, c.likeCount, c.saveCount, c.tipWei);
+    }
+
+    function commentLikesOf(uint256 tokenId, uint256 commentId) external view returns (uint256) {
+        _requireCommentExists(tokenId, commentId);
+        return _commentById[commentId].likeCount;
+    }
+
+    function commentSavesOf(uint256 tokenId, uint256 commentId) external view returns (uint256) {
+        _requireCommentExists(tokenId, commentId);
+        return _commentById[commentId].saveCount;
+    }
+
+    function commentTipsOf(uint256 tokenId, uint256 commentId) external view returns (uint256) {
+        _requireCommentExists(tokenId, commentId);
+        return _commentById[commentId].tipWei;
+    }
+
+    function hasLikedComment(uint256 tokenId, uint256 commentId, address account) external view returns (bool) {
+        _requireCommentExists(tokenId, commentId);
+        return _hasCommentLiked[commentId][account];
+    }
+
+    function hasSavedComment(uint256 tokenId, uint256 commentId, address account) external view returns (bool) {
+        _requireCommentExists(tokenId, commentId);
+        return _hasCommentSaved[commentId][account];
+    }
+
+    function reportPost(uint256 tokenId, string calldata reason) external {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(bytes(reason).length > 0, "Empty report");
+        require(bytes(reason).length <= MAX_REPORT_LENGTH, "Report too long");
+
+        emit PostReported(msg.sender, tokenId, reason);
+    }
+
+    function reportComment(uint256 tokenId, uint256 commentId, string calldata reason) external {
+        _requireCommentActive(tokenId, commentId);
+        require(bytes(reason).length > 0, "Empty report");
+        require(bytes(reason).length <= MAX_REPORT_LENGTH, "Report too long");
+
+        emit CommentReported(msg.sender, tokenId, commentId, reason);
+    }
+
+    function _createComment(uint256 tokenId, uint256 parentCommentId, string calldata comment) internal returns (uint256) {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(bytes(comment).length > 0, "Empty comment");
+        require(bytes(comment).length <= MAX_COMMENT_LENGTH, "Comment too long");
+
+        if (parentCommentId != 0) {
+            Comment storage parent = _commentById[parentCommentId];
+            require(parent.author != address(0), "Parent comment missing");
+            require(parent.tokenId == tokenId, "Parent comment mismatch");
+            require(!parent.deleted, "Parent comment deleted");
+        }
+
+        uint256 commentId = _nextCommentId;
+        _nextCommentId += 1;
+
+        _commentById[commentId] = Comment({
+            author: msg.sender,
+            tokenId: tokenId,
+            parentId: parentCommentId,
+            deleted: false,
+            edited: false,
+            likeCount: 0,
+            saveCount: 0,
+            tipWei: 0
+        });
+
+        _comments[tokenId] += 1;
+        emit PostCommented(msg.sender, tokenId, comment);
+        emit CommentAdded(msg.sender, tokenId, commentId, parentCommentId, comment);
+
+        return commentId;
+    }
+
+    function _requireCommentExists(uint256 tokenId, uint256 commentId) internal view {
+        Comment storage c = _commentById[commentId];
+        require(c.author != address(0), "Comment does not exist");
+        require(c.tokenId == tokenId, "Comment does not exist");
+    }
+
+    function _requireCommentActive(uint256 tokenId, uint256 commentId) internal view {
+        _requireCommentExists(tokenId, commentId);
+        require(!_commentById[commentId].deleted, "Comment deleted");
     }
 }

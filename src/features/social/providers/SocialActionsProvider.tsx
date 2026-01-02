@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { hasPinata } from "@features/ipfs";
 import { useBestEffortUnpinCidsSafe } from "../hooks/useBestEffortUnpinCidsSafe";
+import { useCommentActions } from "../hooks/useCommentActions";
 import { useEditPostFlow } from "../hooks/useEditPostFlow";
 import { useEnsureMatchingNetwork } from "../hooks/useEnsureMatchingNetwork";
 import { usePostEngagement } from "../hooks/usePostEngagement";
@@ -83,6 +84,21 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     ensureMatchingNetwork
   });
 
+  const commentActions = useCommentActions({
+    walletAddress,
+    chainId,
+    getWriteContract,
+    runContractTx,
+    feed: {
+      posts: feedState.posts,
+      setPosts: feedActions.setPosts,
+      setPostComments: feedActions.setPostComments,
+      loadCommentsForPost: feedActions.loadCommentsForPost
+    },
+    setStatus,
+    ensureMatchingNetwork
+  });
+
   const tips = usePostTips({
     walletAddress,
     refreshWalletPanel,
@@ -111,6 +127,14 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       freezePost: moderation.freezePost,
       handleAction: engagement.handleAction,
       handleTip: tips.handleTip,
+      replyToComment: commentActions.replyToComment,
+      editComment: commentActions.editComment,
+      deleteComment: commentActions.deleteComment,
+      toggleCommentLike: commentActions.toggleLike,
+      toggleCommentSave: commentActions.toggleSave,
+      tipComment: commentActions.tipComment,
+      reportPost: commentActions.reportPost,
+      reportComment: commentActions.reportComment,
       withdrawTips: tips.withdrawTips
     }),
     [
@@ -128,6 +152,14 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
       moderation.freezePost,
       engagement.handleAction,
       tips.handleTip,
+      commentActions.replyToComment,
+      commentActions.editComment,
+      commentActions.deleteComment,
+      commentActions.toggleLike,
+      commentActions.toggleSave,
+      commentActions.tipComment,
+      commentActions.reportPost,
+      commentActions.reportComment,
       tips.withdrawTips
     ]
   );

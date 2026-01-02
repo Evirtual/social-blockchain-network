@@ -70,6 +70,7 @@ describe("SocialPosts", () => {
     const { contract, author, other } = await deploy();
 
     await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    expect(await contract.isPostEdited(1n)).to.equal(false);
 
     await expect(contract.connect(other).updatePostURI(1n, "ipfs://hacked", "Hacked", "Hacked body")).to.be.revertedWith(
       "Only author"
@@ -80,6 +81,7 @@ describe("SocialPosts", () => {
       "PostUpdated"
     );
     expect(await contract.tokenURI(1n)).to.equal("ipfs://updated");
+    expect(await contract.isPostEdited(1n)).to.equal(true);
 
     await expect(contract.connect(other).freezePost(1n)).to.be.revertedWith("Only author");
 
@@ -262,8 +264,90 @@ describe("SocialPosts", () => {
     await expect(contract.connect(other).commentPost(1n, "")).to.be.revertedWith("Empty comment");
     await expect(contract.connect(other).commentPost(1n, "c".repeat(281))).to.be.revertedWith("Comment too long");
 
-    await expect(contract.connect(other).commentPost(1n, "Hi")).to.emit(contract, "PostCommented");
+    await expect(contract.connect(other).commentPost(1n, "Hi"))
+      .to.emit(contract, "CommentAdded")
+      .withArgs(other.address, 1n, 1n, 0n, "Hi");
     expect(await contract.commentsOf(1n)).to.equal(1n);
+    const info = await contract.commentInfo(1n);
+    expect(info[0]).to.equal(other.address);
+    expect(info[1]).to.equal(1n);
+    expect(info[2]).to.equal(0n);
+    expect(info[3]).to.equal(false);
+    expect(info[4]).to.equal(false);
+  });
+
+  it("supports replies, edits, and deletes for comments", async () => {
+    const { contract, author, other, tipper } = await deploy();
+
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    await contract.connect(other).commentPost(1n, "Top level");
+
+    await expect(contract.connect(tipper).replyToComment(1n, 999n, "Nope")).to.be.revertedWith("Parent comment missing");
+    await expect(contract.connect(other).replyToComment(1n, 1n, "Reply"))
+      .to.emit(contract, "CommentAdded")
+      .withArgs(other.address, 1n, 2n, 1n, "Reply");
+    expect(await contract.commentsOf(1n)).to.equal(2n);
+
+    await expect(contract.connect(tipper).editComment(1n, 1n, "Edit")).to.be.revertedWith("Only comment author");
+    await expect(contract.connect(other).editComment(1n, 1n, "")).to.be.revertedWith("Empty comment");
+    await expect(contract.connect(other).editComment(1n, 1n, "Edited"))
+      .to.emit(contract, "CommentEdited")
+      .withArgs(other.address, 1n, 1n, "Edited");
+    expect((await contract.commentInfo(1n))[4]).to.equal(true);
+
+    await expect(contract.connect(tipper).deleteComment(1n, 1n)).to.be.revertedWith("Not authorized");
+    await expect(contract.connect(author).deleteComment(1n, 1n))
+      .to.emit(contract, "CommentDeleted")
+      .withArgs(author.address, 1n, 1n);
+    expect((await contract.commentInfo(1n))[3]).to.equal(true);
+    expect(await contract.commentsOf(1n)).to.equal(1n);
+
+    await expect(contract.connect(other).editComment(1n, 1n, "Nope")).to.be.revertedWith("Comment deleted");
+  });
+
+  it("tracks comment likes, saves, and tips", async () => {
+    const { contract, author, other, tipper } = await deploy();
+
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    await contract.connect(other).commentPost(1n, "Comment");
+
+    await expect(contract.connect(tipper).likeComment(1n, 1n)).to.emit(contract, "CommentLiked");
+    expect(await contract.commentLikesOf(1n, 1n)).to.equal(1n);
+    expect(await contract.hasLikedComment(1n, 1n, tipper.address)).to.equal(true);
+
+    await expect(contract.connect(tipper).likeComment(1n, 1n)).to.be.revertedWith("Already liked");
+
+    await expect(contract.connect(tipper).unlikeComment(1n, 1n)).to.emit(contract, "CommentUnliked");
+    expect(await contract.commentLikesOf(1n, 1n)).to.equal(0n);
+    expect(await contract.hasLikedComment(1n, 1n, tipper.address)).to.equal(false);
+
+    await expect(contract.connect(tipper).saveComment(1n, 1n)).to.emit(contract, "CommentSaved");
+    expect(await contract.commentSavesOf(1n, 1n)).to.equal(1n);
+    expect(await contract.hasSavedComment(1n, 1n, tipper.address)).to.equal(true);
+
+    await expect(contract.connect(tipper).unsaveComment(1n, 1n)).to.emit(contract, "CommentUnsaved");
+    expect(await contract.commentSavesOf(1n, 1n)).to.equal(0n);
+    expect(await contract.hasSavedComment(1n, 1n, tipper.address)).to.equal(false);
+
+    const tipAmount = 99n;
+    await expect(contract.connect(tipper).tipComment(1n, 1n, { value: tipAmount }))
+      .to.emit(contract, "CommentTipped")
+      .withArgs(tipper.address, other.address, 1n, 1n, tipAmount);
+    expect(await contract.commentTipsOf(1n, 1n)).to.equal(tipAmount);
+    expect(await contract.withdrawableOf(other.address)).to.equal(tipAmount);
+  });
+
+  it("emits report events for posts and comments", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    await contract.connect(other).commentPost(1n, "Hi");
+
+    await expect(contract.connect(other).reportPost(1n, "")).to.be.revertedWith("Empty report");
+    await expect(contract.connect(other).reportPost(1n, "Spam")).to.emit(contract, "PostReported");
+
+    await expect(contract.connect(other).reportComment(1n, 1n, "")).to.be.revertedWith("Empty report");
+    await expect(contract.connect(other).reportComment(1n, 1n, "Abuse")).to.emit(contract, "CommentReported");
   });
 
   it("save/unsave is single-toggle per account", async () => {
@@ -326,6 +410,7 @@ describe("SocialPosts", () => {
     await expect(contract.updatePostURI(999n, "ipfs://x", "X", "Body X")).to.be.revertedWith("Post does not exist");
     await expect(contract.freezePost(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.isPostFrozen(999n)).to.be.revertedWith("Post does not exist");
+    await expect(contract.isPostEdited(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.burnPost(999n)).to.be.revertedWith("Post does not exist");
 
     await expect(contract.likesOf(999n)).to.be.revertedWith("Post does not exist");
@@ -341,6 +426,12 @@ describe("SocialPosts", () => {
     await expect(contract.connect(other).unsavePost(999n)).to.be.revertedWith("Post does not exist");
     await expect(contract.connect(other).commentPost(999n, "Hi")).to.be.revertedWith("Post does not exist");
     await expect(contract.connect(other).tipPost(999n, { value: 1n })).to.be.revertedWith("Post does not exist");
+
+    await expect(contract.commentInfo(999n)).to.be.revertedWith("Comment does not exist");
+    await expect(contract.connect(other).likeComment(1n, 999n)).to.be.revertedWith("Comment does not exist");
+    await expect(contract.connect(other).saveComment(1n, 999n)).to.be.revertedWith("Comment does not exist");
+    await expect(contract.connect(other).tipComment(1n, 999n, { value: 1n })).to.be.revertedWith("Comment does not exist");
+    await expect(contract.connect(other).reportComment(1n, 999n, "Nope")).to.be.revertedWith("Comment does not exist");
   });
 
   it("withdrawTips reverts when recipient rejects ETH (no state loss)", async () => {

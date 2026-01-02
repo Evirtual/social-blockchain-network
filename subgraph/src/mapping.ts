@@ -12,7 +12,7 @@ import {
   PostUnliked,
   PostSaved,
   PostUnsaved,
-  PostCommented,
+  PostEditedStatus,
   PostTipped,
   PosterAllowed,
   PosterApprovalRequested,
@@ -20,15 +20,30 @@ import {
   ProfileModerated,
   ProfileUpdated,
   TipsWithdrawn,
-  Unfollowed
+  Unfollowed,
+  CommentAdded,
+  CommentEdited,
+  CommentDeleted,
+  CommentLiked,
+  CommentUnliked,
+  CommentSaved,
+  CommentUnsaved,
+  CommentTipped,
+  PostReported,
+  CommentReported
 } from "../generated/SocialPosts/SocialPosts";
 
 import {
   Account,
   Comment,
+  CommentLikeEdge,
+  CommentSaveEdge,
+  CommentTip,
+  CommentReport,
   FollowEdge,
   LikeEdge,
   Post,
+  PostReport,
   SaveEdge,
   Tip,
   Withdrawal,
@@ -48,6 +63,11 @@ function getOrCreateGlobalStats(): GlobalStats {
     s.totalComments = BigInt.zero();
     s.totalSaves = BigInt.zero();
     s.totalTipsWei = BigInt.zero();
+    s.totalCommentLikes = BigInt.zero();
+    s.totalCommentSaves = BigInt.zero();
+    s.totalCommentTipsWei = BigInt.zero();
+    s.totalPostReports = BigInt.zero();
+    s.totalCommentReports = BigInt.zero();
   }
   return s as GlobalStats;
 }
@@ -71,6 +91,8 @@ function getOrCreateAccount(address: Address, blockNumber: BigInt, timestamp: Bi
     a.likedCount = BigInt.zero();
     a.savedCount = BigInt.zero();
     a.commentsCount = BigInt.zero();
+    a.commentLikesCount = BigInt.zero();
+    a.commentSavesCount = BigInt.zero();
 
     a.withdrawableWeiIndexed = BigInt.zero();
 
@@ -104,6 +126,8 @@ function getOrCreatePost(tokenId: BigInt): Post {
     p.saves = BigInt.zero();
     p.tipsWei = BigInt.zero();
     p.frozenAtBlock = null;
+    p.edited = false;
+    p.editedAtBlock = null;
     p.burnedAtBlock = null;
     p.updatedAtBlock = null;
     p.author = null;
@@ -114,6 +138,10 @@ function getOrCreatePost(tokenId: BigInt): Post {
 
 function getEdgeId(tokenId: BigInt, account: Address): string {
   return tokenId.toString() + "-" + account.toHexString();
+}
+
+function getCommentEdgeId(commentId: BigInt, account: Address): string {
+  return commentId.toString() + "-" + account.toHexString();
 }
 
 function getFollowEdgeId(follower: Address, followee: Address): string {
@@ -329,6 +357,8 @@ export function handlePostMinted(event: PostMinted): void {
   p.mintBlockNumber = event.block.number;
   p.mintTimestamp = event.block.timestamp;
   p.burnedAtBlock = null;
+  p.edited = false;
+  p.editedAtBlock = null;
   p.updatedAtBlock = event.block.number;
 
   author.postedCount = author.postedCount.plus(BigInt.fromI32(1));
@@ -371,6 +401,17 @@ export function handlePostUpdatedByAdmin(event: PostUpdatedByAdmin): void {
   if (p.title.length == 0 || p.body.length == 0) {
     applyMetadataFromTokenURI(p, p.tokenURI);
   }
+  p.updatedAtBlock = event.block.number;
+
+  p.save();
+}
+
+export function handlePostEditedStatus(event: PostEditedStatus): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+
+  p.edited = event.params.edited;
+  p.editedAtBlock = event.params.edited ? event.block.number : null;
   p.updatedAtBlock = event.block.number;
 
   p.save();
@@ -576,24 +617,33 @@ export function handlePostUnsaved(event: PostUnsaved): void {
   p.save();
 }
 
-export function handlePostCommented(event: PostCommented): void {
+export function handleCommentAdded(event: CommentAdded): void {
   const tokenId = event.params.tokenId;
   const p = getOrCreatePost(tokenId);
 
-  const commenter = getOrCreateAccount(event.params.commenter, event.block.number, event.block.timestamp);
-  const commentId = getLogId(event.transaction.hash.toHexString(), event.logIndex);
+  const author = getOrCreateAccount(event.params.commenter, event.block.number, event.block.timestamp);
+  const commentId = event.params.commentId.toString();
   let c = Comment.load(commentId);
   if (c == null) {
     c = new Comment(commentId);
+    c.commentId = commentId;
     c.tokenId = tokenId.toString();
-    c.commenter = commenter.id;
+    c.author = author.id;
+    c.parentId = event.params.parentId.isZero() ? null : event.params.parentId.toString();
     c.comment = event.params.comment;
-    c.txHash = event.transaction.hash;
-    c.blockNumber = event.block.number;
-    c.timestamp = event.block.timestamp;
+    c.deleted = false;
+    c.edited = false;
+    c.likeCount = BigInt.zero();
+    c.saveCount = BigInt.zero();
+    c.tipWei = BigInt.zero();
+    c.createdTxHash = event.transaction.hash;
+    c.createdAtBlock = event.block.number;
+    c.createdAtTimestamp = event.block.timestamp;
+    c.updatedAtBlock = event.block.number;
+    c.updatedAtTimestamp = event.block.timestamp;
 
     p.comments = p.comments.plus(BigInt.fromI32(1));
-    commenter.commentsCount = commenter.commentsCount.plus(BigInt.fromI32(1));
+    author.commentsCount = author.commentsCount.plus(BigInt.fromI32(1));
     const stats = getOrCreateGlobalStats();
     stats.totalComments = stats.totalComments.plus(BigInt.fromI32(1));
     stats.save();
@@ -601,9 +651,309 @@ export function handlePostCommented(event: PostCommented): void {
 
   p.updatedAtBlock = event.block.number;
 
-  commenter.save();
+  author.save();
   c.save();
   p.save();
+}
+
+export function handleCommentEdited(event: CommentEdited): void {
+  const commentId = event.params.commentId.toString();
+  let c = Comment.load(commentId);
+  if (c == null) return;
+
+  c.comment = event.params.comment;
+  c.edited = true;
+  c.updatedAtBlock = event.block.number;
+  c.updatedAtTimestamp = event.block.timestamp;
+  c.save();
+
+  const p = getOrCreatePost(event.params.tokenId);
+  p.updatedAtBlock = event.block.number;
+  p.save();
+}
+
+export function handleCommentDeleted(event: CommentDeleted): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+  const commentId = event.params.commentId.toString();
+  let c = Comment.load(commentId);
+  if (c == null) return;
+
+  if (!c.deleted) {
+    c.deleted = true;
+    c.comment = "";
+    if (p.comments.gt(BigInt.zero())) {
+      p.comments = p.comments.minus(BigInt.fromI32(1));
+    }
+
+    const author = Account.load(c.author);
+    if (author != null && author.commentsCount.gt(BigInt.zero())) {
+      author.commentsCount = author.commentsCount.minus(BigInt.fromI32(1));
+      author.save();
+    }
+
+    const stats = getOrCreateGlobalStats();
+    if (stats.totalComments.gt(BigInt.zero())) {
+      stats.totalComments = stats.totalComments.minus(BigInt.fromI32(1));
+    }
+    stats.save();
+  }
+
+  c.updatedAtBlock = event.block.number;
+  c.updatedAtTimestamp = event.block.timestamp;
+  p.updatedAtBlock = event.block.number;
+
+  c.save();
+  p.save();
+}
+
+export function handleCommentLiked(event: CommentLiked): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+  const commentId = event.params.commentId;
+
+  const a = getOrCreateAccount(event.params.liker, event.block.number, event.block.timestamp);
+  const edgeId = getCommentEdgeId(commentId, event.params.liker);
+  let edge = CommentLikeEdge.load(edgeId);
+  if (edge == null) {
+    edge = new CommentLikeEdge(edgeId);
+    edge.commentId = commentId.toString();
+    edge.account = a.id;
+    edge.active = false;
+    edge.createdAtBlock = event.block.number;
+    edge.updatedAtBlock = event.block.number;
+  }
+
+  const c = Comment.load(commentId.toString());
+  if (c != null && !edge.active) {
+    edge.active = true;
+    c.likeCount = c.likeCount.plus(BigInt.fromI32(1));
+    a.commentLikesCount = a.commentLikesCount.plus(BigInt.fromI32(1));
+    const stats = getOrCreateGlobalStats();
+    stats.totalCommentLikes = stats.totalCommentLikes.plus(BigInt.fromI32(1));
+    stats.save();
+    c.save();
+  }
+
+  edge.updatedAtBlock = event.block.number;
+  p.updatedAtBlock = event.block.number;
+
+  a.save();
+  edge.save();
+  p.save();
+}
+
+export function handleCommentUnliked(event: CommentUnliked): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+  const commentId = event.params.commentId;
+
+  const a = getOrCreateAccount(event.params.unliker, event.block.number, event.block.timestamp);
+  const edgeId = getCommentEdgeId(commentId, event.params.unliker);
+  let edge = CommentLikeEdge.load(edgeId);
+  if (edge == null) {
+    edge = new CommentLikeEdge(edgeId);
+    edge.commentId = commentId.toString();
+    edge.account = a.id;
+    edge.active = false;
+    edge.createdAtBlock = event.block.number;
+    edge.updatedAtBlock = event.block.number;
+  }
+
+  const c = Comment.load(commentId.toString());
+  if (c != null && edge.active) {
+    edge.active = false;
+    if (c.likeCount.gt(BigInt.zero())) {
+      c.likeCount = c.likeCount.minus(BigInt.fromI32(1));
+    }
+    if (a.commentLikesCount.gt(BigInt.zero())) {
+      a.commentLikesCount = a.commentLikesCount.minus(BigInt.fromI32(1));
+    }
+    const stats = getOrCreateGlobalStats();
+    if (stats.totalCommentLikes.gt(BigInt.zero())) {
+      stats.totalCommentLikes = stats.totalCommentLikes.minus(BigInt.fromI32(1));
+    }
+    stats.save();
+    c.save();
+  }
+
+  edge.updatedAtBlock = event.block.number;
+  p.updatedAtBlock = event.block.number;
+
+  a.save();
+  edge.save();
+  p.save();
+}
+
+export function handleCommentSaved(event: CommentSaved): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+  const commentId = event.params.commentId;
+
+  const a = getOrCreateAccount(event.params.saver, event.block.number, event.block.timestamp);
+  const edgeId = getCommentEdgeId(commentId, event.params.saver);
+  let edge = CommentSaveEdge.load(edgeId);
+  if (edge == null) {
+    edge = new CommentSaveEdge(edgeId);
+    edge.commentId = commentId.toString();
+    edge.account = a.id;
+    edge.active = false;
+    edge.createdAtBlock = event.block.number;
+    edge.updatedAtBlock = event.block.number;
+  }
+
+  const c = Comment.load(commentId.toString());
+  if (c != null && !edge.active) {
+    edge.active = true;
+    c.saveCount = c.saveCount.plus(BigInt.fromI32(1));
+    a.commentSavesCount = a.commentSavesCount.plus(BigInt.fromI32(1));
+    const stats = getOrCreateGlobalStats();
+    stats.totalCommentSaves = stats.totalCommentSaves.plus(BigInt.fromI32(1));
+    stats.save();
+    c.save();
+  }
+
+  edge.updatedAtBlock = event.block.number;
+  p.updatedAtBlock = event.block.number;
+
+  a.save();
+  edge.save();
+  p.save();
+}
+
+export function handleCommentUnsaved(event: CommentUnsaved): void {
+  const tokenId = event.params.tokenId;
+  const p = getOrCreatePost(tokenId);
+  const commentId = event.params.commentId;
+
+  const a = getOrCreateAccount(event.params.unsaver, event.block.number, event.block.timestamp);
+  const edgeId = getCommentEdgeId(commentId, event.params.unsaver);
+  let edge = CommentSaveEdge.load(edgeId);
+  if (edge == null) {
+    edge = new CommentSaveEdge(edgeId);
+    edge.commentId = commentId.toString();
+    edge.account = a.id;
+    edge.active = false;
+    edge.createdAtBlock = event.block.number;
+    edge.updatedAtBlock = event.block.number;
+  }
+
+  const c = Comment.load(commentId.toString());
+  if (c != null && edge.active) {
+    edge.active = false;
+    if (c.saveCount.gt(BigInt.zero())) {
+      c.saveCount = c.saveCount.minus(BigInt.fromI32(1));
+    }
+    if (a.commentSavesCount.gt(BigInt.zero())) {
+      a.commentSavesCount = a.commentSavesCount.minus(BigInt.fromI32(1));
+    }
+    const stats = getOrCreateGlobalStats();
+    if (stats.totalCommentSaves.gt(BigInt.zero())) {
+      stats.totalCommentSaves = stats.totalCommentSaves.minus(BigInt.fromI32(1));
+    }
+    stats.save();
+    c.save();
+  }
+
+  edge.updatedAtBlock = event.block.number;
+  p.updatedAtBlock = event.block.number;
+
+  a.save();
+  edge.save();
+  p.save();
+}
+
+export function handleCommentTipped(event: CommentTipped): void {
+  const tokenId = event.params.tokenId;
+  const commentId = event.params.commentId;
+  const p = getOrCreatePost(tokenId);
+
+  const tipper = getOrCreateAccount(event.params.tipper, event.block.number, event.block.timestamp);
+  const author = getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp);
+
+  const tipId = getLogId(event.transaction.hash.toHexString(), event.logIndex);
+  let t = CommentTip.load(tipId);
+  if (t == null) {
+    t = new CommentTip(tipId);
+    t.tokenId = tokenId.toString();
+    t.commentId = commentId.toString();
+    t.tipper = tipper.id;
+    t.author = author.id;
+    t.amountWei = event.params.amountWei;
+    t.txHash = event.transaction.hash;
+    t.blockNumber = event.block.number;
+    t.timestamp = event.block.timestamp;
+
+    const c = Comment.load(commentId.toString());
+    if (c != null) {
+      c.tipWei = c.tipWei.plus(event.params.amountWei);
+      c.save();
+    }
+
+    author.withdrawableWeiIndexed = author.withdrawableWeiIndexed.plus(event.params.amountWei);
+    const stats = getOrCreateGlobalStats();
+    stats.totalCommentTipsWei = stats.totalCommentTipsWei.plus(event.params.amountWei);
+    stats.save();
+  }
+
+  p.updatedAtBlock = event.block.number;
+
+  tipper.save();
+  author.save();
+  t.save();
+  p.save();
+}
+
+export function handlePostReported(event: PostReported): void {
+  const tokenId = event.params.tokenId;
+  getOrCreatePost(tokenId);
+  const reporter = getOrCreateAccount(event.params.reporter, event.block.number, event.block.timestamp);
+
+  const reportId = getLogId(event.transaction.hash.toHexString(), event.logIndex);
+  let r = PostReport.load(reportId);
+  if (r == null) {
+    r = new PostReport(reportId);
+    r.tokenId = tokenId.toString();
+    r.reporter = reporter.id;
+    r.reason = event.params.reason;
+    r.txHash = event.transaction.hash;
+    r.blockNumber = event.block.number;
+    r.timestamp = event.block.timestamp;
+
+    const stats = getOrCreateGlobalStats();
+    stats.totalPostReports = stats.totalPostReports.plus(BigInt.fromI32(1));
+    stats.save();
+  }
+
+  reporter.save();
+  r.save();
+}
+
+export function handleCommentReported(event: CommentReported): void {
+  const tokenId = event.params.tokenId;
+  const commentId = event.params.commentId;
+  getOrCreatePost(tokenId);
+  const reporter = getOrCreateAccount(event.params.reporter, event.block.number, event.block.timestamp);
+
+  const reportId = getLogId(event.transaction.hash.toHexString(), event.logIndex);
+  let r = CommentReport.load(reportId);
+  if (r == null) {
+    r = new CommentReport(reportId);
+    r.tokenId = tokenId.toString();
+    r.commentId = commentId.toString();
+    r.reporter = reporter.id;
+    r.reason = event.params.reason;
+    r.txHash = event.transaction.hash;
+    r.blockNumber = event.block.number;
+    r.timestamp = event.block.timestamp;
+
+    const stats = getOrCreateGlobalStats();
+    stats.totalCommentReports = stats.totalCommentReports.plus(BigInt.fromI32(1));
+    stats.save();
+  }
+
+  reporter.save();
+  r.save();
 }
 
 export function handlePostTipped(event: PostTipped): void {

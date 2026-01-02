@@ -45,8 +45,18 @@ export type TokenMetadata = {
 };
 
 export type PostComment = {
-  commenter: string;
+  commentId: string;
+  tokenId: string;
+  author: string;
+  parentId?: string | null;
   comment: string;
+  deleted?: boolean;
+  edited?: boolean;
+  likeCount?: number;
+  saveCount?: number;
+  tipWei?: bigint;
+  likedByMe?: boolean;
+  savedByMe?: boolean;
   txHash?: string;
   blockNumber?: number;
   logIndex?: number;

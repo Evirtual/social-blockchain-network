@@ -63,9 +63,10 @@ export function parseFeedEventLogs(args: { readContract: any; rawLogs: any[] }) 
     if (
       name === "PostLiked" ||
       name === "PostUnliked" ||
-      name === "PostCommented" ||
       name === "PostSaved" ||
-      name === "PostUnsaved"
+      name === "PostUnsaved" ||
+      name === "CommentAdded" ||
+      name === "CommentDeleted"
     ) {
       const tokenIdBig = tokenIdAt(1);
       if (tokenIdBig) tokensNeedCountersRefresh.add(tokenIdBig.toString());

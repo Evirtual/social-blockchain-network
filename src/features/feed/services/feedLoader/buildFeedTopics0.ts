@@ -14,7 +14,8 @@ export function buildFeedTopics0(readContract: any): string[] {
         getEventTopic0(readContract.filters.PostBurnedByAdmin()),
         getEventTopic0(readContract.filters.PostLiked()),
         getEventTopic0(readContract.filters.PostUnliked()),
-        getEventTopic0(readContract.filters.PostCommented()),
+        getEventTopic0(readContract.filters.CommentAdded()),
+        getEventTopic0(readContract.filters.CommentDeleted()),
         getEventTopic0(readContract.filters.PostSaved()),
         getEventTopic0(readContract.filters.PostUnsaved()),
         getEventTopic0(readContract.filters.PostTipped())

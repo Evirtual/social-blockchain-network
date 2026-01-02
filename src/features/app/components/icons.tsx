@@ -147,6 +147,27 @@ export function IconCoin(props: IconProps) {
   );
 }
 
+export function IconFlag(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 22v-7" />
+      <path d="M4 15s2-1 4-1 4 2 6 2 4-1 6-2V4s-2 1-4 1-4-2-6-2-4 1-6 2v10z" />
+    </BaseIcon>
+  );
+}
+
+export function IconTrash(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </BaseIcon>
+  );
+}
+
 export function IconEye(props: IconProps) {
   return (
     <BaseIcon {...props}>

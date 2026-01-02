@@ -8,7 +8,6 @@ import { commentKey } from "./utils";
 import { getCommentsReadContext } from "./comments/getCommentsReadContext";
 import { computeCommentsFromBlock, findMintBlockHint } from "./comments/computeCommentsFromBlock";
 import { parseCommentLogs } from "./comments/parseCommentLogs";
-import { mergeComments } from "./comments/mergeComments";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -80,23 +79,34 @@ export function useFeedComments(params: {
           });
           if (fromBlock > latest) return;
 
-          const filter = readContract.filters.PostCommented(null, tokenIdBig);
-          const logs = await queryLogsPaged({
-            readContract,
-            filter,
-            fromBlock,
-            toBlock: latest,
-            label: `comments ${tokenId}`,
-            timeoutMs: 8_000,
-            initialChunkSize: 50_000,
-            minChunkSize: 250
-          });
+          const filters = [
+            { filter: readContract.filters.CommentAdded(null, tokenIdBig, null), label: "comment-added" },
+            { filter: readContract.filters.CommentEdited(null, tokenIdBig, null), label: "comment-edited" },
+            { filter: readContract.filters.CommentDeleted(null, tokenIdBig, null), label: "comment-deleted" },
+            { filter: readContract.filters.CommentLiked(null, tokenIdBig, null), label: "comment-liked" },
+            { filter: readContract.filters.CommentUnliked(null, tokenIdBig, null), label: "comment-unliked" },
+            { filter: readContract.filters.CommentSaved(null, tokenIdBig, null), label: "comment-saved" },
+            { filter: readContract.filters.CommentUnsaved(null, tokenIdBig, null), label: "comment-unsaved" },
+            { filter: readContract.filters.CommentTipped(null, null, tokenIdBig, null), label: "comment-tipped" }
+          ];
 
-          const parsedNew: PostComment[] = parseCommentLogs(logs);
-          setPostComments((prev) => {
-            const merged = mergeComments(prev[key] ?? [], parsedNew);
-            return { ...prev, [key]: merged };
-          });
+          const logBatches = await Promise.all(
+            filters.map(({ filter, label }) =>
+              queryLogsPaged({
+                readContract,
+                filter,
+                fromBlock,
+                toBlock: latest,
+                label: `${label} ${tokenId}`,
+                timeoutMs: 8_000,
+                initialChunkSize: 50_000,
+                minChunkSize: 250
+              })
+            )
+          );
+
+          const parsedNew: PostComment[] = parseCommentLogs(logBatches.flat());
+          setPostComments((prev) => ({ ...prev, [key]: parsedNew }));
         } catch (err) {
           setStatus(getErrorMessage(err));
         } finally {
