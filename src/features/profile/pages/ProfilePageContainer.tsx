@@ -63,6 +63,7 @@ export function ProfilePageContainer({ address }: Props) {
   } = useProfilePageHandlers({
     address,
     navigate,
+    setStatus,
     walletActions,
     profileActions,
     social,

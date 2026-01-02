@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { ipfsToHttp } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
@@ -225,7 +225,7 @@ export function useMintPostFlow(params: {
         txNotifications.notifyConfirmed(processingToastId);
       }
     } catch (error) {
-      setStatus(getErrorMessage(error as ErrorInput));
+      setStatusFromError(setStatus, error as ErrorInput);
     } finally {
       postingInFlightRef.current = false;
       setIsPosting(false);

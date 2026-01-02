@@ -100,3 +100,9 @@ export function getErrorMessage(error: ErrorInput) {
   }
   return combined;
 }
+
+export function setStatusFromError(setStatus: (value: string) => void, error: ErrorInput) {
+  const message = getErrorMessage(error);
+  setStatus(message);
+  return message;
+}

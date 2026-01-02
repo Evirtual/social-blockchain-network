@@ -1,11 +1,13 @@
 import { useCallback, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 
 export type AdminAction = "approve" | "disapprove" | "reset" | "save" | null;
 
 export function useProfilePageHandlers(args: {
   address: string;
   navigate: NavigateFunction;
+  setStatus: (value: string) => void;
   walletActions: { disconnectWallet: () => void };
   profileActions: { saveProfile: () => void };
   social: { withdrawTips: () => Promise<void> };
@@ -37,11 +39,15 @@ export function useProfilePageHandlers(args: {
   }, [args]);
 
   const onWithdrawTips = useCallback(async () => {
-    await args.social.withdrawTips();
     try {
-      await args.contractActions.refreshContractState();
-    } catch {
-      // ignore
+      await args.social.withdrawTips();
+      try {
+        await args.contractActions.refreshContractState();
+      } catch {
+        // ignore
+      }
+    } catch (error) {
+      setStatusFromError(args.setStatus, error as ErrorInput);
     }
   }, [args]);
 
@@ -50,6 +56,8 @@ export function useProfilePageHandlers(args: {
     setIsFollowSubmitting(true);
     try {
       await args.follow.toggleFollow(args.address);
+    } catch (error) {
+      setStatusFromError(args.setStatus, error as ErrorInput);
     } finally {
       setIsFollowSubmitting(false);
     }

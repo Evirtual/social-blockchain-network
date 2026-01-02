@@ -1,31 +1,8 @@
-import type { Post, PostComment } from "@types";
 import { Link, useLocation } from "react-router-dom";
 import { CommentsCard, PostFeedPanel } from "../components";
-import type { PostActionsController } from "@features/post";
+import type { PostPageViewModel } from "@features/post";
 
-type Props = {
-  isOwner: boolean;
-  tokenId: string;
-  postChainId: string | null;
-  post: Post | null;
-  isLoadingPost: boolean;
-  comments: PostComment[];
-  isLoadingComments: boolean;
-
-  posts: Post[];
-  chainId: string | null;
-  walletAddress: string | null;
-  authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-
-  postActions: PostActionsController;
-
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
-};
-
-export function PostPage(props: Props) {
+export function PostPage(props: PostPageViewModel) {
   const location = useLocation();
 
   const from = (location.state as { from?: string } | null)?.from;

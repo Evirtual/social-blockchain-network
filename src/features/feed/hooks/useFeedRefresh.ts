@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { refreshFeedFromNetworks } from "../services/feedRefresh";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
@@ -113,7 +113,7 @@ export function useFeedRefresh(params: {
           });
         } catch (err) {
           if (!isStale(refreshEpoch)) {
-            setStatus(getErrorMessage(err as ErrorInput));
+            setStatusFromError(setStatus, err as ErrorInput);
           }
           throw err;
         } finally {

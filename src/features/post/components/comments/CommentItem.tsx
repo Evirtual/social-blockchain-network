@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { PostComment } from "@types";
 import { Link } from "react-router-dom";
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@shared/components/icons";
-import { getStatButtonClass } from "../postCard/footer/getStatButtonClass";
+import { getStatButtonClass } from "../postCard/footer";
 import type { ActionInFlight, ActiveComposer } from "./types";
 import { CommentComposerPanels } from "./CommentComposerPanels";
 import { CommentHeader } from "./CommentHeader";

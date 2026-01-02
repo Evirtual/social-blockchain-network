@@ -1,4 +1,4 @@
-import type { Draft, Post } from "@types";
+import type { Draft, Post, PostComment } from "@types";
 
 export type PostActionsController = {
   editingTokenId: string | null;
@@ -42,4 +42,23 @@ export type PostFeedEntry = {
   canModerate: boolean;
   panelKey: string;
   compositeKey: string;
+};
+
+export type PostPageViewModel = {
+  isOwner: boolean;
+  tokenId: string;
+  postChainId: string | null;
+  post: Readonly<Post> | null;
+  isLoadingPost: boolean;
+  comments: ReadonlyArray<PostComment>;
+  isLoadingComments: boolean;
+  posts: ReadonlyArray<Post>;
+  chainId: string | null;
+  walletAddress: string | null;
+  authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
+  postActions: PostActionsController;
+  shortAddress: (address: string) => string;
+  stableHueFromSeed: (seed: string) => number;
+  getNativeSymbol: (chainId: string | null) => string;
+  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };

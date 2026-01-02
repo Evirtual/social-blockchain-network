@@ -14,7 +14,7 @@ type Props = {
   allowCommenting?: boolean;
   canModerateComments?: boolean;
 
-  comments: PostComment[];
+  comments: ReadonlyArray<PostComment>;
   isLoadingComments: boolean;
 
   onAction: (

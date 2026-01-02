@@ -1,7 +1,6 @@
-import { memo, useMemo, type ReactNode } from "react";
-import type { Post } from "@types";
+import { memo, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import type { PostPanel, PostActionsController } from "@features/post";
+import type { PostPanel } from "@features/post";
 import { usePanelById } from "@shared/hooks/usePanelById";
 import { normalizeAddress } from "@shared/lib/address";
 import { getFeedFromLocation } from "./feed/getFeedFromLocation";
@@ -9,30 +8,7 @@ import { getSkeletonCount } from "./feed/getSkeletonCount";
 import { FeedHeader } from "./feed/FeedHeader";
 import { FeedPostList } from "./feed/FeedPostList";
 import { getFeedEntries } from "./feed/getFeedEntries";
-
-type Props = {
-  title?: string;
-  pillText?: string;
-  headerInlineAction?: ReactNode;
-  headerAction?: ReactNode;
-  headerActionPlacement?: "right" | "inline";
-  singleColumn?: boolean;
-  hideHeader?: boolean;
-  isLoading?: boolean;
-  loadingText?: string;
-  posts: Post[];
-  isOwner?: boolean;
-  chainId: string | null;
-  walletAddress: string | null;
-  authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-
-  postActions: PostActionsController;
-
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
-};
+import type { FeedViewModel } from "../types";
 
 export const Feed = memo(function Feed({
   title,
@@ -53,7 +29,7 @@ export const Feed = memo(function Feed({
   stableHueFromSeed,
   getNativeSymbol,
   getExplorerTxUrl
-}: Props) {
+}: FeedViewModel) {
   const location = useLocation();
   const from = getFeedFromLocation(location);
   const { panelById, togglePanel } = usePanelById<PostPanel>();

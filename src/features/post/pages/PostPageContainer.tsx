@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
-import { usePostActionsController } from "@features/post";
+import { usePostActionsController, type PostPageViewModel } from "@features/post";
 import { useWalletState } from "@features/wallet";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
@@ -51,24 +51,24 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
 
   const commentsKey = commentKey(postChainId, tokenId);
 
-  return (
-    <PostPage
-      isOwner={contract.isOwner}
-      tokenId={tokenId}
-      postChainId={postChainId}
-      post={post}
-      isLoadingPost={isPostLoading && !post}
-      comments={feedState.postComments[commentsKey] ?? []}
-      isLoadingComments={!!feedState.isLoadingPostComments[commentsKey]}
-      posts={feedState.posts}
-      chainId={wallet.chainId}
-      walletAddress={wallet.walletAddress}
-      authorIdentity={profile.authorIdentity}
-      postActions={postActions}
-      shortAddress={shortAddress}
-      stableHueFromSeed={stableHueFromSeed}
-      getNativeSymbol={getNativeSymbol}
-      getExplorerTxUrl={getExplorerTxUrl}
-    />
-  );
+  const viewModel: PostPageViewModel = {
+    isOwner: contract.isOwner,
+    tokenId,
+    postChainId,
+    post,
+    isLoadingPost: isPostLoading && !post,
+    comments: feedState.postComments[commentsKey] ?? [],
+    isLoadingComments: !!feedState.isLoadingPostComments[commentsKey],
+    posts: feedState.posts,
+    chainId: wallet.chainId,
+    walletAddress: wallet.walletAddress,
+    authorIdentity: profile.authorIdentity,
+    postActions,
+    shortAddress,
+    stableHueFromSeed,
+    getNativeSymbol,
+    getExplorerTxUrl
+  };
+
+  return <PostPage {...viewModel} />;
 }
