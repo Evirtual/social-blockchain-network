@@ -12,6 +12,7 @@ type Props = {
   onClose: () => void;
   headerLeading?: React.ReactNode;
   initialDraft: InitialDraft;
+  isSaving?: boolean;
   onSave: (next: {
     name: string;
     bio: string;
@@ -145,11 +146,12 @@ export function AdminProfileModal(props: Props) {
               props.onClose();
               resetToInitial();
             }}
+            disabled={props.isSaving}
           >
             Cancel
           </button>
           <button
-            className="primary"
+            className="primary buttonWithSpinner"
             type="button"
             onClick={() =>
               props.onSave({
@@ -161,8 +163,10 @@ export function AdminProfileModal(props: Props) {
                 avatarDataUrl: adminAvatarDataUrl
               })
             }
-            disabled={isAdminAvatarLoading}
+            disabled={isAdminAvatarLoading || props.isSaving}
+            aria-busy={props.isSaving}
           >
+            {props.isSaving ? <span className="spinner" aria-hidden="true" /> : null}
             Save
           </button>
         </div>

@@ -7,6 +7,7 @@ export function ApprovalListRow(props: {
   isFlagged: boolean;
   isAllowed: boolean;
   isLoading?: boolean;
+  actionInFlight?: "approve" | "disapprove" | "reset" | null;
 
   showRemove?: boolean;
   onRemove?: () => void;
@@ -17,6 +18,10 @@ export function ApprovalListRow(props: {
   const actionSkeleton = (widthRem: number) => (
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />
   );
+  const isBusy = !!props.actionInFlight;
+  const isApproving = props.actionInFlight === "approve";
+  const isDisapproving = props.actionInFlight === "disapprove";
+  const isResetting = props.actionInFlight === "reset";
 
   return (
     <div key={props.addr} className="listRow" role="listitem">
@@ -28,7 +33,12 @@ export function ApprovalListRow(props: {
       </span>
       <span className="rowActions">
         {props.showRemove ? (
-          <button className="secondary buttonWithSpinner" type="button" onClick={props.onRemove} disabled={props.isLoading}>
+          <button
+            className="secondary buttonWithSpinner"
+            type="button"
+            onClick={props.onRemove}
+            disabled={props.isLoading || isBusy}
+          >
             {props.isLoading ? <span className="spinner" aria-hidden="true" /> : null}
             Remove
           </button>
@@ -41,19 +51,39 @@ export function ApprovalListRow(props: {
         ) : null}
 
         {!props.isLoading && !props.isAllowed ? (
-          <button className="primary" type="button" onClick={props.onApprove}>
+          <button
+            className="primary buttonWithSpinner"
+            type="button"
+            onClick={props.onApprove}
+            disabled={isBusy}
+            aria-busy={isApproving}
+          >
+            {isApproving ? <span className="spinner" aria-hidden="true" /> : null}
             Approve
           </button>
         ) : null}
 
         {!props.isLoading && props.isAllowed ? (
-          <button className="secondary" type="button" onClick={props.onDisapprove}>
+          <button
+            className="secondary buttonWithSpinner"
+            type="button"
+            onClick={props.onDisapprove}
+            disabled={isBusy}
+            aria-busy={isDisapproving}
+          >
+            {isDisapproving ? <span className="spinner" aria-hidden="true" /> : null}
             Disapprove
           </button>
         ) : null}
 
-        <button className="secondary buttonWithSpinner" type="button" onClick={props.onReset} disabled={props.isLoading}>
-          {props.isLoading ? <span className="spinner" aria-hidden="true" /> : null}
+        <button
+          className="secondary buttonWithSpinner"
+          type="button"
+          onClick={props.onReset}
+          disabled={props.isLoading || isBusy}
+          aria-busy={isResetting}
+        >
+          {props.isLoading || isResetting ? <span className="spinner" aria-hidden="true" /> : null}
           Reset
         </button>
       </span>

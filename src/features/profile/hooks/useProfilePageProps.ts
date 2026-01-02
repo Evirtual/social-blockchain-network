@@ -17,6 +17,8 @@ export function useProfilePageProps(args: {
   isPosterAllowed: boolean | undefined;
   wasPosterDisapprovedEver: boolean | undefined;
   isFollowing: boolean | undefined;
+  isFollowSubmitting?: boolean;
+  adminActionInFlight?: "approve" | "disapprove" | "reset" | "save" | null;
 
   posts: Post[];
   isFeedLoading: boolean;
@@ -54,6 +56,8 @@ export function useProfilePageProps(args: {
     isPosterAllowed,
     wasPosterDisapprovedEver,
     isFollowing,
+    isFollowSubmitting,
+    adminActionInFlight,
     posts,
     isFeedLoading,
     chainId,
@@ -82,6 +86,8 @@ export function useProfilePageProps(args: {
       avatarHue: stableHueFromSeed(key),
       avatarUrl,
       isFollowing,
+      isFollowSubmitting,
+      adminActionInFlight,
       onToggleFollow,
       onAdminSetPosterAllowed,
       onAdminReset,
@@ -111,6 +117,8 @@ export function useProfilePageProps(args: {
     bio,
     avatarUrl,
     isFollowing,
+    isFollowSubmitting,
+    adminActionInFlight,
     posts,
     chainId,
     status,

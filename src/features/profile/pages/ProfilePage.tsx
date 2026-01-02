@@ -18,6 +18,7 @@ type Props = {
 
   isPosterAllowed?: boolean;
   wasPosterDisapprovedEver?: boolean;
+  adminActionInFlight?: "approve" | "disapprove" | "reset" | "save" | null;
   onAdminSetPosterAllowed: (allowed: boolean) => void;
   onAdminReset: () => void;
   onAdminSetProfile: (next: {
@@ -30,6 +31,7 @@ type Props = {
   }) => void;
 
   isFollowing: boolean | undefined;
+  isFollowSubmitting?: boolean;
   onToggleFollow: () => void;
 
   posts: Post[];
@@ -125,8 +127,10 @@ export function ProfilePage(props: Props) {
           onToggleAdminEdit={() => setIsAdminEditing((v) => !v)}
           onAdminSetPosterAllowed={props.onAdminSetPosterAllowed}
           onAdminReset={props.onAdminReset}
+          adminActionInFlight={props.adminActionInFlight}
           canFollow={canFollow}
           isFollowing={props.isFollowing}
+          isFollowSubmitting={props.isFollowSubmitting}
           onToggleFollow={props.onToggleFollow}
           name={props.name}
           addressLabel={addressLabel}
@@ -142,6 +146,7 @@ export function ProfilePage(props: Props) {
           onClose={() => setIsAdminEditing(false)}
           initialDraft={initialDraft}
           headerLeading={<div className="avatar small" style={avatarStyle} />}
+          isSaving={props.adminActionInFlight === "save"}
           onSave={(next) => props.onAdminSetProfile(next)}
         />
       ) : null}

@@ -30,11 +30,15 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const [pendingApprovals, setPendingApprovals] = useState<string[]>([]);
   const [pendingInput, setPendingInput] = useState("");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
+  const [actionInFlight, setActionInFlight] = useState<{ addr: string; action: "approve" | "disapprove" | "reset" } | null>(
+    null
+  );
 
   useEffect(() => {
     if (!props.open) return;
     setApprovalsError(null);
     setPendingInput("");
+    setActionInFlight(null);
   }, [props.open]);
 
   const { onChainRequests, isLoadingOnChainRequests, onChainRequestsLoadError } = useOnChainApprovalRequests({
@@ -108,24 +112,42 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   );
 
   const handleApprove = useCallback(
-    (addr: string) => {
-      void approvePending(addr);
+    async (addr: string) => {
+      if (actionInFlight) return;
+      setActionInFlight({ addr, action: "approve" });
+      try {
+        await approvePending(addr);
+      } finally {
+        setActionInFlight(null);
+      }
     },
-    [approvePending]
+    [approvePending, actionInFlight]
   );
 
   const handleDisapprove = useCallback(
-    (addr: string) => {
-      void disapprovePending(addr);
+    async (addr: string) => {
+      if (actionInFlight) return;
+      setActionInFlight({ addr, action: "disapprove" });
+      try {
+        await disapprovePending(addr);
+      } finally {
+        setActionInFlight(null);
+      }
     },
-    [disapprovePending]
+    [disapprovePending, actionInFlight]
   );
 
   const handleReset = useCallback(
-    (addr: string) => {
-      void resetAllAndBlock(addr);
+    async (addr: string) => {
+      if (actionInFlight) return;
+      setActionInFlight({ addr, action: "reset" });
+      try {
+        await resetAllAndBlock(addr);
+      } finally {
+        setActionInFlight(null);
+      }
     },
-    [resetAllAndBlock]
+    [resetAllAndBlock, actionInFlight]
   );
 
   return (
@@ -157,6 +179,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
                 isFlagged={row.isFlagged}
                 isAllowed={row.isAllowed}
                 isLoading={isLoadingPosterStatuses}
+                actionInFlight={actionInFlight?.addr === row.addr ? actionInFlight.action : null}
                 showRemove
                 onRemove={() => handleRemove(row.addr)}
                 onApprove={() => handleApprove(row.addr)}
@@ -202,6 +225,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
                     isFlagged={row.isFlagged}
                     isAllowed={row.isAllowed}
                     isLoading={isLoadingPosterStatuses}
+                    actionInFlight={actionInFlight?.addr === row.addr ? actionInFlight.action : null}
                     onApprove={() => handleApprove(row.addr)}
                     onDisapprove={() => handleDisapprove(row.addr)}
                     onReset={() => handleReset(row.addr)}

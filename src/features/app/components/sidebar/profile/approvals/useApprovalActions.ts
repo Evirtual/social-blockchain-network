@@ -85,16 +85,25 @@ export function useApprovalActions(args: {
 
     let tokenIds: bigint[] = [];
     let tokenDiscoveryFailed = false;
-    {
+    try {
       const readContract = await args.getReadContract();
       const provider: any = getScanProviderFromReadContract(readContract);
-      const discovered = await discoverMintedTokenIdsForAuthor({
+      const discovery = discoverMintedTokenIdsForAuthor({
         readContract,
         scanProvider: provider,
         author: normalized
       });
+      const discovered = await Promise.race([
+        discovery,
+        new Promise<{ tokenIds: bigint[]; failed: boolean }>((resolve) =>
+          setTimeout(() => resolve({ tokenIds: [], failed: true }), 5000)
+        )
+      ]);
       tokenIds = discovered.tokenIds;
       tokenDiscoveryFailed = discovered.failed;
+    } catch {
+      tokenDiscoveryFailed = true;
+      tokenIds = [];
     }
 
     let pinnedCids: Set<string> | null = null;

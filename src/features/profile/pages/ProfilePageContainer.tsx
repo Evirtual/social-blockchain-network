@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContractActions, useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
@@ -41,6 +41,10 @@ export function ProfilePageContainer({ address }: Props) {
   const contractState = useContractState();
   const contractActions = useContractActions();
   const { runContractTx } = useContractTx();
+  const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
+  const [adminActionInFlight, setAdminActionInFlight] = useState<"approve" | "disapprove" | "reset" | "save" | null>(
+    null
+  );
 
   const key = address.toLowerCase();
   const isSelf = !!walletState.walletAddress && walletState.walletAddress.toLowerCase() === key;
@@ -78,9 +82,58 @@ export function ProfilePageContainer({ address }: Props) {
     }
   }, [social, contractActions]);
 
-  const onToggleFollow = useCallback(() => {
-    void follow.toggleFollow(address);
-  }, [follow, address]);
+  const onToggleFollow = useCallback(async () => {
+    if (isFollowSubmitting) return;
+    setIsFollowSubmitting(true);
+    try {
+      await follow.toggleFollow(address);
+    } finally {
+      setIsFollowSubmitting(false);
+    }
+  }, [follow, address, isFollowSubmitting]);
+
+  const onAdminSetPosterAllowed = useCallback(
+    async (allowed: boolean) => {
+      if (adminActionInFlight) return;
+      setAdminActionInFlight(allowed ? "approve" : "disapprove");
+      try {
+        await admin.onAdminSetPosterAllowed(allowed);
+      } finally {
+        setAdminActionInFlight(null);
+      }
+    },
+    [admin, adminActionInFlight]
+  );
+
+  const onAdminReset = useCallback(async () => {
+    if (adminActionInFlight) return;
+    setAdminActionInFlight("reset");
+    try {
+      await admin.onAdminReset();
+    } finally {
+      setAdminActionInFlight(null);
+    }
+  }, [admin, adminActionInFlight]);
+
+  const onAdminSetProfile = useCallback(
+    async (next: {
+      name: string;
+      bio: string;
+      avatarUrl: string;
+      avatarFile?: File | null;
+      avatarFilename?: string;
+      avatarDataUrl?: string;
+    }) => {
+      if (adminActionInFlight) return;
+      setAdminActionInFlight("save");
+      try {
+        await admin.onAdminSetProfile(next);
+      } finally {
+        setAdminActionInFlight(null);
+      }
+    },
+    [admin, adminActionInFlight]
+  );
 
 
   const { likedTokenIdsByAddress, isLoadingLikesByAddress, loadLikesForAddress } = useLikedPostsByAddress({
@@ -198,12 +251,14 @@ export function ProfilePageContainer({ address }: Props) {
     isOwner: contractState.isOwner,
     isPosterAllowed: admin.isPosterAllowed,
     wasPosterDisapprovedEver: admin.wasPosterDisapprovedEver,
+    adminActionInFlight,
     address,
     key,
     name,
     bio,
     avatarUrl,
     isFollowing: follow.isFollowingByAddress[key],
+    isFollowSubmitting,
     posts: filtered,
     chainId: walletState.chainId,
     status,
@@ -211,9 +266,9 @@ export function ProfilePageContainer({ address }: Props) {
     walletAddress: walletState.walletAddress,
     authorIdentity: profileState.authorIdentity,
     onToggleFollow,
-    onAdminSetPosterAllowed: admin.onAdminSetPosterAllowed,
-    onAdminReset: admin.onAdminReset,
-    onAdminSetProfile: admin.onAdminSetProfile,
+    onAdminSetPosterAllowed,
+    onAdminReset,
+    onAdminSetProfile,
     postActions,
     shortAddress,
     stableHueFromSeed,

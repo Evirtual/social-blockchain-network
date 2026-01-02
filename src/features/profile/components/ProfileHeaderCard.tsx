@@ -8,9 +8,11 @@ type Props = {
   onToggleAdminEdit: () => void;
   onAdminSetPosterAllowed: (allowed: boolean) => void;
   onAdminReset: () => void;
+  adminActionInFlight?: "approve" | "disapprove" | "reset" | "save" | null;
 
   canFollow: boolean;
   isFollowing: boolean | undefined;
+  isFollowSubmitting?: boolean;
   onToggleFollow: () => void;
 
   name: string;
@@ -24,7 +26,13 @@ export function ProfileHeaderCard(props: Props) {
   const isPosterAllowedKnown = typeof props.isPosterAllowed === "boolean";
   const isAllowed = props.isPosterAllowed === true;
   const isAdminLoading = props.canAdminEdit && !isPosterAllowedKnown;
+  const isAdminSubmitting = !!props.adminActionInFlight;
+  const isApproveBusy = props.adminActionInFlight === "approve";
+  const isDisapproveBusy = props.adminActionInFlight === "disapprove";
+  const isResetBusy = props.adminActionInFlight === "reset";
   const isFollowLoading = props.canFollow && typeof props.isFollowing !== "boolean";
+  const isFollowSubmitting = !!props.isFollowSubmitting;
+  const isFollowBusy = isFollowLoading || isFollowSubmitting;
 
   const avatarStyle = props.avatarUrl?.trim()
     ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
@@ -62,26 +70,35 @@ export function ProfileHeaderCard(props: Props) {
                 <>
                   {isAllowed ? (
                     <button
-                      className="secondary"
+                      className="secondary buttonWithSpinner"
                       type="button"
                       onClick={() => props.onAdminSetPosterAllowed(false)}
+                      disabled={isAdminSubmitting}
+                      aria-busy={isDisapproveBusy}
                     >
+                      {isDisapproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
                       Disapprove
                     </button>
                   ) : (
                     <button
-                      className="primary"
+                      className="primary buttonWithSpinner"
                       type="button"
                       onClick={() => props.onAdminSetPosterAllowed(true)}
+                      disabled={isAdminSubmitting}
+                      aria-busy={isApproveBusy}
                     >
+                      {isApproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
                       Approve
                     </button>
                   )}
                   <button
-                    className="secondary"
+                    className="secondary buttonWithSpinner"
                     type="button"
                     onClick={props.onAdminReset}
+                    disabled={isAdminSubmitting}
+                    aria-busy={isResetBusy}
                   >
+                    {isResetBusy ? <span className="spinner" aria-hidden="true" /> : null}
                     Reset
                   </button>
                 </>
@@ -94,14 +111,16 @@ export function ProfileHeaderCard(props: Props) {
               className="secondary buttonWithSpinner"
               type="button"
               onClick={props.onToggleFollow}
-              disabled={isFollowLoading}
+              disabled={isFollowBusy}
+              aria-busy={isFollowSubmitting}
             >
               {isFollowLoading ? (
                 actionSkeleton(5)
-              ) : props.isFollowing ? (
-                "Unfollow"
               ) : (
-                "Follow"
+                <>
+                  {isFollowSubmitting ? <span className="spinner" aria-hidden="true" /> : null}
+                  {props.isFollowing ? "Unfollow" : "Follow"}
+                </>
               )}
             </button>
           ) : null}

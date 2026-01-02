@@ -68,7 +68,6 @@ export function AddressListModal(props: AddressListModalProps) {
               />
               <span className="value">{props.shortAddress(addr)}</span>
             </span>
-            <span className="muted">Open profile</span>
           </Link>
         ))}
       </div>
