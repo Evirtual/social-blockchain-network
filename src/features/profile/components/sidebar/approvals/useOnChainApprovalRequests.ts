@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { fetchApprovalRequests } from "./approvalRequests";
+import { getEnv } from "@shared/lib/env";
+import type { ReadContractFactory } from "@features/contract";
 
 export function useOnChainApprovalRequests(args: {
   open: boolean;
   isOwner: boolean;
   chainId: string | null;
   contractAddress: string | undefined;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 }) {
   const cacheKey = `${String(args.chainId ?? "").trim()}:${String(args.contractAddress ?? "").trim().toLowerCase()}`;
 
@@ -42,7 +44,7 @@ export function useOnChainApprovalRequests(args: {
       setIsLoadingOnChainRequests(true);
       setOnChainRequestsLoadError(false);
       try {
-        const env = import.meta.env as any;
+        const env = getEnv();
         const chainIdNum = parseChainIdNumber(args.chainId);
         const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
         const { addresses, hadQueryError } = await fetchApprovalRequests({

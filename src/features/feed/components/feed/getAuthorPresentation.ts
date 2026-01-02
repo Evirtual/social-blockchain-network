@@ -1,5 +1,5 @@
 export function getAuthorPresentation(params: {
-  author: string | undefined;
+  author: string | undefined | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
   shortAddress: (address: string) => string;
   guestHue: number;

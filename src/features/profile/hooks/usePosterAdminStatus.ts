@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { isAddress } from "ethers";
 import { fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { onPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
+import type { ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
   isOwner: boolean;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 export function usePosterAdminStatus(params: { contract: ContractLike; address: string }) {

@@ -1,6 +1,9 @@
+import type { EnvMap } from "./env";
+import { getEnv } from "./env";
+
 export function resolveConfiguredSocialPostsAddress(
   chainIdNumber: number | null,
-  env: any = import.meta.env
+  env: EnvMap = getEnv()
 ): string | undefined {
   const legacy = env?.VITE_CONTRACT_ADDRESS as string | undefined;
 

@@ -12,6 +12,8 @@ import { collectPinnedCidsFromBuilt } from "../services/editPost/pinning";
 import { parsePostKey, postKey } from "@shared/lib/post";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 import { getDraftMediaState } from "@features/post/services/draftMediaState";
+import type { TransactionResponse } from "ethers";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -26,9 +28,9 @@ type FeedLike = {
   refreshFeed: () => Promise<void>;
 };
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
@@ -42,8 +44,8 @@ export function useEditPostFlow(args: {
   chainId: string | null;
   isOwner: boolean;
   ipfsConfigured: boolean;
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;
@@ -99,7 +101,7 @@ export function useEditPostFlow(args: {
       void (async () => {
         try {
           const readContract = await getReadContract();
-          const frozen = (await (readContract as any).isPostFrozen(BigInt(post.tokenId))) as boolean;
+          const frozen = (await readContract.isPostFrozen(BigInt(post.tokenId))) as boolean;
           if (frozen && !isOwner) {
             setStatus("This post is frozen and can no longer be edited.");
             cancelEditPost();
@@ -214,7 +216,7 @@ export function useEditPostFlow(args: {
       try {
         if (ipfsConfigured) {
           const readContract = await getReadContract();
-          const oldTokenUri = (await (readContract as any).tokenURI(tokenIdBig)) as string;
+          const oldTokenUri = (await readContract.tokenURI(tokenIdBig)) as string;
           oldPinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
         }
       } catch {
@@ -237,7 +239,7 @@ export function useEditPostFlow(args: {
       let nextUiAnimationUrl: string | undefined;
 
       const mediaTypeHint = editUploadedImageBlob
-        ? (((editUploadedImageBlob as any)?.type?.startsWith?.("video/") ?? false) ? "video" : "image")
+        ? (editUploadedImageBlob.type?.startsWith("video/") ? "video" : "image")
         : post?.animationUrl
           ? "video"
           : post?.image
@@ -291,8 +293,8 @@ export function useEditPostFlow(args: {
       const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
       const send =
         isOwner && !isMine
-          ? () => (writeContract as any).adminUpdatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed)
-          : () => (writeContract as any).updatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed);
+          ? () => writeContract.adminUpdatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed)
+          : () => writeContract.updatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed);
 
       await runContractTx("Edit post", send);
 

@@ -8,6 +8,8 @@ import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
 
 import type { Post, PostComment } from "@types";
+import type { TransactionResponse } from "ethers";
+import type { WriteContractFactory } from "@features/contract";
 
 type FeedLike = {
   posts: Post[];
@@ -16,16 +18,16 @@ type FeedLike = {
   loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 };
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
 export function useCommentActions(args: {
   walletAddress: string | null;
   chainId: string | null;
-  getWriteContract: () => Promise<any>;
+  getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;
@@ -169,13 +171,10 @@ export function useCommentActions(args: {
         if (!ensureMatchingNetwork(postChainId)) return false;
 
         const writeContract = await getWriteContract();
-        const already = (await (writeContract as any).hasLikedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
+        const already = (await writeContract.hasLikedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
         const ok = await runContractTx<boolean>(
           already ? "Unlike comment" : "Like comment",
-          () =>
-            ((already
-              ? (writeContract as any).unlikeComment(BigInt(tokenId), BigInt(commentId))
-              : (writeContract as any).likeComment(BigInt(tokenId), BigInt(commentId))) as any),
+          () => (already ? writeContract.unlikeComment(BigInt(tokenId), BigInt(commentId)) : writeContract.likeComment(BigInt(tokenId), BigInt(commentId))),
           () => true
         );
         if (!ok) return false;
@@ -208,13 +207,10 @@ export function useCommentActions(args: {
         if (!ensureMatchingNetwork(postChainId)) return false;
 
         const writeContract = await getWriteContract();
-        const already = (await (writeContract as any).hasSavedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
+        const already = (await writeContract.hasSavedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
         const ok = await runContractTx<boolean>(
           already ? "Unsave comment" : "Save comment",
-          () =>
-            ((already
-              ? (writeContract as any).unsaveComment(BigInt(tokenId), BigInt(commentId))
-              : (writeContract as any).saveComment(BigInt(tokenId), BigInt(commentId))) as any),
+          () => (already ? writeContract.unsaveComment(BigInt(tokenId), BigInt(commentId)) : writeContract.saveComment(BigInt(tokenId), BigInt(commentId))),
           () => true
         );
         if (!ok) return false;

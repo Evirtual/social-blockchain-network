@@ -1,4 +1,5 @@
 import { stableHueFromSeed } from "./format";
+import { getEnv, getEnvString } from "./env";
 
 export function getExplorerTxUrl(chainId: string | null, txHash: string) {
   if (!chainId) return null;
@@ -6,9 +7,9 @@ export function getExplorerTxUrl(chainId: string | null, txHash: string) {
 
   // IMPORTANT: Use `import.meta.env` directly so Vite can inject env values.
   // Avoid indirect access like `(import.meta as any).env` which won't be transformed.
-  const env = import.meta.env as unknown as Record<string, unknown>;
+  const env = getEnv();
   const baseKey = `VITE_EXPLORER_BASE_URL_${id}`;
-  const envBase = env[baseKey] as string | undefined;
+  const envBase = getEnvString(env, baseKey);
   if (typeof envBase === "string" && envBase.trim()) {
     const base = envBase.trim().replace(/\/+$/, "");
     return `${base}/tx/${txHash}`;
@@ -36,7 +37,7 @@ export function getNetworkBadgeLabel(chainId: string | null) {
 
 export function getNetworkBrandHue(chainId: string | null): number {
   const id = Number(chainId);
-  // Keep these in sync with `brandHueForChainId` in home/services/supportedNetworks.
+  // Keep these in sync with `brandHueForChainId` in feed/services/supportedNetworks.
   switch (id) {
     case 11155111: // Ethereum Sepolia
     case 1: // Ethereum mainnet

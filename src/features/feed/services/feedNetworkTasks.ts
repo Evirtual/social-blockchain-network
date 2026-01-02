@@ -1,24 +1,28 @@
 import type { Post } from "@types";
-import { getSocialContract } from "@features/contract";
+import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
 import type { FeedNetworkConfig } from "./feedNetworks";
 
 export async function getFeedNetworkTasks(args: {
   currentChainIdNumber: number | null;
   configuredNetworks: FeedNetworkConfig[];
   extraNetworks: FeedNetworkConfig[];
-  provider: any | null | undefined;
+  provider: ChainProvider | null | undefined;
   walletAddress: string | null | undefined;
 
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 
-  getRpcProvider: (url: string, chainIdNum: number) => any;
-  resolveRpcContractAddress: (cfg: FeedNetworkConfig, rpcProvider: any) => Promise<string>;
+  getRpcProvider: (url: string, chainIdNum: number) => ChainProvider;
+  resolveRpcContractAddress: (cfg: FeedNetworkConfig, rpcProvider: ChainProvider) => Promise<string>;
 
   taskTimeoutMs: number;
   withTimeout: <T>(promise: Promise<T>, ms: number, label: string) => Promise<T>;
 
-  loadFromProvider: (chainIdNum: number | null, networkProvider: any, readContract: any) => Promise<Post[]>;
+  loadFromProvider: (
+    chainIdNum: number | null,
+    networkProvider: ChainProvider | null,
+    readContract: SocialPostsContract | null
+  ) => Promise<Post[]>;
   onLoaded: (loaded: Post[]) => void;
 }): Promise<Array<Promise<Post[]>>> {
   const {
@@ -55,7 +59,7 @@ export async function getFeedNetworkTasks(args: {
 
     // When disconnected, prefer a public RPC for reads.
     if (!walletAddress && currentCfg && currentRpcUrl) {
-      const rpcProvider: any = getRpcProvider(currentRpcUrl, currentCfg.chainId);
+      const rpcProvider = getRpcProvider(currentRpcUrl, currentCfg.chainId);
       enqueueLoad(
         `Feed network ${currentCfg.chainId}`,
         (async () => {
@@ -90,7 +94,7 @@ export async function getFeedNetworkTasks(args: {
   for (const cfg of extraNetworks) {
     const url = typeof cfg.rpcUrl === "string" ? cfg.rpcUrl.trim() : "";
     if (url) {
-      const rpcProvider: any = getRpcProvider(url, cfg.chainId);
+      const rpcProvider = getRpcProvider(url, cfg.chainId);
       enqueueLoad(
         `Feed network ${cfg.chainId}`,
         (async () => {

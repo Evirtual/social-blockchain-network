@@ -1,8 +1,8 @@
 import type { CSSProperties, ImgHTMLAttributes } from "react";
 
-import basePng from "../../../assets/chain-logos/base.png";
-import bscPng from "../../../assets/chain-logos/bsc.png";
-import ethPng from "../../../assets/chain-logos/eth.png";
+import basePng from "../../assets/chain-logos/base.png";
+import bscPng from "../../assets/chain-logos/bsc.png";
+import ethPng from "../../assets/chain-logos/eth.png";
 
 type Props = Omit<ImgHTMLAttributes<HTMLImageElement>, "width" | "height" | "src" | "alt"> & {
   size?: number;
@@ -26,7 +26,7 @@ function Svg({ size = 22, children }: { size?: number; children: React.ReactNode
 }
 
 function LogoImg({ src, size = 22, style, ...props }: Props & { src: string }) {
-  const ariaLabel = (props as any)?.["aria-label"] as string | undefined;
+  const ariaLabel = props["aria-label"];
   const mergedStyle: CSSProperties = {
     display: "block",
     width: size,

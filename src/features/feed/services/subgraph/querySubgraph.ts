@@ -1,9 +1,15 @@
 import { withTimeout } from "@shared/lib/feedQuery";
+import type { SubgraphVariables } from "@shared/lib/subgraphQuery";
+
+type SubgraphResponse<T> = {
+  data?: T;
+  errors?: Array<{ message?: string }>;
+};
 
 export async function querySubgraph<T>(args: {
   url: string;
   query: string;
-  variables?: Record<string, unknown>;
+  variables?: SubgraphVariables;
   timeoutMs?: number;
 }): Promise<T> {
   const url = String(args.url ?? "").trim();
@@ -23,13 +29,17 @@ export async function querySubgraph<T>(args: {
       throw new Error(`Subgraph HTTP ${res.status}: ${text || res.statusText}`);
     }
 
-    const json = (await res.json()) as any;
+    const json = (await res.json()) as SubgraphResponse<T>;
     if (json?.errors?.length) {
       const msg = String(json.errors?.[0]?.message ?? "Subgraph query failed");
       throw new Error(msg);
     }
 
-    return json?.data as T;
+    if (!json || !json.data) {
+      throw new Error("Subgraph query returned no data.");
+    }
+
+    return json.data;
   })();
 
   return await withTimeout(task, timeoutMs, "subgraph query");

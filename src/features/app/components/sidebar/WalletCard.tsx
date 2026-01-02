@@ -2,7 +2,7 @@ import { formatEther } from "ethers";
 import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
-import { IconCoin } from "../icons";
+import { IconCoin } from "@shared/components/icons";
 
 export type WalletCardProps = {
   walletAddress: string | null;

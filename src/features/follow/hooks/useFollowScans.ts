@@ -9,12 +9,14 @@ import { scanActiveFollowAddresses } from "../services/followEventScanner";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 import { useEpochGuard } from "@shared/lib/epochGuard";
+import { getEnv } from "@shared/lib/env";
+import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 export function useFollowScans(params: {
-  provider: any | null;
+  provider: ChainProvider | null;
   chainId: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
   setStatus: (v: string) => void;
 }) {
   const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
@@ -69,7 +71,7 @@ export function useFollowScans(params: {
       // Avoid slow RPC scans before chainId is known.
       if (!params.chainId) return;
 
-      const env = import.meta.env as any;
+      const env = getEnv();
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
@@ -125,14 +127,16 @@ export function useFollowScans(params: {
         try {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
+          const provider = params.provider;
+          if (!provider) return;
 
           const activeFollowers = await withTimeout(
             scanActiveFollowAddresses({
             readContract,
-            scanProvider: params.provider,
+            scanProvider: provider,
             iface: socialInterface,
-            followedFilter: (readContract as any).filters.Followed(null, address),
-            unfollowedFilter: (readContract as any).filters.Unfollowed(null, address),
+            followedFilter: readContract.filters.Followed(null, address),
+            unfollowedFilter: readContract.filters.Unfollowed(null, address),
             addressArgIndex: 0,
             maxEvents: 5_000,
             errorLabel: "follower"
@@ -170,7 +174,7 @@ export function useFollowScans(params: {
       // Avoid slow RPC scans before chainId is known.
       if (!params.chainId) return;
 
-      const env = import.meta.env as any;
+      const env = getEnv();
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
@@ -237,14 +241,16 @@ export function useFollowScans(params: {
         try {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
+          const provider = params.provider;
+          if (!provider) return;
 
           const active = await withTimeout(
             scanActiveFollowAddresses({
             readContract,
-            scanProvider: params.provider,
+            scanProvider: provider,
             iface: socialInterface,
-            followedFilter: (readContract as any).filters.Followed(null, address),
-            unfollowedFilter: (readContract as any).filters.Unfollowed(null, address),
+            followedFilter: readContract.filters.Followed(null, address),
+            unfollowedFilter: readContract.filters.Unfollowed(null, address),
             addressArgIndex: 0,
             maxEvents: 7_500,
             errorLabel: "follower"
@@ -284,7 +290,7 @@ export function useFollowScans(params: {
       // Avoid slow RPC scans before chainId is known.
       if (!params.chainId) return;
 
-      const env = import.meta.env as any;
+      const env = getEnv();
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
@@ -349,14 +355,16 @@ export function useFollowScans(params: {
         try {
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
+          const provider = params.provider;
+          if (!provider) return;
 
           const active = await withTimeout(
             scanActiveFollowAddresses({
             readContract,
-            scanProvider: params.provider,
+            scanProvider: provider,
             iface: socialInterface,
-            followedFilter: (readContract as any).filters.Followed(address, null),
-            unfollowedFilter: (readContract as any).filters.Unfollowed(address, null),
+            followedFilter: readContract.filters.Followed(address, null),
+            unfollowedFilter: readContract.filters.Unfollowed(address, null),
             addressArgIndex: 1,
             maxEvents: 7_500,
             errorLabel: "following"

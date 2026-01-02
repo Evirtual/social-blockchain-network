@@ -48,7 +48,7 @@ export function useAccountPageProps(args: {
 
     selfAvatarHue: number;
 
-    authorIdentity: any;
+    authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
   };
 
   follow: {

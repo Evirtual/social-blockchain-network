@@ -8,9 +8,10 @@ import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import { useContractTx } from "@features/contract";
-import { getSupportedNetworks } from "@features/home/services/supportedNetworks";
+import { getSupportedNetworks } from "@features/feed";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
+import { getEnv } from "@shared/lib/env";
 import {
   ProfileActionsContext,
   ProfileContext,
@@ -80,7 +81,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const env = import.meta.env as any;
+    const env = getEnv();
     const supported = getSupportedNetworks().map((n) => String(n.chainId));
     const cacheKey = `socialBlockchainNetwork.profile.posts.${walletAddress.toLowerCase()}.${supported.slice().sort().join(",")}`;
     const cacheTtlMs = 5 * 60 * 1000;

@@ -3,16 +3,14 @@ import { useEffect, useState } from "react";
 
 import { ipfsToHttp } from "@features/ipfs";
 
-import { Modal } from "../Modal";
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
-import { ApprovalsModal } from "./profile/ApprovalsModal";
-import { FollowersModal } from "./profile/FollowersModal";
-import { FollowingModal } from "./profile/FollowingModal";
-import { useOwnerAddress } from "./profile/useOwnerAddress";
-import { IconEdit, IconPower } from "../icons";
+import { ApprovalsModal, FollowersModal, FollowingModal, useOwnerAddress } from "@features/profile";
 import { useContractActions, useContractState } from "@features/contract";
 import { useWalletState } from "@features/wallet";
-import { useOnChainApprovalRequests } from "./profile/approvals/useOnChainApprovalRequests";
+import { useOnChainApprovalRequests } from "@features/profile/components/sidebar/approvals";
+import { ProfileEditModal } from "./profileCard/ProfileEditModal";
+import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
+import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -87,10 +85,6 @@ export function ProfileCard(props: ProfileCardProps) {
   const ownerLower = ownerAddress?.toLowerCase() ?? "";
   const approvalsCount = onChainRequests.filter((addr) => addr.toLowerCase() !== ownerLower).length;
 
-  const pillCountSkeleton = (widthRem: number) => (
-    <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "0.85rem" }} aria-hidden="true" />
-  );
-
 
   return (
     <details
@@ -106,39 +100,19 @@ export function ProfileCard(props: ProfileCardProps) {
       <div className="cardDropdownBody">
         <div className="cardHeader">
           <div className="cardTitle">Profile</div>
-          {showHeaderStatsRow ? (
-            <div className="cardHeaderStats" aria-label="Profile stats">
-              {props.isLoadingMyPostsCount ? (
-                <span className="cardHeaderStat buttonWithSpinner" aria-label="Loading post count" aria-busy="true">
-                  {pillCountSkeleton(1.9)} posts
-                </span>
-              ) : typeof props.myPostsCount === "number" ? (
-                <span className="cardHeaderStat">{props.myPostsCount} posts</span>
-              ) : null}
-              {showPostsStat ? (
-                <span className="cardHeaderStatSep" aria-hidden="true">|</span>
-              ) : null}
-              <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowersOpen(true)}>
-                {props.isLoadingFollowers ? (
-                  <>
-                    {pillCountSkeleton(2.1)} followers
-                  </>
-                ) : (
-                  `${typeof props.followerCount === "number" ? props.followerCount : followers.length} followers`
-                )}
-              </button>
-              <span className="cardHeaderStatSep" aria-hidden="true">|</span>
-              <button type="button" className="cardHeaderStatLink buttonWithSpinner" onClick={() => setIsFollowingOpen(true)}>
-                {props.isLoadingFollowing ? (
-                  <>
-                    {pillCountSkeleton(2.1)} following
-                  </>
-                ) : (
-                  `${following.length} following`
-                )}
-              </button>
-            </div>
-          ) : null}
+          <ProfileHeaderStats
+            showHeaderStats={showHeaderStatsRow}
+            showPostsStat={showPostsStat}
+            isLoadingMyPostsCount={props.isLoadingMyPostsCount}
+            myPostsCount={props.myPostsCount}
+            followerCount={props.followerCount}
+            followers={followers}
+            following={following}
+            isLoadingFollowers={props.isLoadingFollowers}
+            isLoadingFollowing={props.isLoadingFollowing}
+            onOpenFollowers={() => setIsFollowersOpen(true)}
+            onOpenFollowing={() => setIsFollowingOpen(true)}
+          />
         </div>
 
         <div className="profileHeader">
@@ -156,42 +130,17 @@ export function ProfileCard(props: ProfileCardProps) {
 
           {props.walletAddress ? (
             <div className="profileActions">
-              {!props.isEditingProfile ? (
-                <button className="cardActionLink" type="button" onClick={props.onStartEditProfile}>
-                  <IconEdit size={16} />
-                  Edit
-                </button>
-              ) : null}
-              {props.walletAddress && !props.isEditingProfile && (isOwner || isLoadingOwner) ? (
-                <span className="cardHeaderStatSep" aria-hidden="true">|</span>
-              ) : null}
-              {props.walletAddress && !props.isEditingProfile && (isOwner || isLoadingOwner) ? (
-                <button
-                  className="cardHeaderStatLink buttonWithSpinner cardActionApprove"
-                  type="button"
-                  onClick={() => setIsApprovalsOpen(true)}
-                  aria-label="Approvals"
-                >
-                  {isLoadingOwner || isLoadingOnChainRequests ? (
-                    <>
-                      {pillCountSkeleton(2.1)} approve
-                    </>
-                  ) : (
-                    `${approvalsCount} approve`
-                  )}
-                </button>
-              ) : null}
-              {props.walletAddress && !props.isEditingProfile ? (
-                <button
-                  className="ghost iconButton profileDisconnectButton"
-                  type="button"
-                  onClick={props.onDisconnectWallet}
-                  aria-label="Disconnect"
-                  title="Disconnect"
-                >
-                  <IconPower size={20} strokeWidth={2.2} />
-                </button>
-              ) : null}
+              <ProfileSidebarActions
+                walletAddress={props.walletAddress}
+                isEditingProfile={props.isEditingProfile}
+                isOwner={isOwner}
+                isLoadingOwner={isLoadingOwner}
+                isLoadingOnChainRequests={isLoadingOnChainRequests}
+                approvalsCount={approvalsCount}
+                onStartEditProfile={props.onStartEditProfile}
+                onOpenApprovals={() => setIsApprovalsOpen(true)}
+                onDisconnectWallet={props.onDisconnectWallet}
+              />
             </div>
           ) : null}
         </div>
@@ -204,60 +153,22 @@ export function ProfileCard(props: ProfileCardProps) {
           headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
-        <Modal
+        <ProfileEditModal
           open={props.isEditingProfile}
-          title="Edit profile"
-          headerLeading={<div className="avatar small" style={avatarStyle} />}
-          onClose={props.onCancelEditProfile}
-        >
-          <div className="composer">
-            <input
-              className="input"
-              value={props.profileDraftName}
-              onChange={(e) => props.onProfileDraftNameChange(e.target.value)}
-              placeholder="Display name"
-            />
-            <textarea
-              className="textarea"
-              rows={3}
-              value={props.profileDraftBio}
-              onChange={(e) => props.onProfileDraftBioChange(e.target.value)}
-              placeholder="Bio"
-            />
-
-            <input
-              className="input"
-              value={props.profileDraftAvatarUrl}
-              onChange={(e) => props.onProfileDraftAvatarUrlChange(e.target.value)}
-              placeholder="Avatar image URL (or upload below)"
-            />
-
-            <div className="row fileRow">
-              <input
-                className="file-input"
-                type="file"
-                accept="image/*"
-                onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
-              />
-              <button type="button" className="secondary" onClick={props.onClearProfileAvatar}>
-                Clear
-              </button>
-            </div>
-
-            {props.profileDraftAvatarDataUrl.startsWith("data:image/") && (
-              <img className="image-preview" src={props.profileDraftAvatarDataUrl} alt="Avatar preview" />
-            )}
-
-            <div className="rowActions">
-              <button className="secondary" type="button" onClick={props.onCancelEditProfile}>
-                Cancel
-              </button>
-              <button className="primary" type="button" onClick={props.onSaveProfile} disabled={props.isProfileAvatarLoading}>
-                Save
-              </button>
-            </div>
-          </div>
-        </Modal>
+          avatarStyle={avatarStyle}
+          profileDraftName={props.profileDraftName}
+          profileDraftBio={props.profileDraftBio}
+          profileDraftAvatarUrl={props.profileDraftAvatarUrl}
+          profileDraftAvatarDataUrl={props.profileDraftAvatarDataUrl}
+          isProfileAvatarLoading={props.isProfileAvatarLoading}
+          onProfileDraftNameChange={props.onProfileDraftNameChange}
+          onProfileDraftBioChange={props.onProfileDraftBioChange}
+          onProfileDraftAvatarUrlChange={props.onProfileDraftAvatarUrlChange}
+          onSelectProfileAvatarFile={props.onSelectProfileAvatarFile}
+          onClearProfileAvatar={props.onClearProfileAvatar}
+          onCancelEditProfile={props.onCancelEditProfile}
+          onSaveProfile={props.onSaveProfile}
+        />
 
         <FollowersModal
           open={isFollowersOpen}

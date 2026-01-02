@@ -1,4 +1,4 @@
-import { getSocialContract } from "@features/contract";
+import { getSocialContract, type ChainProvider } from "@features/contract";
 
 export type ResolveSocialPostsAddressConfig = {
   chainId: number;
@@ -9,7 +9,7 @@ type TimeoutFn = <T>(promise: Promise<T>, ms: number, label: string) => Promise<
 
 export async function resolveSocialPostsAddress(
   cfg: ResolveSocialPostsAddressConfig,
-  rpcProvider: any,
+  rpcProvider: ChainProvider,
   opts?: {
     withTimeout?: TimeoutFn;
     codeTimeoutMs?: number;
@@ -35,7 +35,7 @@ export async function resolveSocialPostsAddress(
       if (!code || code === "0x") return false;
 
       const c = getSocialContract(address, rpcProvider);
-      const probePromise = (c as any).exists(1n) as Promise<boolean>;
+      const probePromise = c.exists(1n) as Promise<boolean>;
       if (withTimeout) {
         await withTimeout(probePromise, probeTimeoutMs, `${label}:probe`);
       } else {

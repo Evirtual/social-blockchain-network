@@ -23,7 +23,6 @@ export type FollowContextValue = {
 
 // Keep the context stable across HMR updates.
 export const FollowContext: ReturnType<typeof createContext<FollowContextValue | null>> =
-  ((globalThis as any).__sbnetFollowContext as ReturnType<typeof createContext<FollowContextValue | null>> | undefined) ??
-  (((globalThis as any).__sbnetFollowContext = createContext<FollowContextValue | null>(null)) as ReturnType<
-    typeof createContext<FollowContextValue | null>
-  >);
+  (globalThis as { __sbnetFollowContext?: ReturnType<typeof createContext<FollowContextValue | null>> }).__sbnetFollowContext ??
+  (((globalThis as { __sbnetFollowContext?: ReturnType<typeof createContext<FollowContextValue | null>> }).__sbnetFollowContext =
+    createContext<FollowContextValue | null>(null)) as ReturnType<typeof createContext<FollowContextValue | null>>);

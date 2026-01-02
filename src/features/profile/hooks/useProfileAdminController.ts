@@ -1,16 +1,22 @@
 import type { Post } from "@types";
 import { usePosterAdminStatus } from "./usePosterAdminStatus";
 import { useProfileAdminActions } from "./useProfileAdminActions";
+import type { TransactionResponse } from "ethers";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 export function useProfileAdminController(params: {
   address: string;
   contract: {
     isOwner: boolean;
     ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-    getReadContract: () => Promise<any>;
-    getWriteContract: () => Promise<any>;
+    getReadContract: ReadContractFactory;
+    getWriteContract: WriteContractFactory;
   };
-  runContractTx: <T = unknown>(label: string, send: () => any, onSuccess?: () => T) => Promise<T | undefined>;
+  runContractTx: <T = void>(
+    label: string,
+    send: () => Promise<TransactionResponse>,
+    onSuccess?: () => T
+  ) => Promise<T | undefined>;
   feedPosts: Post[];
   refreshFeed: () => Promise<void>;
   walletChainId: string | null;

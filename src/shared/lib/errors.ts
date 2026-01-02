@@ -1,12 +1,31 @@
+type ErrorLike = {
+  code?: string | number;
+  message?: string;
+  reason?: string;
+  shortMessage?: string;
+  data?: {
+    message?: string;
+    error?: { message?: string; data?: { message?: string; error?: { message?: string } } };
+  };
+  error?: { message?: string; data?: { message?: string } };
+  info?: { error?: { message?: string; data?: { message?: string; error?: { message?: string } } } };
+  cause?: { shortMessage?: string; reason?: string; message?: string };
+};
+
+function toErrorLike(error: unknown): ErrorLike {
+  if (error && typeof error === "object") return error as ErrorLike;
+  return {};
+}
+
 export function getErrorMessage(error: unknown) {
-  const anyErr = error as any;
+  const err = toErrorLike(error);
 
   // MetaMask / EIP-1193 user rejected
-  if (anyErr?.code === 4001 || anyErr?.code === "ACTION_REJECTED") {
+  if (err.code === 4001 || err.code === "ACTION_REJECTED") {
     return "Transaction rejected in wallet.";
   }
 
-  const pickString = (...values: unknown[]) => {
+  const pickString = (...values: Array<string | null | undefined>) => {
     for (const v of values) {
       if (typeof v === "string" && v.trim()) return v;
     }
@@ -15,21 +34,21 @@ export function getErrorMessage(error: unknown) {
 
   // Ethers / wallet providers often wrap the "real" error several layers deep.
   const nestedMessage = pickString(
-    anyErr?.info?.error?.message,
-    anyErr?.info?.error?.data?.message,
-    anyErr?.info?.error?.data?.error?.message,
-    anyErr?.error?.message,
-    anyErr?.error?.data?.message,
-    anyErr?.data?.message,
-    anyErr?.cause?.shortMessage,
-    anyErr?.cause?.reason,
-    anyErr?.cause?.message
+    err.info?.error?.message,
+    err.info?.error?.data?.message,
+    err.info?.error?.data?.error?.message,
+    err.error?.message,
+    err.error?.data?.message,
+    err.data?.message,
+    err.cause?.shortMessage,
+    err.cause?.reason,
+    err.cause?.message
   );
 
   // Ethers v6 common fields
-  const shortMessage = pickString(anyErr?.shortMessage);
-  const reason = pickString(anyErr?.reason);
-  const message = pickString(anyErr?.message);
+  const shortMessage = pickString(err.shortMessage);
+  const reason = pickString(err.reason);
+  const message = pickString(err.message);
 
   // Prefer useful nested context when ethers shows a generic coalescing error.
   const combinedRaw = shortMessage ?? reason ?? message ?? nestedMessage ?? "Transaction failed.";

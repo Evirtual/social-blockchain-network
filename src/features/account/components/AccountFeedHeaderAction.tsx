@@ -1,5 +1,5 @@
 import type { AccountFeedView } from "../hooks/useAccountFeedView";
-import { IconBookmark, IconEdit, IconHeart } from "@features/app";
+import { IconBookmark, IconEdit, IconHeart } from "@shared/components/icons";
 
 type Props = {
   view: AccountFeedView;

@@ -1,3 +1,5 @@
+import type { Contract, ContractEventName, EventLog, Log, Provider, TopicFilter } from "ethers";
+
 export async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => {
@@ -11,15 +13,15 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, label: str
 }
 
 export async function queryLogsPaged(args: {
-  readContract: any;
-  filter: any;
+  readContract: Contract;
+  filter: ContractEventName;
   fromBlock: number;
   toBlock: number;
   label: string;
   timeoutMs?: number;
   initialChunkSize?: number;
   minChunkSize?: number;
-}): Promise<any[]> {
+}): Promise<Array<EventLog | Log>> {
   const {
     readContract,
     filter,
@@ -31,14 +33,14 @@ export async function queryLogsPaged(args: {
     minChunkSize = 100
   } = args;
 
-  const logs: any[] = [];
+  const logs: Array<EventLog | Log> = [];
 
   let chunkSize = initialChunkSize;
   let start = fromBlock;
   while (start <= toBlock) {
     const end = Math.min(toBlock, start + chunkSize - 1);
     try {
-      const part = (await withTimeout<any>(readContract.queryFilter(filter, start, end), timeoutMs, `${label} ${start}-${end}`)) as any[];
+      const part = await withTimeout(readContract.queryFilter(filter, start, end), timeoutMs, `${label} ${start}-${end}`);
       logs.push(...part);
       start = end + 1;
 
@@ -57,16 +59,16 @@ export async function queryLogsPaged(args: {
 }
 
 export async function queryLogsPagedRaw(args: {
-  provider: any;
+  provider: Provider;
   address: string;
-  topics: Array<string | string[] | null>;
+  topics: TopicFilter;
   fromBlock: number;
   toBlock: number;
   label: string;
   timeoutMs?: number;
   initialChunkSize?: number;
   minChunkSize?: number;
-}): Promise<any[]> {
+}): Promise<Log[]> {
   const {
     provider,
     address,
@@ -79,18 +81,18 @@ export async function queryLogsPagedRaw(args: {
     minChunkSize = 100
   } = args;
 
-  const logs: any[] = [];
+  const logs: Log[] = [];
 
   let chunkSize = initialChunkSize;
   let start = fromBlock;
   while (start <= toBlock) {
     const end = Math.min(toBlock, start + chunkSize - 1);
     try {
-      const part = (await withTimeout<any>(
+      const part = await withTimeout(
         provider.getLogs({ address, topics, fromBlock: start, toBlock: end }),
         timeoutMs,
         `${label} ${start}-${end}`
-      )) as any[];
+      );
       logs.push(...part);
       start = end + 1;
 

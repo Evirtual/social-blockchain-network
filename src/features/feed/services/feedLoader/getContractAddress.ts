@@ -1,4 +1,6 @@
-export function getContractAddress(readContract: any): string {
-  const addr = (readContract as any)?.target ?? (readContract as any)?.address;
+import type { Contract } from "ethers";
+
+export function getContractAddress(readContract: Contract): string {
+  const addr = readContract?.target ?? readContract?.address;
   return String(addr ?? "");
 }

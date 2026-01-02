@@ -19,7 +19,7 @@ export function useOwnerAddress(walletAddress: string | null) {
       setIsLoadingOwner(true);
       try {
         const readContract = await contract.getReadContract();
-        const owner = (await (readContract as any).owner()) as string;
+        const owner = (await readContract.owner()) as string;
         if (!cancelled) setOwnerAddress(owner);
       } catch {
         if (!cancelled) setOwnerAddress(null);

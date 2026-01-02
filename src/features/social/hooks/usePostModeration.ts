@@ -7,6 +7,8 @@ import { isSamePost } from "../services/postActions/matchPost";
 import { postKeyFromParts } from "@shared/lib/post";
 
 import type { Post, PostComment } from "@types";
+import type { TransactionResponse } from "ethers";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 type FeedLike = {
   posts: Post[];
@@ -15,9 +17,9 @@ type FeedLike = {
   setPostComments: React.Dispatch<React.SetStateAction<Record<string, PostComment[]>>>;
 };
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
@@ -31,8 +33,8 @@ export function usePostModeration(args: {
   chainId: string | null;
   isOwner: boolean;
   ipfsConfigured: boolean;
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;
@@ -70,7 +72,7 @@ export function usePostModeration(args: {
         const writeContract = await getWriteContract();
         const ok = await runContractTx<boolean>(
           "Freeze post",
-          () => ((writeContract as any).freezePost(BigInt(tokenId)) as any),
+          () => writeContract.freezePost(BigInt(tokenId)),
           () => true
         );
         if (!ok) return;
@@ -100,7 +102,7 @@ export function usePostModeration(args: {
           if (ipfsConfigured) {
             const readContract = await getReadContract();
             const tokenIdBig = BigInt(tokenId);
-            const oldTokenUri = (await (readContract as any).tokenURI(tokenIdBig)) as string;
+            const oldTokenUri = (await readContract.tokenURI(tokenIdBig)) as string;
             pinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
           }
         } catch {
@@ -114,8 +116,8 @@ export function usePostModeration(args: {
         const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
         const send =
           isOwner && !isMine
-            ? () => (writeContract as any).adminBurnPost(tokenIdBig)
-            : () => (writeContract as any).burnPost(tokenIdBig);
+            ? () => writeContract.adminBurnPost(tokenIdBig)
+            : () => writeContract.burnPost(tokenIdBig);
 
         await runContractTx("Burn post", send);
 

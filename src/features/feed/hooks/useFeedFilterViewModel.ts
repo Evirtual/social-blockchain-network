@@ -6,6 +6,7 @@ import { filterPosts } from "../services/filterPosts";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { loadFeedFromSubgraph } from "@features/feed/services/subgraph/loadFeedFromSubgraph";
+import { getEnv } from "@shared/lib/env";
 
 type Args = {
   posts: Post[];
@@ -55,7 +56,7 @@ export function useFeedFilterViewModel(args: Args) {
 
   useEffect(() => {
     let active = true;
-    const env = import.meta.env as any;
+    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));
@@ -142,7 +143,7 @@ export function useFeedFilterViewModel(args: Args) {
 
   useEffect(() => {
     let active = true;
-    const env = import.meta.env as any;
+    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));
@@ -244,7 +245,7 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
-    const env = import.meta.env as any;
+    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));

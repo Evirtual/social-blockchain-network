@@ -1,22 +1,29 @@
 import { useCallback } from "react";
 import { isAddress } from "ethers";
+import type { Post } from "@types";
 
 import { hasPinata, pinataPinFile } from "@features/ipfs";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscovery";
 import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
 import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
+import type { TransactionResponse } from "ethers";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 export function useProfileAdminActions(args: {
   address: string;
   contract: {
     isOwner: boolean;
-    getReadContract: () => Promise<any>;
-    getWriteContract: () => Promise<any>;
+    getReadContract: ReadContractFactory;
+    getWriteContract: WriteContractFactory;
   };
-  runContractTx: (label: string, fn: () => Promise<any>) => Promise<any>;
+  runContractTx: <T = void>(
+    label: string,
+    fn: () => Promise<TransactionResponse>,
+    onSuccess?: () => T
+  ) => Promise<T | undefined>;
 
-  feedPosts: any[];
+  feedPosts: Post[];
   refreshFeed: () => Promise<void>;
   walletChainId: string | null;
   loadProfile: (address: string) => Promise<void>;
@@ -31,7 +38,7 @@ export function useProfileAdminActions(args: {
 
       await args.runContractTx(allowed ? "Approve poster" : "Disapprove poster", async () => {
         const writeContract = await args.contract.getWriteContract();
-        return (writeContract as any).setPosterAllowed(args.address, allowed);
+        return writeContract.setPosterAllowed(args.address, allowed);
       });
 
       args.setIsPosterAllowed(allowed);
@@ -47,18 +54,26 @@ export function useProfileAdminActions(args: {
     if (!isAddress(normalized)) return;
 
     let tokenIds: bigint[] = [];
-    {
+    try {
       const readContract = await args.contract.getReadContract();
-      const provider: any = getScanProviderFromReadContract(readContract);
-      const discovered = await discoverMintedTokenIdsForAuthor({
+      const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
+      const discovery = discoverMintedTokenIdsForAuthor({
         readContract,
         scanProvider: provider,
         author: normalized
       });
+      const discovered = await Promise.race([
+        discovery,
+        new Promise<{ tokenIds: bigint[]; failed: boolean }>((resolve) =>
+          setTimeout(() => resolve({ tokenIds: [], failed: true }), 5000)
+        )
+      ]);
       tokenIds = discovered.tokenIds;
+    } catch {
+      tokenIds = [];
     }
 
-    let pinnedCids: unknown = null;
+    let pinnedCids: Set<string> | null = null;
 
     try {
       await args.runContractTx("Reset account", async () => {
@@ -73,21 +88,22 @@ export function useProfileAdminActions(args: {
         }
 
         const writeContract = await args.contract.getWriteContract();
-        return (writeContract as any).adminResetAccount(normalized, tokenIds);
+        return writeContract.adminResetAccount(normalized, tokenIds);
       });
     } catch {
       return;
     }
 
     try {
-      const maybePinned = pinnedCids as any;
-      if (maybePinned && typeof maybePinned.size === "number" && maybePinned.size > 0) {
+      const unpinIfNeeded = (cids: Set<string> | null) => {
+        if (!cids || cids.size === 0) return;
         const excludeTokenIds = tokenIds.map((x) => x.toString());
         const referenced = collectReferencedIpfsCidsFromPosts(args.feedPosts, {
           exclude: { chainId: args.walletChainId, tokenIds: excludeTokenIds }
         });
-        void bestEffortUnpinCids(maybePinned as Set<string>, { protectReferencedIn: referenced });
-      }
+        void bestEffortUnpinCids(cids, { protectReferencedIn: referenced });
+      };
+      unpinIfNeeded(pinnedCids);
     } catch {
       // ignore
     }
@@ -136,7 +152,7 @@ export function useProfileAdminActions(args: {
 
       await args.runContractTx("Admin set profile", async () => {
         const writeContract = await args.contract.getWriteContract();
-        return (writeContract as any).adminSetProfile(args.address, name, bio, avatar);
+        return writeContract.adminSetProfile(args.address, name, bio, avatar);
       });
 
       await args.loadProfile(args.address);

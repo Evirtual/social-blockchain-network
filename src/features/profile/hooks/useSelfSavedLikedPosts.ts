@@ -20,8 +20,8 @@ export function useSelfSavedLikedPosts(params: {
 
     const postsByKey = buildPostsByKey(feedPosts);
 
-    const savedFromFeed = uniqueByChainTokenKey(feedPosts, (p) => Boolean((p as any).savedByMe));
-    const likedFromFeed = uniqueByChainTokenKey(feedPosts, (p) => Boolean((p as any).likedByMe));
+    const savedFromFeed = uniqueByChainTokenKey(feedPosts, (p) => Boolean(p.savedByMe));
+    const likedFromFeed = uniqueByChainTokenKey(feedPosts, (p) => Boolean(p.likedByMe));
 
     const savedKeys = savedTokenIdsByAddress[selfKey] ?? [];
     const likedKeys = likedTokenIdsByAddress[selfKey] ?? [];

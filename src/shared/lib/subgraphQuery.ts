@@ -1,9 +1,16 @@
 import { withTimeout } from "./feedQuery";
 
+export type SubgraphVariables = Record<string, string | number | boolean | null | Array<string | number | boolean | null>>;
+
+type SubgraphResponse<T> = {
+  data?: T;
+  errors?: Array<{ message?: string }>;
+};
+
 export async function querySubgraph<T>(args: {
   url: string;
   query: string;
-  variables?: Record<string, unknown>;
+  variables?: SubgraphVariables;
   timeoutMs?: number;
 }): Promise<T> {
   const url = String(args.url ?? "").trim();
@@ -23,13 +30,17 @@ export async function querySubgraph<T>(args: {
       throw new Error(`Subgraph HTTP ${res.status}: ${text || res.statusText}`);
     }
 
-    const json = (await res.json()) as any;
+    const json = (await res.json()) as SubgraphResponse<T>;
     if (json?.errors?.length) {
       const msg = String(json.errors?.[0]?.message ?? "Subgraph query failed");
       throw new Error(msg);
     }
 
-    return json?.data as T;
+    if (!json || !json.data) {
+      throw new Error("Subgraph query returned no data.");
+    }
+
+    return json.data;
   })();
 
   return await withTimeout(task, timeoutMs, "subgraph query");
@@ -38,13 +49,14 @@ export async function querySubgraph<T>(args: {
 export async function tryQuerySubgraph<T>(args: {
   url: string;
   query: string;
-  variables?: Record<string, unknown>;
+  variables?: SubgraphVariables;
   timeoutMs?: number;
-}): Promise<{ ok: true; data: T } | { ok: false; error: unknown }> {
+}): Promise<{ ok: true; data: T } | { ok: false; error: Error }> {
   try {
     const data = await querySubgraph<T>(args);
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error };
+    const err = error instanceof Error ? error : new Error(String(error));
+    return { ok: false, error: err };
   }
 }

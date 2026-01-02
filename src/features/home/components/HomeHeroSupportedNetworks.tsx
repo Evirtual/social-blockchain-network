@@ -1,5 +1,6 @@
-import { ChainLogo } from "@features/app";
-import type { SupportedNetwork } from "../services/supportedNetworks";
+import { ChainLogo } from "@shared/components/ChainLogos";
+import type { CSSProperties } from "react";
+import type { SupportedNetwork } from "@features/feed";
 
 type Props = {
   isDisconnected: boolean;
@@ -11,6 +12,8 @@ type Props = {
   onDismiss: () => void;
   onRequestWalletNetworkSwitch: (targetChainId: number) => void | Promise<void>;
 };
+
+type BrandHueStyle = CSSProperties & { ["--brand-hue"]?: string | number };
 
 export function HomeHeroSupportedNetworks(props: Props) {
   return (
@@ -40,28 +43,31 @@ export function HomeHeroSupportedNetworks(props: Props) {
       </div>
 
       <div className="heroBullets" role="list">
-        {props.supportedNetworks.map((n) => (
-          <button
-            key={n.chainId}
-            className={`pill pillButton ${props.currentChainId === String(n.chainId) ? "isCurrentNetwork" : ""}`}
-            type="button"
-            role="listitem"
-            aria-label={n.displayName}
-            aria-current={props.currentChainId === String(n.chainId) ? "true" : undefined}
-            onClick={() => {
-              void props.onRequestWalletNetworkSwitch(n.chainId);
-            }}
-            disabled={!props.canSwitchNetwork}
-            title={!props.canSwitchNetwork ? "Connect a wallet to switch networks" : undefined}
-          >
+        {props.supportedNetworks.map((n) => {
+          const brandStyle: BrandHueStyle = { ["--brand-hue"]: n.brandHue };
+          return (
+            <button
+              key={n.chainId}
+              className={`pill pillButton ${props.currentChainId === String(n.chainId) ? "isCurrentNetwork" : ""}`}
+              type="button"
+              role="listitem"
+              aria-label={n.displayName}
+              aria-current={props.currentChainId === String(n.chainId) ? "true" : undefined}
+              onClick={() => {
+                void props.onRequestWalletNetworkSwitch(n.chainId);
+              }}
+              disabled={!props.canSwitchNetwork}
+              title={!props.canSwitchNetwork ? "Connect a wallet to switch networks" : undefined}
+            >
               <span className="pillIcon" aria-hidden="true">
-                <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }}>
+                <span className="chainBrandMark" style={brandStyle}>
                   <ChainLogo chainId={n.chainId} size={20} />
                 </span>
               </span>
               {n.displayName}
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </section>
   );

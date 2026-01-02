@@ -1,4 +1,5 @@
 import { Contract, type ContractRunner, Interface } from "ethers";
+import type { SocialPostsContract } from "../types";
 
 export const SOCIAL_ABI = [
   "event ProfileUpdated(address indexed account, string name, string bio, string avatar)",
@@ -106,6 +107,6 @@ export const SOCIAL_ABI = [
 
 export const socialInterface = new Interface(SOCIAL_ABI);
 
-export function getSocialContract(address: string, runner: ContractRunner) {
+export function getSocialContract(address: string, runner: ContractRunner): SocialPostsContract {
   return new Contract(address, SOCIAL_ABI, runner);
 }

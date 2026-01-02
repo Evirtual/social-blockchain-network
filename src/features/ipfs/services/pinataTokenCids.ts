@@ -1,8 +1,9 @@
 import { collectIpfsCidsFromTokenUri } from "./pinataCleanup";
 import { mapWithConcurrency } from "@shared/lib/async";
+import type { SocialPostsContract } from "@features/contract";
 
 export async function collectPinnedCidsForTokenIds(opts: {
-  readContract: any;
+  readContract: SocialPostsContract;
   tokenIds: bigint[];
   concurrency?: number;
 }): Promise<Set<string>> {
@@ -13,7 +14,7 @@ export async function collectPinnedCidsForTokenIds(opts: {
 
   await mapWithConcurrency(tokenIds, concurrency, async (id) => {
     try {
-      const tokenUri = (await (readContract as any).tokenURI(id)) as string;
+      const tokenUri = (await readContract.tokenURI(id)) as string;
       const cids = await collectIpfsCidsFromTokenUri(tokenUri);
       for (const cid of cids) pinnedCids.add(cid);
     } catch {

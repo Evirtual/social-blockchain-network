@@ -2,13 +2,14 @@ import { withTimeout } from "@shared/lib/feedQuery";
 import { parseFeedEventLogs } from "./parseFeedEventLogs";
 import { queryAnyFeedEventsPaged } from "./queryAnyFeedEventsPaged";
 import type { MintedEventLite } from "../feedLoader";
+import type { ChainProvider, SocialPostsContract } from "@features/contract";
 
 export async function fetchMintedEventsIncremental(args: {
   chainLabel: string;
   chainCacheKey: string;
   maxLookbackBlocks: number;
-  networkProvider: any;
-  readContract: any;
+  networkProvider: ChainProvider;
+  readContract: SocialPostsContract;
 }): Promise<{
   mintedEvents: MintedEventLite[];
   tokensNeedFullRefresh: Set<string>;
@@ -16,8 +17,7 @@ export async function fetchMintedEventsIncremental(args: {
   burnedTokenIds: Set<string>;
 }> {
   void args.chainCacheKey;
-  const latestAny = await withTimeout<any>(args.networkProvider.getBlockNumber(), 6_000, "feed getBlockNumber");
-  const latest = Number(latestAny);
+  const latest = await withTimeout(args.networkProvider.getBlockNumber(), 6_000, "feed getBlockNumber");
   if (!Number.isFinite(latest) || latest < 0) {
     throw new Error("Feed RPC returned invalid blockNumber.");
   }

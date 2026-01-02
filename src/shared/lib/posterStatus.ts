@@ -10,7 +10,9 @@ export type PosterGateStatus = {
   requested: boolean;
 };
 
-export async function fetchPosterStatuses(readContract: any, addresses: string[]): Promise<PosterStatus[]> {
+import type { Contract } from "ethers";
+
+export async function fetchPosterStatuses(readContract: Contract, addresses: string[]): Promise<PosterStatus[]> {
   const uniqByKey = new Map<string, string>();
   for (const a of addresses) {
     const raw = (a ?? "").trim();
@@ -25,8 +27,8 @@ export async function fetchPosterStatuses(readContract: any, addresses: string[]
   const checks = await Promise.all(
     uniq.map(async (a) => {
       try {
-        const allowed = (await (readContract as any).isPosterAllowed(a)) as boolean;
-        const disapprovedEver = (await (readContract as any).wasPosterDisapproved(a)) as boolean;
+        const allowed = (await readContract.isPosterAllowed(a)) as boolean;
+        const disapprovedEver = (await readContract.wasPosterDisapproved(a)) as boolean;
         return { address: a, allowed: !!allowed, disapprovedEver: !!disapprovedEver };
       } catch {
         return { address: a, allowed: false, disapprovedEver: false };
@@ -37,7 +39,7 @@ export async function fetchPosterStatuses(readContract: any, addresses: string[]
   return checks;
 }
 
-export async function fetchPosterGateStatuses(readContract: any, addresses: string[]): Promise<PosterGateStatus[]> {
+export async function fetchPosterGateStatuses(readContract: Contract, addresses: string[]): Promise<PosterGateStatus[]> {
   const uniqByKey = new Map<string, string>();
   for (const a of addresses) {
     const raw = (a ?? "").trim();
@@ -52,8 +54,8 @@ export async function fetchPosterGateStatuses(readContract: any, addresses: stri
   const checks = await Promise.all(
     uniq.map(async (a) => {
       try {
-        const allowed = (await (readContract as any).isPosterAllowed(a)) as boolean;
-        const requested = (await (readContract as any).hasPosterRequested(a)) as boolean;
+        const allowed = (await readContract.isPosterAllowed(a)) as boolean;
+        const requested = (await readContract.hasPosterRequested(a)) as boolean;
         return { address: a, allowed: !!allowed, requested: !!requested };
       } catch {
         return { address: a, allowed: false, requested: false };

@@ -32,9 +32,9 @@ export function useNetworkFilterState({
     serialize: (v) => JSON.stringify({ ids: v }),
     parse: (raw) => {
       try {
-        const parsed = JSON.parse(raw) as any;
-        const ids = Array.isArray(parsed?.ids)
-          ? parsed.ids.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim())
+        const parsed = JSON.parse(raw) as { ids?: string[] };
+        const ids = Array.isArray(parsed.ids)
+          ? parsed.ids.filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim())
           : [];
         return ids;
       } catch {

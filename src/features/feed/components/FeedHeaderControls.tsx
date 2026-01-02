@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChainLogo } from "@features/app/components/ChainLogos";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ChainLogo } from "@shared/components/ChainLogos";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
   onSelectedNetworkChainIdsChange: (updater: (prev: string[]) => string[]) => void;
   supportedNetworks: SupportedNetwork[];
 };
+
+type BrandHueStyle = CSSProperties & { ["--brand-hue"]?: string | number };
 
 export function FeedHeaderControls(props: Props) {
   const metaRef = useRef<HTMLSpanElement | null>(null);
@@ -84,16 +86,19 @@ export function FeedHeaderControls(props: Props) {
             <span className="feedNetworkFilterSummaryLabel">Networks</span>
             {selectedNetworks.length ? (
               <span className="feedNetworkFilterSummaryIcons" aria-label={`${selectedNetworks.length} selected networks`}>
-                {selectedNetworks.map((n) => (
-                  <span
-                    key={n.chainId}
-                    className="chainBrandMark"
-                    style={{ ["--brand-hue" as any]: n.brandHue }}
-                    aria-hidden="true"
-                  >
-                    <ChainLogo chainId={n.chainId} size={20} />
-                  </span>
-                ))}
+                {selectedNetworks.map((n) => {
+                  const brandStyle: BrandHueStyle = { ["--brand-hue"]: n.brandHue };
+                  return (
+                    <span
+                      key={n.chainId}
+                      className="chainBrandMark"
+                      style={brandStyle}
+                      aria-hidden="true"
+                    >
+                      <ChainLogo chainId={n.chainId} size={20} />
+                    </span>
+                  );
+                })}
               </span>
             ) : null}
           </summary>
@@ -101,6 +106,7 @@ export function FeedHeaderControls(props: Props) {
             {props.supportedNetworks.map((n) => {
               const value = String(n.chainId);
               const checked = props.selectedNetworkChainIds.includes(value);
+              const brandStyle: BrandHueStyle = { ["--brand-hue"]: n.brandHue };
               return (
                 <label key={value} className="feedNetworkFilterOption">
                   <input
@@ -114,7 +120,7 @@ export function FeedHeaderControls(props: Props) {
                     }}
                   />
                   <span className="feedNetworkFilterOptionLabel">
-                    <span className="chainBrandMark" style={{ ["--brand-hue" as any]: n.brandHue }} aria-hidden="true">
+                    <span className="chainBrandMark" style={brandStyle} aria-hidden="true">
                       <ChainLogo chainId={n.chainId} size={20} />
                     </span>
                     <span className="feedNetworkFilterOptionText">

@@ -1,0 +1,185 @@
+import type { Post } from "@types";
+import type { PostActionsController } from "@features/post";
+import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
+import { useAccountPageProps } from "./useAccountPageProps";
+import { useProfilePageProps } from "./useProfilePageProps";
+
+export function useProfilePageViewModel(args: {
+  address: string;
+  status: string;
+  contractState: {
+    isOwner: boolean;
+    withdrawableTipsWei: bigint;
+    contractAddress: string | undefined;
+    contractDeployed: boolean | null;
+  };
+  walletState: {
+    chainId: string | null;
+    networkName: string | null;
+    nativeBalance: string;
+    walletAddress: string | null;
+  };
+  profileState: {
+    displayName: string;
+    profileBio: string;
+    profileAvatarUrl: string;
+    myPostsCount?: number;
+    isEditingProfile: boolean;
+    profileDraftName: string;
+    profileDraftBio: string;
+    profileDraftAvatarUrl: string;
+    profileDraftAvatarDataUrl: string;
+    isProfileAvatarLoading: boolean;
+    selfAvatarHue: number;
+    authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
+  };
+  profileActions: {
+    setProfileDraftName: (next: string) => void;
+    setProfileDraftBio: (next: string) => void;
+    setProfileDraftAvatarUrl: (next: string) => void;
+    onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
+    onClearProfileAvatar: () => void;
+    startEditProfile: () => void;
+    cancelEditProfile: () => void;
+  };
+  follow: {
+    followerCountByAddress: Record<string, number | undefined>;
+    followersByAddress: Record<string, string[] | undefined>;
+    followingByAddress: Record<string, string[] | undefined>;
+    isLoadingFollowersByAddress: Record<string, boolean | undefined>;
+    isLoadingFollowingByAddress: Record<string, boolean | undefined>;
+    isFollowingByAddress: Record<string, boolean | undefined>;
+  };
+  feedState: {
+    isFeedLoading: boolean;
+  };
+  admin: {
+    isPosterAllowed: boolean | undefined;
+    wasPosterDisapprovedEver: boolean | undefined;
+  };
+  handlers: {
+    adminActionInFlight: "approve" | "disapprove" | "reset" | "save" | null;
+    isFollowSubmitting: boolean;
+    onDisconnectWallet: () => void;
+    onWithdrawTips: () => Promise<void>;
+    onSaveProfile: () => void;
+    onToggleFollow: () => Promise<void>;
+    onAdminSetPosterAllowed: (allowed: boolean) => Promise<void>;
+    onAdminReset: () => Promise<void>;
+    onAdminSetProfile: (next: {
+      name: string;
+      bio: string;
+      avatarUrl: string;
+      avatarFile?: File | null;
+      avatarFilename?: string;
+      avatarDataUrl?: string;
+    }) => Promise<void>;
+  };
+  postActions: PostActionsController;
+  data: {
+    key: string;
+    isSelf: boolean;
+    name: string;
+    bio: string;
+    avatarUrl: string;
+    filtered: Post[];
+    savedPosts: Post[];
+    likedPosts: Post[];
+    selfKey: string;
+    isLoadingSaved: boolean;
+    isLoadingLiked: boolean;
+  };
+}) {
+  const accountPageProps = useAccountPageProps({
+    isOwner: args.contractState.isOwner,
+    selfKey: args.data.selfKey,
+    status: args.status,
+    contract: {
+      withdrawableTipsWei: args.contractState.withdrawableTipsWei,
+      contractAddress: args.contractState.contractAddress,
+      contractDeployed: args.contractState.contractDeployed
+    },
+    wallet: {
+      chainId: args.walletState.chainId,
+      networkName: args.walletState.networkName,
+      nativeBalance: args.walletState.nativeBalance,
+      walletAddress: args.walletState.walletAddress
+    },
+    profileCtx: {
+      displayName: args.profileState.displayName,
+      profileBio: args.profileState.profileBio,
+      profileAvatarUrl: args.profileState.profileAvatarUrl,
+      myPostsCount: args.profileState.myPostsCount,
+      isEditingProfile: args.profileState.isEditingProfile,
+      profileDraftName: args.profileState.profileDraftName,
+      profileDraftBio: args.profileState.profileDraftBio,
+      profileDraftAvatarUrl: args.profileState.profileDraftAvatarUrl,
+      profileDraftAvatarDataUrl: args.profileState.profileDraftAvatarDataUrl,
+      isProfileAvatarLoading: args.profileState.isProfileAvatarLoading,
+      setProfileDraftName: args.profileActions.setProfileDraftName,
+      setProfileDraftBio: args.profileActions.setProfileDraftBio,
+      setProfileDraftAvatarUrl: args.profileActions.setProfileDraftAvatarUrl,
+      onSelectProfileAvatarFile: args.profileActions.onSelectProfileAvatarFile,
+      onClearProfileAvatar: args.profileActions.onClearProfileAvatar,
+      startEditProfile: args.profileActions.startEditProfile,
+      cancelEditProfile: args.profileActions.cancelEditProfile,
+      selfAvatarHue: args.profileState.selfAvatarHue,
+      authorIdentity: args.profileState.authorIdentity
+    },
+    follow: {
+      followerCountByAddress: args.follow.followerCountByAddress,
+      followersByAddress: args.follow.followersByAddress,
+      followingByAddress: args.follow.followingByAddress,
+      isLoadingFollowersByAddress: args.follow.isLoadingFollowersByAddress,
+      isLoadingFollowingByAddress: args.follow.isLoadingFollowingByAddress
+    },
+    feed: {
+      isFeedLoading: args.feedState.isFeedLoading
+    },
+    posts: args.data.filtered,
+    savedPosts: args.data.savedPosts,
+    likedPosts: args.data.likedPosts,
+    isLoadingSaved: args.data.isLoadingSaved,
+    isLoadingLiked: args.data.isLoadingLiked,
+    onDisconnectWallet: args.handlers.onDisconnectWallet,
+    onWithdrawTips: args.handlers.onWithdrawTips,
+    onSaveProfile: args.handlers.onSaveProfile,
+    postActions: args.postActions,
+    shortAddress,
+    stableHueFromSeed,
+    getNativeSymbol,
+    getExplorerTxUrl
+  });
+
+  const profilePageProps = useProfilePageProps({
+    isOwner: args.contractState.isOwner,
+    isPosterAllowed: args.admin.isPosterAllowed,
+    wasPosterDisapprovedEver: args.admin.wasPosterDisapprovedEver,
+    adminActionInFlight: args.handlers.adminActionInFlight,
+    address: args.address,
+    key: args.data.key,
+    name: args.data.name,
+    bio: args.data.bio,
+    avatarUrl: args.data.avatarUrl,
+    isFollowing: args.follow.isFollowingByAddress[args.data.key],
+    isFollowSubmitting: args.handlers.isFollowSubmitting,
+    posts: args.data.filtered,
+    chainId: args.walletState.chainId,
+    status: args.status,
+    isFeedLoading: args.feedState.isFeedLoading,
+    walletAddress: args.walletState.walletAddress,
+    authorIdentity: args.profileState.authorIdentity,
+    onToggleFollow: args.handlers.onToggleFollow,
+    onAdminSetPosterAllowed: args.handlers.onAdminSetPosterAllowed,
+    onAdminReset: args.handlers.onAdminReset,
+    onAdminSetProfile: args.handlers.onAdminSetProfile,
+    postActions: args.postActions,
+    shortAddress,
+    stableHueFromSeed,
+    getNativeSymbol,
+    getExplorerTxUrl
+  });
+
+  return { accountPageProps, profilePageProps, isSelf: args.data.isSelf };
+}

@@ -10,7 +10,7 @@ export async function collectIpfsCidsFromTokenUri(tokenUri: string): Promise<Set
   const meta = await fetchTokenMetadata(tokenUri);
   const imageCid = extractIpfsCid(String(meta?.image ?? ""));
   if (imageCid) out.add(imageCid);
-  const animCid = extractIpfsCid(String((meta as any)?.animation_url ?? ""));
+  const animCid = extractIpfsCid(String(meta?.animation_url ?? ""));
   if (animCid) out.add(animCid);
 
   return out;

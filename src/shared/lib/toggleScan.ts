@@ -1,20 +1,19 @@
-import type { Interface, LogDescription } from "ethers";
+import type { Contract, ContractEventName, EventLog, Interface, Log, LogDescription, Provider } from "ethers";
 import { withTimeout } from "./feedQuery";
 
-function getLogOrderIndex(log: any): number {
-  const idx = (log as any)?.index ?? (log as any)?.logIndex;
-  const n = Number(idx ?? 0);
-  return Number.isFinite(n) ? n : 0;
+function getLogOrderIndex(log: Log | EventLog): number {
+  const idx = Number(log.index ?? 0);
+  return Number.isFinite(idx) ? idx : 0;
 }
 
 
 export type ScanActiveToggleKeysArgs = {
-  readContract: any;
-  scanProvider: any;
+  readContract: Contract;
+  scanProvider: Provider;
   iface: Interface;
 
-  onFilter: any;
-  offFilter: any;
+  onFilter: ContractEventName;
+  offFilter: ContractEventName;
   onEventName: string;
   offEventName: string;
 
@@ -61,26 +60,18 @@ export async function scanActiveToggleKeys(args: ScanActiveToggleKeysArgs): Prom
   }
 
   let windowSize = initialWindowSize;
-  const collected: any[] = [];
+  const collected: Array<EventLog | Log> = [];
 
   const pullRange = async (fromBlock: number, toBlock: number) => {
     const [onLogs, offLogs] = await Promise.all([
-      withTimeout(
-        (readContract as any).queryFilter(onFilter, fromBlock, toBlock),
-        timeoutMs,
-        `${errorLabel} scan ${onEventName} ${fromBlock}-${toBlock}`
-      ),
-      withTimeout(
-        (readContract as any).queryFilter(offFilter, fromBlock, toBlock),
-        timeoutMs,
-        `${errorLabel} scan ${offEventName} ${fromBlock}-${toBlock}`
-      )
+      withTimeout(readContract.queryFilter(onFilter, fromBlock, toBlock), timeoutMs, `${errorLabel} scan ${onEventName} ${fromBlock}-${toBlock}`),
+      withTimeout(readContract.queryFilter(offFilter, fromBlock, toBlock), timeoutMs, `${errorLabel} scan ${offEventName} ${fromBlock}-${toBlock}`)
     ]);
 
-    const all = [...(onLogs as any[]), ...(offLogs as any[])];
+    const all = [...onLogs, ...offLogs];
     return all.sort((a, b) => {
-      const ab = Number((a as any).blockNumber ?? 0);
-      const bb = Number((b as any).blockNumber ?? 0);
+      const ab = Number(a.blockNumber ?? 0);
+      const bb = Number(b.blockNumber ?? 0);
       if (ab !== bb) return ab - bb;
       return getLogOrderIndex(a) - getLogOrderIndex(b);
     });
@@ -106,7 +97,7 @@ export async function scanActiveToggleKeys(args: ScanActiveToggleKeysArgs): Prom
   for (const log of collected) {
     let parsed: LogDescription | null = null;
     try {
-      parsed = iface.parseLog({ topics: (log as any).topics as string[], data: (log as any).data });
+      parsed = iface.parseLog(log);
     } catch {
       parsed = null;
     }
@@ -127,7 +118,7 @@ export async function scanActiveToggleKeys(args: ScanActiveToggleKeysArgs): Prom
     if (!key) continue;
     const normalized = normalizeKey ? normalizeKey(key) : key;
 
-    const blockNumber = Number((log as any).blockNumber ?? 0);
+    const blockNumber = Number(log.blockNumber ?? 0);
     const logIndex = getLogOrderIndex(log);
 
     if (parsed.name === onEventName) {

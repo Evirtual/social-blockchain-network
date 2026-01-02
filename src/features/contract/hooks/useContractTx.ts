@@ -4,6 +4,7 @@ import { getExplorerTxUrl } from "@shared/lib/network";
 import { getErrorMessage } from "@shared/lib/errors";
 import { useContractActions } from "../providers/useContractActions";
 import { isUserRejectedTx, useTxNotifications } from "@features/tx";
+import type { TxErrorInput } from "@features/tx";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 
@@ -58,7 +59,7 @@ export function useContractTx() {
         dismissSigningToast();
 
         const message = getErrorMessage(error);
-        const rejected = isUserRejectedTx(error);
+        const rejected = isUserRejectedTx(error as TxErrorInput);
         setStatus(message);
 
         if (rejected) {
@@ -66,7 +67,11 @@ export function useContractTx() {
           throw error;
         }
 
-        const hash = (error as any)?.transaction?.hash ?? (error as any)?.hash;
+        const err =
+          error && typeof error === "object"
+            ? (error as { transaction?: { hash?: string }; hash?: string })
+            : null;
+        const hash = err?.transaction?.hash ?? err?.hash;
         if (typeof hash === "string") {
           txNotifications.notifyFailed({ hash, label, error: message });
         } else {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconMoon, IconPlus, IconSun } from "./icons";
+import { IconMoon, IconPlus, IconSun } from "@shared/components/icons";
 
 type Props = {
   theme: "light" | "dark";

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { BrowserProvider } from "ethers";
-import { getSocialContract, socialInterface } from "@features/contract";
+import { getSocialContract, socialInterface, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
@@ -9,6 +9,7 @@ import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
+import { getEnv } from "@shared/lib/env";
 
 type Args = {
   walletProvider: BrowserProvider | null;
@@ -16,7 +17,7 @@ type Args = {
 
   contractAddress: string | undefined;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 
   loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
   setStatus: (status: string) => void;
@@ -59,7 +60,7 @@ export function useLikedPostsByAddress(args: Args) {
         await runInFlight(likesInFlightRef.current, key, async () => {
           setIsLoadingLikesByAddress((prev) => ({ ...prev, [key]: true }));
           try {
-            const env = import.meta.env as any;
+            const env = getEnv();
             const resolvedChainIdNum = parseChainIdNumber(args.chainId);
 
             const subgraphUrl = getSubgraphUrlForChainId(env, resolvedChainIdNum);
@@ -112,11 +113,11 @@ export function useLikedPostsByAddress(args: Args) {
 
             const rpcUrl = getRpcUrlForChainId(env, resolvedChainIdNum);
 
-            let readContract: any = null;
-            let scanProvider: any = null;
+            let readContract: SocialPostsContract | null = null;
+            let scanProvider: ChainProvider | null = null;
 
             if (rpcUrl && args.contractAddress) {
-              const rpcProvider: any = getRpcProvider(rpcUrl, resolvedChainIdNum!);
+              const rpcProvider = getRpcProvider(rpcUrl, resolvedChainIdNum!);
               readContract = getSocialContract(args.contractAddress, rpcProvider);
               scanProvider = rpcProvider;
             } else {
@@ -127,13 +128,15 @@ export function useLikedPostsByAddress(args: Args) {
               scanProvider = getScanProviderFromReadContract(readContract, args.walletProvider);
             }
 
+            if (!readContract || !scanProvider) return;
+
             const activeTokenIds = await scanToggleEventsForAddress({
               readContract,
               scanProvider,
               iface: socialInterface,
               address,
-              onFilter: (readContract as any).filters.PostLiked(address, null),
-              offFilter: (readContract as any).filters.PostUnliked(address, null),
+              onFilter: readContract.filters.PostLiked(address, null),
+              offFilter: readContract.filters.PostUnliked(address, null),
               onEventName: "PostLiked",
               offEventName: "PostUnliked",
               tokenIdArgIndex: 1

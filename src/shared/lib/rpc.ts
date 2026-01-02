@@ -7,7 +7,9 @@ export function getRpcProvider(url: string, chainIdNum: number): JsonRpcProvider
 
 export { parseChainIdNumber };
 
-export function getRpcUrlForChainId(env: any, chainIdNum: number | null): string {
+import type { EnvMap } from "./env";
+
+export function getRpcUrlForChainId(env: EnvMap, chainIdNum: number | null): string {
   if (chainIdNum == null) return "";
 
   const rpcUrlByChainId: Record<number, string | undefined> = {

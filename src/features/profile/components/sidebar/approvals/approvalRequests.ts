@@ -3,6 +3,7 @@ import { isAddress } from "ethers";
 import { scanRecentUniqueAddressesFromEvent } from "@features/profile";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
+import type { ReadContractFactory } from "@features/contract";
 
 type ApprovalRequestsResult = {
   addresses: string[];
@@ -12,7 +13,7 @@ type ApprovalRequestsResult = {
 
 export async function fetchApprovalRequests(args: {
   subgraphUrl: string | null;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 }): Promise<ApprovalRequestsResult> {
   if (args.subgraphUrl) {
     try {
@@ -49,7 +50,10 @@ export async function fetchApprovalRequests(args: {
   }
 
   const readContract = await args.getReadContract();
-  const provider: any = getScanProviderFromReadContract(readContract);
+  const provider = getScanProviderFromReadContract(readContract);
+  if (!provider) {
+    return { addresses: [], hadQueryError: false, source: "chain" };
+  }
 
   const latestRaw = (await provider?.getBlockNumber?.()) ?? 0;
   const latest = Number(latestRaw);
@@ -57,13 +61,18 @@ export async function fetchApprovalRequests(args: {
     return { addresses: [], hadQueryError: false, source: "chain" };
   }
 
-  const filter = (readContract as any).filters.PosterApprovalRequested();
+  const filter = readContract.filters.PosterApprovalRequested();
 
   const { addresses: uniq, hadQueryError } = await scanRecentUniqueAddressesFromEvent({
     scanProvider: provider,
     readContract,
     filter,
-    extractAddress: (l: any) => (l?.args?.[0] as string | undefined) ?? "",
+    extractAddress: (log) => {
+      if ("args" in log) {
+        return String(log.args?.[0] ?? "");
+      }
+      return "";
+    },
     isValidAddress: (a: string) => isAddress(a),
     maxUnique: 50,
     maxRounds: 20,

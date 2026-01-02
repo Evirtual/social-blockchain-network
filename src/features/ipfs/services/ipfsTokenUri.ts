@@ -20,7 +20,7 @@ export async function buildIpfsTokenUri(input: {
   if (input.imageBlob) {
     const fileRes = await pinataPinFile(input.imageBlob, input.imageFilename || "post-media");
     const mediaRef = `ipfs://${fileRes.IpfsHash}`;
-    const isVideo = (input.imageBlob as any)?.type?.startsWith?.("video/") ?? false;
+    const isVideo = input.imageBlob.type?.startsWith("video/") ?? false;
     if (isVideo) animationRef = mediaRef;
     else imageRef = mediaRef;
   } else if (input.draft.imageUrl) {
@@ -57,7 +57,13 @@ export async function buildIpfsTokenUri(input: {
     }
   }
 
-  const metadata: any = {
+  const metadata: {
+    name?: string;
+    description?: string;
+    image?: string;
+    animation_url?: string;
+    attributes?: Array<{ trait_type: string; value: string }>;
+  } = {
     name: input.draft.title,
     description: input.draft.body,
     attributes: [{ trait_type: "Origin", value: "Social Blockchain Network" }]

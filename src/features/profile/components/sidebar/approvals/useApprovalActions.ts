@@ -6,10 +6,12 @@ import { discoverMintedTokenIdsForAuthor } from "@features/profile";
 import { bestEffortUnpinCids, collectPinnedCidsForTokenIds, collectReferencedIpfsCidsFromPosts } from "@features/ipfs";
 import type { Post } from "@types";
 import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
+import type { TransactionResponse } from "ethers";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
@@ -23,8 +25,8 @@ export function useApprovalActions(args: {
   setPosterDisapprovedEverByAddress: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 
   runContractTx: RunContractTxLike;
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
 
   feedPosts: Post[];
 }) {
@@ -55,7 +57,7 @@ export function useApprovalActions(args: {
     args.setApprovalsError(null);
     await args.runContractTx("Approve poster", async () => {
       const writeContract = await args.getWriteContract();
-      return (writeContract as any).setPosterAllowed(addr, true);
+      return writeContract.setPosterAllowed(addr, true);
     });
 
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: true }));
@@ -66,7 +68,7 @@ export function useApprovalActions(args: {
     args.setApprovalsError(null);
     await args.runContractTx("Disapprove poster", async () => {
       const writeContract = await args.getWriteContract();
-      return (writeContract as any).setPosterAllowed(addr, false);
+      return writeContract.setPosterAllowed(addr, false);
     });
 
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [addr.toLowerCase()]: false }));
@@ -87,7 +89,7 @@ export function useApprovalActions(args: {
     let tokenDiscoveryFailed = false;
     try {
       const readContract = await args.getReadContract();
-      const provider: any = getScanProviderFromReadContract(readContract);
+      const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
       const discovery = discoverMintedTokenIdsForAuthor({
         readContract,
         scanProvider: provider,
@@ -120,7 +122,7 @@ export function useApprovalActions(args: {
         }
 
         const writeContract = await args.getWriteContract();
-        return (writeContract as any).adminResetAccount(normalized, tokenIds);
+        return writeContract.adminResetAccount(normalized, tokenIds);
       });
     } catch {
       return;

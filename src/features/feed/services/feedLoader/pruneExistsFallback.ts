@@ -1,12 +1,13 @@
 import { mapWithConcurrency } from "@shared/lib/async";
 import type { Post } from "@types";
+import type { SocialPostsContract } from "@features/contract";
 
 export async function pruneExistsFallback(args: {
   resolvedChainIdNum: number | null;
   postsSnapshot: Post[];
   postKey: (p: Pick<Post, "tokenId" | "chainId">) => string;
   pruneByKeys: (keys: Set<string>) => void;
-  readContract: any;
+  readContract: SocialPostsContract;
 }) {
   if (args.resolvedChainIdNum == null) return;
 
@@ -19,7 +20,7 @@ export async function pruneExistsFallback(args: {
 
   const dead = await mapWithConcurrency(sample, 5, async (p) => {
     try {
-      const ok = (await (args.readContract as any).exists(BigInt(p.tokenId))) as boolean;
+      const ok = (await args.readContract.exists(BigInt(p.tokenId))) as boolean;
       return ok ? null : p;
     } catch {
       return null;

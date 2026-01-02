@@ -7,21 +7,23 @@ import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
 
 import type { Post } from "@types";
+import type { TransactionResponse } from "ethers";
+import type { WriteContractFactory } from "@features/contract";
 
 type FeedLike = {
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 };
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
 export function usePostTips(args: {
   walletAddress: string | null;
   refreshWalletPanel: () => Promise<void>;
-  getWriteContract: () => Promise<any>;
+  getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { BrowserProvider } from "ethers";
+import type { BrowserProvider, Eip1193Provider } from "ethers";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 
 export function useWalletEvents(params: {
@@ -16,10 +16,15 @@ export function useWalletEvents(params: {
 }) {
   useEffect(() => {
     if (!params.provider) return;
-    const eth = (window.ethereum as any) ?? null;
+    type Eip1193WithEvents = Eip1193Provider & {
+      on?: (event: string, handler: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+    };
+    const eth = (window.ethereum as Eip1193WithEvents | undefined) ?? null;
     if (!eth?.on) return;
 
-    const onAccountsChanged = async (accounts: string[]) => {
+    const onAccountsChanged = async (...args: unknown[]) => {
+      const accounts = (args[0] as string[] | undefined) ?? [];
       if (params.isWalletAutoConnectDisabled) {
         params.setDisconnectedState("Wallet disconnected");
         return;
@@ -46,7 +51,8 @@ export function useWalletEvents(params: {
       params.bumpWalletEpoch();
     };
 
-    const onChainChanged = async (nextChainId?: string) => {
+    const onChainChanged = async (...args: unknown[]) => {
+      const nextChainId = args[0] as string | undefined;
       try {
         params.setStatus("Network changed.");
 

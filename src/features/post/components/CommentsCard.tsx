@@ -1,9 +1,9 @@
 import type { PostComment } from "@types";
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { IconBookmark, IconCoin, IconEdit, IconFlag, IconHeart, IconMessage, IconRepeat, IconTrash } from "@features/app";
 import { getPostNetworkUi } from "@shared/lib/network";
-import { getStatButtonClass } from "./postCard/footer/getStatButtonClass";
+import { CommentItem } from "./comments/CommentItem";
+import { NewCommentComposer } from "./comments/NewCommentComposer";
+import type { ActionInFlight, ActiveComposer } from "./comments/types";
 
 type Props = {
   tokenId: string;
@@ -40,16 +40,13 @@ type Props = {
 
 export function CommentsCard(props: Props) {
   const [commentDraft, setCommentDraft] = useState<string>("");
-  const [activeComposer, setActiveComposer] = useState<{
-    type: "reply" | "edit" | "tip" | "report" | "post-report" | null;
-    commentId?: string;
-  }>({ type: null });
+  const [activeComposer, setActiveComposer] = useState<ActiveComposer>({ type: null });
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [editDrafts, setEditDrafts] = useState<Record<string, string>>({});
   const [tipDrafts, setTipDrafts] = useState<Record<string, string>>({});
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({});
   const [isSigning, setIsSigning] = useState(false);
-  const [actionInFlight, setActionInFlight] = useState<{ id: string | null; action: string | null }>({
+  const [actionInFlight, setActionInFlight] = useState<ActionInFlight>({
     id: null,
     action: null
   });
@@ -109,400 +106,17 @@ export function CommentsCard(props: Props) {
 
   const allowCommenting = props.allowCommenting ?? !requiresNetworkSwitch;
 
-  const renderComment = (comment: PostComment, replyToAddress?: string | null) => {
-    const hue = props.stableHueFromSeed(comment.author.toLowerCase());
-    const label = props.shortAddress(comment.author);
-    const explorer = comment.txHash ? props.getExplorerTxUrl(explorerChainId, comment.txHash) : null;
-    const isMine = !!walletLower && comment.author.toLowerCase() === walletLower;
-    const canEdit = isMine && !comment.deleted;
-    const canDelete = (isMine || props.canModerateComments) && !comment.deleted;
-    const isBusy = actionInFlight.id === comment.commentId;
-    const likeCount = comment.likeCount ?? 0;
-    const saveCount = comment.saveCount ?? 0;
-    const isLikeBusy = isBusy && actionInFlight.action === "like";
-    const isSaveBusy = isBusy && actionInFlight.action === "save";
-    const isDeleteBusy = isBusy && actionInFlight.action === "delete";
-    const isReplyBusy = isBusy && actionInFlight.action === "reply";
-    const isEditBusy = isBusy && actionInFlight.action === "edit";
-    const isTipBusy = isBusy && actionInFlight.action === "tip";
-    const isReportBusy = isBusy && actionInFlight.action === "report";
-
-    return (
-      <>
-        <div className="postHead">
-          <div className="avatar small" style={{ background: `hsl(${hue} 75% 55%)` }} />
-          <div className="postHeadMain">
-            <div className="postHeadTop">
-              <div className="postAuthor">
-                <Link to={`/profile/${comment.author}`}>{label}</Link>
-                {comment.edited ? <span className="badge">Edited</span> : null}
-                {comment.deleted ? <span className="badge">Deleted</span> : null}
-              </div>
-              <div className="postTokenArea">
-                <span className="postTokenActions">
-                  {explorer ? (
-                    <a
-                      className="ghost iconButton commentLink"
-                      href={explorer}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="View transaction"
-                      title="View transaction"
-                    >
-                      <IconRepeat size={16} />
-                    </a>
-                  ) : null}
-                  <button
-                    className="ghost iconButton"
-                    type="button"
-                    onClick={() => {
-                      setActiveComposer({ type: "report", commentId: comment.commentId });
-                      setReportDrafts((prev) => ({ ...prev, [comment.commentId]: prev[comment.commentId] ?? "" }));
-                    }}
-                    disabled={requiresNetworkSwitch || isBusy}
-                    aria-busy={isReportBusy}
-                    aria-label="Report comment"
-                    title="Report"
-                  >
-                    <IconFlag size={14} />
-                  </button>
-                  {canEdit ? (
-                    <button
-                      className="ghost iconButton"
-                      type="button"
-                      onClick={() => {
-                        setActiveComposer({ type: "edit", commentId: comment.commentId });
-                        setEditDrafts((prev) => ({ ...prev, [comment.commentId]: comment.comment }));
-                      }}
-                      disabled={requiresNetworkSwitch || isBusy}
-                      aria-label="Edit comment"
-                      title="Edit"
-                    >
-                      <IconEdit size={14} />
-                    </button>
-                  ) : null}
-                  {canDelete ? (
-                    <button
-                      className="ghost iconButton danger"
-                      type="button"
-                      onClick={async () => {
-                        setActionInFlight({ id: comment.commentId, action: "delete" });
-                        try {
-                          await props.onDeleteComment(props.tokenId, comment.commentId, props.postChainId);
-                        } finally {
-                          setActionInFlight({ id: null, action: null });
-                        }
-                      }}
-                      disabled={requiresNetworkSwitch || isBusy}
-                      aria-busy={isDeleteBusy}
-                      aria-label="Delete comment"
-                      title="Delete"
-                    >
-                      {isDeleteBusy ? <span className="spinner" aria-hidden="true" /> : <IconTrash size={14} />}
-                    </button>
-                  ) : null}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="post-body">
-          <div className="postText">
-            <p className={comment.deleted ? "commentText isDeleted" : undefined}>
-              {comment.deleted ? (
-                "Comment deleted."
-              ) : (
-                <>
-                  {replyToAddress ? (
-                    <Link className="commentReplyTo" to={`/profile/${replyToAddress}`}>
-                      @{props.shortAddress(replyToAddress)}
-                    </Link>
-                  ) : null}
-                  {comment.comment}
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="postFooter">
-          <div className="postStats">
-            <button
-              className={getStatButtonClass({
-                requiresNetworkSwitch,
-                active: comment.likedByMe ? "isActive isLike" : ""
-              })}
-              type="button"
-              onClick={async () => {
-                setActionInFlight({ id: comment.commentId, action: "like" });
-                try {
-                  await props.onToggleCommentLike(props.tokenId, comment.commentId, props.postChainId);
-                } finally {
-                  setActionInFlight({ id: null, action: null });
-                }
-              }}
-              disabled={requiresNetworkSwitch || isBusy || comment.deleted}
-              aria-busy={isLikeBusy}
-              title={interactionDisabledTitle}
-            >
-              {isLikeBusy ? (
-                <span className="spinner" aria-hidden="true" />
-              ) : (
-                <IconHeart size={14} filled={!!comment.likedByMe} />
-              )}
-              <span className="postActionCount">{likeCount}</span>
-            </button>
-            <button
-              className={getStatButtonClass({
-                requiresNetworkSwitch,
-                active: comment.savedByMe ? "isActive isSaved" : ""
-              })}
-              type="button"
-              onClick={async () => {
-                setActionInFlight({ id: comment.commentId, action: "save" });
-                try {
-                  await props.onToggleCommentSave(props.tokenId, comment.commentId, props.postChainId);
-                } finally {
-                  setActionInFlight({ id: null, action: null });
-                }
-              }}
-              disabled={requiresNetworkSwitch || isBusy || comment.deleted}
-              aria-busy={isSaveBusy}
-              title={interactionDisabledTitle}
-            >
-              {isSaveBusy ? (
-                <span className="spinner" aria-hidden="true" />
-              ) : (
-                <IconBookmark size={14} filled={!!comment.savedByMe} />
-              )}
-              <span className="postActionCount">{saveCount}</span>
-            </button>
-            <button
-              className={getStatButtonClass({ requiresNetworkSwitch })}
-              type="button"
-              onClick={() => {
-                setActiveComposer((prev) => {
-                  const isSame = prev.type === "reply" && prev.commentId === comment.commentId;
-                  return isSame ? { type: null } : { type: "reply", commentId: comment.commentId };
-                });
-                setReplyDrafts((prev) => ({ ...prev, [comment.commentId]: prev[comment.commentId] ?? "" }));
-              }}
-              disabled={requiresNetworkSwitch || isBusy || comment.deleted}
-            >
-              <IconMessage size={14} />
-              <span className="postActionCount">Reply</span>
-            </button>
-            <button
-              className={getStatButtonClass({ requiresNetworkSwitch })}
-              type="button"
-              onClick={() => {
-                setActiveComposer((prev) => {
-                  const isSame = prev.type === "tip" && prev.commentId === comment.commentId;
-                  return isSame ? { type: null } : { type: "tip", commentId: comment.commentId };
-                });
-                setTipDrafts((prev) => ({ ...prev, [comment.commentId]: prev[comment.commentId] ?? "" }));
-              }}
-              disabled={requiresNetworkSwitch || isBusy || comment.deleted}
-            >
-              <IconCoin size={14} />
-              <span className="postActionCount">{nativeSymbol}</span>
-            </button>
-          </div>
-
-          {activeComposer.type === "reply" && activeComposer.commentId === comment.commentId ? (
-            <div className="postFormRow">
-              <input
-                className="postField"
-                type="text"
-                value={replyDrafts[comment.commentId] ?? ""}
-                onChange={(event) =>
-                  setReplyDrafts((prev) => ({ ...prev, [comment.commentId]: event.target.value }))
-                }
-                placeholder="Write a reply"
-                disabled={isSigning || isBusy}
-              />
-              <button
-                className="secondary buttonWithSpinner"
-                type="button"
-                onClick={async () => {
-                  setActionInFlight({ id: comment.commentId, action: "reply" });
-                  try {
-                    const ok = await props.onReply(
-                      props.tokenId,
-                      comment.commentId,
-                      replyDrafts[comment.commentId] ?? "",
-                      props.postChainId
-                    );
-                    if (ok) {
-                      setReplyDrafts((prev) => ({ ...prev, [comment.commentId]: "" }));
-                      setActiveComposer({ type: null });
-                    }
-                  } finally {
-                    setActionInFlight({ id: null, action: null });
-                  }
-                }}
-                disabled={isSigning || isBusy}
-                aria-busy={isReplyBusy}
-              >
-                {isReplyBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                Reply
-              </button>
-            </div>
-          ) : null}
-
-          {activeComposer.type === "edit" && activeComposer.commentId === comment.commentId ? (
-            <div className="postFormRow">
-              <input
-                className="postField"
-                type="text"
-                value={editDrafts[comment.commentId] ?? ""}
-                onChange={(event) =>
-                  setEditDrafts((prev) => ({ ...prev, [comment.commentId]: event.target.value }))
-                }
-                placeholder="Edit your comment"
-                disabled={isSigning || isBusy}
-              />
-              <button
-                className="secondary buttonWithSpinner"
-                type="button"
-                onClick={async () => {
-                  setActionInFlight({ id: comment.commentId, action: "edit" });
-                  try {
-                    const ok = await props.onEditComment(
-                      props.tokenId,
-                      comment.commentId,
-                      editDrafts[comment.commentId] ?? "",
-                      props.postChainId
-                    );
-                    if (ok) {
-                      setActiveComposer({ type: null });
-                    }
-                  } finally {
-                    setActionInFlight({ id: null, action: null });
-                  }
-                }}
-                disabled={isSigning || isBusy}
-                aria-busy={isEditBusy}
-              >
-                {isEditBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                Save
-              </button>
-            </div>
-          ) : null}
-
-          {activeComposer.type === "tip" && activeComposer.commentId === comment.commentId ? (
-            <div className="postFormRow">
-              <input
-                className="postField"
-                type="text"
-                value={tipDrafts[comment.commentId] ?? ""}
-                onChange={(event) =>
-                  setTipDrafts((prev) => ({ ...prev, [comment.commentId]: event.target.value }))
-                }
-                placeholder={`Tip amount in ${nativeSymbol}`}
-                disabled={isSigning || isBusy}
-              />
-              <button
-                className="secondary buttonWithSpinner"
-                type="button"
-                onClick={async () => {
-                  setActionInFlight({ id: comment.commentId, action: "tip" });
-                  try {
-                    const ok = await props.onTipComment(
-                      props.tokenId,
-                      comment.commentId,
-                      tipDrafts[comment.commentId] ?? "",
-                      props.postChainId
-                    );
-                    if (ok) {
-                      setTipDrafts((prev) => ({ ...prev, [comment.commentId]: "" }));
-                      setActiveComposer({ type: null });
-                    }
-                  } finally {
-                    setActionInFlight({ id: null, action: null });
-                  }
-                }}
-                disabled={isSigning || isBusy}
-                aria-busy={isTipBusy}
-              >
-                {isTipBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                Tip
-              </button>
-            </div>
-          ) : null}
-
-          {activeComposer.type === "report" && activeComposer.commentId === comment.commentId ? (
-            <div className="postFormRow">
-              <input
-                className="postField"
-                type="text"
-                value={reportDrafts[comment.commentId] ?? ""}
-                onChange={(event) =>
-                  setReportDrafts((prev) => ({ ...prev, [comment.commentId]: event.target.value }))
-                }
-                placeholder="Report reason"
-                disabled={isSigning || isBusy}
-              />
-              <button
-                className="secondary buttonWithSpinner"
-                type="button"
-                onClick={async () => {
-                  setActionInFlight({ id: comment.commentId, action: "report" });
-                  try {
-                    const ok = await props.onReportComment(
-                      props.tokenId,
-                      comment.commentId,
-                      reportDrafts[comment.commentId] ?? "",
-                      props.postChainId
-                    );
-                    if (ok) {
-                      setReportDrafts((prev) => ({ ...prev, [comment.commentId]: "" }));
-                      setActiveComposer({ type: null });
-                    }
-                  } finally {
-                    setActionInFlight({ id: null, action: null });
-                  }
-                }}
-                disabled={isSigning || isBusy}
-                aria-busy={isReportBusy}
-              >
-                {isReportBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                Report
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </>
-    );
-  };
-
   return (
     <section className={wrapperClassName}>
       {allowCommenting ? (
-        <div className="postForm">
-          <div className="postFormRow">
-            <input
-              className="postField"
-              type="text"
-              value={commentDraft}
-              onChange={(event) => setCommentDraft(event.target.value)}
-              placeholder="Write a comment to sign"
-              disabled={isSigning}
-              title={interactionDisabledTitle}
-            />
-            <button
-              className={`secondary buttonWithSpinner${requiresNetworkSwitch ? " notAllowed" : ""}`}
-              type="button"
-              onClick={onSubmitComment}
-              disabled={isSigning}
-              title={interactionDisabledTitle}
-            >
-              {isSigning ? <span className="spinner" aria-hidden="true" /> : null}
-              Sign
-            </button>
-          </div>
-        </div>
+        <NewCommentComposer
+          value={commentDraft}
+          onChange={setCommentDraft}
+          onSubmit={onSubmitComment}
+          isSigning={isSigning}
+          requiresNetworkSwitch={requiresNetworkSwitch}
+          interactionDisabledTitle={interactionDisabledTitle}
+        />
       ) : null}
 
       {props.isLoadingComments && props.comments.length === 0 ? (
@@ -539,7 +153,40 @@ export function CommentsCard(props: Props) {
             );
             return (
               <article key={c.commentId ?? `${c.txHash ?? "nohash"}-${c.logIndex ?? idx}`} className="post comment">
-                {renderComment(c)}
+                <CommentItem
+                  comment={c}
+                  tokenId={props.tokenId}
+                  postChainId={props.postChainId}
+                  explorerChainId={explorerChainId}
+                  nativeSymbol={nativeSymbol}
+                  walletLower={walletLower}
+                  canModerateComments={props.canModerateComments}
+                  requiresNetworkSwitch={requiresNetworkSwitch}
+                  interactionDisabledTitle={interactionDisabledTitle}
+                  isSigning={isSigning}
+                  activeComposer={activeComposer}
+                  setActiveComposer={setActiveComposer}
+                  replyDrafts={replyDrafts}
+                  setReplyDrafts={setReplyDrafts}
+                  editDrafts={editDrafts}
+                  setEditDrafts={setEditDrafts}
+                  tipDrafts={tipDrafts}
+                  setTipDrafts={setTipDrafts}
+                  reportDrafts={reportDrafts}
+                  setReportDrafts={setReportDrafts}
+                  actionInFlight={actionInFlight}
+                  setActionInFlight={setActionInFlight}
+                  onReply={props.onReply}
+                  onEditComment={props.onEditComment}
+                  onDeleteComment={props.onDeleteComment}
+                  onToggleCommentLike={props.onToggleCommentLike}
+                  onToggleCommentSave={props.onToggleCommentSave}
+                  onTipComment={props.onTipComment}
+                  onReportComment={props.onReportComment}
+                  shortAddress={props.shortAddress}
+                  stableHueFromSeed={props.stableHueFromSeed}
+                  getExplorerTxUrl={props.getExplorerTxUrl}
+                />
                 {replies.length ? (
                   <div className="commentReplies">
                     {replies.map((reply, replyIdx) => (
@@ -547,7 +194,41 @@ export function CommentsCard(props: Props) {
                         key={reply.commentId ?? `${reply.txHash ?? "nohash"}-${reply.logIndex ?? replyIdx}`}
                         className="commentReply"
                       >
-                        {renderComment(reply, reply.parentId ? authorById.get(reply.parentId) ?? reply.parentId : null)}
+                        <CommentItem
+                          comment={reply}
+                          replyToAddress={reply.parentId ? authorById.get(reply.parentId) ?? reply.parentId : null}
+                          tokenId={props.tokenId}
+                          postChainId={props.postChainId}
+                          explorerChainId={explorerChainId}
+                          nativeSymbol={nativeSymbol}
+                          walletLower={walletLower}
+                          canModerateComments={props.canModerateComments}
+                          requiresNetworkSwitch={requiresNetworkSwitch}
+                          interactionDisabledTitle={interactionDisabledTitle}
+                          isSigning={isSigning}
+                          activeComposer={activeComposer}
+                          setActiveComposer={setActiveComposer}
+                          replyDrafts={replyDrafts}
+                          setReplyDrafts={setReplyDrafts}
+                          editDrafts={editDrafts}
+                          setEditDrafts={setEditDrafts}
+                          tipDrafts={tipDrafts}
+                          setTipDrafts={setTipDrafts}
+                          reportDrafts={reportDrafts}
+                          setReportDrafts={setReportDrafts}
+                          actionInFlight={actionInFlight}
+                          setActionInFlight={setActionInFlight}
+                          onReply={props.onReply}
+                          onEditComment={props.onEditComment}
+                          onDeleteComment={props.onDeleteComment}
+                          onToggleCommentLike={props.onToggleCommentLike}
+                          onToggleCommentSave={props.onToggleCommentSave}
+                          onTipComment={props.onTipComment}
+                          onReportComment={props.onReportComment}
+                          shortAddress={props.shortAddress}
+                          stableHueFromSeed={props.stableHueFromSeed}
+                          getExplorerTxUrl={props.getExplorerTxUrl}
+                        />
                       </div>
                     ))}
                   </div>

@@ -6,6 +6,8 @@ import { isSamePost } from "../services/postActions/matchPost";
 import { buildTokenKey, updateSessionTokenKeys } from "../services/postActions/sessionTokenKeys";
 
 import type { Post } from "@types";
+import type { TransactionResponse } from "ethers";
+import type { WriteContractFactory } from "@features/contract";
 
 type FeedLike = {
   posts: Post[];
@@ -13,16 +15,16 @@ type FeedLike = {
   loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
 };
 
-type RunContractTxLike = <T = unknown>(
+type RunContractTxLike = <T = void>(
   label: string,
-  send: () => any,
+  send: () => Promise<TransactionResponse>,
   onSuccess?: () => T
 ) => Promise<T | undefined>;
 
 export function usePostEngagement(args: {
   walletAddress: string | null;
   chainId: string | null;
-  getWriteContract: () => Promise<any>;
+  getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;
@@ -70,10 +72,10 @@ export function usePostEngagement(args: {
         }
 
         if (action === "like") {
-          const already = (await (writeContract as any).hasLiked(tokenIdBig, walletAddress)) as boolean;
+          const already = (await writeContract.hasLiked(tokenIdBig, walletAddress)) as boolean;
           const ok = await runContractTx<boolean>(
             already ? "Unlike" : "Like",
-            () => ((already ? (writeContract as any).unlikePost(tokenIdBig) : writeContract.likePost(tokenIdBig)) as any),
+            () => (already ? writeContract.unlikePost(tokenIdBig) : writeContract.likePost(tokenIdBig)),
             () => true
           );
           if (!ok) return false;
@@ -97,13 +99,10 @@ export function usePostEngagement(args: {
         }
 
         if (action === "save") {
-          const already = (await (writeContract as any).hasSaved(tokenIdBig, walletAddress)) as boolean;
+          const already = (await writeContract.hasSaved(tokenIdBig, walletAddress)) as boolean;
           const ok = await runContractTx<boolean>(
             already ? "Unsave" : "Save",
-            () =>
-              ((already
-                ? (writeContract as any).unsavePost(tokenIdBig)
-                : (writeContract as any).savePost(tokenIdBig)) as any),
+            () => (already ? writeContract.unsavePost(tokenIdBig) : writeContract.savePost(tokenIdBig)),
             () => true
           );
           if (!ok) return false;

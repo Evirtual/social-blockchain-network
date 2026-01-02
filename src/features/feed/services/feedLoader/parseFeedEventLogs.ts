@@ -1,8 +1,11 @@
 import { isAddress } from "ethers";
+import type { Contract, EventLog, Log } from "ethers";
 
 import type { MintedEventLite } from "../feedLoader";
 
-export function parseFeedEventLogs(args: { readContract: any; rawLogs: any[] }) {
+type FeedLog = EventLog | Log;
+
+export function parseFeedEventLogs(args: { readContract: Contract; rawLogs: FeedLog[] }) {
   const tokensNeedFullRefresh = new Set<string>();
   const tokensNeedCountersRefresh = new Set<string>();
   const burnedTokenIds = new Set<string>();
@@ -12,12 +15,12 @@ export function parseFeedEventLogs(args: { readContract: any; rawLogs: any[] }) 
   for (const log of args.rawLogs) {
     const desc = args.readContract.interface?.parseLog ? args.readContract.interface.parseLog(log) : null;
     if (!desc) continue;
-    const name = String((desc as any).name ?? "");
-    const parsedArgs = (desc as any).args as any[] | undefined;
+    const name = String(desc.name ?? "");
+    const parsedArgs = desc.args as Array<string | bigint | number | boolean | null | undefined> | undefined;
     if (!parsedArgs) continue;
 
     const tokenIdAt = (index: number): bigint | undefined => {
-      const v = parsedArgs[index] as bigint | undefined;
+      const v = parsedArgs[index];
       return typeof v === "bigint" ? v : undefined;
     };
 
@@ -32,9 +35,8 @@ export function parseFeedEventLogs(args: { readContract: any; rawLogs: any[] }) 
       mintedEvents.push({
         author,
         tokenIdBig,
-        blockNumber:
-          typeof (log as any)?.blockNumber === "number" ? (log as any).blockNumber : Number((log as any)?.blockNumber ?? 0) || undefined,
-        txHash: ((log as any)?.transactionHash as string | undefined) ?? undefined
+        blockNumber: typeof log.blockNumber === "number" ? log.blockNumber : Number(log.blockNumber ?? 0) || undefined,
+        txHash: log.transactionHash ?? undefined
       } satisfies MintedEventLite);
       continue;
     }

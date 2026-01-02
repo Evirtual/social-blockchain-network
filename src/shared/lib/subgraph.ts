@@ -1,4 +1,6 @@
-export function getSubgraphUrlForChainId(env: any, chainIdNum: number | null): string {
+import type { EnvMap } from "./env";
+
+export function getSubgraphUrlForChainId(env: EnvMap, chainIdNum: number | null): string {
   if (chainIdNum == null) return "";
 
   const urlByChainId: Record<number, string | undefined> = {

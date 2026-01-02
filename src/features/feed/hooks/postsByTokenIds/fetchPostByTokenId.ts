@@ -1,10 +1,11 @@
 import type { Post } from "@types";
 import { fetchTokenMetadata } from "@features/metadata";
+import type { SocialPostsContract } from "@features/contract";
 
 export async function fetchPostByTokenId(params: {
   id: string;
   currentChainId: number | null;
-  readContract: any;
+  readContract: SocialPostsContract;
   walletAddress: string | null;
 }): Promise<Post | null> {
   const { id, currentChainId, readContract, walletAddress } = params;
@@ -21,14 +22,14 @@ export async function fetchPostByTokenId(params: {
 
   try {
     [tokenUri, likesRaw, commentsRaw, savesRaw, tipsWei, author, likedByMe, savedByMe] = await Promise.all([
-      (readContract as any).tokenURI(tokenIdBig) as Promise<string>,
-      (readContract as any).likesOf(tokenIdBig) as Promise<bigint>,
-      (readContract as any).commentsOf(tokenIdBig) as Promise<bigint>,
-      (readContract as any).savesOf(tokenIdBig) as Promise<bigint>,
-      (readContract as any).tipsOf(tokenIdBig) as Promise<bigint>,
-      (readContract as any).authorOf(tokenIdBig) as Promise<string>,
-      walletAddress ? ((readContract as any).hasLiked(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined),
-      walletAddress ? ((readContract as any).hasSaved(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined)
+      readContract.tokenURI(tokenIdBig) as Promise<string>,
+      readContract.likesOf(tokenIdBig) as Promise<bigint>,
+      readContract.commentsOf(tokenIdBig) as Promise<bigint>,
+      readContract.savesOf(tokenIdBig) as Promise<bigint>,
+      readContract.tipsOf(tokenIdBig) as Promise<bigint>,
+      readContract.authorOf(tokenIdBig) as Promise<string>,
+      walletAddress ? (readContract.hasLiked(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined),
+      walletAddress ? (readContract.hasSaved(tokenIdBig, walletAddress) as Promise<boolean>) : Promise.resolve(undefined)
     ]);
   } catch {
     return null;

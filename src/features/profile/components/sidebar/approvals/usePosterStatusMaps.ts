@@ -5,13 +5,15 @@ import { fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
+import { getEnv } from "@shared/lib/env";
+import type { ReadContractFactory } from "@features/contract";
 
 export function usePosterStatusMaps(args: {
   open: boolean;
   isOwner: boolean;
   pendingApprovals: string[];
   onChainRequests: string[];
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
   chainId?: string | null;
 }) {
   const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
@@ -40,7 +42,7 @@ export function usePosterStatusMaps(args: {
     void (async () => {
       setIsLoadingPosterStatuses(true);
       try {
-        const env = import.meta.env as any;
+        const env = getEnv();
         const chainIdNum = parseChainIdNumber(args.chainId ?? null);
         const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
 

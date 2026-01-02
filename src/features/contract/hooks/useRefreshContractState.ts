@@ -2,13 +2,14 @@ import type { BrowserProvider } from "ethers";
 import { useCallback } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { resolveConfiguredSocialPostsAddress } from "@shared/lib/configuredSocialPostsAddress";
+import type { ReadContractFactory } from "@features/contract";
 
 export function useRefreshContractState(params: {
   provider: BrowserProvider | null;
   chainId: string | null;
   walletAddress: string | null;
   chainIdNumberRef: React.MutableRefObject<number | null>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
   setContractDeployed: (v: boolean | null) => void;
   setWithdrawableTipsWei: (v: bigint) => void;
 }) {
@@ -42,7 +43,7 @@ export function useRefreshContractState(params: {
         return;
       }
       const readContract = await params.getReadContract();
-      const w = (await (readContract as any).withdrawableOf(params.walletAddress)) as bigint;
+      const w = (await readContract.withdrawableOf(params.walletAddress)) as bigint;
       params.setWithdrawableTipsWei(w);
     } catch {
       // ignore

@@ -5,3 +5,4 @@ export * from "./providers/ContractProvider";
 export * from "./providers/contractStateContext";
 export * from "./providers/useContractActions";
 export * from "./providers/useContractState";
+export * from "./types";

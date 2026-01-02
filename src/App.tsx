@@ -1,6 +1,7 @@
 import { AppProviders } from "./features/app";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ComposerCard, Modal, Topbar, TxToaster, WalletProfileLink } from "./features/app";
+import { ComposerCard, Topbar, TxToaster, WalletProfileLink } from "./features/app";
+import { Modal } from "@shared/components/Modal";
 import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useConnectNudge, useConnectWallet } from "./features/app";
 import { useStatusActions } from "./features/status";

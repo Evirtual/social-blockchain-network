@@ -10,9 +10,11 @@ export function patchNotice(prev: TxNotice[], hash: string, patch: Partial<TxNot
   return prev.map((t) => (t.hash === hash ? { ...t, ...patch } : t));
 }
 
-export function isUserRejectedTx(error: unknown) {
-  const anyErr = error as any;
-  return anyErr?.code === 4001 || anyErr?.code === "ACTION_REJECTED";
+export type TxErrorInput = Error | { code?: string | number } | string | null | undefined;
+
+export function isUserRejectedTx(error: TxErrorInput) {
+  const err = error && typeof error === "object" ? (error as { code?: string | number }) : null;
+  return err?.code === 4001 || err?.code === "ACTION_REJECTED";
 }
 
 export function formatTxState(state: TxState) {

@@ -25,7 +25,7 @@ export function useProfilePageProps(args: {
   chainId: string | null;
   status: string;
   walletAddress: string | null;
-  authorIdentity: any;
+  authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
   onToggleFollow: () => void;
   onAdminSetPosterAllowed: (allowed: boolean) => void | Promise<void>;

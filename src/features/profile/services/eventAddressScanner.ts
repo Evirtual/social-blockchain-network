@@ -1,9 +1,10 @@
 import { withTimeout } from "@shared/lib/feedQuery";
+import type { Contract, ContractEventName, EventLog, Log, Provider } from "ethers";
 
-export type AddressLogScannerOptions<TLog> = {
-  scanProvider: { getBlockNumber?: () => Promise<number> } | null | undefined;
-  readContract: any;
-  filter: any;
+export type AddressLogScannerOptions<TLog extends EventLog | Log> = {
+  scanProvider: Provider | null | undefined;
+  readContract: Contract;
+  filter: ContractEventName;
 
   extractAddress: (log: TLog) => string;
   isValidAddress?: (addr: string) => boolean;
@@ -21,7 +22,7 @@ export type AddressLogScannerResult = {
   hadQueryError: boolean;
 };
 
-export async function scanRecentUniqueAddressesFromEvent<TLog = any>(
+export async function scanRecentUniqueAddressesFromEvent<TLog extends EventLog | Log = EventLog | Log>(
   opts: AddressLogScannerOptions<TLog>
 ): Promise<AddressLogScannerResult> {
   const {
@@ -55,11 +56,7 @@ export async function scanRecentUniqueAddressesFromEvent<TLog = any>(
 
     const start = Math.max(0, end - windowSize);
     try {
-      const logs = (await withTimeout(
-        (readContract as any).queryFilter(filter, start, end),
-        timeoutMs,
-        `address scan ${start}-${end}`
-      )) as TLog[];
+      const logs = (await withTimeout(readContract.queryFilter(filter, start, end), timeoutMs, `address scan ${start}-${end}`)) as TLog[];
 
       for (let i = logs.length - 1; i >= 0 && uniq.length < maxUnique; i--) {
         const addr = (extractAddress(logs[i]) ?? "").trim();

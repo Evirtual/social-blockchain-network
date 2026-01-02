@@ -1,17 +1,18 @@
-import { getSocialContract } from "@features/contract";
+import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
 import type { FeedNetworkConfig } from "../../services/feedNetworks";
 import { getConfiguredFeedNetworks } from "../../services/feedNetworks";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getRpcProvider } from "@shared/lib/rpc";
 import { resolveSocialPostsAddress } from "../../services/resolveSocialPostsAddress";
+import { getEnv } from "@shared/lib/env";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 export async function getPostsByTokenIdsReadContext(params: {
-  provider: any;
+  provider: ChainProvider | null;
   chainId: string | null;
   postChainId?: string | null;
   contract: ContractLike;
@@ -20,15 +21,15 @@ export async function getPostsByTokenIdsReadContext(params: {
   | {
       canRead: true;
       currentChainId: number | null;
-      readProvider: any;
-      readContract: any;
+      readProvider: ChainProvider;
+      readContract: SocialPostsContract;
     }
 > {
   const { provider, chainId, postChainId, contract } = params;
 
   const currentChainId = parseChainIdNumber(postChainId ?? chainId);
 
-  const env = import.meta.env as any;
+  const env = getEnv();
   const configuredNetworks = getConfiguredFeedNetworks(env);
 
   const currentCfg = currentChainId != null ? configuredNetworks.find((n) => n.chainId === currentChainId) : undefined;
@@ -37,7 +38,8 @@ export async function getPostsByTokenIdsReadContext(params: {
   const canUseEnvRpc = !!currentCfg && !!currentRpcUrl;
   if (!provider && !canUseEnvRpc) return { canRead: false };
 
-  const readProvider: any = canUseEnvRpc ? getRpcProvider(currentRpcUrl, currentCfg!.chainId) : provider;
+  const readProvider = canUseEnvRpc ? getRpcProvider(currentRpcUrl, currentCfg!.chainId) : provider;
+  if (!readProvider) return { canRead: false };
 
   const readContract = canUseEnvRpc
     ? getSocialContract(await resolveRpcContractAddress(currentCfg!, readProvider), readProvider)
@@ -49,6 +51,6 @@ export async function getPostsByTokenIdsReadContext(params: {
   return { canRead: true, currentChainId, readProvider, readContract };
 }
 
-async function resolveRpcContractAddress(cfg: FeedNetworkConfig, rpcProvider: any) {
+async function resolveRpcContractAddress(cfg: FeedNetworkConfig, rpcProvider: ChainProvider) {
   return await resolveSocialPostsAddress(cfg, rpcProvider);
 }

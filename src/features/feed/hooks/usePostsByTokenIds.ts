@@ -6,16 +6,17 @@ import { getPostsByTokenIdsReadContext } from "./postsByTokenIds/getReadContext"
 import { computeMissingTokenIds } from "./postsByTokenIds/computeMissingTokenIds";
 import { fetchPostByTokenId } from "./postsByTokenIds/fetchPostByTokenId";
 import { mergePostsByKey } from "./postsByTokenIds/mergePostsByKey";
+import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 type PostsRefLike = { current: Post[] };
 
 export function usePostsByTokenIds(params: {
-  provider: any;
+  provider: ChainProvider | null;
   chainId: string | null;
   walletAddress: string | null;
   contract: ContractLike;

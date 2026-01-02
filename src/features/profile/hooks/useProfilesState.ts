@@ -11,16 +11,18 @@ import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
 import { resetProfileUiState } from "./profilesState/resetProfileUiState";
 import { resolveAvatarForSave } from "./profilesState/resolveAvatarForSave";
 import { useEpochGuard } from "@shared/lib/epochGuard";
+import { getEnv } from "@shared/lib/env";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 export type ProfileRecord = { name: string; bio: string; avatarUrl: string };
 
 type UseProfilesStateArgs = {
-  provider: unknown | null;
+  provider: ChainProvider | null;
   chainId: string | null;
   walletAddress: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<unknown>;
-  getWriteContract: () => Promise<unknown>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
   runContractTx: <T>(
     label: string,
     send: () => Promise<TransactionResponse>,
@@ -107,7 +109,7 @@ export function useProfilesState({
 
       await runInFlight(profileLoadInFlightRef.current, key, async () => {
         try {
-          const env = import.meta.env as any;
+          const env = getEnv();
           const chainIdNum = parseChainIdNumber(chainId);
           const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
           if (subgraphUrl) {
@@ -165,7 +167,7 @@ export function useProfilesState({
 
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
-          const tuple = (await (readContract as any).profileOf(address)) as
+          const tuple = (await readContract.profileOf(address)) as
             | [string, string, string]
             | { name: string; bio: string; avatar: string };
 
@@ -294,7 +296,7 @@ export function useProfilesState({
       }
 
       const writeContract = await getWriteContract();
-      await runContractTx("Save profile", () => (writeContract as any).setProfile(name, bio, avatar));
+      await runContractTx("Save profile", () => writeContract.setProfile(name, bio, avatar));
 
       const key = walletAddress.toLowerCase();
       setProfilesByAddress((prev) => ({ ...prev, [key]: { name, bio, avatarUrl: avatar } }));

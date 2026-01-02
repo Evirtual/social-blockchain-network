@@ -1,7 +1,7 @@
 import type { ProfileCardProps, WalletCardProps } from "@features/app";
 import { Feed } from "@features/feed";
 import type { Post } from "@types";
-import { FeedHeaderControls } from "@features/home/components/FeedHeaderControls";
+import { FeedHeaderControls } from "@features/feed";
 import { useAccountPageViewModel } from "../hooks/useAccountPageViewModel";
 import { AccountSidebar } from "../components/AccountSidebar";
 import { useMemo } from "react";

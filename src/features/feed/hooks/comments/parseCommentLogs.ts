@@ -1,18 +1,33 @@
 import type { PostComment } from "@types";
 import { socialInterface } from "@features/contract";
+import type { EventLog, Log, LogDescription } from "ethers";
 
-export function parseCommentLogs(logs: any[]): PostComment[] {
+type CommentLog = EventLog | Log;
+
+export function parseCommentLogs(logs: CommentLog[]): PostComment[] {
   const sorted = logs
     .slice()
-    .sort((a, b) => (a.blockNumber ?? 0) - (b.blockNumber ?? 0) || (a.logIndex ?? 0) - (b.logIndex ?? 0));
+    .sort((a, b) => (a.blockNumber ?? 0) - (b.blockNumber ?? 0) || (a.index ?? 0) - (b.index ?? 0));
   const byId = new Map<string, PostComment>();
 
   for (const log of sorted) {
-    const desc = socialInterface.parseLog(log);
+    let desc: LogDescription | null = null;
+    try {
+      desc = socialInterface.parseLog(log);
+    } catch {
+      continue;
+    }
     if (!desc) continue;
 
-    const name = String((desc as any).name ?? "");
-    const args = (desc as any).args as any;
+    const name = String(desc.name ?? "");
+    const args = desc.args as {
+      commentId?: bigint;
+      tokenId?: bigint;
+      commenter?: string;
+      parentId?: bigint;
+      comment?: string;
+      amountWei?: bigint;
+    };
 
     if (name === "CommentAdded") {
       const commentId = String(args.commentId ?? "");
@@ -30,7 +45,7 @@ export function parseCommentLogs(logs: any[]): PostComment[] {
         tipWei: 0n,
         txHash: log.transactionHash,
         blockNumber: log.blockNumber,
-        logIndex: log.logIndex
+        logIndex: log.index
       });
       continue;
     }

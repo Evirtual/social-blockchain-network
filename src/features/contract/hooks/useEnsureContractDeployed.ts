@@ -14,26 +14,32 @@ export function useEnsureContractDeployed(params: {
     if (!params.provider) throw new Error("Wallet not found.");
     const address = params.requireContractAddress();
 
-    const isLikelyTruncatedJson = (err: unknown) => {
-      const msg = String((err as any)?.message ?? err ?? "").toLowerCase();
+    type ErrorInput = Error | { message?: string } | string | null;
+    const isLikelyTruncatedJson = (err: ErrorInput) => {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message ?? "")
+          : String(err ?? "");
+      const lower = msg.toLowerCase();
       return (
-        msg.includes("unterminated string") ||
-        msg.includes("unexpected end of json") ||
-        msg.includes("invalid json") ||
-        msg.includes("syntaxerror")
+        lower.includes("unterminated string") ||
+        lower.includes("unexpected end of json") ||
+        lower.includes("invalid json") ||
+        lower.includes("syntaxerror")
       );
     };
 
     let code: string | null = null;
-    let lastError: unknown = null;
+    let lastError: ErrorInput = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         code = await params.provider.getCode(address);
         lastError = null;
         break;
       } catch (err) {
-        lastError = err;
-        if (!isLikelyTruncatedJson(err)) break;
+        const errInput = err as ErrorInput;
+        lastError = errInput;
+        if (!isLikelyTruncatedJson(errInput)) break;
         await sleep(250 * (attempt + 1));
       }
     }

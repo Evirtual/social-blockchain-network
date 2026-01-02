@@ -1,14 +1,19 @@
 import type { Post } from "@types";
 import { mapWithConcurrency } from "@shared/lib/async";
 import { fetchTokenMetadata } from "@features/metadata";
-import { querySubgraph, tryQuerySubgraph } from "@shared/lib/subgraphQuery";
+import { querySubgraph, tryQuerySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery";
 
-function getErrMsg(err: unknown): string {
+type ErrorInput = Error | { message?: string } | string | null | undefined;
+
+function getErrMsg(err: ErrorInput): string {
   if (err instanceof Error) return err.message;
-  return String(err);
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message?: string }).message ?? "");
+  }
+  return String(err ?? "");
 }
 
-function isLikelySchemaMismatch(err: unknown): boolean {
+function isLikelySchemaMismatch(err: ErrorInput): boolean {
   const m = getErrMsg(err).toLowerCase();
   return (
     m.includes("cannot query field") ||
@@ -36,12 +41,12 @@ type SubgraphPostRow = {
   burnedAtBlock?: string | null;
 };
 
-function toInt(v: unknown): number {
+function toInt(v: string | number | bigint | null | undefined): number {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
 }
 
-function toBigInt(v: unknown): bigint {
+function toBigInt(v: string | number | bigint | null | undefined): bigint {
   try {
     return BigInt(String(v ?? "0"));
   } catch {
@@ -248,18 +253,12 @@ export async function loadFeedFromSubgraph(args: {
             : bodyQuery
               ? queryWithBurnedAndBody
               : queryWithBurned;
-  const variables =
-    authorFilter && bodyQuery
-      ? { first, query: bodyQuery, author: authorFilter }
-      : authorFilter
-        ? { first, author: authorFilter }
-        : authorIds.length && bodyQuery
-          ? { first, query: bodyQuery, authors: authorIds }
-          : authorIds.length
-            ? { first, authors: authorIds }
-            : bodyQuery
-              ? { first, query: bodyQuery }
-              : { first };
+  const variables = {
+    first,
+    ...(bodyQuery ? { query: bodyQuery } : {}),
+    ...(authorFilter ? { author: authorFilter } : {}),
+    ...(authorIds.length ? { authors: authorIds } : {})
+  } satisfies SubgraphVariables;
   const primary = await tryQuerySubgraph<{ posts: SubgraphPostRow[] }>({
     url: args.url,
     query,
@@ -269,7 +268,7 @@ export async function loadFeedFromSubgraph(args: {
   if (primary.ok) {
     data = primary.data;
   } else {
-    if (!isLikelySchemaMismatch(primary.error)) throw primary.error;
+    if (!isLikelySchemaMismatch(primary.error as ErrorInput)) throw primary.error;
     try {
       const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
         url: args.url,
@@ -279,7 +278,7 @@ export async function loadFeedFromSubgraph(args: {
       });
       data = fallback;
     } catch (err) {
-      if (!isLikelySchemaMismatch(err)) throw err;
+      if (!isLikelySchemaMismatch(err as ErrorInput)) throw err;
       const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
         url: args.url,
         query: queryMinimal,
@@ -359,7 +358,7 @@ export async function loadFeedFromSubgraph(args: {
           timeoutMs: 8_000
         });
       } catch (err) {
-        if (!isLikelySchemaMismatch(err)) throw err;
+        if (!isLikelySchemaMismatch(err as ErrorInput)) throw err;
         edges = await querySubgraph<{
           likeEdges: Array<{ tokenId: string }>;
           saveEdges: Array<{ tokenId: string }>;

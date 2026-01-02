@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { ipfsToHttp } from "@features/ipfs";
 import { stableHueFromSeed } from "@shared/lib/format";
 
-import { Modal } from "@features/app/components/Modal";
+import { Modal } from "@shared/components/Modal";
 import { useProfileActions, useProfileState } from "@features/profile";
 
 export type AddressListModalProps = {

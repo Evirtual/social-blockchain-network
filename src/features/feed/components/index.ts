@@ -1,4 +1,5 @@
 export * from "./Feed";
+export * from "./FeedHeaderControls";
 export * from "./feed/FeedSkeleton";
 export * from "./feed/getAuthorPresentation";
 export * from "./feed/getFeedFromLocation";

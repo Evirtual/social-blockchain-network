@@ -5,3 +5,4 @@ export * from "./providers/useProfileActions";
 export * from "./providers/useProfileState";
 export * from "./pages/ProfilePage";
 export * from "./pages/ProfilePageContainer";
+export * from "./components/sidebar";

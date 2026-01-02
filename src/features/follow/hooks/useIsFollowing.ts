@@ -6,18 +6,21 @@ import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
+import { getEnv } from "@shared/lib/env";
+import type { TransactionReceipt, TransactionResponse } from "ethers";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 export function useIsFollowing(params: {
-  provider: unknown | null;
+  provider: ChainProvider | null;
   chainId: string | null;
   walletAddress: string | null;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
   runContractTx: <T>(
     label: string,
-    send: () => Promise<any>,
-    onReceipt?: (receipt: any) => Promise<T> | T
+    send: () => Promise<TransactionResponse>,
+    onReceipt?: (receipt: TransactionReceipt) => Promise<T> | T
   ) => Promise<T | undefined>;
   setStatus: (v: string) => void;
 }) {
@@ -52,7 +55,7 @@ export function useIsFollowing(params: {
         }
 
         await runInFlight(isFollowingInFlightRef.current, key, async () => {
-          const env = import.meta.env as any;
+          const env = getEnv();
           const chainIdNum = parseChainIdNumber(params.chainId);
           const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
 
@@ -91,7 +94,7 @@ export function useIsFollowing(params: {
 
           await params.ensureContractDeployedOnCurrentNetwork();
           const readContract = await params.getReadContract();
-          const ok = (await (readContract as any).isFollowing(params.walletAddress, followee)) as boolean;
+          const ok = (await readContract.isFollowing(params.walletAddress, followee)) as boolean;
           setIsFollowingByAddress((prev) => {
             const next = { ...prev, [key]: !!ok };
             isFollowingByAddressRef.current = next;
@@ -125,15 +128,12 @@ export function useIsFollowing(params: {
 
         let currently = isFollowingByAddressRef.current[key];
         if (typeof currently !== "boolean") {
-          currently = (await (writeContract as any).isFollowing(params.walletAddress, followee)) as boolean;
+          currently = (await writeContract.isFollowing(params.walletAddress, followee)) as boolean;
         }
 
         const ok = await params.runContractTx<boolean>(
           currently ? "Unfollow" : "Follow",
-          () =>
-            ((currently
-              ? (writeContract as any).unfollow(followee)
-              : (writeContract as any).follow(followee)) as any),
+          () => (currently ? writeContract.unfollow(followee) : writeContract.follow(followee)),
           () => true
         );
         if (!ok) return undefined;

@@ -3,6 +3,7 @@ import { resolveChainIdNum } from "./feedLoader/resolveChainIdNum";
 import { fetchMintedEventsIncremental } from "./feedLoader/fetchMintedEventsIncremental";
 import { pruneExistsFallback } from "./feedLoader/pruneExistsFallback";
 import { loadRefreshTargets, type RefreshTarget } from "./feedLoader/loadRefreshTargets";
+import type { ChainProvider, SocialPostsContract } from "@features/contract";
 
 export type MintedEventLite = {
   author?: string;
@@ -13,8 +14,8 @@ export type MintedEventLite = {
 
 export async function loadFeedFromProvider(args: {
   chainIdNum: number | null;
-  networkProvider: any;
-  readContract: any;
+  networkProvider: ChainProvider;
+  readContract: SocialPostsContract;
   maxLookbackBlocks: number;
   account: string | null;
   lastRefreshedAccount: string | null;

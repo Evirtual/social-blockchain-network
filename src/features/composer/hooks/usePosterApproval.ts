@@ -2,17 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPosterGateStatuses, fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { runInFlight } from "@shared/lib/inFlight";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import type { TransactionResponse } from "ethers";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 type ContractLike = {
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
 };
 
 export function usePosterApproval(params: {
   walletAddress: string | null;
   contract: ContractLike;
   setStatus: (s: string) => void;
-  runContractTx: (label: string, txFn: () => Promise<any>) => Promise<any>;
+  runContractTx: <T = void>(label: string, txFn: () => Promise<TransactionResponse>) => Promise<T | undefined>;
 }) {
   const { walletAddress, contract, setStatus, runContractTx } = params;
 
@@ -92,7 +94,7 @@ export function usePosterApproval(params: {
       setIsApprovalLoading(true);
       await runContractTx("Request posting approval", async () => {
         const writeContract = await contract.getWriteContract();
-        return (writeContract as any).requestPosterApproval();
+        return writeContract.requestPosterApproval();
       });
     } catch {
       setIsApprovalLoading(false);

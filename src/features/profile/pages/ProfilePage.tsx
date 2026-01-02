@@ -1,10 +1,8 @@
 import type { Post } from "@types";
-import { Feed } from "@features/feed";
 import { useMemo, useState } from "react";
-import { AdminProfileModal } from "../components/AdminProfileModal";
+import { ProfileAdminPanel } from "../components/ProfileAdminPanel";
+import { ProfileFeedSection } from "../components/ProfileFeedSection";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
-import { FeedHeaderControls } from "@features/home/components/FeedHeaderControls";
-import { useFeedFilterViewModel } from "@features/home/hooks/useFeedFilterViewModel";
 import { ipfsToHttp } from "@features/ipfs";
 import type { PostActionsController } from "@features/post";
 
@@ -68,54 +66,6 @@ export function ProfilePage(props: Props) {
     return { background: `hsl(${props.avatarHue} 75% 55%)` };
   }, [props.avatarUrl, props.avatarHue]);
 
-  const activePosts = useMemo(() => props.posts.map((p) => ({ ...p, contextTag: undefined })), [props.posts]);
-  const activeLoading = props.isFeedLoading;
-  const activeTitle = "Profile Feed";
-
-  const {
-    supportedNetworks,
-    searchQuery,
-    setSearchQuery,
-    selectedNetworkChainIds,
-    setSelectedNetworkChainIds,
-    filteredPosts,
-    pillText,
-    isPillLoading
-  } = useFeedFilterViewModel({
-    posts: activePosts,
-    authorIdentity: props.authorIdentity,
-    shortAddress: props.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
-    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
-    walletAddress: props.walletAddress,
-    chainId: props.chainId,
-    isFeedLoading: props.isFeedLoading,
-    useSubgraphSearch: true,
-    authorAddress: props.address
-  });
-
-  const headerAction = useMemo(() => {
-    return (
-      <FeedHeaderControls
-        pillText={pillText}
-        isPillLoading={isPillLoading}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        selectedNetworkChainIds={selectedNetworkChainIds}
-        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-        supportedNetworks={supportedNetworks}
-      />
-    );
-  }, [
-    pillText,
-    isPillLoading,
-    searchQuery,
-    setSearchQuery,
-    selectedNetworkChainIds,
-    setSelectedNetworkChainIds,
-    supportedNetworks
-  ]);
-
   return (
     <main className="profileLayout">
       <section className="profileTop profileTopSingle">
@@ -140,36 +90,31 @@ export function ProfilePage(props: Props) {
         />
       </section>
 
-      {canAdminEdit ? (
-        <AdminProfileModal
-          open={isAdminEditing}
-          onClose={() => setIsAdminEditing(false)}
-          initialDraft={initialDraft}
-          headerLeading={<div className="avatar small" style={avatarStyle} />}
-          isSaving={props.adminActionInFlight === "save"}
-          onSave={(next) => props.onAdminSetProfile(next)}
-        />
-      ) : null}
+      <ProfileAdminPanel
+        canAdminEdit={canAdminEdit}
+        isAdminEditing={isAdminEditing}
+        onClose={() => setIsAdminEditing(false)}
+        initialDraft={initialDraft}
+        avatarStyle={avatarStyle}
+        isSaving={props.adminActionInFlight === "save"}
+        onSave={props.onAdminSetProfile}
+      />
 
-      <section className="content">
-        <Feed
-          title={activeTitle}
-          pillText=""
-          headerAction={headerAction}
-          isLoading={activeLoading}
-          loadingText={props.status}
-          posts={filteredPosts}
-          isOwner={props.isOwner}
-          chainId={props.chainId}
-          walletAddress={props.walletAddress}
-          authorIdentity={props.authorIdentity}
-          postActions={props.postActions}
-          shortAddress={props.shortAddress}
-          stableHueFromSeed={props.stableHueFromSeed}
-          getNativeSymbol={props.getNativeSymbol}
-          getExplorerTxUrl={props.getExplorerTxUrl}
-        />
-      </section>
+      <ProfileFeedSection
+        posts={props.posts}
+        authorIdentity={props.authorIdentity}
+        shortAddress={props.shortAddress}
+        chainId={props.chainId}
+        walletAddress={props.walletAddress}
+        isFeedLoading={props.isFeedLoading}
+        status={props.status}
+        isOwner={props.isOwner}
+        postActions={props.postActions}
+        stableHueFromSeed={props.stableHueFromSeed}
+        getNativeSymbol={props.getNativeSymbol}
+        getExplorerTxUrl={props.getExplorerTxUrl}
+        authorAddress={props.address}
+      />
     </main>
   );
 }

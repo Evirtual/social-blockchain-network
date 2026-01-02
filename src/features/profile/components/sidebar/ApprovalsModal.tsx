@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Modal } from "@features/app/components/Modal";
+import { Modal } from "@shared/components/Modal";
 import { useContractActions, useContractState } from "@features/contract";
 import { useContractTx } from "@features/contract";
 import { useFeedState } from "@features/feed";
 import { useWalletState } from "@features/wallet";
-import { ApprovalListRow } from "./approvals/ApprovalListRow";
-import { useApprovalActions } from "./approvals/useApprovalActions";
-import { useOnChainApprovalRequests } from "./approvals/useOnChainApprovalRequests";
-import { usePosterStatusMaps } from "./approvals/usePosterStatusMaps";
-import { useOwnerAddress } from "./useOwnerAddress";
+import { useApprovalActions, useOnChainApprovalRequests, usePosterStatusMaps } from "./approvals";
+import type { ApprovalRow } from "./approvals/types";
+import { PendingApprovalsSection } from "./approvals/PendingApprovalsSection";
+import { ChainRequestsSection } from "./approvals/ChainRequestsSection";
+import { useOwnerAddress } from "@features/profile";
 
 export type ApprovalsModalProps = {
   open: boolean;
@@ -77,7 +77,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     feedPosts: feed.posts
   });
 
-  const pendingRows = useMemo(() => {
+  const pendingRows = useMemo<ApprovalRow[]>(() => {
     return pendingApprovals.map((addr) => {
       const key = addr.toLowerCase();
       return {
@@ -89,7 +89,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     });
   }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
 
-  const chainRows = useMemo(() => {
+  const chainRows = useMemo<ApprovalRow[]>(() => {
     const ownerLower = ownerAddress?.toLowerCase() ?? "";
     return onChainRequests
       .filter((addr) => addr.toLowerCase() !== ownerLower)
@@ -155,86 +155,33 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
       <div className="composer approvalsModal">
         <div className="muted">Approve wallets that are allowed to mint posts during testing.</div>
 
-        <div className="row">
-          <input
-            className="input"
-            value={pendingInput}
-            onChange={(e) => setPendingInput(e.target.value)}
-            placeholder="0x... wallet address"
-          />
-          <button className="secondary" type="button" onClick={() => addPendingApproval(pendingInput)}>
-            Add
-          </button>
-        </div>
+        <PendingApprovalsSection
+          pendingInput={pendingInput}
+          onPendingInputChange={setPendingInput}
+          onAdd={() => addPendingApproval(pendingInput)}
+          approvalsError={approvalsError}
+          pendingRows={pendingRows}
+          shortAddress={props.shortAddress}
+          isLoadingPosterStatuses={isLoadingPosterStatuses}
+          actionInFlight={actionInFlight}
+          onRemove={handleRemove}
+          onApprove={handleApprove}
+          onDisapprove={handleDisapprove}
+          onReset={handleReset}
+        />
 
-        {approvalsError ? <div className="muted">{approvalsError}</div> : null}
-
-        {pendingRows.length === 0 ? null : (
-          <div className="list">
-            {pendingRows.map((row) => (
-              <ApprovalListRow
-                key={row.addr}
-                addr={row.addr}
-                shortAddress={props.shortAddress}
-                isFlagged={row.isFlagged}
-                isAllowed={row.isAllowed}
-                isLoading={isLoadingPosterStatuses}
-                actionInFlight={actionInFlight?.addr === row.addr ? actionInFlight.action : null}
-                showRemove
-                onRemove={() => handleRemove(row.addr)}
-                onApprove={() => handleApprove(row.addr)}
-                onDisapprove={() => handleDisapprove(row.addr)}
-                onReset={() => handleReset(row.addr)}
-              />
-            ))}
-          </div>
-        )}
-
-        {props.isOwner ? (
-          <div className="approvalsSection">
-            <div className="muted approvalsSectionTitle">Requests from chain</div>
-
-            {isLoadingOnChainRequests ? (
-              <div className="list" aria-busy={true} aria-label="Loading requests" role="status">
-                <div className="listRow" aria-hidden="true">
-                  <span className="listRowLeft">
-                    <span className="value" style={{ display: "inline-flex", alignItems: "center" }}>
-                      <span className="skeletonLine" style={{ width: "9rem" }} />
-                    </span>
-                  </span>
-                  <span className="rowActions">
-                    <span className="skeletonLine" style={{ width: "16rem", height: "2.25rem", borderRadius: "0.75rem" }} />
-                  </span>
-                </div>
-              </div>
-            ) : null}
-
-            {!isLoadingOnChainRequests && onChainRequestsLoadError ? <div className="list muted">Failed to load requests.</div> : null}
-
-            {!isLoadingOnChainRequests && !onChainRequestsLoadError && onChainRequests.length === 0 ? (
-              <div className="list muted">No requests found.</div>
-            ) : null}
-
-            {chainRows.length ? (
-              <div className="list">
-                {chainRows.map((row) => (
-                  <ApprovalListRow
-                    key={row.addr}
-                    addr={row.addr}
-                    shortAddress={props.shortAddress}
-                    isFlagged={row.isFlagged}
-                    isAllowed={row.isAllowed}
-                    isLoading={isLoadingPosterStatuses}
-                    actionInFlight={actionInFlight?.addr === row.addr ? actionInFlight.action : null}
-                    onApprove={() => handleApprove(row.addr)}
-                    onDisapprove={() => handleDisapprove(row.addr)}
-                    onReset={() => handleReset(row.addr)}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <ChainRequestsSection
+          isOwner={props.isOwner}
+          isLoadingOnChainRequests={isLoadingOnChainRequests}
+          onChainRequestsLoadError={onChainRequestsLoadError}
+          chainRows={chainRows}
+          shortAddress={props.shortAddress}
+          isLoadingPosterStatuses={isLoadingPosterStatuses}
+          actionInFlight={actionInFlight}
+          onApprove={handleApprove}
+          onDisapprove={handleDisapprove}
+          onReset={handleReset}
+        />
       </div>
     </Modal>
   );

@@ -10,14 +10,16 @@ import { getFeedNetworkTasks } from "./feedNetworkTasks";
 import { loadFeedFromSubgraph } from "./subgraph/loadFeedFromSubgraph";
 import { getFeedRefreshConfig } from "../hooks/refresh/getFeedRefreshConfig";
 import { createResolveRpcContractAddress } from "../hooks/refresh/createResolveRpcContractAddress";
+import { getEnv } from "@shared/lib/env";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 type FeedRefreshArgs = {
-  provider: any;
+  provider: ChainProvider | null;
   walletAddress: string | null;
   chainId: string | null;
   account: string | null;
@@ -43,11 +45,11 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     shouldReportStatus
   } = args;
 
-  const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
+  const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
   const normalizedAccount = typeof account === "string" ? account.toLowerCase() : null;
 
   const currentChainIdNumber = parseChainIdNumber(chainId);
-  const env = import.meta.env as any;
+  const env = getEnv();
   const { maxLookbackBlocks, configuredNetworks, extraNetworks } = getFeedRefreshConfig({
     env,
     currentChainIdNumber
@@ -57,7 +59,11 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
 
   const resolveRpcContractAddress = createResolveRpcContractAddress({ withTimeout });
 
-  const loadFromProvider = async (chainIdNum: number | null, networkProvider: any, readContract: any): Promise<Post[]> => {
+  const loadFromProvider = async (
+    chainIdNum: number | null,
+    networkProvider: ChainProvider | null,
+    readContract: SocialPostsContract | null
+  ): Promise<Post[]> => {
     const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
     if (subgraphUrl) {
       const chainIdStr = chainIdNum != null ? String(chainIdNum) : undefined;

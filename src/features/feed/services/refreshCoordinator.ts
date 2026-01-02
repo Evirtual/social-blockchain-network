@@ -1,15 +1,16 @@
 import type { Post } from "@types";
 import { refreshFeedFromNetworks } from "./feedRefresh";
+import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 type SetPosts = (next: Post[] | ((prev: Post[]) => Post[])) => void;
 
 export async function refreshFeed(args: {
-  provider: any;
+  provider: ChainProvider | null;
   walletAddress: string | null;
   chainId: string | null;
   account: string | null;

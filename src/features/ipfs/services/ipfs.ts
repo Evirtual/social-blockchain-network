@@ -4,6 +4,8 @@ export type PinataPinResponse = {
   Timestamp: string;
 };
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 const DEFAULT_IPFS_GATEWAY_BASES = [
   "https://gateway.pinata.cloud/ipfs/",
   "https://cloudflare-ipfs.com/ipfs/",
@@ -153,7 +155,7 @@ export const pinataPinFile = async (file: Blob, filename: string) => {
   return (await res.json()) as PinataPinResponse;
 };
 
-export const pinataPinJson = async (json: unknown) => {
+export const pinataPinJson = async (json: JsonValue) => {
   const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
   if (!jwt) {
     throw new Error(

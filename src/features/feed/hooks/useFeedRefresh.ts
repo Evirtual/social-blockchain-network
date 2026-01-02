@@ -4,14 +4,15 @@ import { getErrorMessage } from "@shared/lib/errors";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { refreshFeed as refreshFeedFromCoordinator } from "../services/refreshCoordinator";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
+import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 type WalletParams = {
-  provider: any;
+  provider: ChainProvider | null;
   walletAddress: string | null;
   chainId: string | null;
   walletEpoch: number;
@@ -44,7 +45,7 @@ export function useFeedRefresh(params: {
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
-      const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
+      const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
       const MIN_REFRESH_INTERVAL_MS = 1_500;
       const refreshEpoch = snapshotEpoch();
 
@@ -190,7 +191,7 @@ export function useFeedRefresh(params: {
   }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
   useEffect(() => {
-    const isVitest = typeof (globalThis as any).__vitest_worker__ !== "undefined";
+    const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
     if (isVitest) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
 

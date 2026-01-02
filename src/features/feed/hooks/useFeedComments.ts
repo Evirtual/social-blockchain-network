@@ -8,16 +8,17 @@ import { commentKey } from "./utils";
 import { getCommentsReadContext } from "./comments/getCommentsReadContext";
 import { computeCommentsFromBlock, findMintBlockHint } from "./comments/computeCommentsFromBlock";
 import { parseCommentLogs } from "./comments/parseCommentLogs";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 type PostsRefLike = { current: Post[] };
 
 export function useFeedComments(params: {
-  provider: any;
+  provider: ChainProvider | null;
   chainId: string | null;
   contract: ContractLike;
   setStatus: (s: string) => void;
@@ -31,7 +32,7 @@ export function useFeedComments(params: {
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
-  const lastProviderRef = useRef<any>(undefined);
+  const lastProviderRef = useRef<ChainProvider | null | undefined>(undefined);
 
   useEffect(() => {
     const chainChanged = lastChainIdRef.current !== chainId;
@@ -58,14 +59,13 @@ export function useFeedComments(params: {
       void getSocialContract;
 
       const key = commentKey(readCtx.keyChainId, tokenId);
-      const readProvider: any = readCtx.readProvider;
-      const readContract: any = readCtx.readContract;
+      const readProvider: ChainProvider = readCtx.readProvider;
+      const readContract: SocialPostsContract = readCtx.readContract;
 
       await runInFlight(commentsInFlightRef.current, key, async () => {
         setIsLoadingPostComments((prev) => ({ ...prev, [key]: true }));
         try {
-          const latestAny = await withTimeout<any>(readProvider.getBlockNumber(), 6_000, "comments getBlockNumber");
-          const latest = Number(latestAny);
+          const latest = await withTimeout(readProvider.getBlockNumber(), 6_000, "comments getBlockNumber");
           if (!Number.isFinite(latest) || latest < 0) {
             setPostComments((prev) => ({ ...prev, [key]: [] }));
             return;

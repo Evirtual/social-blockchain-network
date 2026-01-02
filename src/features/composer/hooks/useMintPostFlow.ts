@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
+import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { getErrorMessage } from "@shared/lib/errors";
 import { ipfsToHttp } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
@@ -9,6 +10,7 @@ import { waitForMetadataReady } from "../services/mintPost/waitForMetadataReady"
 import { waitForUrlReachable } from "../services/mintPost/waitForUrlReachable";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 import { getDraftMediaState } from "@features/post/services/draftMediaState";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 
 type TxNotificationsLike = {
   notifyPending: (p: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -22,15 +24,15 @@ type FeedLike = {
 };
 
 type ContractLike = {
-  getReadContract: () => Promise<any>;
-  getWriteContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
+  getWriteContract: WriteContractFactory;
 };
 
-type RunContractTxLike = (
+type RunContractTxLike = <T>(
   label: string,
-  txFn: () => Promise<any>,
-  parseReceipt?: (receipt: any) => Promise<any>
-) => Promise<any>;
+  txFn: () => Promise<TransactionResponse>,
+  parseReceipt?: (receipt: TransactionReceipt) => Promise<T> | T
+) => Promise<T | undefined>;
 
 type PosterApprovalLike = {
   setApprovalRequired: (v: boolean) => void;
@@ -164,7 +166,7 @@ export function useMintPostFlow(params: {
       animationUrlForUi = prepared.animationRef || undefined;
       const minted = await runContractTx(
         "Mint post NFT",
-        () => (writeContract as any).mintPost(metadataURI, titleTrimmed, bodyTrimmed),
+        () => writeContract.mintPost(metadataURI, titleTrimmed, bodyTrimmed),
         async (receipt) => parseMintPostReceipt(receipt)
       );
 

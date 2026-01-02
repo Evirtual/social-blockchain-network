@@ -1,13 +1,13 @@
-import type { Interface } from "ethers";
+import type { Contract, ContractEventName, Interface, Provider } from "ethers";
 import { scanActiveToggleKeys } from "@shared/lib/toggleScan";
 
 type ScanFollowToggleArgs = {
-  readContract: any;
-  scanProvider: any;
+  readContract: Contract;
+  scanProvider: Provider;
   iface: Interface;
 
-  followedFilter: any;
-  unfollowedFilter: any;
+  followedFilter: ContractEventName;
+  unfollowedFilter: ContractEventName;
 
   addressArgIndex: number;
 

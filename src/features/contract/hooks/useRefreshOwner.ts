@@ -21,7 +21,7 @@ export function useRefreshOwner(params: {
 
     try {
       const readContract = getSocialContract(addr, params.provider);
-      const o = (await (readContract as any).owner()) as string;
+      const o = (await readContract.owner()) as string;
       params.setOwnerAddress(o);
     } catch {
       params.setOwnerAddress(null);

@@ -6,8 +6,8 @@
   gap: 0.625rem;
 }
 
-.commentList .comment {
-  margin: 0.75rem 0 0 0;
+.commentComposer {
+  margin-bottom: 1.25rem;
 }
 
 .commentReplies {

@@ -1,5 +1,5 @@
 import { formatTxState, useTxNotifications } from "@features/tx";
-import { IconX } from "./icons";
+import { IconX } from "@shared/components/icons";
 
 export function TxToaster() {
   const { txNotices, dismiss } = useTxNotifications();

@@ -4,15 +4,16 @@ import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getRpcProvider } from "@shared/lib/rpc";
 import { resolveSocialPostsAddress } from "../../services/resolveSocialPostsAddress";
 import { withTimeout } from "@shared/lib/feedQuery";
-import { getSocialContract } from "@features/contract";
+import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import { getEnv } from "@shared/lib/env";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 };
 
 export async function getCommentsReadContext(params: {
-  provider: any;
+  provider: ChainProvider | null;
   chainId: string | null;
   postChainId?: string | null;
   contract: ContractLike;
@@ -22,14 +23,14 @@ export async function getCommentsReadContext(params: {
     }
   | {
       canRead: true;
-      readProvider: any;
-      readContract: any;
+      readProvider: ChainProvider;
+      readContract: SocialPostsContract;
       keyChainId: string | null;
     }
 > {
   const { provider, chainId, postChainId, contract } = params;
 
-  const env = import.meta.env as any;
+  const env = getEnv();
   const configuredNetworks = getConfiguredFeedNetworks(env);
 
   const targetChainId = parseChainIdNumber(postChainId ?? chainId);
@@ -43,18 +44,18 @@ export async function getCommentsReadContext(params: {
   const keyChainId = postChainId ?? chainId;
 
   if (canUseEnvRpc) {
-    const readProvider: any = getRpcProvider(targetRpcUrl, targetCfg!.chainId);
+    const readProvider = getRpcProvider(targetRpcUrl, targetCfg!.chainId);
     const resolved = await resolveSocialPostsAddress(targetCfg!, readProvider, {
       withTimeout,
       codeTimeoutMs: 3_000,
       probeTimeoutMs: 3_000,
       label: `resolve ${targetCfg!.chainId}`
     });
-    const readContract: any = getSocialContract(resolved, readProvider);
+    const readContract = getSocialContract(resolved, readProvider);
     return { canRead: true, readProvider, readContract, keyChainId };
   }
 
   await contract.ensureContractDeployedOnCurrentNetwork();
   const readContract = await contract.getReadContract();
-  return { canRead: true, readProvider: provider, readContract, keyChainId };
+  return { canRead: true, readProvider: provider!, readContract, keyChainId };
 }

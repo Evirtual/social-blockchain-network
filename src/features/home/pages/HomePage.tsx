@@ -1,12 +1,13 @@
 import type { Draft, Post } from "@types";
-import { Feed } from "@features/feed";
+import { Feed, FeedHeaderControls, useFeedFilterViewModel } from "@features/feed";
 import { useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post";
-import { FeedHeaderControls } from "../components/FeedHeaderControls";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
-import { useFeedFilterViewModel } from "../hooks/useFeedFilterViewModel";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
+
+type EthereumRequestArgs = { method: string; params?: Array<{ chainId?: string }> };
+type EthereumLike = { request?: (args: EthereumRequestArgs) => Promise<null> };
 
 type Props = {
   isOwner: boolean;
@@ -69,11 +70,7 @@ export function HomePage(props: Props) {
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
-      const eth = window.ethereum as
-        | {
-            request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-          }
-        | undefined;
+      const eth = window.ethereum as EthereumLike | undefined;
       if (!eth?.request) return;
       if (props.chainId && props.chainId === String(targetChainId)) return;
 
@@ -90,11 +87,7 @@ export function HomePage(props: Props) {
   );
 
   const canSwitchNetwork = useMemo(() => {
-    const eth = window.ethereum as
-      | {
-          request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-        }
-      | undefined;
+    const eth = window.ethereum as EthereumLike | undefined;
     return !!eth?.request;
   }, []);
 

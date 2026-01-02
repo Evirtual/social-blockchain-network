@@ -1,6 +1,7 @@
 import { socialInterface } from "@features/contract";
+import type { Log, TransactionReceipt } from "ethers";
 
-export function parseMintPostReceipt(receipt: any): {
+export function parseMintPostReceipt(receipt: TransactionReceipt): {
   mintedTokenId: string | null;
   mintedAuthor: string | undefined;
   mintTxHash: string | undefined;
@@ -9,12 +10,12 @@ export function parseMintPostReceipt(receipt: any): {
   let mintedTokenId: string | null = null;
   let mintedAuthor: string | undefined;
 
-  const mintTxHash = receipt?.hash;
-  const mintBlockNumber = typeof receipt?.blockNumber === "number" ? Number(receipt.blockNumber) : undefined;
+  const mintTxHash = receipt.hash;
+  const mintBlockNumber = typeof receipt.blockNumber === "number" ? Number(receipt.blockNumber) : undefined;
 
-  for (const log of receipt?.logs ?? []) {
+  for (const log of receipt.logs ?? ([] as Log[])) {
     try {
-      const parsed = socialInterface.parseLog({ topics: log.topics as string[], data: log.data });
+      const parsed = socialInterface.parseLog(log);
       if (parsed?.name === "PostMinted") {
         mintedAuthor = parsed.args[0] as string;
         mintedTokenId = (parsed.args[1] as bigint).toString();

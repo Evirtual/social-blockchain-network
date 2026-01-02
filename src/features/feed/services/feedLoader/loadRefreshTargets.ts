@@ -3,6 +3,7 @@ import { mapWithConcurrency } from "@shared/lib/async";
 import { fetchTokenMetadata } from "@features/metadata";
 import type { MintedEventLite } from "../feedLoader";
 import { getMintTimestampIfNeeded } from "./getMintTimestampIfNeeded";
+import type { ChainProvider, SocialPostsContract } from "@features/contract";
 
 export type RefreshTarget = {
   event: MintedEventLite;
@@ -16,11 +17,11 @@ export type RefreshTarget = {
 
 export async function loadRefreshTargets(args: {
   refreshTargets: RefreshTarget[];
-  readContract: any;
+  readContract: SocialPostsContract;
   resolvedChainIdNum: number | null;
   chainCacheKey: string;
   chainIdNum: number | null;
-  networkProvider: any;
+  networkProvider: ChainProvider;
   account: string | null;
 }) {
   return await mapWithConcurrency<RefreshTarget, Post | null>(args.refreshTargets, 6, async (t) => {
@@ -52,10 +53,10 @@ export async function loadRefreshTargets(args: {
         args.readContract.savesOf(tokenIdBig) as Promise<bigint>,
         args.readContract.tipsOf(tokenIdBig) as Promise<bigint>,
         args.account
-          ? ((args.readContract as any).hasLiked(tokenIdBig, args.account) as Promise<boolean>)
+          ? (args.readContract.hasLiked(tokenIdBig, args.account) as Promise<boolean>)
           : Promise.resolve(undefined),
         args.account
-          ? ((args.readContract as any).hasSaved(tokenIdBig, args.account) as Promise<boolean>)
+          ? (args.readContract.hasSaved(tokenIdBig, args.account) as Promise<boolean>)
           : Promise.resolve(undefined)
       ]);
     } catch {

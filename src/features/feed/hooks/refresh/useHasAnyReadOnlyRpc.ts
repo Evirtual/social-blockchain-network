@@ -1,8 +1,9 @@
 import { useMemo } from "react";
+import { getEnv } from "@shared/lib/env";
 
 export function useHasAnyReadOnlyRpc() {
   return useMemo(() => {
-    const env = import.meta.env as any;
+    const env = getEnv();
     return [
       env.VITE_ETH_RPC_URL,
       env.VITE_ETH_SEPOLIA_RPC_URL,

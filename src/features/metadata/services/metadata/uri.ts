@@ -11,7 +11,13 @@ function looksLikeVideoUrl(url: string) {
 export function createMetadataUri(draft: Draft) {
   const image = draft.imageDataUrl || draft.imageUrl;
   const isVideo = !!image && looksLikeVideoUrl(image);
-  const metadata: any = {
+  const metadata: {
+    name?: string;
+    description?: string;
+    image?: string;
+    animation_url?: string;
+    attributes?: Array<{ trait_type: string; value: string }>;
+  } = {
     name: draft.title,
     description: draft.body,
     attributes: [{ trait_type: "Origin", value: "Social Blockchain Network" }]

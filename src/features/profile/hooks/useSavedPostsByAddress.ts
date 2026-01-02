@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { BrowserProvider } from "ethers";
-import { getSocialContract, socialInterface } from "@features/contract";
+import { getSocialContract, socialInterface, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
 import { getErrorMessage } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
@@ -9,6 +9,7 @@ import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
+import { getEnv } from "@shared/lib/env";
 
 type Args = {
   walletProvider: BrowserProvider | null;
@@ -16,7 +17,7 @@ type Args = {
 
   contractAddress: string | undefined;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
-  getReadContract: () => Promise<any>;
+  getReadContract: ReadContractFactory;
 
   loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
   setStatus: (status: string) => void;
@@ -59,7 +60,7 @@ export function useSavedPostsByAddress(args: Args) {
         await runInFlight(savedInFlightRef.current, key, async () => {
           setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: true }));
           try {
-            const env = import.meta.env as any;
+            const env = getEnv();
             const resolvedChainIdNum = parseChainIdNumber(args.chainId);
 
             const subgraphUrl = getSubgraphUrlForChainId(env, resolvedChainIdNum);
@@ -110,11 +111,11 @@ export function useSavedPostsByAddress(args: Args) {
 
             const rpcUrl = getRpcUrlForChainId(env, resolvedChainIdNum);
 
-            let readContract: any = null;
-            let scanProvider: any = null;
+            let readContract: SocialPostsContract | null = null;
+            let scanProvider: ChainProvider | null = null;
 
             if (rpcUrl && args.contractAddress) {
-              const rpcProvider: any = getRpcProvider(rpcUrl, resolvedChainIdNum!);
+              const rpcProvider = getRpcProvider(rpcUrl, resolvedChainIdNum!);
               readContract = getSocialContract(args.contractAddress, rpcProvider);
               scanProvider = rpcProvider;
             } else {
@@ -125,13 +126,15 @@ export function useSavedPostsByAddress(args: Args) {
               scanProvider = getScanProviderFromReadContract(readContract, args.walletProvider);
             }
 
+            if (!readContract || !scanProvider) return;
+
             const activeTokenIds = await scanToggleEventsForAddress({
               readContract,
               scanProvider,
               iface: socialInterface,
               address,
-              onFilter: (readContract as any).filters.PostSaved(address, null),
-              offFilter: (readContract as any).filters.PostUnsaved(address, null),
+              onFilter: readContract.filters.PostSaved(address, null),
+              offFilter: readContract.filters.PostUnsaved(address, null),
               onEventName: "PostSaved",
               offEventName: "PostUnsaved",
               tokenIdArgIndex: 1

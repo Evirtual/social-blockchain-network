@@ -1,13 +1,14 @@
 import { memo, useCallback, useMemo, useState, type MouseEvent } from "react";
-import { Link } from "react-router-dom";
 import type { Draft, Post } from "@types";
-import { ChainLogo, IconEdit, IconFlame, IconFlag, Modal } from "@features/app";
+import { Modal } from "@shared/components/Modal";
 import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@shared/lib/network";
 import { getPostUrl } from "@shared/lib/post";
 import { PostCardEditBox } from "./postCard/PostCardEditBox";
 import { PostCardFooter } from "./postCard/PostCardFooter";
-import { PostCardMedia } from "./postCard/PostCardMedia";
 import { getAvatarStyle } from "./postCard/postCardDerived";
+import { PostReportModal } from "./postCard/PostReportModal";
+import { PostCardHeader } from "./postCard/PostCardHeader";
+import { PostCardBody } from "./postCard/PostCardBody";
 
 export type PostPanel = "comment" | "tip";
 
@@ -97,6 +98,7 @@ export const PostCard = memo(function PostCard(props: Props) {
   const postNetworkTitle = useMemo(() => (postChainId ? getNetworkBadgeLabel(postChainId) : ""), [postChainId]);
   const postNetworkHue = useMemo(() => (postChainId ? getNetworkBrandHue(postChainId) : 210), [postChainId]);
   const postNetworkChainIdNum = useMemo(() => (postChainId ? Number(postChainId) : NaN), [postChainId]);
+  const hasMintTxHash = !!props.post.mintTxHash;
 
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
@@ -163,183 +165,76 @@ export const PostCard = memo(function PostCard(props: Props) {
           canModerate={props.canModerate}
         />
       </Modal>
-      <Modal
+      <PostReportModal
         open={isReportOpen}
-        title="Report post"
-        headerLeading={<div className="avatar small" style={avatarStyle} />}
+        avatarStyle={avatarStyle}
+        reportDraft={reportDraft}
+        onReportDraftChange={setReportDraft}
+        onSubmit={onSubmitReport}
         onClose={() => setIsReportOpen(false)}
-      >
-        <div className="postForm">
-          <div className="postFormRow">
-            <input
-              className="postField"
-              type="text"
-              value={reportDraft}
-              onChange={(event) => setReportDraft(event.target.value)}
-              placeholder="Report reason"
-              disabled={isReporting}
-            />
-            <button
-              className={"secondary buttonWithSpinner"}
-              type="button"
-              onClick={onSubmitReport}
-              disabled={requiresNetworkSwitch || isReporting}
-              title={interactionDisabledTitle}
-            >
-              {isReporting ? <span className="spinner" aria-hidden="true" /> : null}
-              Report
-            </button>
-          </div>
-        </div>
-      </Modal>
+        isReporting={isReporting}
+        requiresNetworkSwitch={requiresNetworkSwitch}
+        interactionDisabledTitle={interactionDisabledTitle}
+      />
 
-      <div className="postHead">
-        <div className="avatar small" style={avatarStyle} />
-        <div className="postHeadMain">
-          <div className="postHeadTop">
-            <div className="postAuthor">
-              {props.post.author ? <Link to={`/profile/${props.post.author}`}>{props.authorLabel}</Link> : props.authorLabel}
-              {props.isMine ? <span className="badge">You</span> : null}
-            </div>
-            <div className="postTokenArea">
-              {postNetworkLabel ? (
-                props.post.mintTxHash ? (
-                  <a
-                    className={`postNetworkMarkLink ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
-                    href={explorer ?? "#"}
-                    target={explorer ? "_blank" : undefined}
-                    rel={explorer ? "noreferrer" : undefined}
-                    aria-label={postNetworkTitle ? `Network: ${postNetworkTitle}` : "Network"}
-                    title={postNetworkTitle || (explorer ? "View mint transaction" : "Copy mint transaction hash")}
-                    onClick={onCopyMintTx}
-                  >
-                    <span
-                      className="chainBrandMark"
-                      style={{ ["--brand-hue" as any]: postNetworkHue }}
-                      aria-hidden="true"
-                    >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={24} />
-                    </span>
-                  </a>
-                ) : (
-                  <span
-                    className={`postNetworkMarkLink ${isCurrentNetworkPost ? "isCurrentNetwork" : ""}`}
-                    aria-label={postNetworkTitle ? `Network: ${postNetworkTitle}` : "Network"}
-                    title={postNetworkTitle}
-                  >
-                    <span
-                      className="chainBrandMark"
-                      style={{ ["--brand-hue" as any]: postNetworkHue }}
-                      aria-hidden="true"
-                    >
-                      <ChainLogo chainId={postNetworkChainIdNum} size={24} />
-                    </span>
-                  </span>
-                )
-              ) : null}
-              {!props.isEditing ? (
-                <span className="postTokenActions">
-                  <button
-                    className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
-                    type="button"
-                    onClick={() => setIsReportOpen(true)}
-                    aria-label="Report post"
-                    title="Report"
-                    disabled={requiresNetworkSwitch}
-                  >
-                    <IconFlag size={16} />
-                  </button>
-                </span>
-              ) : null}
-              {(props.isMine || props.canModerate) && !props.isEditing ? (
-                <span className="postTokenActions">
-                  <button
-                    className={`ghost iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
-                    type="button"
-                    onClick={onStartEdit}
-                    aria-label="Edit post"
-                    title="Edit"
-                    disabled={requiresNetworkSwitch}
-                  >
-                    <IconEdit size={16} />
-                  </button>
-                  <button
-                    className={`danger iconButton${requiresNetworkSwitch ? " notAllowed" : ""}`}
-                    type="button"
-                    onClick={onBurn}
-                    aria-label="Burn post"
-                    title="Burn"
-                    disabled={requiresNetworkSwitch}
-                  >
-                    <IconFlame size={16} />
-                  </button>
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
+      <PostCardHeader
+        author={props.post.author}
+        authorLabel={props.authorLabel}
+        avatarStyle={avatarStyle}
+        isMine={props.isMine}
+        canModerate={props.canModerate}
+        isEditing={props.isEditing}
+        requiresNetworkSwitch={requiresNetworkSwitch}
+        postNetworkLabel={postNetworkLabel}
+        isCurrentNetworkPost={isCurrentNetworkPost}
+        postNetworkTitle={postNetworkTitle}
+        postNetworkHue={postNetworkHue}
+        postNetworkChainIdNum={postNetworkChainIdNum}
+        explorer={explorer}
+        hasMintTxHash={hasMintTxHash}
+        onCopyMintTx={onCopyMintTx}
+        onOpenReport={() => setIsReportOpen(true)}
+        onStartEdit={onStartEdit}
+        onBurn={onBurn}
+      />
 
-      <>
-        {!hasMedia && !!props.post.body?.trim() ? (
-          <div className="post-body">
-            <Link className="postBodyLink" to={postUrl} state={postLinkState} aria-label="Open post">
-              <div className="postText">
-                <p>{props.post.body}</p>
-              </div>
-            </Link>
-          </div>
-        ) : null}
+      <PostCardBody
+        post={props.post}
+        postUrl={postUrl}
+        postLinkState={postLinkState}
+        postChainId={postChainId}
+        tokenId={tokenId}
+        from={props.from}
+        hasMedia={hasMedia}
+      />
 
-        {hasMedia ? (
-          <PostCardMedia
-            postUrl={postUrl}
-            from={props.from}
-            postChainId={postChainId}
-            tokenId={tokenId}
-            body={props.post.body}
-            image={props.post.image}
-            animationUrl={props.post.animationUrl}
-            showBody={false}
-          />
-        ) : null}
-
-        <PostCardFooter
-          className={hasMedia ? "afterMedia" : undefined}
-          post={props.post}
-          tokenId={tokenId}
-          chainId={props.chainId}
-          walletAddress={props.walletAddress}
-          requiresNetworkSwitch={requiresNetworkSwitch}
-          interactionDisabledTitle={interactionDisabledTitle}
-          openPanel={props.openPanel}
-          onTogglePanel={onTogglePanel}
-          onAction={props.onAction}
-          onTip={props.onTip}
-          onReply={props.onReply}
-          onEditComment={props.onEditComment}
-          onDeleteComment={props.onDeleteComment}
-          onToggleCommentLike={props.onToggleCommentLike}
-          onToggleCommentSave={props.onToggleCommentSave}
-          onTipComment={props.onTipComment}
-          onReportPost={props.onReportPost}
-          onReportComment={props.onReportComment}
-          avatarStyle={avatarStyle}
-          canModerateComments={props.isMine || props.canModerate}
-          shortAddress={props.shortAddress}
-          stableHueFromSeed={props.stableHueFromSeed}
-          getExplorerTxUrl={props.getExplorerTxUrl}
-          getNativeSymbol={props.getNativeSymbol}
-        />
-
-        {hasMedia && !!props.post.body?.trim() ? (
-          <div className="postCaption">
-            <div className="postText">
-              <p>{props.post.body}</p>
-            </div>
-          </div>
-        ) : null}
-      </>
+      <PostCardFooter
+        className={hasMedia ? "afterMedia" : undefined}
+        post={props.post}
+        tokenId={tokenId}
+        chainId={props.chainId}
+        walletAddress={props.walletAddress}
+        requiresNetworkSwitch={requiresNetworkSwitch}
+        interactionDisabledTitle={interactionDisabledTitle}
+        openPanel={props.openPanel}
+        onTogglePanel={onTogglePanel}
+        onAction={props.onAction}
+        onTip={props.onTip}
+        onReply={props.onReply}
+        onEditComment={props.onEditComment}
+        onDeleteComment={props.onDeleteComment}
+        onToggleCommentLike={props.onToggleCommentLike}
+        onToggleCommentSave={props.onToggleCommentSave}
+        onTipComment={props.onTipComment}
+        onReportPost={props.onReportPost}
+        onReportComment={props.onReportComment}
+        avatarStyle={avatarStyle}
+        canModerateComments={props.isMine || props.canModerate}
+        shortAddress={props.shortAddress}
+        stableHueFromSeed={props.stableHueFromSeed}
+        getExplorerTxUrl={props.getExplorerTxUrl}
+        getNativeSymbol={props.getNativeSymbol}
+      />
     </article>
   );
 });

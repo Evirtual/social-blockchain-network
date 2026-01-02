@@ -4,7 +4,9 @@ export type FeedNetworkConfig = {
   rpcUrl?: string;
 };
 
-export function getConfiguredFeedNetworks(env: any): FeedNetworkConfig[] {
+import type { EnvMap } from "@shared/lib/env";
+
+export function getConfiguredFeedNetworks(env: EnvMap): FeedNetworkConfig[] {
   const configuredNetworks: FeedNetworkConfig[] = [
     { chainId: 1, contractAddress: env.VITE_CONTRACT_ADDRESS_ETH, rpcUrl: env.VITE_ETH_RPC_URL },
     { chainId: 11155111, contractAddress: env.VITE_CONTRACT_ADDRESS_SEPOLIA, rpcUrl: env.VITE_ETH_SEPOLIA_RPC_URL },

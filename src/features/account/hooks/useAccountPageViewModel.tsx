@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { Post } from "@types";
 import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
 import { useAccountFeedView } from "./useAccountFeedView";
-import { useFeedFilterViewModel } from "@features/home/hooks/useFeedFilterViewModel";
+import { useFeedFilterViewModel } from "@features/feed";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
+import { getEnv } from "@shared/lib/env";
 
 type Args = {
   posts: Post[];
@@ -107,7 +108,7 @@ export function useAccountPageViewModel(args: Args) {
         }
       }
 
-      const env = import.meta.env as any;
+      const env = getEnv();
       let postedSum = 0;
       let savedSum = 0;
       let likedSum = 0;
