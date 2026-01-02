@@ -73,7 +73,7 @@ export function usePostTips(args: {
           return true;
         }
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]
   );

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { BrowserProvider } from "ethers";
 import { getSocialContract, socialInterface, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -162,7 +162,7 @@ export function useLikedPostsByAddress(args: Args) {
           }
         });
       } catch (err) {
-        args.setStatus(getErrorMessage(err as ErrorInput));
+        setStatusFromError(args.setStatus, err as ErrorInput);
       }
     },
     [

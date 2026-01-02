@@ -83,7 +83,7 @@ export function useCommentActions(args: {
         void feed.loadCommentsForPost(tokenId, postChainId ?? chainId);
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, feed, chainId, setStatus]
   );
@@ -110,7 +110,7 @@ export function useCommentActions(args: {
         );
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
   );
@@ -139,7 +139,7 @@ export function useCommentActions(args: {
         );
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, feed]
   );
@@ -172,7 +172,7 @@ export function useCommentActions(args: {
         );
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, walletAddress, getWriteContract, runContractTx, updateCommentsForPost]
   );
@@ -205,7 +205,7 @@ export function useCommentActions(args: {
         );
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, walletAddress, getWriteContract, runContractTx, updateCommentsForPost]
   );
@@ -234,7 +234,7 @@ export function useCommentActions(args: {
         );
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
   );
@@ -257,7 +257,7 @@ export function useCommentActions(args: {
         if (!ok) return false;
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, setStatus]
   );
@@ -280,7 +280,7 @@ export function useCommentActions(args: {
         if (!ok) return false;
         return true;
       });
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [runGuarded, getWriteContract, runContractTx, setStatus]
   );

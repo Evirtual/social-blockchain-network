@@ -129,7 +129,7 @@ export function usePostEngagement(args: {
         }
       });
 
-      return result ?? false;
+      return result.ok ? result.value : false;
     },
     [walletAddress, chainId, ensureMatchingNetwork, getWriteContract, runContractTx, feed, setStatus]
   );

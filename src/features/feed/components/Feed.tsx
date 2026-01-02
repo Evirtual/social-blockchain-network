@@ -3,11 +3,7 @@ import { useLocation } from "react-router-dom";
 import type { PostPanel } from "@features/post";
 import { usePanelById } from "@shared/hooks/usePanelById";
 import { normalizeAddress } from "@shared/lib/address";
-import { getFeedFromLocation } from "./feed/getFeedFromLocation";
-import { getSkeletonCount } from "./feed/getSkeletonCount";
-import { FeedHeader } from "./feed/FeedHeader";
-import { FeedPostList } from "./feed/FeedPostList";
-import { getFeedEntries } from "./feed/getFeedEntries";
+import { FeedHeader, FeedPostList, getFeedEntries, getFeedFromLocation, getSkeletonCount } from "./feed/index";
 import type { FeedViewModel } from "../types";
 
 export const Feed = memo(function Feed({

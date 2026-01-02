@@ -1,5 +1,6 @@
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import { fail, ok, type ActionResult } from "@shared/lib/result";
 
 export async function runSocialAction<T>(params: {
   walletAddress: string | null;
@@ -7,20 +8,22 @@ export async function runSocialAction<T>(params: {
   ensureMatchingNetwork?: (postChainId?: string | null) => boolean;
   postChainId?: string | null;
   action: () => Promise<T>;
-}): Promise<T | null> {
+}): Promise<ActionResult<T>> {
   if (!params.walletAddress) {
     requestConnectNudge();
-    params.setStatus("Connect your wallet first.");
-    return null;
+    const message = "Connect your wallet first.";
+    params.setStatus(message);
+    return fail(message);
   }
   if (params.ensureMatchingNetwork && !params.ensureMatchingNetwork(params.postChainId)) {
-    return null;
+    return fail();
   }
 
   try {
-    return await params.action();
+    const value = await params.action();
+    return ok(value);
   } catch (error) {
-    params.setStatus(getErrorMessage(error as ErrorInput));
-    return null;
+    const message = setStatusFromError(params.setStatus, error as ErrorInput);
+    return fail(message);
   }
 }

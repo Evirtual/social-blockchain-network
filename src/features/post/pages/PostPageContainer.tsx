@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
-import { usePostActionsController, type PostPageViewModel } from "@features/post";
+import { buildPostPageViewModel, usePostActionsController } from "@features/post";
 import { useWalletState } from "@features/wallet";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
@@ -51,12 +51,12 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
 
   const commentsKey = commentKey(postChainId, tokenId);
 
-  const viewModel: PostPageViewModel = {
+  const viewModel = buildPostPageViewModel({
     isOwner: contract.isOwner,
     tokenId,
     postChainId,
     post,
-    isLoadingPost: isPostLoading && !post,
+    isPostLoading,
     comments: feedState.postComments[commentsKey] ?? [],
     isLoadingComments: !!feedState.isLoadingPostComments[commentsKey],
     posts: feedState.posts,
@@ -68,7 +68,7 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     stableHueFromSeed,
     getNativeSymbol,
     getExplorerTxUrl
-  };
+  });
 
   return <PostPage {...viewModel} />;
 }

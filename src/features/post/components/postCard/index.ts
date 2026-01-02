@@ -4,3 +4,4 @@ export * from "./PostCardFooter";
 export * from "./PostCardHeader";
 export * from "./PostCardMedia";
 export * from "./PostReportModal";
+export * from "./postCardDerived";
