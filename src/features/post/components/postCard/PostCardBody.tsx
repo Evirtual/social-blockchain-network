@@ -3,7 +3,7 @@ import type { Post } from "@types";
 import { PostCardMedia } from "./PostCardMedia";
 
 type Props = {
-  post: Post;
+  post: Readonly<Post>;
   postUrl: string;
   postLinkState: { from: string; chainId: string | null };
   postChainId: string | null;

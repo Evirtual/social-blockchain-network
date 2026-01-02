@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 import type { TxNotice } from "@types";
 import { formatTxState, isUserRejectedTx, useDismissTimers, useTxNoticeActions } from "../hooks";
 
@@ -12,7 +13,9 @@ export type TxNotificationsContextValue = {
   dismiss: (hash: string) => void;
 };
 
-const TxNotificationsContext = createContext<TxNotificationsContextValue | null>(null);
+const TxNotificationsContext = createStableContext("__sbnetTxNotificationsContext", () =>
+  createContext<TxNotificationsContextValue | null>(null)
+);
 
 export function TxNotificationsProvider({ children }: { children: React.ReactNode }) {
   const [txNotices, setTxNotices] = useState<TxNotice[]>([]);

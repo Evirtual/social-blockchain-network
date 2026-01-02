@@ -87,7 +87,7 @@ export function useEditPostFlow(args: {
   }, []);
 
   const startEditPost = useCallback(
-    (post: Post) => {
+    (post: Readonly<Post>) => {
       setEditingTokenId(postKey(post));
       setEditDraft({
         title: post.title,

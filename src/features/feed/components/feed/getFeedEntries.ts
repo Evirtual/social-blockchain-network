@@ -1,16 +1,6 @@
 import type { Post } from "@types";
+import type { PostFeedEntry } from "@features/post/types";
 import { getAuthorPresentation } from "./getAuthorPresentation";
-
-export type FeedEntry = {
-  post: Post;
-  authorLabel: string;
-  authorHue: number;
-  authorAvatarUrl?: string;
-  isMine: boolean;
-  canModerate: boolean;
-  panelKey: string;
-  compositeKey: string;
-};
 
 export function getFeedEntries(args: {
   posts: Post[];
@@ -19,7 +9,7 @@ export function getFeedEntries(args: {
   guestHue: number;
   walletLower: string | null;
   isOwner?: boolean;
-}) {
+}): PostFeedEntry[] {
   return args.posts.map((post) => {
     const { authorLabel, authorHue, authorAvatarUrl } = getAuthorPresentation({
       author: post.author,
@@ -34,9 +24,7 @@ export function getFeedEntries(args: {
 
     return {
       post,
-      authorLabel,
-      authorHue,
-      authorAvatarUrl,
+      author: { authorLabel, authorHue, authorAvatarUrl },
       isMine,
       canModerate,
       panelKey,

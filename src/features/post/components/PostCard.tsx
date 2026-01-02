@@ -13,7 +13,7 @@ import { PostCardBody } from "./postCard/PostCardBody";
 export type PostPanel = "comment" | "tip";
 
 type Props = {
-  post: Post;
+  post: Readonly<Post>;
   animationDelayMs?: number;
   from: string;
 
@@ -35,7 +35,7 @@ type Props = {
 
   onSetEditDraft: (next: Draft) => void;
 
-  onStartEditPost: (post: Post) => void;
+  onStartEditPost: (post: Readonly<Post>) => void;
   onCancelEditPost: () => void;
   onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;

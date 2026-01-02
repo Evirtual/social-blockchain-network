@@ -10,7 +10,7 @@ import { PostCommentsModal } from "./footer/PostCommentsModal";
 
 export type PostCardFooterProps = {
   className?: string;
-  post: Post;
+  post: Readonly<Post>;
   tokenId: string;
 
   chainId: string | null;

@@ -1,17 +1,7 @@
 import type { Post } from "@types";
 import { PostCard, type PostPanel, type PostActionsController } from "@features/post";
+import type { PostFeedEntry } from "@features/post/types";
 import { FeedSkeleton } from "./FeedSkeleton";
-
-type Entry = {
-  post: Post;
-  authorLabel: string;
-  authorHue: number;
-  authorAvatarUrl?: string;
-  isMine: boolean;
-  canModerate: boolean;
-  panelKey: string;
-  compositeKey: string;
-};
 
 type Props = {
   posts: Post[];
@@ -27,7 +17,7 @@ type Props = {
   getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
   from: string;
   postActions: PostActionsController;
-  postEntries: Entry[];
+  postEntries: PostFeedEntry[];
   panelById: Record<string, PostPanel | null | undefined>;
   togglePanel: (id: string, panel: PostPanel) => void;
 };
@@ -52,9 +42,9 @@ export function FeedPostList(props: Props) {
             from={props.from}
             chainId={props.chainId}
             walletAddress={props.walletAddress}
-            authorLabel={entry.authorLabel}
-            authorHue={entry.authorHue}
-            authorAvatarUrl={entry.authorAvatarUrl}
+            authorLabel={entry.author.authorLabel}
+            authorHue={entry.author.authorHue}
+            authorAvatarUrl={entry.author.authorAvatarUrl}
             isMine={entry.isMine}
             canModerate={entry.canModerate}
             isEditing={isEditing}

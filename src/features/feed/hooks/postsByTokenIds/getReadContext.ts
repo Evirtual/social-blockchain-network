@@ -1,4 +1,5 @@
-import { getReadContext, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
+import { getFeedReadContext } from "../getFeedReadContext";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -20,7 +21,7 @@ export async function getPostsByTokenIdsReadContext(params: {
     }
 > {
   const { provider, chainId, postChainId, contract } = params;
-  const readCtx = await getReadContext({ provider, chainId, targetChainId: postChainId, contract });
+  const readCtx = await getFeedReadContext({ provider, chainId, targetChainId: postChainId, contract });
   if (!readCtx.canRead) return { canRead: false };
   return {
     canRead: true,

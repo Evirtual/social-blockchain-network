@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 import type { Draft } from "@types";
 
 export type ComposerContextValue = {
@@ -24,4 +25,6 @@ export type ComposerContextValue = {
   dismissApproval: () => void;
 };
 
-export const ComposerContext = createContext<ComposerContextValue | null>(null);
+export const ComposerContext = createStableContext("__sbnetComposerContext", () =>
+  createContext<ComposerContextValue | null>(null)
+);

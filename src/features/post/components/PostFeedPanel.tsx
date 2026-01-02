@@ -4,7 +4,7 @@ import type { PostActionsController } from "@features/post";
 
 type Props = {
   title: string;
-  post: Post | null;
+  post: Readonly<Post> | null;
   isLoadingPost: boolean;
 
   isOwner: boolean;

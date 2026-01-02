@@ -5,7 +5,7 @@ export type PostActionsController = {
   editDraft: Draft;
   isEditImageLoading: boolean;
   onSetEditDraft: (next: Draft) => void;
-  onStartEditPost: (post: Post) => void;
+  onStartEditPost: (post: Readonly<Post>) => void;
   onCancelEditPost: () => void;
   onSaveEditedPost: () => Promise<void>;
   onEditSelectFile: (file: File | null) => void;
@@ -27,4 +27,19 @@ export type PostActionsController = {
   onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
+};
+
+export type PostAuthorPresentation = {
+  authorLabel: string;
+  authorHue: number;
+  authorAvatarUrl?: string;
+};
+
+export type PostFeedEntry = {
+  post: Readonly<Post>;
+  author: PostAuthorPresentation;
+  isMine: boolean;
+  canModerate: boolean;
+  panelKey: string;
+  compositeKey: string;
 };

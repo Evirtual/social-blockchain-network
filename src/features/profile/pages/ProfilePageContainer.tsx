@@ -8,7 +8,7 @@ import { usePostActionsController } from "@features/post";
 import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
 import { AccountPage } from "@features/account";
-import { useProfileAdminController } from "../hooks/useProfileAdminController";
+import { useProfileAdminController } from "../admin/useProfileAdminController";
 import { useProfilePageHandlers } from "../hooks/useProfilePageHandlers";
 import { useProfilePageData } from "../hooks/useProfilePageData";
 import { useProfilePageViewModel } from "../hooks/useProfilePageViewModel";

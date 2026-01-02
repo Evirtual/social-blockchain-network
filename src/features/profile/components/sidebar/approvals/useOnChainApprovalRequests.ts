@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { fetchApprovalRequests } from "./approvalRequests";
+import { fetchApprovalRequests } from "@features/profile/services/approvals";
 import { getEnv } from "@shared/lib/env";
 import type { ReadContractFactory } from "@features/contract";
 

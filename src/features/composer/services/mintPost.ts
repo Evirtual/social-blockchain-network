@@ -1,6 +1,8 @@
 import { socialInterface } from "@features/contract";
 import type { Log, TransactionReceipt } from "ethers";
 
+export { waitForMetadataReady, waitForUrlReachable } from "@features/metadata";
+
 export function parseMintPostReceipt(receipt: TransactionReceipt): {
   mintedTokenId: string | null;
   mintedAuthor: string | undefined;

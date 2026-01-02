@@ -1,10 +1,9 @@
 import { useCallback } from "react";
 
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
-import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
 import { postKeyFromParts } from "@shared/lib/post";
+import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
@@ -61,93 +60,90 @@ export function usePostModeration(args: {
 
   const freezePost = useCallback(
     async (tokenId: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return;
+      await runSocialAction<void>({
+        walletAddress,
+        setStatus,
+        ensureMatchingNetwork,
+        postChainId,
+        action: async () => {
+          const writeContract = await getWriteContract();
+          const ok = await runContractTx<boolean>(
+            "Freeze post",
+            () => writeContract.freezePost(BigInt(tokenId)),
+            () => true
+          );
+          if (!ok) return;
+
+          cancelEditPost();
+          setStatus("Post frozen. Editing is now disabled for this token.");
         }
-        if (!ensureMatchingNetwork(postChainId)) return;
-
-        const writeContract = await getWriteContract();
-        const ok = await runContractTx<boolean>(
-          "Freeze post",
-          () => writeContract.freezePost(BigInt(tokenId)),
-          () => true
-        );
-        if (!ok) return;
-
-        cancelEditPost();
-        setStatus("Post frozen. Editing is now disabled for this token.");
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-      }
+      });
     },
     [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, cancelEditPost, setStatus]
   );
 
   const burnPost = useCallback(
     async (tokenId: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return;
+      await runSocialAction<void>({
+        walletAddress,
+        setStatus,
+        ensureMatchingNetwork,
+        postChainId,
+        action: async () => {
+          const activeWallet = walletAddress;
+          if (!activeWallet) return;
 
-        // Capture tokenURI + related IPFS CIDs before burn.
-        let pinnedCids: Set<string> | null = null;
-        try {
-          if (ipfsConfigured) {
-            const readContract = await getReadContract();
-            const tokenIdBig = BigInt(tokenId);
-            const oldTokenUri = (await readContract.tokenURI(tokenIdBig)) as string;
-            pinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+          // Capture tokenURI + related IPFS CIDs before burn.
+          let pinnedCids: Set<string> | null = null;
+          try {
+            if (ipfsConfigured) {
+              const readContract = await getReadContract();
+              const tokenIdBig = BigInt(tokenId);
+              const oldTokenUri = (await readContract.tokenURI(tokenIdBig)) as string;
+              pinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+            }
+          } catch {
+            pinnedCids = null;
           }
-        } catch {
-          pinnedCids = null;
+
+          const writeContract = await getWriteContract();
+          const tokenIdBig = BigInt(tokenId);
+          const post = feed.posts.find((p) => isSamePost({ post: p, tokenId, postChainId }));
+          const author = post?.author;
+          const isMine = !!author && activeWallet.toLowerCase() === author.toLowerCase();
+          const send =
+            isOwner && !isMine
+              ? () => writeContract.adminBurnPost(tokenIdBig)
+              : () => writeContract.burnPost(tokenIdBig);
+
+          await runContractTx("Burn post", send);
+
+          // Best-effort cleanup: stop pinning the burned post's metadata/media.
+          if (ipfsConfigured && pinnedCids) {
+            void bestEffortUnpinCidsSafe(pinnedCids, { chainId: postChainId ?? chainId, tokenIds: [tokenId] });
+          }
+
+          const editKey = editingTokenId ? postKeyFromParts(postChainId ?? null, tokenId) : null;
+          if (editingTokenId && editKey === editingTokenId) {
+            cancelEditPost();
+          }
+
+          feed.setPosts((prev) =>
+            prev.filter((p) => {
+              if (p.tokenId !== tokenId) return true;
+              if (postChainId && p.chainId && p.chainId !== postChainId) return true;
+              return false;
+            })
+          );
+          feed.setPostComments((prev) => {
+            if (!(tokenId in prev)) return prev;
+            const { [tokenId]: _, ...rest } = prev;
+            return rest;
+          });
+
+          await feed.refreshFeed();
         }
-
-        const writeContract = await getWriteContract();
-        const tokenIdBig = BigInt(tokenId);
-        const post = feed.posts.find((p) => isSamePost({ post: p, tokenId, postChainId }));
-        const author = post?.author;
-        const isMine = !!author && walletAddress.toLowerCase() === author.toLowerCase();
-        const send =
-          isOwner && !isMine
-            ? () => writeContract.adminBurnPost(tokenIdBig)
-            : () => writeContract.burnPost(tokenIdBig);
-
-        await runContractTx("Burn post", send);
-
-        // Best-effort cleanup: stop pinning the burned post's metadata/media.
-        if (ipfsConfigured && pinnedCids) {
-          void bestEffortUnpinCidsSafe(pinnedCids, { chainId: postChainId ?? chainId, tokenIds: [tokenId] });
-        }
-
-        const editKey = editingTokenId ? postKeyFromParts(postChainId ?? null, tokenId) : null;
-        if (editingTokenId && editKey === editingTokenId) {
-          cancelEditPost();
-        }
-
-        feed.setPosts((prev) =>
-          prev.filter((p) => {
-            if (p.tokenId !== tokenId) return true;
-            if (postChainId && p.chainId && p.chainId !== postChainId) return true;
-            return false;
-          })
-        );
-        feed.setPostComments((prev) => {
-          if (!(tokenId in prev)) return prev;
-          const { [tokenId]: _, ...rest } = prev;
-          return rest;
-        });
-
-        await feed.refreshFeed();
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-      }
+      });
     },
     [
       walletAddress,

@@ -4,7 +4,7 @@ import type { PostPanel } from "../../PostCard";
 import type { Post } from "@types";
 
 type Props = {
-  post: Post;
+  post: Readonly<Post>;
   requiresNetworkSwitch: boolean;
   interactionDisabledTitle?: string;
   nativeSymbol: string;

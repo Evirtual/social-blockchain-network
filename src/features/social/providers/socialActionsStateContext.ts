@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 import type { Dispatch, SetStateAction } from "react";
 import type { Draft, Post } from "@types";
 
@@ -15,7 +16,7 @@ export type SocialActionsContextValue = {
   onEditSelectFile: (file: File | null) => Promise<void>;
   onEditClearImage: () => void;
 
-  startEditPost: (post: Post) => void;
+  startEditPost: (post: Readonly<Post>) => void;
   cancelEditPost: () => void;
   saveEditedPost: () => Promise<void>;
 
@@ -41,4 +42,6 @@ export type SocialActionsContextValue = {
   withdrawTips: () => Promise<void>;
 };
 
-export const SocialActionsContext = createContext<SocialActionsContextValue | null>(null);
+export const SocialActionsContext = createStableContext("__sbnetSocialActionsContext", () =>
+  createContext<SocialActionsContextValue | null>(null)
+);

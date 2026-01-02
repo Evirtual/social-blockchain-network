@@ -1,11 +1,10 @@
 import { useCallback } from "react";
 import { parseEther } from "ethers";
 
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
-import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { commentKey } from "@shared/lib/post";
 import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
+import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
@@ -46,16 +45,21 @@ export function useCommentActions(args: {
     [feed, chainId]
   );
 
+  const runGuarded = useCallback(
+    async <T,>(postChainId: string | null | undefined, action: () => Promise<T>) =>
+      runSocialAction<T>({
+        walletAddress,
+        setStatus,
+        ensureMatchingNetwork,
+        postChainId,
+        action
+      }),
+    [walletAddress, setStatus, ensureMatchingNetwork]
+  );
+
   const replyToComment = useCallback(
     async (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const text = (comment ?? "").trim();
         if (!text) {
           setStatus("Write a reply before signing.");
@@ -78,24 +82,15 @@ export function useCommentActions(args: {
         );
         void feed.loadCommentsForPost(tokenId, postChainId ?? chainId);
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, feed, chainId, setStatus]
+    [runGuarded, getWriteContract, runContractTx, feed, chainId, setStatus]
   );
 
   const editComment = useCallback(
     async (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const text = (comment ?? "").trim();
         if (!text) {
           setStatus("Write a comment before signing.");
@@ -114,24 +109,15 @@ export function useCommentActions(args: {
           prev.map((c) => (c.commentId === commentId ? { ...c, comment: text, edited: true } : c))
         );
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
+    [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
   );
 
   const deleteComment = useCallback(
     async (tokenId: string, commentId: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const writeContract = await getWriteContract();
         const ok = await runContractTx<boolean>(
           "Delete comment",
@@ -152,29 +138,26 @@ export function useCommentActions(args: {
           })
         );
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, updateCommentsForPost, feed, setStatus]
+    [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, feed]
   );
 
   const toggleLike = useCallback(
     async (tokenId: string, commentId: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
+      const result = await runGuarded<boolean>(postChainId, async () => {
+        const activeWallet = walletAddress;
+        if (!activeWallet) return false;
 
         const writeContract = await getWriteContract();
-        const already = (await writeContract.hasLikedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
+        const already = (await writeContract.hasLikedComment(BigInt(tokenId), BigInt(commentId), activeWallet)) as boolean;
         const ok = await runContractTx<boolean>(
           already ? "Unlike comment" : "Like comment",
-          () => (already ? writeContract.unlikeComment(BigInt(tokenId), BigInt(commentId)) : writeContract.likeComment(BigInt(tokenId), BigInt(commentId))),
+          () =>
+            already
+              ? writeContract.unlikeComment(BigInt(tokenId), BigInt(commentId))
+              : writeContract.likeComment(BigInt(tokenId), BigInt(commentId)),
           () => true
         );
         if (!ok) return false;
@@ -188,29 +171,26 @@ export function useCommentActions(args: {
           })
         );
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
+    [runGuarded, walletAddress, getWriteContract, runContractTx, updateCommentsForPost]
   );
 
   const toggleSave = useCallback(
     async (tokenId: string, commentId: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
+      const result = await runGuarded<boolean>(postChainId, async () => {
+        const activeWallet = walletAddress;
+        if (!activeWallet) return false;
 
         const writeContract = await getWriteContract();
-        const already = (await writeContract.hasSavedComment(BigInt(tokenId), BigInt(commentId), walletAddress)) as boolean;
+        const already = (await writeContract.hasSavedComment(BigInt(tokenId), BigInt(commentId), activeWallet)) as boolean;
         const ok = await runContractTx<boolean>(
           already ? "Unsave comment" : "Save comment",
-          () => (already ? writeContract.unsaveComment(BigInt(tokenId), BigInt(commentId)) : writeContract.saveComment(BigInt(tokenId), BigInt(commentId))),
+          () =>
+            already
+              ? writeContract.unsaveComment(BigInt(tokenId), BigInt(commentId))
+              : writeContract.saveComment(BigInt(tokenId), BigInt(commentId)),
           () => true
         );
         if (!ok) return false;
@@ -224,24 +204,15 @@ export function useCommentActions(args: {
           })
         );
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
+    [runGuarded, walletAddress, getWriteContract, runContractTx, updateCommentsForPost]
   );
 
   const tipComment = useCallback(
     async (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const parsed = parseTipAmountRaw(amountRaw);
         if (!parsed.ok) {
           setStatus(parsed.error);
@@ -262,24 +233,15 @@ export function useCommentActions(args: {
           prev.map((c) => (c.commentId === commentId ? { ...c, tipWei: (c.tipWei ?? 0n) + valueWei } : c))
         );
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
+    [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
   );
 
   const reportPost = useCallback(
     async (tokenId: string, reason: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const text = (reason ?? "").trim();
         if (!text) {
           setStatus("Write a report reason before submitting.");
@@ -294,24 +256,15 @@ export function useCommentActions(args: {
         );
         if (!ok) return false;
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, setStatus]
+    [runGuarded, getWriteContract, runContractTx, setStatus]
   );
 
   const reportComment = useCallback(
     async (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => {
-      try {
-        if (!walletAddress) {
-          requestConnectNudge();
-          setStatus("Connect your wallet first.");
-          return false;
-        }
-        if (!ensureMatchingNetwork(postChainId)) return false;
-
+      const result = await runGuarded<boolean>(postChainId, async () => {
         const text = (reason ?? "").trim();
         if (!text) {
           setStatus("Write a report reason before submitting.");
@@ -326,12 +279,10 @@ export function useCommentActions(args: {
         );
         if (!ok) return false;
         return true;
-      } catch (error) {
-        setStatus(getErrorMessage(error as ErrorInput));
-        return false;
-      }
+      });
+      return result ?? false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, setStatus]
+    [runGuarded, getWriteContract, runContractTx, setStatus]
   );
 
   return {

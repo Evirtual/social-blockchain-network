@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 import type { getSocialContract } from "../contracts/socialPosts";
 
 export type ContractState = {
@@ -20,8 +21,14 @@ export type ContractActions = {
 
 export type ContractContextValue = ContractState & ContractActions;
 
-const ContractStateContext = createContext<ContractState | null>(null);
-const ContractActionsContext = createContext<ContractActions | null>(null);
-const ContractContext = createContext<ContractContextValue | null>(null);
+const ContractStateContext = createStableContext("__sbnetContractStateContext", () =>
+  createContext<ContractState | null>(null)
+);
+const ContractActionsContext = createStableContext("__sbnetContractActionsContext", () =>
+  createContext<ContractActions | null>(null)
+);
+const ContractContext = createStableContext("__sbnetContractContext", () =>
+  createContext<ContractContextValue | null>(null)
+);
 
 export { ContractStateContext, ContractActionsContext, ContractContext };

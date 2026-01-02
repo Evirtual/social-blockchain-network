@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 import type { BrowserProvider } from "ethers";
 
 export type WalletState = {
@@ -19,8 +20,14 @@ export type WalletActions = {
 
 export type WalletContextValue = WalletState & WalletActions;
 
-const WalletStateContext = createContext<WalletState | null>(null);
-const WalletActionsContext = createContext<WalletActions | null>(null);
-const WalletContext = createContext<WalletContextValue | null>(null);
+const WalletStateContext = createStableContext("__sbnetWalletStateContext", () =>
+  createContext<WalletState | null>(null)
+);
+const WalletActionsContext = createStableContext("__sbnetWalletActionsContext", () =>
+  createContext<WalletActions | null>(null)
+);
+const WalletContext = createStableContext("__sbnetWalletContext", () =>
+  createContext<WalletContextValue | null>(null)
+);
 
 export { WalletStateContext, WalletActionsContext, WalletContext };

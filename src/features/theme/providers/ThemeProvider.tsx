@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 
 export type Theme = "light" | "dark";
 
@@ -8,7 +9,9 @@ export type ThemeContextValue = {
   setTheme: (next: Theme) => void;
 };
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const ThemeContext = createStableContext("__sbnetThemeContext", () =>
+  createContext<ThemeContextValue | null>(null)
+);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {

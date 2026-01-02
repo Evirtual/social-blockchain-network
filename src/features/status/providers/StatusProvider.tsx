@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 
 export type StatusState = {
   status: string;
@@ -11,9 +12,15 @@ export type StatusActions = {
 
 export type StatusContextValue = StatusState & StatusActions;
 
-const StatusStateContext = createContext<StatusState | null>(null);
-const StatusActionsContext = createContext<StatusActions | null>(null);
-const StatusContext = createContext<StatusContextValue | null>(null);
+const StatusStateContext = createStableContext("__sbnetStatusStateContext", () =>
+  createContext<StatusState | null>(null)
+);
+const StatusActionsContext = createStableContext("__sbnetStatusActionsContext", () =>
+  createContext<StatusActions | null>(null)
+);
+const StatusContext = createStableContext("__sbnetStatusContext", () =>
+  createContext<StatusContextValue | null>(null)
+);
 
 export function StatusProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatusState] = useState<string>("Wallet disconnected");

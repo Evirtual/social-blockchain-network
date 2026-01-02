@@ -1,5 +1,5 @@
-import { withTimeout } from "@shared/lib/feedQuery";
-import { getReadContext, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
+import { getFeedReadContext } from "../getFeedReadContext";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -24,17 +24,11 @@ export async function getCommentsReadContext(params: {
 > {
   const { provider, chainId, postChainId, contract } = params;
 
-  const readCtx = await getReadContext({
+  const readCtx = await getFeedReadContext({
     provider,
     chainId,
     targetChainId: postChainId,
-    contract,
-    resolveOpts: {
-      withTimeout,
-      codeTimeoutMs: 3_000,
-      probeTimeoutMs: 3_000,
-      label: `resolve ${postChainId ?? chainId ?? ""}`
-    }
+    contract
   });
 
   if (!readCtx.canRead) return { canRead: false };
