@@ -9,7 +9,7 @@ import type { ApprovalRow } from "./approvals/types";
 import { PendingApprovalsSection } from "./approvals/PendingApprovalsSection";
 import { ChainRequestsSection } from "./approvals/ChainRequestsSection";
 import { useOwnerAddress } from "@features/profile";
-import { normalizeAddress } from "@shared/lib/address";
+import { buildApprovalRows } from "@features/profile/services/approvals";
 
 export type ApprovalsModalProps = {
   open: boolean;
@@ -78,30 +78,20 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   });
 
   const pendingRows = useMemo<ApprovalRow[]>(() => {
-    return pendingApprovals.map((addr) => {
-      const key = normalizeAddress(addr);
-      return {
-        addr,
-        key,
-        isFlagged: !!posterDisapprovedEverByAddress[key],
-        isAllowed: !!posterAllowedByAddress[key]
-      };
+    return buildApprovalRows({
+      addresses: pendingApprovals,
+      posterAllowedByAddress,
+      posterDisapprovedEverByAddress
     });
   }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
 
   const chainRows = useMemo<ApprovalRow[]>(() => {
-    const ownerLower = normalizeAddress(ownerAddress);
-    return onChainRequests
-      .filter((addr) => normalizeAddress(addr) !== ownerLower)
-      .map((addr) => {
-        const key = normalizeAddress(addr);
-        return {
-          addr,
-          key,
-          isFlagged: !!posterDisapprovedEverByAddress[key],
-          isAllowed: !!posterAllowedByAddress[key]
-        };
-      });
+    return buildApprovalRows({
+      addresses: onChainRequests,
+      posterAllowedByAddress,
+      posterDisapprovedEverByAddress,
+      excludeAddress: ownerAddress
+    });
   }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress, ownerAddress]);
 
   const handleRemove = useCallback(

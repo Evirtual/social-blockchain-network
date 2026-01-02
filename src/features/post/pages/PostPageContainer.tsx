@@ -5,7 +5,7 @@ import { useProfileState } from "@features/profile";
 import { buildPostPageViewModel, usePostActionsController } from "@features/post";
 import { useWalletState } from "@features/wallet";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { commentKey } from "@shared/lib/post";
 import { PostPage } from "./PostPage";
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post, PostComment } from "@types";
 import { getSocialContract } from "@features/contract";
-import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
+import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { queryLogsPaged, withTimeout } from "@shared/lib/feedQuery";
 import { runInFlight } from "@shared/lib/inFlight";
 import { commentKey } from "./utils";
@@ -108,7 +108,7 @@ export function useFeedComments(params: {
           const parsedNew: PostComment[] = parseCommentLogs(logBatches.flat());
           setPostComments((prev) => ({ ...prev, [key]: parsedNew }));
         } catch (err) {
-          setStatus(getErrorMessage(err as ErrorInput));
+          setStatusFromError(setStatus, err as ErrorInput);
         } finally {
           setIsLoadingPostComments((prev) => ({ ...prev, [key]: false }));
         }

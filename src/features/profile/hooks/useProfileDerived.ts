@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Post } from "@types";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 
 export function useProfileDerived(args: { walletAddress: string | null; profileName: string; posts: Post[] }) {
   const { walletAddress, profileName, posts } = args;

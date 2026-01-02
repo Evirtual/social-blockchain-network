@@ -5,3 +5,4 @@ export * from "./pages/PostPageContainer";
 export * from "./services";
 export * from "./types";
 export * from "./viewModel";
+export * from "./actions";

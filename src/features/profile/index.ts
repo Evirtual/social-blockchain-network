@@ -7,3 +7,4 @@ export * from "./pages/ProfilePage";
 export * from "./pages/ProfilePageContainer";
 export * from "./components/sidebar";
 export * from "./types";
+export * from "./viewModel";

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Post } from "@types";
-import { stableHueFromSeed } from "@shared/lib/format";
+import { stableHueFromSeed } from "@shared/lib/formatters";
 
 export type AuthorIdentity = { name: string; hue: number; avatarUrl?: string };
 

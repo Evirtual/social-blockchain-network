@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import { isSamePost } from "../services/postActions/matchPost";
-import { buildTokenKey, updateSessionTokenKeys } from "../services/postActions/sessionTokenKeys";
+import { buildTokenKey, updateSessionTokenKeys } from "@shared/lib/sessionTokenKeys";
 import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post } from "@types";

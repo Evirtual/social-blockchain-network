@@ -11,7 +11,7 @@ import { AccountPage } from "@features/account";
 import { useProfileAdminController } from "../admin/useProfileAdminController";
 import { useProfilePageHandlers } from "../hooks/useProfilePageHandlers";
 import { useProfilePageData } from "../hooks/useProfilePageData";
-import { useProfilePageViewModel } from "../hooks/useProfilePageViewModel";
+import { buildProfilePageViewModel } from "../viewModel/buildProfilePageViewModel";
 import { ProfilePage } from "./ProfilePage";
 
 type Props = {
@@ -98,7 +98,7 @@ export function ProfilePageContainer({ address }: Props) {
     setStatus
   });
 
-  const { accountPageProps, profilePageProps } = useProfilePageViewModel({
+  const { accountPageProps, profilePageProps } = buildProfilePageViewModel({
     address,
     status,
     contractState: {

@@ -1,7 +1,7 @@
 import { memo, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/network";
-import { shortAddress } from "@shared/lib/format";
+import { shortAddress } from "@shared/lib/formatters";
 import { ChainLogo } from "@shared/components/ChainLogos";
 
 type BrandHueStyle = CSSProperties & { ["--brand-hue"]?: string | number };

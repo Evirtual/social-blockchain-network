@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect } from "react";
 
 import { ipfsToHttp } from "@features/ipfs";
-import { stableHueFromSeed } from "@shared/lib/format";
+import { stableHueFromSeed } from "@shared/lib/formatters";
 
 import { Modal } from "@shared/components/Modal";
 import { useProfileActions, useProfileState } from "@features/profile";

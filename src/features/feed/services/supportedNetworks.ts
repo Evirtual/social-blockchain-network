@@ -1,4 +1,4 @@
-import { stableHueFromSeed } from "@shared/lib/format";
+import { stableHueFromSeed } from "@shared/lib/formatters";
 
 export type SupportedNetwork = {
   chainId: number;

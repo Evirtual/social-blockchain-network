@@ -1,5 +1,5 @@
 import type { ProfilePageViewModel, ProfilePageViewModelInput } from "../types";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { useAccountPageProps } from "./useAccountPageProps";
 import { useProfilePageProps } from "./useProfilePageProps";
