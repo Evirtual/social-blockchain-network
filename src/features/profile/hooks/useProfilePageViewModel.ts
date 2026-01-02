@@ -2,7 +2,7 @@ import type { ProfilePageViewModel, ProfilePageViewModelInput } from "../types";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { useAccountPageProps } from "./useAccountPageProps";
-import { useProfilePageProps } from "./useProfilePageProps";
+import { useProfilePagePropsViewModel } from "../viewModel/useProfilePagePropsViewModel";
 
 export function useProfilePageViewModel(args: ProfilePageViewModelInput): ProfilePageViewModel {
   const accountPageProps = useAccountPageProps({
@@ -66,7 +66,7 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     getExplorerTxUrl
   });
 
-  const profilePageProps = useProfilePageProps({
+  const profilePageProps = useProfilePagePropsViewModel({
     isOwner: args.contractState.isOwner,
     isPosterAllowed: args.admin.isPosterAllowed,
     wasPosterDisapprovedEver: args.admin.wasPosterDisapprovedEver,

@@ -1,0 +1,30 @@
+import type { Draft, Post } from "@types";
+import type { PostActionsController } from "@features/post";
+
+export type HomePageViewModel = {
+  isOwner: boolean;
+  selfAvatarHue: number;
+  ipfsConfigured: boolean;
+  onOpenComposer: () => void;
+  draft: Draft;
+  isImageLoading: boolean;
+  onDraftFieldChange: (field: keyof Draft, value: string) => void;
+  onImageUrlChange: (value: string) => void;
+  onSelectFile: (file: File | null) => void;
+  onClearImage: () => void;
+  onPost: () => void;
+  posts: Post[];
+  chainId: string | null;
+  networkName?: string | null;
+  contractAddress?: string;
+  contractDeployed?: boolean | null;
+  status: string;
+  isFeedLoading: boolean;
+  walletAddress: string | null;
+  authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
+  postActions: PostActionsController;
+  shortAddress: (address: string) => string;
+  stableHueFromSeed: (seed: string) => number;
+  getNativeSymbol: (chainId: string | null) => string;
+  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
+};

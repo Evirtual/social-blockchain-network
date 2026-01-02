@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { parseEther } from "ethers";
 
-import { commentKey } from "@shared/lib/post";
+import { commentKey } from "@features/post/services";
 import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
 import { runSocialAction } from "../services/actions/runSocialAction";

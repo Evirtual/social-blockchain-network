@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
-import { buildPostPageViewModel, usePostActionsController } from "@features/post";
+import { buildPostPageViewModel } from "@features/post";
+import { usePostActionsController } from "@features/post/actions";
 import { useWalletState } from "@features/wallet";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
-import { commentKey } from "@shared/lib/post";
+import { commentKey } from "@features/post/services";
 import { PostPage } from "./PostPage";
 
 type Props = {

@@ -4,13 +4,13 @@ import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useFollow } from "@features/follow";
 import { useProfileActions, useProfileState } from "@features/profile";
 import { useSocialActions } from "@features/social";
-import { usePostActionsController } from "@features/post";
+import { usePostActionsController } from "@features/post/actions";
 import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
-import { AccountPage } from "@features/account";
-import { useProfileAdminController } from "../admin/useProfileAdminController";
+import { AccountPage, buildAccountPageViewModel } from "@features/account";
+import { useProfileAdminViewModel } from "../admin/viewModel/useProfileAdminViewModel";
 import { useProfilePageHandlers } from "../hooks/useProfilePageHandlers";
-import { useProfilePageData } from "../hooks/useProfilePageData";
+import { useProfilePageDataViewModel } from "../viewModel";
 import { buildProfilePageViewModel } from "../viewModel/buildProfilePageViewModel";
 import { ProfilePage } from "./ProfilePage";
 
@@ -35,7 +35,7 @@ export function ProfilePageContainer({ address }: Props) {
   const contractActions = useContractActionsFacade();
   const { runContractTx } = contractActions;
 
-  const admin = useProfileAdminController({
+  const admin = useProfileAdminViewModel({
     address,
     contract: {
       isOwner: contractState.isOwner,
@@ -85,7 +85,7 @@ export function ProfilePageContainer({ address }: Props) {
     selfKey,
     isLoadingSaved,
     isLoadingLiked
-  } = useProfilePageData({
+  } = useProfilePageDataViewModel({
     address,
     walletState,
     contractState,
@@ -179,7 +179,8 @@ export function ProfilePageContainer({ address }: Props) {
   });
 
   if (isSelf) {
-    return <AccountPage {...accountPageProps} />;
+    const accountViewModel = buildAccountPageViewModel(accountPageProps);
+    return <AccountPage {...accountViewModel} />;
   }
 
   return <ProfilePage {...profilePageProps} />;

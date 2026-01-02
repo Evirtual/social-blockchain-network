@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { isSamePost } from "../services/postActions/matchPost";
-import { postKeyFromParts } from "@shared/lib/post";
+import { postKeyFromParts } from "@features/post/services";
 import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post, PostComment } from "@types";

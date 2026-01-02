@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect } from "react";
 
-import { ipfsToHttp } from "@features/ipfs";
-import { stableHueFromSeed } from "@shared/lib/formatters";
+import { getAddressListRows } from "@features/profile/viewModel";
 
 import { Modal } from "@shared/components/Modal";
 import { useProfileActions, useProfileState } from "@features/profile";
@@ -52,21 +51,15 @@ export function AddressListModal(props: AddressListModalProps) {
 
         {!props.isLoading && props.addresses.length === 0 ? <div className="muted">{props.emptyText}</div> : null}
 
-        {props.addresses.map((addr) => (
-          <Link key={addr} className="listRow" to={`/profile/${addr}`} onClick={props.onClose}>
+        {getAddressListRows({
+          addresses: props.addresses,
+          profilesByAddress: profileState.profilesByAddress,
+          shortAddress: props.shortAddress
+        }).map((row) => (
+          <Link key={row.addr} className="listRow" to={`/profile/${row.addr}`} onClick={props.onClose}>
             <span className="listRowLeft">
-              <div
-                className="avatar tiny"
-                style={(() => {
-                  const key = addr.toLowerCase();
-                  const p = profileState.profilesByAddress[key];
-                  const av = p?.avatarUrl?.trim();
-                  return av
-                    ? { backgroundImage: `url(${ipfsToHttp(av)})` }
-                    : { background: `hsl(${stableHueFromSeed(addr)} 75% 55%)` };
-                })()}
-              />
-              <span className="value">{props.shortAddress(addr)}</span>
+              <div className="avatar tiny" style={row.avatarStyle} />
+              <span className="value">{row.label}</span>
             </span>
           </Link>
         ))}

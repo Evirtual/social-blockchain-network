@@ -1,6 +1,1 @@
-export type ApprovalRow = {
-  addr: string;
-  key: string;
-  isFlagged: boolean;
-  isAllowed: boolean;
-};
+export type { ApprovalRowData as ApprovalRow } from "@features/profile/services/approvals";
