@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
+import { requireContext } from "@shared/lib";
 
 export type StatusState = {
   status: string;
@@ -50,12 +51,10 @@ export function StatusProvider({ children }: { children: React.ReactNode }) {
 
 export function useStatusState() {
   const ctx = useContext(StatusStateContext);
-  if (!ctx) throw new Error("useStatusState must be used within <StatusProvider>");
-  return ctx;
+  return requireContext(ctx, "useStatusState", "StatusProvider");
 }
 
 export function useStatusActions() {
   const ctx = useContext(StatusActionsContext);
-  if (!ctx) throw new Error("useStatusActions must be used within <StatusProvider>");
-  return ctx;
+  return requireContext(ctx, "useStatusActions", "StatusProvider");
 }

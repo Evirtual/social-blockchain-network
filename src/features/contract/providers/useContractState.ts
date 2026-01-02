@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { ContractStateContext } from "./contractStateContext";
 
 export function useContractState() {
   const ctx = useContext(ContractStateContext);
-  if (!ctx) throw new Error("useContractState must be used within <ContractProvider>");
-  return ctx;
+  return requireContext(ctx, "useContractState", "ContractProvider");
 }

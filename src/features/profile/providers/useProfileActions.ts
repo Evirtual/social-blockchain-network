@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { ProfileActionsContext } from "./profileStateContext";
 
 export function useProfileActions() {
   const ctx = useContext(ProfileActionsContext);
-  if (!ctx) throw new Error("useProfileActions must be used within <ProfileProvider>");
-  return ctx;
+  return requireContext(ctx, "useProfileActions", "ProfileProvider");
 }

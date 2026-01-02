@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { FeedActionsContext } from "./feedStateContext";
 
 export function useFeedActions() {
   const ctx = useContext(FeedActionsContext);
-  if (!ctx) throw new Error("useFeedActions must be used within <FeedProvider>");
-  return ctx;
+  return requireContext(ctx, "useFeedActions", "FeedProvider");
 }

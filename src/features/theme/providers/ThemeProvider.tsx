@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
+import { requireContext } from "@shared/lib";
 
 export type Theme = "light" | "dark";
 
@@ -40,6 +41,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
-  return ctx;
+  return requireContext(ctx, "useTheme", "ThemeProvider");
 }

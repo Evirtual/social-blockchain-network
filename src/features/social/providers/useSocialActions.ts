@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { SocialActionsContext } from "./socialActionsStateContext";
 
 export function useSocialActions() {
   const ctx = useContext(SocialActionsContext);
-  if (!ctx) throw new Error("useSocialActions must be used within <SocialActionsProvider>");
-  return ctx;
+  return requireContext(ctx, "useSocialActions", "SocialActionsProvider");
 }

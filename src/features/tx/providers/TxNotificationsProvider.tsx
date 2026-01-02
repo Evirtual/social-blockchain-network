@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
+import { requireContext } from "@shared/lib";
 import type { TxNotice } from "@types";
 import { formatTxState, isUserRejectedTx, useDismissTimers, useTxNoticeActions } from "../hooks";
 
@@ -50,8 +51,7 @@ export function TxNotificationsProvider({ children }: { children: React.ReactNod
 
 export function useTxNotifications() {
   const ctx = useContext(TxNotificationsContext);
-  if (!ctx) throw new Error("useTxNotifications must be used within TxNotificationsProvider");
-  return ctx;
+  return requireContext(ctx, "useTxNotifications", "TxNotificationsProvider");
 }
 
 export { isUserRejectedTx, formatTxState };

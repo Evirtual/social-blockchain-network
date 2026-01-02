@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { WalletActionsContext } from "./walletStateContext";
 
 export function useWalletActions() {
   const ctx = useContext(WalletActionsContext);
-  if (!ctx) throw new Error("useWalletActions must be used within <WalletProvider>");
-  return ctx;
+  return requireContext(ctx, "useWalletActions", "WalletProvider");
 }

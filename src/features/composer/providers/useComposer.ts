@@ -1,8 +1,8 @@
 import { useContext } from "react";
+import { requireContext } from "@shared/lib";
 import { ComposerContext } from "./composerStateContext";
 
 export function useComposer() {
   const ctx = useContext(ComposerContext);
-  if (!ctx) throw new Error("useComposer must be used within <ComposerProvider>");
-  return ctx;
+  return requireContext(ctx, "useComposer", "ComposerProvider");
 }
