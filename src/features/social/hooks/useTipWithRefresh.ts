@@ -1,9 +1,9 @@
 import { useCallback } from "react";
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 import { useSocialActions } from "../providers/useSocialActions";
 
 export function useTipWithRefresh() {
-  const contract = useContractActions();
+  const contract = useContractActionsFacade();
   const social = useSocialActions();
 
   return useCallback(

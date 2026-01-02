@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useFeedComments } from "../hooks/useFeedComments";
 import { useFeedRefresh } from "../hooks/useFeedRefresh";
 import { usePostsByTokenIds } from "../hooks/usePostsByTokenIds";
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import {
@@ -19,7 +19,7 @@ export type { FeedContextValue } from "./feedStateContext";
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId, walletEpoch } = useWalletState();
   const { setStatus } = useStatusActions();
-  const contract = useContractActions();
+  const contract = useContractActionsFacade();
 
   const contractApi = useMemo(
     () => ({

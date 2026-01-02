@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useContractActions, useContractState } from "@features/contract";
+import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useFollow } from "@features/follow";
 import { useProfileActions, useProfileState } from "@features/profile";
@@ -7,7 +7,6 @@ import { useSocialActions } from "@features/social";
 import { usePostActionsController } from "@features/post";
 import { useWalletActions, useWalletState } from "@features/wallet";
 import { useStatusActions, useStatusState } from "@features/status";
-import { useContractTx } from "@features/contract";
 import { AccountPage } from "@features/account";
 import { useProfileAdminController } from "../hooks/useProfileAdminController";
 import { useProfilePageHandlers } from "../hooks/useProfilePageHandlers";
@@ -33,8 +32,8 @@ export function ProfilePageContainer({ address }: Props) {
   const { status } = useStatusState();
   const { setStatus } = useStatusActions();
   const contractState = useContractState();
-  const contractActions = useContractActions();
-  const { runContractTx } = useContractTx();
+  const contractActions = useContractActionsFacade();
+  const { runContractTx } = contractActions;
 
   const admin = useProfileAdminController({
     address,

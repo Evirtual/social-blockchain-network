@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 
 export function useOwnerAddress(walletAddress: string | null) {
-  const contract = useContractActions();
+  const contract = useContractActionsFacade();
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [isLoadingOwner, setIsLoadingOwner] = useState(false);
 

@@ -5,7 +5,7 @@ import { ipfsToHttp } from "@features/ipfs";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { ApprovalsModal, FollowersModal, FollowingModal, useOwnerAddress } from "@features/profile";
-import { useContractActions, useContractState } from "@features/contract";
+import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useWalletState } from "@features/wallet";
 import { useOnChainApprovalRequests } from "@features/profile/components/sidebar/approvals";
 import { ProfileEditModal } from "./profileCard/ProfileEditModal";
@@ -64,7 +64,7 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const { ownerAddress, isOwner, isLoadingOwner } = useOwnerAddress(props.walletAddress);
   const contractState = useContractState();
-  const contractActions = useContractActions();
+  const contractActions = useContractActionsFacade();
   const wallet = useWalletState();
   const { onChainRequests, isLoadingOnChainRequests } = useOnChainApprovalRequests({
     open: !!props.walletAddress,

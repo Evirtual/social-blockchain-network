@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Modal } from "@shared/components/Modal";
-import { useContractActions, useContractState } from "@features/contract";
-import { useContractTx } from "@features/contract";
+import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useFeedState } from "@features/feed";
 import { useWalletState } from "@features/wallet";
 import { useApprovalActions, useOnChainApprovalRequests, usePosterStatusMaps } from "./approvals";
@@ -21,8 +20,8 @@ export type ApprovalsModalProps = {
 
 export function ApprovalsModal(props: ApprovalsModalProps) {
   const contractState = useContractState();
-  const contractActions = useContractActions();
-  const { runContractTx } = useContractTx();
+  const contractActions = useContractActionsFacade();
+  const { runContractTx } = contractActions;
   const feed = useFeedState();
   const wallet = useWalletState();
   const { ownerAddress } = useOwnerAddress(wallet.walletAddress);
