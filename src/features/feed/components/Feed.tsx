@@ -3,6 +3,7 @@ import type { Post } from "@types";
 import { useLocation } from "react-router-dom";
 import type { PostPanel, PostActionsController } from "@features/post";
 import { usePanelById } from "@shared/hooks/usePanelById";
+import { normalizeAddress } from "@shared/lib/address";
 import { getFeedFromLocation } from "./feed/getFeedFromLocation";
 import { getSkeletonCount } from "./feed/getSkeletonCount";
 import { FeedHeader } from "./feed/FeedHeader";
@@ -57,7 +58,7 @@ export const Feed = memo(function Feed({
   const from = getFeedFromLocation(location);
   const { panelById, togglePanel } = usePanelById<PostPanel>();
 
-  const walletLower = walletAddress ? walletAddress.toLowerCase() : null;
+  const walletLower = walletAddress ? normalizeAddress(walletAddress) : null;
   const guestHue = stableHueFromSeed("guest");
 
   const { showSkeletons, skeletonCount } = useMemo(() => {

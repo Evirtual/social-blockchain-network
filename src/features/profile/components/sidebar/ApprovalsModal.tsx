@@ -9,6 +9,7 @@ import type { ApprovalRow } from "./approvals/types";
 import { PendingApprovalsSection } from "./approvals/PendingApprovalsSection";
 import { ChainRequestsSection } from "./approvals/ChainRequestsSection";
 import { useOwnerAddress } from "@features/profile";
+import { normalizeAddress } from "@shared/lib/address";
 
 export type ApprovalsModalProps = {
   open: boolean;
@@ -78,7 +79,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
 
   const pendingRows = useMemo<ApprovalRow[]>(() => {
     return pendingApprovals.map((addr) => {
-      const key = addr.toLowerCase();
+      const key = normalizeAddress(addr);
       return {
         addr,
         key,
@@ -89,11 +90,11 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
 
   const chainRows = useMemo<ApprovalRow[]>(() => {
-    const ownerLower = ownerAddress?.toLowerCase() ?? "";
+    const ownerLower = normalizeAddress(ownerAddress);
     return onChainRequests
-      .filter((addr) => addr.toLowerCase() !== ownerLower)
+      .filter((addr) => normalizeAddress(addr) !== ownerLower)
       .map((addr) => {
-        const key = addr.toLowerCase();
+        const key = normalizeAddress(addr);
         return {
           addr,
           key,

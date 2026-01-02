@@ -1,96 +1,10 @@
-import type { Post } from "@types";
-import type { PostActionsController } from "@features/post";
+import type { ProfilePageViewModel, ProfilePageViewModelInput } from "../types";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
 import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { useAccountPageProps } from "./useAccountPageProps";
 import { useProfilePageProps } from "./useProfilePageProps";
 
-export function useProfilePageViewModel(args: {
-  address: string;
-  status: string;
-  contractState: {
-    isOwner: boolean;
-    withdrawableTipsWei: bigint;
-    contractAddress: string | undefined;
-    contractDeployed: boolean | null;
-  };
-  walletState: {
-    chainId: string | null;
-    networkName: string | null;
-    nativeBalance: string;
-    walletAddress: string | null;
-  };
-  profileState: {
-    displayName: string;
-    profileBio: string;
-    profileAvatarUrl: string;
-    myPostsCount?: number;
-    isEditingProfile: boolean;
-    profileDraftName: string;
-    profileDraftBio: string;
-    profileDraftAvatarUrl: string;
-    profileDraftAvatarDataUrl: string;
-    isProfileAvatarLoading: boolean;
-    selfAvatarHue: number;
-    authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  };
-  profileActions: {
-    setProfileDraftName: (next: string) => void;
-    setProfileDraftBio: (next: string) => void;
-    setProfileDraftAvatarUrl: (next: string) => void;
-    onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
-    onClearProfileAvatar: () => void;
-    startEditProfile: () => void;
-    cancelEditProfile: () => void;
-  };
-  follow: {
-    followerCountByAddress: Record<string, number | undefined>;
-    followersByAddress: Record<string, string[] | undefined>;
-    followingByAddress: Record<string, string[] | undefined>;
-    isLoadingFollowersByAddress: Record<string, boolean | undefined>;
-    isLoadingFollowingByAddress: Record<string, boolean | undefined>;
-    isFollowingByAddress: Record<string, boolean | undefined>;
-  };
-  feedState: {
-    isFeedLoading: boolean;
-  };
-  admin: {
-    isPosterAllowed: boolean | undefined;
-    wasPosterDisapprovedEver: boolean | undefined;
-  };
-  handlers: {
-    adminActionInFlight: "approve" | "disapprove" | "reset" | "save" | null;
-    isFollowSubmitting: boolean;
-    onDisconnectWallet: () => void;
-    onWithdrawTips: () => Promise<void>;
-    onSaveProfile: () => void;
-    onToggleFollow: () => Promise<void>;
-    onAdminSetPosterAllowed: (allowed: boolean) => Promise<void>;
-    onAdminReset: () => Promise<void>;
-    onAdminSetProfile: (next: {
-      name: string;
-      bio: string;
-      avatarUrl: string;
-      avatarFile?: File | null;
-      avatarFilename?: string;
-      avatarDataUrl?: string;
-    }) => Promise<void>;
-  };
-  postActions: PostActionsController;
-  data: {
-    key: string;
-    isSelf: boolean;
-    name: string;
-    bio: string;
-    avatarUrl: string;
-    filtered: Post[];
-    savedPosts: Post[];
-    likedPosts: Post[];
-    selfKey: string;
-    isLoadingSaved: boolean;
-    isLoadingLiked: boolean;
-  };
-}) {
+export function useProfilePageViewModel(args: ProfilePageViewModelInput): ProfilePageViewModel {
   const accountPageProps = useAccountPageProps({
     isOwner: args.contractState.isOwner,
     selfKey: args.data.selfKey,

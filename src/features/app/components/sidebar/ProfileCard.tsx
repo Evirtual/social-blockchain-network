@@ -8,6 +8,7 @@ import { ApprovalsModal, FollowersModal, FollowingModal, useOwnerAddress } from 
 import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useWalletState } from "@features/wallet";
 import { useOnChainApprovalRequests } from "@features/profile/components/sidebar/approvals";
+import { normalizeAddress } from "@shared/lib/address";
 import { ProfileEditModal } from "./profileCard/ProfileEditModal";
 import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
 import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
@@ -82,8 +83,8 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const showHeaderStats = !!props.walletAddress;
   const showHeaderStatsRow = showHeaderStats;
-  const ownerLower = ownerAddress?.toLowerCase() ?? "";
-  const approvalsCount = onChainRequests.filter((addr) => addr.toLowerCase() !== ownerLower).length;
+  const ownerLower = normalizeAddress(ownerAddress);
+  const approvalsCount = onChainRequests.filter((addr) => normalizeAddress(addr) !== ownerLower).length;
 
 
   return (

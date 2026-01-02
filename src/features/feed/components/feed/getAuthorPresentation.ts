@@ -1,3 +1,5 @@
+import { normalizeAddress } from "@shared/lib/address";
+
 export function getAuthorPresentation(params: {
   author: string | undefined | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
@@ -10,7 +12,7 @@ export function getAuthorPresentation(params: {
 } {
   const { author, authorIdentity, shortAddress, guestHue } = params;
 
-  const authorKey = author?.toLowerCase();
+  const authorKey = normalizeAddress(author);
   const info = authorKey ? authorIdentity.get(authorKey) : undefined;
   const authorLabel = (info?.name?.trim() || (author ? shortAddress(author) : "Unknown")) as string;
 

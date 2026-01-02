@@ -3,12 +3,8 @@ import type { Draft, Post } from "@types";
 import { Modal } from "@shared/components/Modal";
 import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@shared/lib/network";
 import { getPostUrl } from "@shared/lib/post";
-import { PostCardEditBox } from "./postCard/PostCardEditBox";
-import { PostCardFooter } from "./postCard/PostCardFooter";
+import { PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
 import { getAvatarStyle } from "./postCard/postCardDerived";
-import { PostReportModal } from "./postCard/PostReportModal";
-import { PostCardHeader } from "./postCard/PostCardHeader";
-import { PostCardBody } from "./postCard/PostCardBody";
 
 export type PostPanel = "comment" | "tip";
 

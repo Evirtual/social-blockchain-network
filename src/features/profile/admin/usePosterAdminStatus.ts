@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isAddress } from "ethers";
 import { fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { onPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
+import { normalizeAddress } from "@shared/lib/address";
 import type { ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
@@ -24,8 +25,8 @@ export function usePosterAdminStatus(params: { contract: ContractLike; address: 
     }
 
     const off = onPosterAllowedChanged((detail) => {
-      const target = address.toLowerCase();
-      if (String(detail.address ?? "").trim().toLowerCase() !== target) return;
+      const target = normalizeAddress(address);
+      if (normalizeAddress(detail.address) !== target) return;
       setIsPosterAllowed(!!detail.allowed);
       if (detail.disapprovedEver === true) setWasPosterDisapprovedEver(true);
     });

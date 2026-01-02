@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useContractActionsFacade } from "@features/contract";
+import { normalizeAddress } from "@shared/lib/address";
 
 export function useOwnerAddress(walletAddress: string | null) {
   const contract = useContractActionsFacade();
@@ -35,7 +36,7 @@ export function useOwnerAddress(walletAddress: string | null) {
 
   const isOwner = useMemo(() => {
     if (!walletAddress || !ownerAddress) return false;
-    return walletAddress.toLowerCase() === ownerAddress.toLowerCase();
+    return normalizeAddress(walletAddress) === normalizeAddress(ownerAddress);
   }, [ownerAddress, walletAddress]);
 
   return { ownerAddress, isOwner, isLoadingOwner };
