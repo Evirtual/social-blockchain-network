@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useContractActionsFacade } from "@features/contract";
+import { useContractActions } from "@features/contract";
 import { normalizeAddress } from "@shared/lib/address";
 
 export function useOwnerAddress(walletAddress: string | null) {
-  const contract = useContractActionsFacade();
+  const { getReadContract } = useContractActions();
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [isLoadingOwner, setIsLoadingOwner] = useState(false);
 
@@ -19,7 +19,7 @@ export function useOwnerAddress(walletAddress: string | null) {
     void (async () => {
       setIsLoadingOwner(true);
       try {
-        const readContract = await contract.getReadContract();
+        const readContract = await getReadContract();
         const owner = (await readContract.owner()) as string;
         if (!cancelled) setOwnerAddress(owner);
       } catch {
@@ -32,7 +32,7 @@ export function useOwnerAddress(walletAddress: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [contract, walletAddress]);
+  }, [getReadContract, walletAddress]);
 
   const isOwner = useMemo(() => {
     if (!walletAddress || !ownerAddress) return false;

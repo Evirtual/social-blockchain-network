@@ -369,6 +369,7 @@ export function useFeedFilterViewModel(args: Args) {
 
   const trimmedQuery = searchQuery.trim();
   const noNetworksSelected = selectedNetworkChainIds.length === 0;
+  const visiblePostsCount = filteredPosts.length;
   const isPillLoading =
     !noNetworksSelected &&
     !trimmedQuery &&
@@ -378,8 +379,8 @@ export function useFeedFilterViewModel(args: Args) {
     : isPillLoading
       ? ""
       : trimmedQuery
-        ? `${filteredPosts.length} ${filteredPosts.length === 1 ? "post" : "posts"}`
-        : `${authorFilter ? Math.max(authorPostsCount ?? 0, scopedPosts.length) : Math.max(totalPostsCount ?? 0, scopedPosts.length)} posts`;
+        ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
+        : `${authorFilter ? Math.max(authorPostsCount ?? 0, visiblePostsCount) : Math.max(totalPostsCount ?? 0, visiblePostsCount)} posts`;
 
   return {
     supportedNetworks,
