@@ -10,7 +10,7 @@ dataSources:
     network: base-sepolia # change to your target chain (e.g. base, mainnet, sepolia)
     source:
       abi: SocialPosts
-      address: "0xF3008CC92Efd8b5158A944501e382dAAFf88D2D5" # Base Sepolia: SocialPosts
+      address: "0xbDb8A4BfCF5146f584Bf32B4F8c6E70ecB1DF8f1" # Base Sepolia: SocialPosts
       startBlock: 0 # set to contract deployment block for faster indexing
     mapping:
       kind: ethereum/events
