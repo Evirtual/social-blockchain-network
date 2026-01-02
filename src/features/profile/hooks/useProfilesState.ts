@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { hasPinata } from "@features/ipfs";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
@@ -308,7 +308,7 @@ export function useProfilesState({
       setProfileUploadedAvatarFilename("");
       setProfileDraftAvatarDataUrl("");
     } catch (error) {
-      setStatus(getErrorMessage(error));
+      setStatus(getErrorMessage(error as ErrorInput));
     }
   }, [
     walletAddress,

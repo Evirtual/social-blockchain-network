@@ -29,8 +29,26 @@ interface ImportMeta {
 }
 
 declare global {
+  type EthereumRequestArgs = {
+    method: string;
+    params?: Array<
+      | string
+      | number
+      | boolean
+      | null
+      | undefined
+      | Record<string, string | number | boolean | null | undefined>
+    >;
+  };
+
+  type EthereumProvider = {
+    request?: (args: EthereumRequestArgs) => Promise<null>;
+    on?: (event: string, handler: (...args: Array<string | string[]>) => void) => void;
+    removeListener?: (event: string, handler: (...args: Array<string | string[]>) => void) => void;
+  };
+
   interface Window {
-    ethereum?: unknown;
+    ethereum?: EthereumProvider;
   }
 }
 

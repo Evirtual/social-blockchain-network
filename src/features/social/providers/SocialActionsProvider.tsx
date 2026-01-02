@@ -7,12 +7,11 @@ import { useEnsureMatchingNetwork } from "../hooks/useEnsureMatchingNetwork";
 import { usePostEngagement } from "../hooks/usePostEngagement";
 import { usePostModeration } from "../hooks/usePostModeration";
 import { usePostTips } from "../hooks/usePostTips";
-import { useContractActions, useContractState } from "@features/contract";
+import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useTxNotifications } from "@features/tx";
 import { useWalletActions, useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/contract";
 import { SocialActionsContext, type SocialActionsContextValue } from "./socialActionsStateContext";
 
 export function SocialActionsProvider({ children }: { children: React.ReactNode }) {
@@ -20,11 +19,11 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   const { refreshWalletPanel } = useWalletActions();
   const { setStatus } = useStatusActions();
   const contractState = useContractState();
-  const contractActions = useContractActions();
+  const contractActions = useContractActionsFacade();
   const feedState = useFeedState();
   const feedActions = useFeedActions();
   const txNotifications = useTxNotifications();
-  const { runContractTx } = useContractTx();
+  const { runContractTx } = contractActions;
 
   const getReadContract = contractActions.getReadContract;
   const getWriteContract = contractActions.getWriteContract;

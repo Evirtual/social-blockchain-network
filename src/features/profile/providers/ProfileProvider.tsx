@@ -3,11 +3,10 @@ import { useAuthorIdentity } from "../hooks/useAuthorIdentity";
 import { usePrefetchMissingAuthorProfiles } from "../hooks/usePrefetchMissingAuthorProfiles";
 import { useProfileDerived } from "../hooks/useProfileDerived";
 import { useProfilesState } from "../hooks/useProfilesState";
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/contract";
 import { getSupportedNetworks } from "@features/feed";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
@@ -26,9 +25,9 @@ export type { ProfileContextValue } from "./profileStateContext";
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId } = useWalletState();
   const { setStatus } = useStatusActions();
-  const contract = useContractActions();
+  const contract = useContractActionsFacade();
   const { posts } = useFeedState();
-  const { runContractTx } = useContractTx();
+  const { runContractTx } = contract;
 
   const getReadContract = contract.getReadContract;
   const getWriteContract = contract.getWriteContract;

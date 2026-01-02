@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import { createStableContext } from "@shared/lib/createStableContext";
 
 export type FollowContextValue = {
   // Follow graph
@@ -22,7 +23,6 @@ export type FollowContextValue = {
 };
 
 // Keep the context stable across HMR updates.
-export const FollowContext: ReturnType<typeof createContext<FollowContextValue | null>> =
-  (globalThis as { __sbnetFollowContext?: ReturnType<typeof createContext<FollowContextValue | null>> }).__sbnetFollowContext ??
-  (((globalThis as { __sbnetFollowContext?: ReturnType<typeof createContext<FollowContextValue | null>> }).__sbnetFollowContext =
-    createContext<FollowContextValue | null>(null)) as ReturnType<typeof createContext<FollowContextValue | null>>);
+export const FollowContext = createStableContext("__sbnetFollowContext", () =>
+  createContext<FollowContextValue | null>(null)
+);

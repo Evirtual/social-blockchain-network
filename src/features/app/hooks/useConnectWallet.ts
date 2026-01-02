@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 
 type WalletLike = {
   connectWallet: () => Promise<string | null>;
@@ -40,7 +40,7 @@ export function useConnectWallet(params: {
     try {
       await contract.ensureContractDeployedOnCurrentNetwork();
     } catch (err) {
-      setStatus(getErrorMessage(err));
+      setStatus(getErrorMessage(err as ErrorInput));
     }
 
     void wallet.refreshWalletPanel();

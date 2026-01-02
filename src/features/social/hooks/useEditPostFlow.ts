@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { Draft, Post } from "@types";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { EMPTY_DRAFT } from "@features/post/services/draftConstants";
@@ -350,7 +350,7 @@ export function useEditPostFlow(args: {
         void feed.refreshFeed();
       }, 15_000);
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = getErrorMessage(error as ErrorInput);
       if (processingToastId) {
         txNotifications.notifyFailed({ hash: processingToastId, label: "Updating post", error: message });
       }

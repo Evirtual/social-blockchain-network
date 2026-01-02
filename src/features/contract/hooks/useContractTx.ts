@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { getExplorerTxUrl } from "@shared/lib/network";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { useContractActions } from "../providers/useContractActions";
 import { isUserRejectedTx, useTxNotifications } from "@features/tx";
 import type { TxErrorInput } from "@features/tx";
@@ -58,7 +58,7 @@ export function useContractTx() {
       } catch (error) {
         dismissSigningToast();
 
-        const message = getErrorMessage(error);
+        const message = getErrorMessage(error as ErrorInput);
         const rejected = isUserRejectedTx(error as TxErrorInput);
         setStatus(message);
 

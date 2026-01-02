@@ -1,3 +1,5 @@
+export type ErrorInput = Error | { message?: string } | string | number | boolean | null | undefined;
+
 type ErrorLike = {
   code?: string | number;
   message?: string;
@@ -12,12 +14,12 @@ type ErrorLike = {
   cause?: { shortMessage?: string; reason?: string; message?: string };
 };
 
-function toErrorLike(error: unknown): ErrorLike {
+function toErrorLike(error: ErrorInput): ErrorLike {
   if (error && typeof error === "object") return error as ErrorLike;
   return {};
 }
 
-export function getErrorMessage(error: unknown) {
+export function getErrorMessage(error: ErrorInput) {
   const err = toErrorLike(error);
 
   // MetaMask / EIP-1193 user rejected

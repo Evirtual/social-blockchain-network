@@ -4,12 +4,11 @@ import { hasPinata } from "@features/ipfs";
 import { useComposerMedia } from "../hooks/useComposerMedia";
 import { useMintPostFlow } from "../hooks/useMintPostFlow";
 import { usePosterApproval } from "../hooks/usePosterApproval";
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 import { useFeedActions } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useTxNotifications } from "@features/tx";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/contract";
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from "@shared/lib/postLimits";
 import { ComposerContext, type ComposerContextValue } from "./composerStateContext";
 
@@ -17,9 +16,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const txNotifications = useTxNotifications();
   const { setStatus } = useStatusActions();
   const { walletAddress, chainId } = useWalletState();
-  const contract = useContractActions();
+  const contract = useContractActionsFacade();
   const feed = useFeedActions();
-  const { runContractTx } = useContractTx();
+  const { runContractTx } = contract;
 
   const [draft, setDraft] = useState<Draft>({ title: "", body: "", imageUrl: "", imageDataUrl: "" });
   const [isComposerOpen, setIsComposerOpen] = useState(false);

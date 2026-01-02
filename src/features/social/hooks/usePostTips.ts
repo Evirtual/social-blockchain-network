@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { parseEther } from "ethers";
 
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
@@ -75,7 +75,7 @@ export function usePostTips(args: {
         void refreshWalletPanel();
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -95,7 +95,7 @@ export function usePostTips(args: {
         await runContractTx("Withdraw tips", () => writeContract.withdrawTips());
         void refreshWalletPanel();
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
       }
     },
     [walletAddress, getWriteContract, runContractTx, refreshWalletPanel, setStatus]

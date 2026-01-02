@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
@@ -80,7 +80,7 @@ export function usePostModeration(args: {
         cancelEditPost();
         setStatus("Post frozen. Editing is now disabled for this token.");
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
       }
     },
     [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, cancelEditPost, setStatus]
@@ -146,7 +146,7 @@ export function usePostModeration(args: {
 
         await feed.refreshFeed();
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
       }
     },
     [

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useFollowScans, useIsFollowing } from "../hooks";
-import { useContractActions } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
-import { useContractTx } from "@features/contract";
 import { FollowContext, type FollowContextValue } from "./followStateContext";
 
 export type { FollowContextValue } from "./followStateContext";
@@ -11,8 +10,8 @@ export type { FollowContextValue } from "./followStateContext";
 export function FollowProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId } = useWalletState();
   const { setStatus } = useStatusActions();
-  const contract = useContractActions();
-  const { runContractTx } = useContractTx();
+  const contract = useContractActionsFacade();
+  const { runContractTx } = contract;
 
   const ensureContractDeployedOnCurrentNetwork = contract.ensureContractDeployedOnCurrentNetwork;
   const getReadContract = contract.getReadContract;

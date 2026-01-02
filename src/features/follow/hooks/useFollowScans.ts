@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { socialInterface } from "@features/contract";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
@@ -151,7 +151,7 @@ export function useFollowScans(params: {
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           if (!isStale(epoch)) {
-            params.setStatus(getErrorMessage(err));
+            params.setStatus(getErrorMessage(err as ErrorInput));
           }
         } finally {
           if (!isStale(epoch)) {
@@ -267,7 +267,7 @@ export function useFollowScans(params: {
           loadedFollowerCountByAddressRef.current[key] = true;
         } catch (err) {
           if (!isStale(epoch)) {
-            params.setStatus(getErrorMessage(err));
+            params.setStatus(getErrorMessage(err as ErrorInput));
           }
         } finally {
           if (!isStale(epoch)) {
@@ -379,7 +379,7 @@ export function useFollowScans(params: {
           loadedFollowingByAddressRef.current[key] = true;
         } catch (err) {
           if (!isStale(epoch)) {
-            params.setStatus(getErrorMessage(err));
+            params.setStatus(getErrorMessage(err as ErrorInput));
           }
         } finally {
           if (!isStale(epoch)) {

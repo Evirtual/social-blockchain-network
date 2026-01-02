@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { parseEther } from "ethers";
 
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { commentKey } from "@shared/lib/post";
 import { isSamePost } from "../services/postActions/matchPost";
@@ -79,7 +79,7 @@ export function useCommentActions(args: {
         void feed.loadCommentsForPost(tokenId, postChainId ?? chainId);
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -115,7 +115,7 @@ export function useCommentActions(args: {
         );
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -153,7 +153,7 @@ export function useCommentActions(args: {
         );
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -189,7 +189,7 @@ export function useCommentActions(args: {
         );
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -225,7 +225,7 @@ export function useCommentActions(args: {
         );
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -263,7 +263,7 @@ export function useCommentActions(args: {
         );
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -295,7 +295,7 @@ export function useCommentActions(args: {
         if (!ok) return false;
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },
@@ -327,7 +327,7 @@ export function useCommentActions(args: {
         if (!ok) return false;
         return true;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },

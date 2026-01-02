@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { isSamePost } from "../services/postActions/matchPost";
 import { buildTokenKey, updateSessionTokenKeys } from "../services/postActions/sessionTokenKeys";
@@ -127,7 +127,7 @@ export function usePostEngagement(args: {
 
         return false;
       } catch (error) {
-        setStatus(getErrorMessage(error));
+        setStatus(getErrorMessage(error as ErrorInput));
         return false;
       }
     },

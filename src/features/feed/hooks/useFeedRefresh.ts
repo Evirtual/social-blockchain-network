@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
-import { getErrorMessage } from "@shared/lib/errors";
+import { getErrorMessage, type ErrorInput } from "@shared/lib/errors";
 import { useEpochGuard } from "@shared/lib/epochGuard";
-import { refreshFeed as refreshFeedFromCoordinator } from "../services/refreshCoordinator";
+import { refreshFeedFromNetworks } from "../services/feedRefresh";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
 import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
@@ -99,7 +99,7 @@ export function useFeedRefresh(params: {
             setStatus(message);
           };
 
-          await refreshFeedFromCoordinator({
+          await refreshFeedFromNetworks({
             provider,
             walletAddress,
             chainId,
@@ -113,7 +113,7 @@ export function useFeedRefresh(params: {
           });
         } catch (err) {
           if (!isStale(refreshEpoch)) {
-            setStatus(getErrorMessage(err));
+            setStatus(getErrorMessage(err as ErrorInput));
           }
           throw err;
         } finally {
