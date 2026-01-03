@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useFeedComments } from "../hooks/useFeedComments";
 import { useFeedRefresh } from "../hooks/useFeedRefresh";
 import { usePostsByTokenIds } from "../hooks/usePostsByTokenIds";
+import { useNetworkFilterState } from "../hooks/useNetworkFilterState";
+import { useSupportedNetworks } from "../hooks/useSupportedNetworks";
 import { useContractActionsFacade } from "@features/contract";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
@@ -21,6 +23,15 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { setStatus } = useStatusActions();
   const contract = useContractActionsFacade();
 
+  const supportedNetworks = useSupportedNetworks();
+  const { selectedNetworkChainIds } = useNetworkFilterState({
+    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
+    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    walletAddress,
+    chainId,
+    supportedNetworks
+  });
+
   const contractApi = useMemo(
     () => ({
       ensureContractDeployedOnCurrentNetwork: contract.ensureContractDeployedOnCurrentNetwork,
@@ -32,12 +43,14 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const feedRefresh = useFeedRefresh({
     wallet: { provider, walletAddress, chainId, walletEpoch },
     contract: contractApi,
-    setStatus
+    setStatus,
+    selectedNetworkChainIds
   });
 
   const comments = useFeedComments({
     provider,
     chainId,
+    walletAddress,
     contract: contractApi,
     setStatus,
     postsRef: feedRefresh.postsRef

@@ -4,10 +4,14 @@ import { getSocialContract } from "@features/contract";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { queryLogsPaged, withTimeout } from "@shared/lib/feedQuery";
 import { runInFlight } from "@shared/lib/inFlight";
+import { parseChainIdNumber } from "@shared/lib/chainId";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { commentKey } from "./utils";
 import { getCommentsReadContext } from "./comments/getCommentsReadContext";
 import { computeCommentsFromBlock, findMintBlockHint } from "./comments/computeCommentsFromBlock";
 import { parseCommentLogs } from "./comments/parseCommentLogs";
+import { loadCommentsFromSubgraph } from "./comments/subgraph/loadCommentsFromSubgraph";
+import { getEnv } from "@shared/lib/env";
 import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
 
 type ContractLike = {
@@ -20,11 +24,12 @@ type PostsRefLike = { current: Post[] };
 export function useFeedComments(params: {
   provider: ChainProvider | null;
   chainId: string | null;
+  walletAddress?: string | null;
   contract: ContractLike;
   setStatus: (s: string) => void;
   postsRef: PostsRefLike;
 }) {
-  const { provider, chainId, contract, setStatus, postsRef } = params;
+  const { provider, chainId, walletAddress, contract, setStatus, postsRef } = params;
 
   const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({});
   const [isLoadingPostComments, setIsLoadingPostComments] = useState<Record<string, boolean>>({});
@@ -51,19 +56,49 @@ export function useFeedComments(params: {
     async (tokenId: string, postChainId?: string | null) => {
       const tokenIdBig = BigInt(tokenId);
 
-      const readCtx = await getCommentsReadContext({ provider, chainId, postChainId, contract });
-      if (!readCtx.canRead) return;
-
-      // NOTE: keep this to preserve prior behavior even if it isn't used by all paths.
-      // (Some bundlers/tree-shakers can be sensitive to unused imports in certain configs.)
-      void getSocialContract;
-
-      const key = commentKey(readCtx.keyChainId, tokenId);
-      const readProvider: ChainProvider = readCtx.readProvider;
-      const readContract: SocialPostsContract = readCtx.readContract;
+      const keyChainId = postChainId ?? chainId ?? null;
+      const key = commentKey(keyChainId, tokenId);
+      const keyChainIdNum = parseChainIdNumber(keyChainId);
+      const env = getEnv();
+      const subgraphUrl = getSubgraphUrlForChainId(env, keyChainIdNum);
+      const accountLower = typeof walletAddress === "string" ? walletAddress.toLowerCase() : null;
 
       await runInFlight(commentsInFlightRef.current, key, async () => {
         setIsLoadingPostComments((prev) => ({ ...prev, [key]: true }));
+
+        let subgraphError: unknown = null;
+        try {
+          if (subgraphUrl) {
+            const fromSubgraph = await loadCommentsFromSubgraph({
+              url: subgraphUrl,
+              tokenId,
+              first: 500,
+              account: accountLower
+            });
+            setPostComments((prev) => ({ ...prev, [key]: fromSubgraph }));
+            return;
+          }
+        } catch (err) {
+          // Subgraphs can be warming up or temporarily out of sync.
+          // Keep the app usable by falling back to RPC log scanning.
+          subgraphError = err;
+        }
+
+        const readCtx = await getCommentsReadContext({ provider, chainId, postChainId, contract });
+        if (!readCtx.canRead) {
+          if (subgraphError) {
+            setStatusFromError(setStatus, subgraphError as ErrorInput);
+          }
+          return;
+        }
+
+        // NOTE: keep this to preserve prior behavior even if it isn't used by all paths.
+        // (Some bundlers/tree-shakers can be sensitive to unused imports in certain configs.)
+        void getSocialContract;
+
+        const readProvider: ChainProvider = readCtx.readProvider;
+        const readContract: SocialPostsContract = readCtx.readContract;
+
         try {
           const latest = await withTimeout(readProvider.getBlockNumber(), 6_000, "comments getBlockNumber");
           if (!Number.isFinite(latest) || latest < 0) {
@@ -109,12 +144,12 @@ export function useFeedComments(params: {
           setPostComments((prev) => ({ ...prev, [key]: parsedNew }));
         } catch (err) {
           setStatusFromError(setStatus, err as ErrorInput);
-        } finally {
-          setIsLoadingPostComments((prev) => ({ ...prev, [key]: false }));
         }
+      }).finally(() => {
+        setIsLoadingPostComments((prev) => ({ ...prev, [key]: false }));
       });
     },
-    [provider, chainId, contract, postsRef, setStatus]
+    [provider, chainId, walletAddress, contract, postsRef, setStatus]
   );
 
   return useMemo(

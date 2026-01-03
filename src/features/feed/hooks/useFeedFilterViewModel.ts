@@ -19,9 +19,11 @@ type Args = {
   isFeedLoading?: boolean;
   useSubgraphSearch?: boolean;
   authorAddress?: string | null;
+  countMode?: "auto" | "visible";
 };
 
 export function useFeedFilterViewModel(args: Args) {
+  const countMode: "auto" | "visible" = args.countMode ?? "auto";
   const supportedNetworks = useSupportedNetworks();
   const { searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, isNetworkFilterActive } =
     useNetworkFilterState({
@@ -55,6 +57,12 @@ export function useFeedFilterViewModel(args: Args) {
   }, [scopedPosts, args.authorIdentity, args.shortAddress, searchQuery, selectedNetworkChainIds]);
 
   useEffect(() => {
+    if (countMode !== "auto") {
+      setTotalPostsCount(null);
+      setIsTotalPostsLoading(false);
+      return;
+    }
+
     let active = true;
     const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
@@ -139,9 +147,15 @@ export function useFeedFilterViewModel(args: Args) {
     return () => {
       active = false;
     };
-  }, [supportedNetworks, selectedNetworkChainIds, authorFilter]);
+  }, [countMode, supportedNetworks, selectedNetworkChainIds, authorFilter]);
 
   useEffect(() => {
+    if (countMode !== "auto") {
+      setAuthorPostsCount(null);
+      setIsAuthorPostsLoading(false);
+      return;
+    }
+
     let active = true;
     const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
@@ -224,7 +238,7 @@ export function useFeedFilterViewModel(args: Args) {
     return () => {
       active = false;
     };
-  }, [supportedNetworks, selectedNetworkChainIds, authorFilter]);
+  }, [countMode, supportedNetworks, selectedNetworkChainIds, authorFilter]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -371,6 +385,7 @@ export function useFeedFilterViewModel(args: Args) {
   const noNetworksSelected = selectedNetworkChainIds.length === 0;
   const visiblePostsCount = filteredPosts.length;
   const isPillLoading =
+    countMode === "auto" &&
     !noNetworksSelected &&
     !trimmedQuery &&
     (Boolean(args.isFeedLoading) || (authorFilter ? isAuthorPostsLoading : isTotalPostsLoading));
@@ -380,7 +395,9 @@ export function useFeedFilterViewModel(args: Args) {
       ? ""
       : trimmedQuery
         ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
-        : `${authorFilter ? Math.max(authorPostsCount ?? 0, visiblePostsCount) : Math.max(totalPostsCount ?? 0, visiblePostsCount)} posts`;
+        : countMode === "visible"
+          ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
+          : `${authorFilter ? Math.max(authorPostsCount ?? 0, visiblePostsCount) : Math.max(totalPostsCount ?? 0, visiblePostsCount)} posts`;
 
   return {
     supportedNetworks,

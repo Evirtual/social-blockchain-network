@@ -14,12 +14,13 @@ import { getEnv } from "@shared/lib/env";
 type Args = {
   walletProvider: BrowserProvider | null;
   chainId: string | null;
+  selectedNetworkChainIds: string[];
 
   contractAddress: string | undefined;
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: ReadContractFactory;
 
-  loadPostsByTokenIds: (tokenIds: string[]) => Promise<void>;
+  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
   setStatus: (status: string) => void;
 };
 
@@ -52,107 +53,115 @@ export function useSavedPostsByAddress(args: Args) {
 
         const key = address.toLowerCase();
 
-        // Avoid re-scanning once we have successfully loaded saved posts for this address on this network.
-        const networkKey = String(args.chainId ?? args.contractAddress ?? "").toLowerCase();
-        const loadedKey = `${networkKey}:${key}`;
-        if (loadedKey && savedLoadedByKeyRef.current[loadedKey]) return;
+        const selectedIds = Array.isArray(args.selectedNetworkChainIds) ? args.selectedNetworkChainIds : [];
+        if (selectedIds.length === 0) return;
 
         await runInFlight(savedInFlightRef.current, key, async () => {
           setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const env = getEnv();
-            const resolvedChainIdNum = parseChainIdNumber(args.chainId);
-
-            const subgraphUrl = getSubgraphUrlForChainId(env, resolvedChainIdNum);
-            if (subgraphUrl) {
-              try {
-                const query = `
-                  query AccountSaves($account: ID!, $first: Int!) {
-                    saveEdges(
-                      first: $first,
-                      where: { account: $account, active: true },
-                      orderBy: updatedAtBlock,
-                      orderDirection: desc
-                    ) {
-                      tokenId
-                    }
-                  }
-                `;
-
-                const data = await querySubgraph<{ saveEdges: Array<{ tokenId: string }> }>({
-                  url: subgraphUrl,
-                  query,
-                  variables: { account: key, first: 1000 },
-                  timeoutMs: 10_000
-                });
-
-                const tokenIds = (Array.isArray(data?.saveEdges) ? data.saveEdges : [])
-                  .map((e) => String(e?.tokenId ?? "").trim())
-                  .filter(Boolean);
-
-                const chainKey = parseChainKey(args.chainId);
-                const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
-
-                setSavedTokenIdsByAddress((prev) => {
-                  const existing = prev[key] ?? [];
-                  const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
-                  const merged = Array.from(new Set([...activeKeys, ...preserved]));
-                  return { ...prev, [key]: merged };
-                });
-
-                await args.loadPostsByTokenIds(tokenIds);
-
-                savedLoadedByKeyRef.current[loadedKey] = true;
-                return;
-              } catch {
-                // If the subgraph is warming up or unavailable, fall back to on-chain scanning.
+            const saveEdgesQuery = `
+              query AccountSaves($account: ID!, $first: Int!) {
+                saveEdges(
+                  first: $first,
+                  where: { account: $account, active: true },
+                  orderBy: updatedAtBlock,
+                  orderDirection: desc
+                ) {
+                  tokenId
+                }
               }
+            `;
+
+            for (const selectedChainId of selectedIds) {
+              const chainIdStr = String(selectedChainId ?? "").trim();
+              if (!chainIdStr) continue;
+
+              const chainIdNum = parseChainIdNumber(chainIdStr);
+              const networkKey = chainIdStr.toLowerCase();
+              const loadedKey = `${networkKey}:${key}`;
+              if (savedLoadedByKeyRef.current[loadedKey]) continue;
+
+              const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+              if (subgraphUrl) {
+                try {
+                  const data = await querySubgraph<{ saveEdges: Array<{ tokenId: string }> }>({
+                    url: subgraphUrl,
+                    query: saveEdgesQuery,
+                    variables: { account: key, first: 1000 },
+                    timeoutMs: 10_000
+                  });
+
+                  const tokenIds = (Array.isArray(data?.saveEdges) ? data.saveEdges : [])
+                    .map((e) => String(e?.tokenId ?? "").trim())
+                    .filter(Boolean);
+
+                  const chainKey = parseChainKey(chainIdStr);
+                  const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
+
+                  setSavedTokenIdsByAddress((prev) => {
+                    const existing = prev[key] ?? [];
+                    const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
+                    const merged = Array.from(new Set([...activeKeys, ...preserved]));
+                    return { ...prev, [key]: merged };
+                  });
+
+                  await args.loadPostsByTokenIds(tokenIds, chainIdStr);
+                  savedLoadedByKeyRef.current[loadedKey] = true;
+                  continue;
+                } catch {
+                  // If the subgraph is warming up or unavailable, fall back (current chain only).
+                }
+              }
+
+              // Fallback: only for the currently connected chain (we don't reliably have other chains' contract addresses).
+              if (String(args.chainId ?? "").trim() !== chainIdStr) continue;
+
+              const resolvedChainIdNum = parseChainIdNumber(args.chainId);
+              const rpcUrl = getRpcUrlForChainId(env, resolvedChainIdNum);
+
+              let readContract: SocialPostsContract | null = null;
+              let scanProvider: ChainProvider | null = null;
+
+              if (rpcUrl && args.contractAddress) {
+                const rpcProvider = getRpcProvider(rpcUrl, resolvedChainIdNum!);
+                readContract = getSocialContract(args.contractAddress, rpcProvider);
+                scanProvider = rpcProvider;
+              } else {
+                if (!args.walletProvider) continue;
+                await args.ensureContractDeployedOnCurrentNetwork();
+                readContract = await args.getReadContract();
+
+                scanProvider = getScanProviderFromReadContract(readContract, args.walletProvider);
+              }
+
+              if (!readContract || !scanProvider) continue;
+
+              const activeTokenIds = await scanToggleEventsForAddress({
+                readContract,
+                scanProvider,
+                iface: socialInterface,
+                address,
+                onFilter: readContract.filters.PostSaved(address, null),
+                offFilter: readContract.filters.PostUnsaved(address, null),
+                onEventName: "PostSaved",
+                offEventName: "PostUnsaved",
+                tokenIdArgIndex: 1
+              });
+
+              const chainKey = parseChainKey(chainIdStr);
+              const activeKeys = chainKey ? activeTokenIds.map((id) => `${chainKey}:${id}`) : activeTokenIds;
+
+              setSavedTokenIdsByAddress((prev) => {
+                const existing = prev[key] ?? [];
+                const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
+                const merged = Array.from(new Set([...activeKeys, ...preserved]));
+                return { ...prev, [key]: merged };
+              });
+
+              await args.loadPostsByTokenIds(activeTokenIds, chainIdStr);
+              savedLoadedByKeyRef.current[loadedKey] = true;
             }
-
-            const rpcUrl = getRpcUrlForChainId(env, resolvedChainIdNum);
-
-            let readContract: SocialPostsContract | null = null;
-            let scanProvider: ChainProvider | null = null;
-
-            if (rpcUrl && args.contractAddress) {
-              const rpcProvider = getRpcProvider(rpcUrl, resolvedChainIdNum!);
-              readContract = getSocialContract(args.contractAddress, rpcProvider);
-              scanProvider = rpcProvider;
-            } else {
-              if (!args.walletProvider) return;
-              await args.ensureContractDeployedOnCurrentNetwork();
-              readContract = await args.getReadContract();
-
-              scanProvider = getScanProviderFromReadContract(readContract, args.walletProvider);
-            }
-
-            if (!readContract || !scanProvider) return;
-
-            const activeTokenIds = await scanToggleEventsForAddress({
-              readContract,
-              scanProvider,
-              iface: socialInterface,
-              address,
-              onFilter: readContract.filters.PostSaved(address, null),
-              offFilter: readContract.filters.PostUnsaved(address, null),
-              onEventName: "PostSaved",
-              offEventName: "PostUnsaved",
-              tokenIdArgIndex: 1
-            });
-
-            const chainKey = parseChainKey(args.chainId);
-            const activeKeys = chainKey ? activeTokenIds.map((id) => `${chainKey}:${id}`) : activeTokenIds;
-
-            setSavedTokenIdsByAddress((prev) => {
-              const existing = prev[key] ?? [];
-              const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
-              const merged = Array.from(new Set([...activeKeys, ...preserved]));
-              return { ...prev, [key]: merged };
-            });
-
-            await args.loadPostsByTokenIds(activeTokenIds);
-
-            savedLoadedByKeyRef.current[loadedKey] = true;
           } finally {
             setIsLoadingSavedByAddress((prev) => ({ ...prev, [key]: false }));
           }
@@ -164,6 +173,7 @@ export function useSavedPostsByAddress(args: Args) {
     [
       args.walletProvider,
       args.chainId,
+      args.selectedNetworkChainIds,
       args.contractAddress,
       args.ensureContractDeployedOnCurrentNetwork,
       args.getReadContract,

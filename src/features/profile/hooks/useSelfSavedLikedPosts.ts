@@ -27,14 +27,14 @@ export function useSelfSavedLikedPosts(params: {
     const likedKeys = likedTokenIdsByAddress[selfKey] ?? [];
 
     const savedPosts =
-      savedFromFeed.length > 0
-        ? savedFromFeed
-        : resolvePostsFromKeys({ keys: savedKeys, postsByKey, postsFallback: feedPosts });
+      savedKeys.length > 0
+        ? resolvePostsFromKeys({ keys: savedKeys, postsByKey, postsFallback: feedPosts })
+        : savedFromFeed;
 
     const likedPosts =
-      likedFromFeed.length > 0
-        ? likedFromFeed
-        : resolvePostsFromKeys({ keys: likedKeys, postsByKey, postsFallback: feedPosts });
+      likedKeys.length > 0
+        ? resolvePostsFromKeys({ keys: likedKeys, postsByKey, postsFallback: feedPosts })
+        : likedFromFeed;
 
     return { savedPosts, likedPosts };
   }, [isSelf, walletAddress, feedPosts, savedTokenIdsByAddress, likedTokenIdsByAddress]);

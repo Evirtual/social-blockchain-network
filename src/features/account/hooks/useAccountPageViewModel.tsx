@@ -52,7 +52,8 @@ export function useAccountPageViewModel(args: Args) {
     chainId: args.chainId,
     isFeedLoading: activeLoading,
     useSubgraphSearch,
-    authorAddress
+    authorAddress,
+    countMode: view === "all" ? "auto" : "visible"
   });
 
   const [accountCounts, setAccountCounts] = useState<{ posted: number; saved: number; liked: number } | null>(null);

@@ -23,6 +23,7 @@ type FeedRefreshArgs = {
   walletAddress: string | null;
   chainId: string | null;
   account: string | null;
+  selectedNetworkChainIds: string[];
   contract: ContractLike;
   postsSnapshot: Post[];
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
@@ -37,6 +38,7 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     walletAddress,
     chainId,
     account,
+    selectedNetworkChainIds,
     contract,
     postsSnapshot,
     setPosts,
@@ -54,6 +56,28 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     env,
     currentChainIdNumber
   });
+
+  const selectedIds = Array.isArray(selectedNetworkChainIds) ? selectedNetworkChainIds : [];
+  const selectedSet = new Set(selectedIds.map((id) => String(id)));
+
+  // If the user explicitly selected zero networks, show an empty feed.
+  // (Default selection is handled upstream via session storage initialization.)
+  if (selectedIds.length === 0) {
+    setPosts([]);
+    if (shouldReportStatus) setStatus("No networks selected.");
+    return;
+  }
+
+  const hasSelectedNetworks = selectedSet.size > 0;
+
+  const filteredConfiguredNetworks = hasSelectedNetworks
+    ? configuredNetworks.filter((n) => selectedSet.has(String(n.chainId)))
+    : configuredNetworks;
+
+  const filteredExtraNetworks = hasSelectedNetworks
+    ? extraNetworks.filter((n) => selectedSet.has(String(n.chainId)))
+    : extraNetworks;
+
 
   if (!provider && extraNetworks.length === 0) return;
 
@@ -95,8 +119,8 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
 
   const networkTasks = await getFeedNetworkTasks({
     currentChainIdNumber,
-    configuredNetworks,
-    extraNetworks,
+    configuredNetworks: filteredConfiguredNetworks,
+    extraNetworks: filteredExtraNetworks,
     provider,
     walletAddress: walletAddress ?? null,
     ensureContractDeployedOnCurrentNetwork: contract.ensureContractDeployedOnCurrentNetwork,

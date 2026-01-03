@@ -5,6 +5,7 @@ import { useLikedPostsByAddress } from "./useLikedPostsByAddress";
 import { useSavedPostsByAddress } from "./useSavedPostsByAddress";
 import { useSelfSavedLikedPosts } from "./useSelfSavedLikedPosts";
 import type { ReadContractFactory } from "@features/contract";
+import { useNetworkFilterState, useSupportedNetworks } from "@features/feed";
 
 export function useProfilePageData(args: {
   address: string;
@@ -43,11 +44,22 @@ export function useProfilePageData(args: {
   const key = args.address.toLowerCase();
   const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === key;
 
-  const loadPostsByTokenIds = (tokenIds: string[]) => args.feedActions.loadPostsByTokenIds(tokenIds);
+  const loadPostsByTokenIds = (tokenIds: string[], postChainId?: string | null) =>
+    args.feedActions.loadPostsByTokenIds(tokenIds, postChainId);
+
+  const supportedNetworks = useSupportedNetworks();
+  const { selectedNetworkChainIds } = useNetworkFilterState({
+    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
+    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    walletAddress: args.walletState.walletAddress,
+    chainId: args.walletState.chainId,
+    supportedNetworks
+  });
 
   const { likedTokenIdsByAddress, isLoadingLikesByAddress, loadLikesForAddress } = useLikedPostsByAddress({
     walletProvider: args.walletState.provider,
     chainId: args.walletState.chainId,
+    selectedNetworkChainIds,
     contractAddress: args.contractState.contractAddress,
     ensureContractDeployedOnCurrentNetwork: args.contractActions.ensureContractDeployedOnCurrentNetwork,
     getReadContract: args.contractActions.getReadContract,
@@ -58,6 +70,7 @@ export function useProfilePageData(args: {
   const { savedTokenIdsByAddress, isLoadingSavedByAddress, loadSavedForAddress } = useSavedPostsByAddress({
     walletProvider: args.walletState.provider,
     chainId: args.walletState.chainId,
+    selectedNetworkChainIds,
     contractAddress: args.contractState.contractAddress,
     ensureContractDeployedOnCurrentNetwork: args.contractActions.ensureContractDeployedOnCurrentNetwork,
     getReadContract: args.contractActions.getReadContract,
