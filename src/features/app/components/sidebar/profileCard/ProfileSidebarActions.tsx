@@ -21,17 +21,17 @@ export function ProfileSidebarActions(props: Props) {
           Edit
         </button>
       ) : null}
-      {props.walletAddress && !props.isEditingProfile && (props.isOwner || props.isLoadingOwner) ? (
+      {props.walletAddress && !props.isEditingProfile && props.isOwner ? (
         <span className="cardHeaderStatSep" aria-hidden="true">|</span>
       ) : null}
-      {props.walletAddress && !props.isEditingProfile && (props.isOwner || props.isLoadingOwner) ? (
+      {props.walletAddress && !props.isEditingProfile && props.isOwner ? (
         <button
           className="cardHeaderStatLink buttonWithSpinner cardActionApprove"
           type="button"
           onClick={props.onOpenApprovals}
           aria-label="Approvals"
         >
-          {props.isLoadingOwner || props.isLoadingOnChainRequests ? (
+          {props.isLoadingOnChainRequests ? (
             <>
               <span className="skeletonLine" style={{ width: "2.1rem", height: "0.85rem" }} aria-hidden="true" /> approve
             </>
