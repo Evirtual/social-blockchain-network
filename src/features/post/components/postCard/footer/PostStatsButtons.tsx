@@ -33,7 +33,11 @@ export function PostStatsButtons(props: Props) {
         disabled={props.requiresNetworkSwitch || props.isBusy}
         title={props.interactionDisabledTitle}
       >
-        <IconHeart size={18} filled={!!props.post.likedByMe} />
+        {props.inFlight === "like" ? (
+          <span className="spinner" aria-hidden="true" />
+        ) : (
+          <IconHeart size={18} filled={!!props.post.likedByMe} />
+        )}
         <span className="postActionCount">{props.post.likes}</span>
       </button>
 
@@ -49,7 +53,11 @@ export function PostStatsButtons(props: Props) {
         disabled={props.requiresNetworkSwitch || props.isBusy}
         title={props.interactionDisabledTitle}
       >
-        <IconBookmark size={18} filled={!!props.post.savedByMe} />
+        {props.inFlight === "save" ? (
+          <span className="spinner" aria-hidden="true" />
+        ) : (
+          <IconBookmark size={18} filled={!!props.post.savedByMe} />
+        )}
         <span className="postActionCount">{props.post.saves}</span>
       </button>
 
