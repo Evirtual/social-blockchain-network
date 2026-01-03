@@ -55,31 +55,76 @@ export async function fetchApprovalRequests(args: {
     return { addresses: [], hadQueryError: false, source: "chain" };
   }
 
-  const latestRaw = (await provider?.getBlockNumber?.()) ?? 0;
-  const latest = Number(latestRaw);
-  if (!Number.isFinite(latest) || latest < 0) {
-    return { addresses: [], hadQueryError: false, source: "chain" };
+  const requestedFilter = readContract.filters.PosterApprovalRequested();
+  const allowedFilter = readContract.filters.PosterAllowed();
+
+  const [requested, allowed] = await Promise.all([
+    scanRecentUniqueAddressesFromEvent({
+      scanProvider: provider,
+      readContract,
+      filter: requestedFilter,
+      extractAddress: (log) => {
+        if ("args" in log) {
+          return String(log.args?.[0] ?? "");
+        }
+        return "";
+      },
+      isValidAddress: (a: string) => isAddress(a),
+      maxUnique: 50,
+      maxRounds: 20,
+      initialWindowSize: 50_000,
+      minWindowSize: 1_000,
+      maxTimeMs: 8_000
+    }),
+    scanRecentUniqueAddressesFromEvent({
+      scanProvider: provider,
+      readContract,
+      filter: allowedFilter,
+      extractAddress: (log) => {
+        if ("args" in log) {
+          const addr = String(log.args?.[0] ?? "");
+          const isAllowed = Boolean(log.args?.[1]);
+          return isAllowed ? addr : "";
+        }
+        return "";
+      },
+      isValidAddress: (a: string) => isAddress(a),
+      maxUnique: 50,
+      maxRounds: 20,
+      initialWindowSize: 50_000,
+      minWindowSize: 1_000,
+      maxTimeMs: 8_000
+    })
+  ]);
+
+  // Merge (interleaving) so both approved+requested show up.
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  const max = 50;
+  const requestedAddrs = requested.addresses ?? [];
+  const allowedAddrs = allowed.addresses ?? [];
+
+  const maxLen = Math.max(requestedAddrs.length, allowedAddrs.length);
+  for (let i = 0; i < maxLen && merged.length < max; i++) {
+    const a = requestedAddrs[i];
+    if (a) {
+      const k = a.toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        merged.push(a);
+      }
+    }
+
+    const b = allowedAddrs[i];
+    if (b) {
+      const k = b.toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        merged.push(b);
+      }
+    }
   }
 
-  const filter = readContract.filters.PosterApprovalRequested();
-
-  const { addresses: uniq, hadQueryError } = await scanRecentUniqueAddressesFromEvent({
-    scanProvider: provider,
-    readContract,
-    filter,
-    extractAddress: (log) => {
-      if ("args" in log) {
-        return String(log.args?.[0] ?? "");
-      }
-      return "";
-    },
-    isValidAddress: (a: string) => isAddress(a),
-    maxUnique: 50,
-    maxRounds: 20,
-    initialWindowSize: 50_000,
-    minWindowSize: 1_000,
-    maxTimeMs: 8_000
-  });
-
-  return { addresses: uniq, hadQueryError: hadQueryError && uniq.length === 0, source: "chain" };
+  const hadQueryError = (requested.hadQueryError || allowed.hadQueryError) && merged.length === 0;
+  return { addresses: merged, hadQueryError, source: "chain" };
 }

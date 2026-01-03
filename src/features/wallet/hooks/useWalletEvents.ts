@@ -52,6 +52,10 @@ export function useWalletEvents(params: {
       try {
         params.setStatus("Network changed.");
 
+        // Immediately clear slow-to-refresh UI bits so we don't show stale data.
+        params.setNetworkName(null);
+        params.setNativeBalance("—");
+
         if (typeof nextChainId === "string" && nextChainId.length > 0) {
           // EIP-1193 chainChanged gives hex chainId.
           const n = parseChainIdNumber(nextChainId);

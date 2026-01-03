@@ -1,17 +1,24 @@
-// NOTE: Intentionally non-persistent.
-// These helpers exist for compatibility but avoid cross-network stale data.
+// NOTE: Intentionally non-persistent (in-memory only).
+// This avoids cross-network stale data while still preventing repeated reads
+// during in-app navigation (which can trigger RPC rate limits).
 
-export function readApprovalsChainRequestsCache(contractAddress: string | undefined): {
+type ApprovalsChainRequestsCacheValue = {
   requesters: string[];
   updatedAt: number;
-} | null {
-  void contractAddress;
-  return null;
+};
+
+const approvalsChainRequestsCache = new Map<string, ApprovalsChainRequestsCacheValue>();
+
+export function readApprovalsChainRequestsCache(cacheKey: string | undefined): ApprovalsChainRequestsCacheValue | null {
+  const key = String(cacheKey ?? "").trim();
+  if (!key) return null;
+  return approvalsChainRequestsCache.get(key) ?? null;
 }
 
-export function writeApprovalsChainRequestsCache(contractAddress: string | undefined, requesters: string[]) {
-  void contractAddress;
-  void requesters;
+export function writeApprovalsChainRequestsCache(cacheKey: string | undefined, requesters: string[]) {
+  const key = String(cacheKey ?? "").trim();
+  if (!key) return;
+  approvalsChainRequestsCache.set(key, { requesters, updatedAt: Date.now() });
 }
 
 export function readPendingApprovals(): string[] {

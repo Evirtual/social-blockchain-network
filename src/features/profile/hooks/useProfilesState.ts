@@ -41,6 +41,7 @@ export function useProfilesState({
   runContractTx,
   setStatus
 }: UseProfilesStateArgs) {
+  const MAX_AVATAR_URL_CHARS = 512;
   const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
   const walletAddressRef = useRef<string | null>(null);
   const isEditingProfileRef = useRef(false);
@@ -298,6 +299,37 @@ export function useProfilesState({
         } finally {
           setIsProfileAvatarLoading(false);
         }
+      } else if (avatar.startsWith("data:image/")) {
+        // Users sometimes paste base64 data URLs into the avatar URL field.
+        // The contract caps avatar length (MAX_AVATAR_LENGTH=512), so we must
+        // pin the image and store an ipfs:// URI (same idea as post media).
+        if (!ipfsConfigured) {
+          setStatus(
+            "Avatar data URLs are too long for on-chain profile storage. Use the Upload button or provide an ipfs:// / https:// URL."
+          );
+          return;
+        }
+
+        setIsProfileAvatarLoading(true);
+        try {
+          const res = await fetch(avatar);
+          const blob = await res.blob();
+          avatar = await resolveAvatarForSave({
+            ipfsConfigured,
+            uploadedAvatarBlob: blob,
+            uploadedAvatarFilename: "avatar",
+            draftAvatarDataUrl: avatar
+          });
+        } finally {
+          setIsProfileAvatarLoading(false);
+        }
+      }
+
+      if (avatar.length > MAX_AVATAR_URL_CHARS) {
+        setStatus(
+          `Avatar URL is too long (${avatar.length}/${MAX_AVATAR_URL_CHARS}). Use Upload (IPFS) or paste a shorter ipfs:// / https:// URL.`
+        );
+        return;
       }
 
       const writeContract = await getWriteContract();

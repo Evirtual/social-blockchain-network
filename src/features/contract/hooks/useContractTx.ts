@@ -8,6 +8,32 @@ import type { TxErrorInput } from "@features/tx";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 
+const RECEIPT_TIMEOUT_MS = 120_000;
+const RECEIPT_POLL_INTERVAL_MS = 2_000;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForReceiptByPolling(params: {
+  hash: string;
+  timeoutMs: number;
+  pollIntervalMs: number;
+  getReceipt: () => Promise<TransactionReceipt | null>;
+}): Promise<TransactionReceipt | null> {
+  const deadline = Date.now() + params.timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const receipt = await params.getReceipt();
+      if (receipt) return receipt;
+    } catch {
+      // ignore and keep polling
+    }
+    await sleep(params.pollIntervalMs);
+  }
+  return null;
+}
+
 export function useContractTx() {
   const txNotifications = useTxNotifications();
   const { setStatus } = useStatusActions();
@@ -43,11 +69,23 @@ export function useContractTx() {
         txNotifications.notifyPending({ hash: tx.hash, label, explorerUrl });
 
         setStatus(`${label}: pending...`);
-        const receipt = await tx.wait();
+
+        const receipt = wallet.provider
+          ? await waitForReceiptByPolling({
+              hash: tx.hash,
+              timeoutMs: RECEIPT_TIMEOUT_MS,
+              pollIntervalMs: RECEIPT_POLL_INTERVAL_MS,
+              getReceipt: () => wallet.provider!.getTransactionReceipt(tx.hash)
+            })
+          : await Promise.race([
+              tx.wait(),
+              new Promise<TransactionReceipt | null>((resolve) =>
+                setTimeout(() => resolve(null), RECEIPT_TIMEOUT_MS)
+              )
+            ]);
 
         if (!receipt) {
-          txNotifications.notifyFailed({ hash: tx.hash, label, error: "Transaction receipt unavailable." });
-          setStatus("Transaction receipt unavailable.");
+          setStatus(`${label}: still pending (check explorer).`);
           return undefined;
         }
 
