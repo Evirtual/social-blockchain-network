@@ -165,7 +165,13 @@ export function useAccountPageViewModel(args: Args) {
     const resolvedPosted = Math.max(accountCounts?.posted ?? 0, localPosted);
     const resolvedSaved = Math.max(accountCounts?.saved ?? 0, localSaved);
     const resolvedLiked = Math.max(accountCounts?.liked ?? 0, localLiked);
-    const isLoading = activeLoading || isAccountCountsLoading;
+
+    // Only show loading skeletons on the active tab.
+    // (If we're fetching subgraph counts, all tabs can skeleton since they're all being refreshed.)
+    const isPostedLoading = isAccountCountsLoading || (view === "all" && activeLoading);
+    const isSavedLoading = isAccountCountsLoading || (view === "saved" && activeLoading);
+    const isLikedLoading = isAccountCountsLoading || (view === "liked" && activeLoading);
+
     return (
       <AccountFeedHeaderAction
         view={view}
@@ -173,7 +179,9 @@ export function useAccountPageViewModel(args: Args) {
         postedCount={resolvedPosted}
         savedCount={resolvedSaved}
         likedCount={resolvedLiked}
-        isLoading={isLoading}
+        isPostedLoading={isPostedLoading}
+        isSavedLoading={isSavedLoading}
+        isLikedLoading={isLikedLoading}
       />
     );
   }, [view, setView, accountCounts, activeLoading, isAccountCountsLoading, args.posts.length, args.savedPosts.length, args.likedPosts.length]);

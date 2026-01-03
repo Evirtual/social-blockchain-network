@@ -19,8 +19,12 @@ export function useAccountFeedView(params: {
     return params.posts.map((p) => ({ ...p, contextTag: undefined }));
   }, [view, params.posts, params.savedPosts, params.likedPosts]);
 
-  const activeLoading =
+  const rawLoading =
     view === "saved" ? params.isLoadingSaved : view === "liked" ? params.isLoadingLiked : params.isFeedLoading;
+
+  // If we already have items to show, don't keep the whole feed in a loading state.
+  // (Saved/Liked scans can continue in the background across multiple networks.)
+  const activeLoading = rawLoading && activePosts.length === 0;
 
   return {
     view,

@@ -78,31 +78,73 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     ? extraNetworks.filter((n) => selectedSet.has(String(n.chainId)))
     : extraNetworks;
 
-
   if (!provider && extraNetworks.length === 0) return;
 
   const resolveRpcContractAddress = createResolveRpcContractAddress({ withTimeout });
+
+  // Phase 1: try subgraph first for every selected network.
+  // This avoids *any* RPC calls (wallet provider / public RPC) during normal operation.
+  const subgraphAttempts: Array<Promise<{ chainIdNum: number; ok: true } | { chainIdNum: number; ok: false }>> = [];
+  const subgraphOkChainIds = new Set<number>();
+  const subgraphFailedChainIds = new Set<number>();
+
+  const enqueueSubgraphAttempt = (chainIdNum: number) => {
+    const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+    if (!subgraphUrl) return;
+
+    const chainIdStr = String(chainIdNum);
+    const label = `Feed subgraph ${chainIdStr}`;
+    const task = withTimeout(
+      (async () => {
+        const loaded = await loadFeedFromSubgraph({
+          url: subgraphUrl,
+          chainIdStr,
+          first: 200,
+          account: normalizedAccount
+        });
+        setPosts((prev) => mergePosts(prev, loaded, postKey));
+        subgraphOkChainIds.add(chainIdNum);
+        return { chainIdNum, ok: true as const };
+      })(),
+      25_000,
+      label
+    ).catch(() => {
+      subgraphFailedChainIds.add(chainIdNum);
+      return { chainIdNum, ok: false as const };
+    });
+
+    subgraphAttempts.push(task);
+  };
+
+  if (currentChainIdNumber != null && selectedSet.has(String(currentChainIdNumber))) {
+    enqueueSubgraphAttempt(currentChainIdNumber);
+  }
+
+  for (const cfg of filteredExtraNetworks) {
+    enqueueSubgraphAttempt(cfg.chainId);
+  }
+
+  if (subgraphAttempts.length > 0) {
+    await Promise.all(subgraphAttempts);
+  }
+
+  // Phase 2: RPC fallback only for networks where subgraph is missing or failed.
+  const extraNetworksForRpcFallback = filteredExtraNetworks.filter((cfg) => {
+    const hasSubgraph = !!getSubgraphUrlForChainId(env, cfg.chainId);
+    if (!hasSubgraph) return true;
+    return subgraphFailedChainIds.has(cfg.chainId);
+  });
+
+  const skipCurrentNetworkRpc =
+    currentChainIdNumber != null &&
+    selectedSet.has(String(currentChainIdNumber)) &&
+    subgraphOkChainIds.has(currentChainIdNumber);
 
   const loadFromProvider = async (
     chainIdNum: number | null,
     networkProvider: ChainProvider | null,
     readContract: SocialPostsContract | null
   ): Promise<Post[]> => {
-    const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-    if (subgraphUrl) {
-      const chainIdStr = chainIdNum != null ? String(chainIdNum) : undefined;
-      try {
-        return await loadFeedFromSubgraph({
-          url: subgraphUrl,
-          chainIdStr,
-          first: 200,
-          account: normalizedAccount
-        });
-      } catch {
-        // Subgraphs can take a few minutes to start syncing after deploy.
-        // During that warm-up window, keep the app functional by falling back to RPC scanning.
-      }
-    }
     if (!networkProvider || !readContract) return [];
     return await loadFeedFromProvider({
       chainIdNum,
@@ -120,13 +162,14 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
   const networkTasks = await getFeedNetworkTasks({
     currentChainIdNumber,
     configuredNetworks: filteredConfiguredNetworks,
-    extraNetworks: filteredExtraNetworks,
+    extraNetworks: extraNetworksForRpcFallback,
     provider,
     walletAddress: walletAddress ?? null,
     ensureContractDeployedOnCurrentNetwork: contract.ensureContractDeployedOnCurrentNetwork,
     getReadContract: contract.getReadContract,
     getRpcProvider,
     resolveRpcContractAddress,
+    skipCurrentNetwork: skipCurrentNetworkRpc,
     taskTimeoutMs: 25_000,
     withTimeout,
     loadFromProvider,

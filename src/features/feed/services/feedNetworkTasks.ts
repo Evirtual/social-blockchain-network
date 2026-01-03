@@ -9,6 +9,8 @@ export async function getFeedNetworkTasks(args: {
   provider: ChainProvider | null | undefined;
   walletAddress: string | null | undefined;
 
+  skipCurrentNetwork?: boolean;
+
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: ReadContractFactory;
 
@@ -31,6 +33,7 @@ export async function getFeedNetworkTasks(args: {
     extraNetworks,
     provider,
     walletAddress,
+    skipCurrentNetwork,
     ensureContractDeployedOnCurrentNetwork,
     getReadContract,
     getRpcProvider,
@@ -53,7 +56,7 @@ export async function getFeedNetworkTasks(args: {
   };
 
   // Current chain
-  if (currentChainIdNumber != null) {
+  if (!skipCurrentNetwork && currentChainIdNumber != null) {
     const currentCfg = configuredNetworks.find((n) => n.chainId === currentChainIdNumber);
     const currentRpcUrl = typeof currentCfg?.rpcUrl === "string" ? currentCfg.rpcUrl.trim() : "";
 
@@ -79,7 +82,7 @@ export async function getFeedNetworkTasks(args: {
     } else if (currentCfg) {
       enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, null, null));
     }
-  } else if (provider) {
+  } else if (!skipCurrentNetwork && provider) {
     // ChainId not resolved yet; fall back to injected provider.
     try {
       await ensureContractDeployedOnCurrentNetwork();

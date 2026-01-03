@@ -7,12 +7,14 @@ type Props = {
   postedCount: number;
   savedCount: number;
   likedCount: number;
-  isLoading?: boolean;
+  isPostedLoading?: boolean;
+  isSavedLoading?: boolean;
+  isLikedLoading?: boolean;
 };
 
 export function AccountFeedHeaderAction(props: Props) {
-  const countNode = (value: number) =>
-    props.isLoading ? <span className="skeletonLine" style={{ width: "1.5rem", height: "0.85rem" }} /> : value;
+  const countNode = (value: number, isLoading?: boolean) =>
+    isLoading ? <span className="skeletonLine" style={{ width: "1.5rem", height: "0.85rem" }} /> : value;
 
   return (
     <div className="accountFeedHeaderTabs">
@@ -24,7 +26,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Posted (${props.postedCount})`}
       >
         <IconEdit size={20} />
-        <span className="accountFeedTabCount">{countNode(props.postedCount)}</span>
+        <span className="accountFeedTabCount">{countNode(props.postedCount, props.isPostedLoading)}</span>
       </button>
       <button
         className={`accountFeedTabButton isSaved ${props.view === "saved" ? "isActive" : ""}`}
@@ -34,7 +36,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Saved (${props.savedCount})`}
       >
         <IconBookmark size={20} filled={props.view === "saved"} />
-        <span className="accountFeedTabCount">{countNode(props.savedCount)}</span>
+        <span className="accountFeedTabCount">{countNode(props.savedCount, props.isSavedLoading)}</span>
       </button>
       <button
         className={`accountFeedTabButton isLiked ${props.view === "liked" ? "isActive" : ""}`}
@@ -44,7 +46,7 @@ export function AccountFeedHeaderAction(props: Props) {
         title={`Liked (${props.likedCount})`}
       >
         <IconHeart size={20} filled={props.view === "liked"} />
-        <span className="accountFeedTabCount">{countNode(props.likedCount)}</span>
+        <span className="accountFeedTabCount">{countNode(props.likedCount, props.isLikedLoading)}</span>
       </button>
     </div>
   );
