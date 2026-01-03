@@ -3,6 +3,8 @@ import type { Draft, Post } from "@types";
 import { Modal } from "@shared/components/Modal";
 import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@shared/lib/network";
 import { getPostUrl } from "@features/post/services";
+import { useStatusActions } from "@features/status";
+import { runSocialAction } from "@features/social/services/actions/runSocialAction";
 import { getAvatarStyle, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
 
 export type PostPanel = "comment" | "tip";
@@ -67,6 +69,8 @@ export const PostCard = memo(function PostCard(props: Props) {
   const [reportDraft, setReportDraft] = useState("");
   const [isReporting, setIsReporting] = useState(false);
 
+  const { setStatus } = useStatusActions();
+
   const hasMedia = useMemo(() => !!props.post.image || !!props.post.animationUrl, [props.post.image, props.post.animationUrl]);
 
   const explorer = useMemo(() => {
@@ -97,9 +101,15 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
-      props.togglePanel(props.panelKey, panel);
+      void runSocialAction<void>({
+        walletAddress: props.walletAddress,
+        setStatus,
+        action: async () => {
+          props.togglePanel(props.panelKey, panel);
+        }
+      });
     },
-    [props.togglePanel, props.panelKey]
+    [props.togglePanel, props.panelKey, props.walletAddress, setStatus]
   );
 
   const onStartEdit = useCallback(() => {

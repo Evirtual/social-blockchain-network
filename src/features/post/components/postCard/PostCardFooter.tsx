@@ -3,6 +3,7 @@ import { memo, useCallback } from "react";
 import type { Post } from "@types";
 import type { CSSProperties } from "react";
 import type { PostPanel } from "../PostCard";
+import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
 
 export type PostCardFooterProps = {
@@ -91,12 +92,20 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
 
   const onToggleComment = useCallback(() => {
     if (!canOpenComments) return;
+    if (!props.walletAddress) {
+      requestConnectNudge();
+      return;
+    }
     props.onTogglePanel("comment");
-  }, [props.onTogglePanel, canOpenComments]);
+  }, [props.onTogglePanel, canOpenComments, props.walletAddress]);
 
   const onToggleTip = useCallback(() => {
+    if (!props.walletAddress) {
+      requestConnectNudge();
+      return;
+    }
     props.onTogglePanel("tip");
-  }, [props.onTogglePanel]);
+  }, [props.onTogglePanel, props.walletAddress]);
 
   const isBusy = inFlight !== null;
 
