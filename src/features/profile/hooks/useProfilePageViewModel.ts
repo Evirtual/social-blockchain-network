@@ -31,6 +31,7 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
       profileDraftAvatarUrl: args.profileState.profileDraftAvatarUrl,
       profileDraftAvatarDataUrl: args.profileState.profileDraftAvatarDataUrl,
       isProfileAvatarLoading: args.profileState.isProfileAvatarLoading,
+      isProfileSaving: args.profileState.isProfileSaving,
       setProfileDraftName: args.profileActions.setProfileDraftName,
       setProfileDraftBio: args.profileActions.setProfileDraftBio,
       setProfileDraftAvatarUrl: args.profileActions.setProfileDraftAvatarUrl,

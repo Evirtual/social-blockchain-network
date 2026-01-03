@@ -9,7 +9,10 @@ import { CommentHeader } from "./CommentHeader";
 
 type Props = {
   comment: PostComment;
+  authorLabel: string;
+  authorAvatarUrl?: string;
   replyToAddress?: string | null;
+  replyToLabel?: string | null;
   tokenId: string;
   postChainId: string | null;
   explorerChainId: string | null;
@@ -45,8 +48,8 @@ type Props = {
 
 export function CommentItem(props: Props) {
   const { comment } = props;
-  const hue = props.stableHueFromSeed(comment.author.toLowerCase());
-  const label = props.shortAddress(comment.author);
+  const authorKey = comment.author.toLowerCase();
+  const hue = props.stableHueFromSeed(authorKey);
   const explorer = comment.txHash ? props.getExplorerTxUrl(props.explorerChainId, comment.txHash) : null;
   const isMine = !!props.walletLower && comment.author.toLowerCase() === props.walletLower;
   const canEdit = isMine && !comment.deleted;
@@ -82,8 +85,9 @@ export function CommentItem(props: Props) {
     <>
       <CommentHeader
         comment={comment}
-        label={label}
+        label={props.authorLabel}
         hue={hue}
+        avatarUrl={props.authorAvatarUrl}
         explorer={explorer}
         canEdit={canEdit}
         canDelete={canDelete}
@@ -105,7 +109,7 @@ export function CommentItem(props: Props) {
               <>
                 {props.replyToAddress ? (
                   <Link className="commentReplyTo" to={`/profile/${props.replyToAddress}`}>
-                    @{props.shortAddress(props.replyToAddress)}
+                    @{props.replyToLabel?.trim() ? props.replyToLabel : props.shortAddress(props.replyToAddress)}
                   </Link>
                 ) : null}
                 {comment.comment}

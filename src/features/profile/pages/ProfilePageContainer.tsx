@@ -124,6 +124,7 @@ export function ProfilePageContainer({ address }: Props) {
       profileDraftAvatarUrl: profileState.profileDraftAvatarUrl,
       profileDraftAvatarDataUrl: profileState.profileDraftAvatarDataUrl,
       isProfileAvatarLoading: profileState.isProfileAvatarLoading,
+      isProfileSaving: profileState.isProfileSaving,
       selfAvatarHue: profileState.selfAvatarHue,
       authorIdentity: profileState.authorIdentity
     },

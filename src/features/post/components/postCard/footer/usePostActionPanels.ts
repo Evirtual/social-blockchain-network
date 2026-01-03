@@ -40,11 +40,14 @@ export function usePostActionPanels(params: Params) {
     setInFlight("tip");
     try {
       const ok = await onTip(tokenId, tipDraft, postChainId);
-      if (ok) setTipDraft("");
+      if (ok) {
+        setTipDraft("");
+        onTogglePanel("tip");
+      }
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, onTip, tokenId, tipDraft, postChainId]);
+  }, [inFlight, onTip, tokenId, tipDraft, postChainId, onTogglePanel]);
 
   const onCloseComments = useCallback(() => {
     onTogglePanel("comment");

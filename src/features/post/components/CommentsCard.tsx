@@ -1,6 +1,11 @@
 import type { PostComment } from "@types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getPostNetworkUi } from "@shared/lib/network";
+import { useProfileState } from "@features/profile";
+import { getEnv } from "@shared/lib/env";
+import { parseChainIdNumber } from "@shared/lib/chainId";
+import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
+import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { CommentItem } from "./comments/CommentItem";
 import { NewCommentComposer } from "./comments/NewCommentComposer";
 import type { ActionInFlight, ActiveComposer } from "./comments/types";
@@ -39,6 +44,13 @@ type Props = {
 };
 
 export function CommentsCard(props: Props) {
+  const profileState = useProfileState();
+
+  const [commentProfilesByAddress, setCommentProfilesByAddress] = useState<
+    Record<string, { name: string; avatarUrl: string }>
+  >({});
+  const commentProfileLoadInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+
   const [commentDraft, setCommentDraft] = useState<string>("");
   const [activeComposer, setActiveComposer] = useState<ActiveComposer>({ type: null });
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -60,6 +72,98 @@ export function CommentsCard(props: Props) {
   const explorerChainId = props.postChainId ?? props.chainId;
   const nativeSymbol = props.getNativeSymbol(explorerChainId);
   const walletLower = props.walletAddress?.toLowerCase() ?? null;
+
+  const missingCommentAuthors = useMemo(() => {
+    const resolvedChainId = explorerChainId;
+    if (!resolvedChainId) return [];
+    const unique = Array.from(
+      new Set(props.comments.map((c) => (c.author ? c.author.toLowerCase() : "")).filter(Boolean))
+    );
+    if (unique.length === 0) return [];
+    return unique.filter((addr) => !profileState.profilesByAddress[addr] && !commentProfilesByAddress[addr]);
+  }, [props.comments, profileState.profilesByAddress, commentProfilesByAddress, explorerChainId]);
+
+  useEffect(() => {
+    if (missingCommentAuthors.length === 0) return;
+    const resolvedChainId = explorerChainId;
+    if (!resolvedChainId) return;
+
+    const limit = Math.max(1, Math.min(4, missingCommentAuthors.length));
+    let next = 0;
+
+    const task = async () => {
+      const chainIdNum = parseChainIdNumber(resolvedChainId);
+      const subgraphUrl = getSubgraphUrlForChainId(getEnv(), chainIdNum);
+      if (!subgraphUrl) return;
+
+      const workers = Array.from({ length: limit }, async () => {
+        while (true) {
+          const i = next++;
+          if (i >= missingCommentAuthors.length) break;
+
+          const addr = missingCommentAuthors[i];
+          const cacheKey = `${chainIdNum}:${addr}`;
+          const existing = commentProfileLoadInFlightRef.current[cacheKey];
+          if (existing) {
+            await existing;
+            continue;
+          }
+
+          const promise = (async () => {
+            const result = await tryQuerySubgraph<{
+              account: { name?: string | null; avatar?: string | null } | null;
+            }>({
+              url: subgraphUrl,
+              query: `query Profile($id: ID!) { account(id: $id) { name avatar } }`,
+              variables: { id: addr },
+              timeoutMs: 10_000
+            });
+
+            if (!result.ok) return;
+
+            const account = result.data?.account;
+            const name = String(account?.name ?? "");
+            const avatarUrl = String(account?.avatar ?? "");
+            setCommentProfilesByAddress((prev) => ({ ...prev, [addr]: { name, avatarUrl } }));
+          })();
+
+          commentProfileLoadInFlightRef.current[cacheKey] = promise;
+          try {
+            await promise;
+          } finally {
+            commentProfileLoadInFlightRef.current[cacheKey] = null;
+          }
+        }
+      });
+      await Promise.all(workers);
+    };
+
+    void task();
+  }, [missingCommentAuthors, explorerChainId]);
+
+  const getDisplayProfile = useCallback(
+    (address: string) => {
+      const key = address.toLowerCase();
+      return profileState.profilesByAddress[key] ?? commentProfilesByAddress[key];
+    },
+    [profileState.profilesByAddress, commentProfilesByAddress]
+  );
+
+  const getDisplayName = useCallback(
+    (address: string) => {
+      const profile = getDisplayProfile(address);
+      return profile?.name?.trim() ? profile.name : props.shortAddress(address);
+    },
+    [getDisplayProfile, props.shortAddress]
+  );
+
+  const getDisplayAvatarUrl = useCallback(
+    (address: string) => {
+      const profile = getDisplayProfile(address);
+      return profile?.avatarUrl?.trim() ? profile.avatarUrl : undefined;
+    },
+    [getDisplayProfile]
+  );
   const { rootIdById, authorById } = useMemo(() => {
     const commentIds = new Set<string>();
     const parentById = new Map<string, string | null>();
@@ -155,6 +259,8 @@ export function CommentsCard(props: Props) {
               <article key={c.commentId ?? `${c.txHash ?? "nohash"}-${c.logIndex ?? idx}`} className="post comment">
                 <CommentItem
                   comment={c}
+                  authorLabel={getDisplayName(c.author)}
+                  authorAvatarUrl={getDisplayAvatarUrl(c.author)}
                   tokenId={props.tokenId}
                   postChainId={props.postChainId}
                   explorerChainId={explorerChainId}
@@ -197,6 +303,13 @@ export function CommentsCard(props: Props) {
                         <CommentItem
                           comment={reply}
                           replyToAddress={reply.parentId ? authorById.get(reply.parentId) ?? reply.parentId : null}
+                          replyToLabel={
+                            reply.parentId
+                              ? getDisplayName(authorById.get(reply.parentId) ?? reply.parentId)
+                              : null
+                          }
+                          authorLabel={getDisplayName(reply.author)}
+                          authorAvatarUrl={getDisplayAvatarUrl(reply.author)}
                           tokenId={props.tokenId}
                           postChainId={props.postChainId}
                           explorerChainId={explorerChainId}

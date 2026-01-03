@@ -36,6 +36,7 @@ export function useAccountPageProps(args: {
     profileDraftAvatarUrl: string;
     profileDraftAvatarDataUrl: string;
     isProfileAvatarLoading: boolean;
+    isProfileSaving: boolean;
 
     setProfileDraftName: (v: string) => void;
     setProfileDraftBio: (v: string) => void;
@@ -126,6 +127,7 @@ export function useAccountPageProps(args: {
         profileDraftAvatarUrl: profileCtx.profileDraftAvatarUrl,
         profileDraftAvatarDataUrl: profileCtx.profileDraftAvatarDataUrl,
         isProfileAvatarLoading: profileCtx.isProfileAvatarLoading,
+        isProfileSaving: profileCtx.isProfileSaving,
         onProfileDraftNameChange: profileCtx.setProfileDraftName,
         onProfileDraftBioChange: profileCtx.setProfileDraftBio,
         onProfileDraftAvatarUrlChange: profileCtx.setProfileDraftAvatarUrl,
@@ -186,6 +188,7 @@ export function useAccountPageProps(args: {
     profileCtx.profileDraftAvatarUrl,
     profileCtx.profileDraftAvatarDataUrl,
     profileCtx.isProfileAvatarLoading,
+    profileCtx.isProfileSaving,
     profileCtx.setProfileDraftName,
     profileCtx.setProfileDraftBio,
     profileCtx.setProfileDraftAvatarUrl,

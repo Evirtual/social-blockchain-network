@@ -9,6 +9,7 @@ type Props = {
   profileDraftAvatarUrl: string;
   profileDraftAvatarDataUrl: string;
   isProfileAvatarLoading: boolean;
+  isProfileSaving: boolean;
   onProfileDraftNameChange: (value: string) => void;
   onProfileDraftBioChange: (value: string) => void;
   onProfileDraftAvatarUrlChange: (value: string) => void;
@@ -19,6 +20,8 @@ type Props = {
 };
 
 export function ProfileEditModal(props: Props) {
+  const isBusy = props.isProfileAvatarLoading || props.isProfileSaving;
+
   return (
     <Modal
       open={props.open}
@@ -32,6 +35,7 @@ export function ProfileEditModal(props: Props) {
           value={props.profileDraftName}
           onChange={(e) => props.onProfileDraftNameChange(e.target.value)}
           placeholder="Display name"
+          disabled={isBusy}
         />
         <textarea
           className="textarea"
@@ -39,6 +43,7 @@ export function ProfileEditModal(props: Props) {
           value={props.profileDraftBio}
           onChange={(e) => props.onProfileDraftBioChange(e.target.value)}
           placeholder="Bio"
+          disabled={isBusy}
         />
 
         <input
@@ -46,6 +51,7 @@ export function ProfileEditModal(props: Props) {
           value={props.profileDraftAvatarUrl}
           onChange={(e) => props.onProfileDraftAvatarUrlChange(e.target.value)}
           placeholder="Avatar image URL (or upload below)"
+          disabled={isBusy}
         />
 
         <div className="row fileRow">
@@ -54,8 +60,9 @@ export function ProfileEditModal(props: Props) {
             type="file"
             accept="image/*"
             onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
+            disabled={isBusy}
           />
-          <button type="button" className="secondary" onClick={props.onClearProfileAvatar}>
+          <button type="button" className="secondary" onClick={props.onClearProfileAvatar} disabled={isBusy}>
             Clear
           </button>
         </div>
@@ -65,10 +72,17 @@ export function ProfileEditModal(props: Props) {
         )}
 
         <div className="rowActions">
-          <button className="secondary" type="button" onClick={props.onCancelEditProfile}>
+          <button className="secondary" type="button" onClick={props.onCancelEditProfile} disabled={isBusy}>
             Cancel
           </button>
-          <button className="primary" type="button" onClick={props.onSaveProfile} disabled={props.isProfileAvatarLoading}>
+          <button
+            className="primary buttonWithSpinner"
+            type="button"
+            onClick={props.onSaveProfile}
+            disabled={isBusy}
+            aria-busy={props.isProfileSaving}
+          >
+            {props.isProfileSaving ? <span className="spinner" aria-hidden="true" /> : null}
             Save
           </button>
         </div>

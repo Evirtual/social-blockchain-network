@@ -38,6 +38,7 @@ export type ProfilePageViewModelInput = {
     profileDraftAvatarUrl: string;
     profileDraftAvatarDataUrl: string;
     isProfileAvatarLoading: boolean;
+    isProfileSaving: boolean;
     selfAvatarHue: number;
     authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
   };

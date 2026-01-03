@@ -32,6 +32,7 @@ export type ProfileCardProps = {
   profileDraftAvatarUrl: string;
   profileDraftAvatarDataUrl: string;
   isProfileAvatarLoading: boolean;
+  isProfileSaving: boolean;
   onProfileDraftNameChange: (value: string) => void;
   onProfileDraftBioChange: (value: string) => void;
   onProfileDraftAvatarUrlChange: (value: string) => void;
@@ -162,6 +163,7 @@ export function ProfileCard(props: ProfileCardProps) {
           profileDraftAvatarUrl={props.profileDraftAvatarUrl}
           profileDraftAvatarDataUrl={props.profileDraftAvatarDataUrl}
           isProfileAvatarLoading={props.isProfileAvatarLoading}
+          isProfileSaving={props.isProfileSaving}
           onProfileDraftNameChange={props.onProfileDraftNameChange}
           onProfileDraftBioChange={props.onProfileDraftBioChange}
           onProfileDraftAvatarUrlChange={props.onProfileDraftAvatarUrlChange}

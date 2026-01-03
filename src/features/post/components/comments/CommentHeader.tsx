@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import type { PostComment } from "@types";
 import { IconEdit, IconFlag, IconRepeat, IconTrash } from "@shared/components/icons";
+import { ipfsToHttp } from "@features/ipfs";
 
 type Props = {
   comment: PostComment;
   label: string;
   hue: number;
+  avatarUrl?: string;
   explorer: string | null;
   canEdit: boolean;
   canDelete: boolean;
@@ -19,9 +21,13 @@ type Props = {
 };
 
 export function CommentHeader(props: Props) {
+  const avatarStyle = props.avatarUrl?.trim()
+    ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
+    : { background: `hsl(${props.hue} 75% 55%)` };
+
   return (
     <div className="postHead">
-      <div className="avatar small" style={{ background: `hsl(${props.hue} 75% 55%)` }} />
+      <div className="avatar small" style={avatarStyle} />
       <div className="postHeadMain">
         <div className="postHeadTop">
           <div className="postAuthor">

@@ -61,6 +61,7 @@ export function useProfilesState({
   const [profileUploadedAvatarBlob, setProfileUploadedAvatarBlob] = useState<Blob | null>(null);
   const [profileUploadedAvatarFilename, setProfileUploadedAvatarFilename] = useState<string>("");
   const [isProfileAvatarLoading, setIsProfileAvatarLoading] = useState(false);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
 
   const ipfsConfigured = hasPinata();
 
@@ -88,7 +89,8 @@ export function useProfilesState({
       setProfileDraftAvatarDataUrl,
       setProfileUploadedAvatarBlob,
       setProfileUploadedAvatarFilename,
-      setIsProfileAvatarLoading
+      setIsProfileAvatarLoading,
+      setIsProfileSaving
     });
   }, [chainId]);
 
@@ -208,7 +210,8 @@ export function useProfilesState({
         setProfileDraftAvatarDataUrl,
         setProfileUploadedAvatarBlob,
         setProfileUploadedAvatarFilename,
-        setIsProfileAvatarLoading
+        setIsProfileAvatarLoading,
+        setIsProfileSaving
       });
       return;
     }
@@ -274,6 +277,8 @@ export function useProfilesState({
   }, [profileName, profileBio, profileAvatarUrl]);
 
   const saveProfile = useCallback(async () => {
+    if (isProfileSaving || isProfileAvatarLoading) return;
+    setIsProfileSaving(true);
     try {
       if (!walletAddress) return;
 
@@ -309,6 +314,8 @@ export function useProfilesState({
       setProfileDraftAvatarDataUrl("");
     } catch (error) {
       setStatusFromError(setStatus, error as ErrorInput);
+    } finally {
+      setIsProfileSaving(false);
     }
   }, [
     walletAddress,
@@ -318,6 +325,8 @@ export function useProfilesState({
     profileDraftAvatarDataUrl,
     profileUploadedAvatarBlob,
     profileUploadedAvatarFilename,
+    isProfileAvatarLoading,
+    isProfileSaving,
     ipfsConfigured,
     getWriteContract,
     runContractTx,
@@ -338,6 +347,7 @@ export function useProfilesState({
     profileDraftAvatarUrl,
     profileDraftAvatarDataUrl,
     isProfileAvatarLoading,
+    isProfileSaving,
 
     setProfileDraftName,
     setProfileDraftBio,

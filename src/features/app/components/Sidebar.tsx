@@ -25,6 +25,7 @@ export function Sidebar({
   profileDraftAvatarUrl,
   profileDraftAvatarDataUrl,
   isProfileAvatarLoading,
+  isProfileSaving,
   onProfileDraftNameChange,
   onProfileDraftBioChange,
   onProfileDraftAvatarUrlChange,
@@ -66,6 +67,7 @@ export function Sidebar({
         profileDraftAvatarUrl={profileDraftAvatarUrl}
         profileDraftAvatarDataUrl={profileDraftAvatarDataUrl}
         isProfileAvatarLoading={isProfileAvatarLoading}
+        isProfileSaving={isProfileSaving}
         onProfileDraftNameChange={onProfileDraftNameChange}
         onProfileDraftBioChange={onProfileDraftBioChange}
         onProfileDraftAvatarUrlChange={onProfileDraftAvatarUrlChange}

@@ -86,6 +86,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
   const commentActions = useCommentActions({
     walletAddress,
     chainId,
+    refreshWalletPanel,
     getWriteContract,
     runContractTx,
     feed: {

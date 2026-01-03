@@ -45,6 +45,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     profileDraftAvatarUrl,
     profileDraftAvatarDataUrl,
     isProfileAvatarLoading,
+    isProfileSaving,
     setProfileDraftName,
     setProfileDraftBio,
     setProfileDraftAvatarUrl,
@@ -158,6 +159,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profileDraftAvatarUrl,
       profileDraftAvatarDataUrl,
       isProfileAvatarLoading,
+      isProfileSaving,
       selfAvatarHue,
       profileLink,
       authorIdentity
@@ -176,6 +178,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profileDraftAvatarUrl,
       profileDraftAvatarDataUrl,
       isProfileAvatarLoading,
+      isProfileSaving,
       selfAvatarHue,
       profileLink,
       authorIdentity

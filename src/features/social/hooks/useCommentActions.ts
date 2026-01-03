@@ -26,13 +26,14 @@ type RunContractTxLike = <T = void>(
 export function useCommentActions(args: {
   walletAddress: string | null;
   chainId: string | null;
+  refreshWalletPanel: () => Promise<void>;
   getWriteContract: WriteContractFactory;
   runContractTx: RunContractTxLike;
   feed: FeedLike;
   setStatus: (value: string) => void;
   ensureMatchingNetwork: (postChainId?: string | null) => boolean;
 }) {
-  const { walletAddress, chainId, getWriteContract, runContractTx, feed, setStatus, ensureMatchingNetwork } = args;
+  const { walletAddress, chainId, refreshWalletPanel, getWriteContract, runContractTx, feed, setStatus, ensureMatchingNetwork } = args;
 
   const updateCommentsForPost = useCallback(
     (tokenId: string, postChainId: string | null | undefined, update: (prev: PostComment[]) => PostComment[]) => {
@@ -232,11 +233,12 @@ export function useCommentActions(args: {
         updateCommentsForPost(tokenId, postChainId, (prev) =>
           prev.map((c) => (c.commentId === commentId ? { ...c, tipWei: (c.tipWei ?? 0n) + valueWei } : c))
         );
+        void refreshWalletPanel();
         return true;
       });
       return result.ok ? result.value : false;
     },
-    [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus]
+    [runGuarded, getWriteContract, runContractTx, updateCommentsForPost, setStatus, refreshWalletPanel]
   );
 
   const reportPost = useCallback(

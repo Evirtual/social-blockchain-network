@@ -17,6 +17,7 @@ export type ProfileState = {
   profileDraftAvatarUrl: string;
   profileDraftAvatarDataUrl: string;
   isProfileAvatarLoading: boolean;
+  isProfileSaving: boolean;
   selfAvatarHue: number;
   profileLink: string | null;
 

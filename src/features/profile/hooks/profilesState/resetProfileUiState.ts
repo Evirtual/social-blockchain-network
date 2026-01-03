@@ -10,6 +10,7 @@ export function resetProfileUiState(setters: {
   setProfileUploadedAvatarBlob: (v: Blob | null) => void;
   setProfileUploadedAvatarFilename: (v: string) => void;
   setIsProfileAvatarLoading: (v: boolean) => void;
+  setIsProfileSaving: (v: boolean) => void;
 }) {
   setters.setProfileName("");
   setters.setProfileBio("");
@@ -22,4 +23,5 @@ export function resetProfileUiState(setters: {
   setters.setProfileUploadedAvatarBlob(null);
   setters.setProfileUploadedAvatarFilename("");
   setters.setIsProfileAvatarLoading(false);
+  setters.setIsProfileSaving(false);
 }
