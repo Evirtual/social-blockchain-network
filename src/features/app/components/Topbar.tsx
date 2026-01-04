@@ -10,9 +10,10 @@ type Props = {
   onOpenComposer: () => void;
   rightSlot?: ReactNode;
   connectNudge?: boolean;
+  composeNudge?: boolean;
 };
 
-export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, onOpenComposer, rightSlot, connectNudge }: Props) {
+export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, onOpenComposer, rightSlot, connectNudge, composeNudge }: Props) {
   return (
     <header className="topbar">
       <Link className="brand" to="/">
@@ -29,7 +30,12 @@ export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, o
 
         <div className="topbarControls">
           {walletAddress ? (
-            <button className="primary iconButton" type="button" onClick={onOpenComposer} aria-label="Create post">
+            <button
+              className={`primary iconButton ${composeNudge ? "composeNudge" : ""}`}
+              type="button"
+              onClick={onOpenComposer}
+              aria-label="Create post"
+            >
               <IconPlus size={18} />
             </button>
           ) : null}

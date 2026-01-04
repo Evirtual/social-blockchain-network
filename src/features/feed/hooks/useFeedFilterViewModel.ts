@@ -18,12 +18,14 @@ type Args = {
   chainId: string | null;
   isFeedLoading?: boolean;
   useSubgraphSearch?: boolean;
+  fallbackSelectedNetworkChainIds?: string[];
   authorAddress?: string | null;
   countMode?: "auto" | "visible";
 };
 
 export function useFeedFilterViewModel(args: Args) {
   const countMode: "auto" | "visible" = args.countMode ?? "auto";
+  const enableSubgraphQueries = args.useSubgraphSearch !== false;
   const supportedNetworks = useSupportedNetworks();
   const { searchQuery, setSearchQuery, selectedNetworkChainIds, setSelectedNetworkChainIds, isNetworkFilterActive } =
     useNetworkFilterState({
@@ -42,6 +44,11 @@ export function useFeedFilterViewModel(args: Args) {
 
   const basePosts = remoteSearchPosts ?? args.posts;
   const authorFilter = typeof args.authorAddress === "string" ? args.authorAddress.trim().toLowerCase() : "";
+  const effectiveSelectedNetworkChainIds = useMemo(() => {
+    if (selectedNetworkChainIds.length) return selectedNetworkChainIds;
+    const fallback = (args.fallbackSelectedNetworkChainIds ?? []).filter((x) => typeof x === "string" && x.trim());
+    return fallback.length ? fallback : selectedNetworkChainIds;
+  }, [selectedNetworkChainIds, args.fallbackSelectedNetworkChainIds]);
   const scopedPosts = useMemo(() => {
     if (!authorFilter) return basePosts;
     return basePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter);
@@ -52,12 +59,18 @@ export function useFeedFilterViewModel(args: Args) {
       authorIdentity: args.authorIdentity,
       shortAddress: args.shortAddress,
       searchQuery,
-      selectedNetworkChainIds
+      selectedNetworkChainIds: effectiveSelectedNetworkChainIds
     });
-  }, [scopedPosts, args.authorIdentity, args.shortAddress, searchQuery, selectedNetworkChainIds]);
+  }, [scopedPosts, args.authorIdentity, args.shortAddress, searchQuery, effectiveSelectedNetworkChainIds]);
 
   useEffect(() => {
     if (countMode !== "auto") {
+      setTotalPostsCount(null);
+      setIsTotalPostsLoading(false);
+      return;
+    }
+
+    if (!enableSubgraphQueries) {
       setTotalPostsCount(null);
       setIsTotalPostsLoading(false);
       return;
@@ -147,10 +160,16 @@ export function useFeedFilterViewModel(args: Args) {
     return () => {
       active = false;
     };
-  }, [countMode, supportedNetworks, selectedNetworkChainIds, authorFilter]);
+  }, [countMode, enableSubgraphQueries, supportedNetworks, selectedNetworkChainIds, authorFilter]);
 
   useEffect(() => {
     if (countMode !== "auto") {
+      setAuthorPostsCount(null);
+      setIsAuthorPostsLoading(false);
+      return;
+    }
+
+    if (!enableSubgraphQueries) {
       setAuthorPostsCount(null);
       setIsAuthorPostsLoading(false);
       return;
@@ -238,7 +257,7 @@ export function useFeedFilterViewModel(args: Args) {
     return () => {
       active = false;
     };
-  }, [countMode, supportedNetworks, selectedNetworkChainIds, authorFilter]);
+  }, [countMode, enableSubgraphQueries, supportedNetworks, selectedNetworkChainIds, authorFilter]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -252,7 +271,7 @@ export function useFeedFilterViewModel(args: Args) {
     const trimmedQuery = debouncedSearchQuery.trim();
     const minQueryLength = 3;
 
-    if (!args.useSubgraphSearch || !trimmedQuery || trimmedQuery.length < minQueryLength) {
+    if (!enableSubgraphQueries || !trimmedQuery || trimmedQuery.length < minQueryLength) {
       setRemoteSearchPosts(null);
       return () => {
         active = false;
@@ -373,7 +392,7 @@ export function useFeedFilterViewModel(args: Args) {
       active = false;
     };
   }, [
-    args.useSubgraphSearch,
+    enableSubgraphQueries,
     debouncedSearchQuery,
     selectedNetworkChainIds,
     supportedNetworks,
@@ -382,12 +401,13 @@ export function useFeedFilterViewModel(args: Args) {
   ]);
 
   const trimmedQuery = searchQuery.trim();
-  const noNetworksSelected = selectedNetworkChainIds.length === 0;
+  const noNetworksSelected = effectiveSelectedNetworkChainIds.length === 0;
   const visiblePostsCount = filteredPosts.length;
   const isPillLoading =
     countMode === "auto" &&
     !noNetworksSelected &&
     !trimmedQuery &&
+    enableSubgraphQueries &&
     (Boolean(args.isFeedLoading) || (authorFilter ? isAuthorPostsLoading : isTotalPostsLoading));
   const pillText = noNetworksSelected
     ? ""

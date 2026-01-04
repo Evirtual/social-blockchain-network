@@ -4,6 +4,7 @@ import type { PostActionsController } from "@features/post";
 export type FeedViewModel = {
   title?: string;
   pillText?: string;
+  banner?: React.ReactNode;
   headerInlineAction?: React.ReactNode;
   headerAction?: React.ReactNode;
   headerActionPlacement?: "right" | "inline";

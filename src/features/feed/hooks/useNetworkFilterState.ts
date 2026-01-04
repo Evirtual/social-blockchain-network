@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
+import { normalizeChainIdToString } from "@shared/lib/chainId";
 
 type Args = {
   searchQueryKey: string;
@@ -14,6 +15,7 @@ export function useNetworkFilterState({
   searchQueryKey,
   selectedNetworksKey,
   walletAddress,
+  chainId,
   supportedNetworks
 }: Args) {
   const [searchQuery, setSearchQuery] = useSessionStorageState<string>(searchQueryKey, "", {
@@ -54,6 +56,22 @@ export function useNetworkFilterState({
     didInitDisconnectedNetworksRef.current = true;
     setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
   }, [walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    const current = normalizeChainIdToString(chainId) ?? null;
+    if (!current) return;
+
+    // If the user previously filtered to some other network(s), ensure the
+    // currently connected chain is included so the feed updates immediately.
+    if (selectedNetworkChainIds.includes(current)) return;
+    setSelectedNetworkChainIds((prev) => {
+      const next = Array.isArray(prev) ? prev.slice() : [];
+      if (next.includes(current)) return next;
+      next.push(current);
+      return next;
+    });
+  }, [walletAddress, chainId, selectedNetworkChainIds, setSelectedNetworkChainIds]);
 
   const isNetworkFilterActive = useMemo(() => {
     const all = new Set(supportedNetworks.map((n) => String(n.chainId)));

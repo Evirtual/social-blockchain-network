@@ -23,13 +23,17 @@ export function useFeedRefresh(params: {
   contract: ContractLike;
   setStatus: (s: string) => void;
   selectedNetworkChainIds: string[];
+  enabled?: boolean;
 }) {
   const {
     wallet: { provider, walletAddress, chainId, walletEpoch },
     contract,
     setStatus,
-    selectedNetworkChainIds
+    selectedNetworkChainIds,
+    enabled
   } = params;
+
+  const isEnabled = enabled !== false;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
@@ -59,6 +63,7 @@ export function useFeedRefresh(params: {
 
   const refreshFeed = useCallback(
     async (accountOverride?: string | null) => {
+      if (!isEnabled) return;
       const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
       const MIN_REFRESH_INTERVAL_MS = 1_500;
       const refreshEpoch = snapshotEpoch();
@@ -152,11 +157,12 @@ export function useFeedRefresh(params: {
         lastRefreshedNetworksSigRef.current = selectedNetworksSig;
       }
     },
-    [provider, walletAddress, chainId, contract, setStatus, selectedNetworkChainIds, selectedNetworksSig]
+    [isEnabled, provider, walletAddress, chainId, contract, setStatus, selectedNetworkChainIds, selectedNetworksSig]
   );
 
   const lastSelectedNetworksSigRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!isEnabled) return;
     const isInitial = lastSelectedNetworksSigRef.current === null;
     if (isInitial) {
       lastSelectedNetworksSigRef.current = selectedNetworksSig;
@@ -178,7 +184,7 @@ export function useFeedRefresh(params: {
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status
     });
-  }, [selectedNetworksSig, bumpEpoch, refreshFeed, walletAddress]);
+  }, [isEnabled, selectedNetworksSig, bumpEpoch, refreshFeed, walletAddress]);
 
   const hasAnyReadOnlyRpc = useHasAnyReadOnlyRpc();
 
@@ -187,6 +193,7 @@ export function useFeedRefresh(params: {
   const lastWalletAddressLowerRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
+    if (!isEnabled) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
 
     const isInitialEpoch = lastWalletEpochRef.current === -1;
@@ -224,11 +231,12 @@ export function useFeedRefresh(params: {
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status
     });
-  }, [provider, walletEpoch, chainId, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
+  }, [isEnabled, provider, walletEpoch, chainId, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
   useEffect(() => {
     const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
     if (isVitest) return;
+    if (!isEnabled) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
 
     let stopped = false;
@@ -252,7 +260,7 @@ export function useFeedRefresh(params: {
       window.clearInterval(id);
       document.removeEventListener?.("visibilitychange", onVisibility);
     };
-  }, [provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
+  }, [isEnabled, provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
   return useMemo(
     () => ({

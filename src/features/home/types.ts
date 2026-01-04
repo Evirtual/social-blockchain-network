@@ -21,6 +21,9 @@ export type HomePageViewModel = {
   status: string;
   isFeedLoading: boolean;
   walletAddress: string | null;
+  isDemoModeEnabled: boolean;
+  isLiveFeedEnabled: boolean;
+  demoStep: "connect" | "approve" | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
   postActions: PostActionsController;
   shortAddress: (address: string) => string;

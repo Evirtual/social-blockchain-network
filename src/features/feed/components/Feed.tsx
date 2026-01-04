@@ -10,6 +10,7 @@ import type { FeedViewModel } from "../types";
 export const Feed = memo(function Feed({
   title,
   pillText,
+  banner,
   headerInlineAction,
   headerAction,
   headerActionPlacement,
@@ -57,6 +58,7 @@ export const Feed = memo(function Feed({
 
   return (
     <section className="feed">
+      {banner ?? null}
       <FeedHeader
         title={title}
         pillText={pillText}

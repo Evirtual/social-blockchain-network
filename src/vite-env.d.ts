@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  readonly VITE_DEMO_MODE?: string;
+  readonly VITE_DEBUG_FEED_GATE?: string;
   readonly VITE_CONTRACT_ADDRESS?: string;
   readonly VITE_CONTRACT_ADDRESS_ETH?: string;
   readonly VITE_CONTRACT_ADDRESS_SEPOLIA?: string;

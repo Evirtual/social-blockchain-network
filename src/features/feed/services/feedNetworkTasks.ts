@@ -72,25 +72,36 @@ export async function getFeedNetworkTasks(args: {
         })()
       );
     } else if (provider) {
-      try {
-        await ensureContractDeployedOnCurrentNetwork();
-        const currentReadContract = await getReadContract();
-        enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, provider, currentReadContract));
-      } catch {
-        // If the connected network isn't configured, still try any configured read-only networks.
-      }
+      enqueueLoad(
+        `Feed network ${currentChainIdNumber}`,
+        (async () => {
+          try {
+            await ensureContractDeployedOnCurrentNetwork();
+            const currentReadContract = await getReadContract();
+            return await loadFromProvider(currentChainIdNumber, provider, currentReadContract);
+          } catch {
+            // If the connected network isn't configured, still try any configured read-only networks.
+            return [];
+          }
+        })()
+      );
     } else if (currentCfg) {
       enqueueLoad(`Feed network ${currentChainIdNumber}`, loadFromProvider(currentChainIdNumber, null, null));
     }
   } else if (!skipCurrentNetwork && provider) {
     // ChainId not resolved yet; fall back to injected provider.
-    try {
-      await ensureContractDeployedOnCurrentNetwork();
-      const currentReadContract = await getReadContract();
-      enqueueLoad("Feed current network", loadFromProvider(currentChainIdNumber, provider, currentReadContract));
-    } catch {
-      // ignore
-    }
+    enqueueLoad(
+      "Feed current network",
+      (async () => {
+        try {
+          await ensureContractDeployedOnCurrentNetwork();
+          const currentReadContract = await getReadContract();
+          return await loadFromProvider(currentChainIdNumber, provider, currentReadContract);
+        } catch {
+          return [];
+        }
+      })()
+    );
   }
 
   // Other chains

@@ -26,7 +26,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId } = useWalletState();
   const { setStatus } = useStatusActions();
   const contract = useContractActionsFacade();
-  const { posts } = useFeedState();
+  const feedState = useFeedState();
+  const { posts } = feedState;
   const { runContractTx } = contract;
 
   const getReadContract = contract.getReadContract;
@@ -143,7 +144,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const authorIdentity = useAuthorIdentity(posts, profilesByAddress);
 
-  usePrefetchMissingAuthorProfiles(Boolean(provider), posts, profilesByAddress, loadProfile, 4);
+  usePrefetchMissingAuthorProfiles(Boolean(provider) && feedState.isLiveFeedEnabled, posts, profilesByAddress, loadProfile, 4);
 
   const stateValue = useMemo<ProfileState>(
     () => ({

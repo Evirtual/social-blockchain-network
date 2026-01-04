@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ComposerCard, Topbar, TxToaster, WalletProfileLink } from "./features/app";
 import { Modal } from "@shared/components/Modal";
 import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
-import { useConnectNudge, useConnectWallet } from "./features/app";
+import { useComposeNudge, useConnectNudge, useConnectWallet } from "./features/app";
 import { useStatusActions } from "./features/status";
 import { useTheme } from "./features/theme";
 import { useComposer } from "./features/composer";
@@ -24,6 +24,7 @@ function AppInner() {
   const { setStatus } = useStatusActions();
 
   const { connectNudge, triggerConnectNudge } = useConnectNudge();
+  const { composeNudge } = useComposeNudge();
   const connectWallet = useConnectWallet({
     wallet: walletActions,
     contract,
@@ -43,6 +44,7 @@ function AppInner() {
       <Topbar
         theme={theme.theme}
         connectNudge={connectNudge}
+        composeNudge={composeNudge}
         walletAddress={walletState.walletAddress}
         onToggleTheme={theme.toggleTheme}
         onConnectWallet={connectWallet}

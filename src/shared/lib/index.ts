@@ -4,6 +4,7 @@ export * from "./chain";
 export * from "./chainId";
 export * from "./chainKey";
 export * from "./connectNudge";
+export * from "./composeNudge";
 export * from "./contractRunner";
 export * from "./configuredSocialPostsAddress";
 export * from "./dom";
