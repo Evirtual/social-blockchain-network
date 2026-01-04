@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isAddress } from "ethers";
 
 import { fetchPosterStatuses } from "@shared/lib/posterStatus";
@@ -16,6 +16,22 @@ export function usePosterStatusMaps(args: {
   getReadContract: ReadContractFactory;
   chainId?: string | null;
 }) {
+  const getReadContractRef = useRef<ReadContractFactory>(args.getReadContract);
+  useEffect(() => {
+    getReadContractRef.current = args.getReadContract;
+  }, [args.getReadContract]);
+
+  const addressesKey = Array.from(
+    new Set(
+      [...args.pendingApprovals, ...args.onChainRequests]
+        .map((a) => String(a ?? "").trim())
+        .filter((a) => a && isAddress(a))
+        .map((a) => a.toLowerCase())
+    )
+  )
+    .sort()
+    .join(",");
+
   const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
   const [posterDisapprovedEverByAddress, setPosterDisapprovedEverByAddress] = useState<Record<string, boolean>>({});
   const [isLoadingPosterStatuses, setIsLoadingPosterStatuses] = useState(false);
@@ -24,19 +40,9 @@ export function usePosterStatusMaps(args: {
     if (!args.open) return;
     if (!args.isOwner) return;
 
-    const byKey = new Map<string, string>();
-    for (const a of [...args.pendingApprovals, ...args.onChainRequests]) {
-      const raw = (a ?? "").trim();
-      if (!raw) continue;
-      if (!isAddress(raw)) continue;
-      const key = raw.toLowerCase();
-      if (!byKey.has(key)) byKey.set(key, raw);
-    }
+    if (!addressesKey) return;
 
-    const addrs = Array.from(byKey.values());
-    if (addrs.length === 0) return;
-
-    const missing: string[] = addrs.slice();
+    const missing: string[] = addressesKey.split(",").filter(Boolean);
 
     let cancelled = false;
     void (async () => {
@@ -98,7 +104,7 @@ export function usePosterStatusMaps(args: {
           }
         }
 
-        const readContract = await args.getReadContract();
+        const readContract = await getReadContractRef.current();
         const checks = await fetchPosterStatuses(readContract, missing);
 
         if (cancelled) return;
@@ -124,7 +130,7 @@ export function usePosterStatusMaps(args: {
       cancelled = true;
       setIsLoadingPosterStatuses(false);
     };
-  }, [args.open, args.isOwner, args.pendingApprovals, args.onChainRequests, args.getReadContract, args.chainId]);
+  }, [args.open, args.isOwner, args.chainId, addressesKey]);
 
   return {
     posterAllowedByAddress,

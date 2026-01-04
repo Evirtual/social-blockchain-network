@@ -23,7 +23,6 @@ export function useOnChainApprovalRequests(args: {
   }, [args.getReadContract]);
 
   const cached = readApprovalsChainRequestsCache(cacheKey);
-  const isCacheFresh = !!cached && Date.now() - cached.updatedAt < APPROVAL_REQUESTS_CACHE_TTL_MS;
 
   const [onChainRequests, setOnChainRequests] = useState<string[]>(() => cached?.requesters ?? []);
   const [isLoadingOnChainRequests, setIsLoadingOnChainRequests] = useState(false);
@@ -89,7 +88,7 @@ export function useOnChainApprovalRequests(args: {
     return () => {
       cancelled = true;
     };
-  }, [args.open, args.isOwner, args.chainId, args.contractAddress, cacheKey, isCacheFresh]);
+  }, [args.open, args.isOwner, args.chainId, args.contractAddress, cacheKey]);
 
   useEffect(() => {
     if (args.open) return;
