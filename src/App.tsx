@@ -4,6 +4,7 @@ import { ComposerCard, Topbar, TxToaster, WalletProfileLink } from "./features/a
 import { Modal } from "@shared/components/Modal";
 import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useComposeNudge, useConnectNudge, useConnectWallet } from "./features/app";
+import { ScrollToTop } from "./features/app/components/ScrollToTop";
 import { useStatusActions } from "./features/status";
 import { useTheme } from "./features/theme";
 import { useComposer } from "./features/composer";
@@ -41,6 +42,7 @@ function AppInner() {
 
   return (
     <div className="app">
+      <ScrollToTop />
       <Topbar
         theme={theme.theme}
         connectNudge={connectNudge}
