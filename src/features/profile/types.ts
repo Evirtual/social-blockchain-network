@@ -61,6 +61,8 @@ export type ProfilePageViewModelInput = {
   };
   feedState: {
     isFeedLoading: boolean;
+    isDemoModeEnabled: boolean;
+    isLiveFeedEnabled: boolean;
   };
   admin: {
     isPosterAllowed: boolean | undefined;

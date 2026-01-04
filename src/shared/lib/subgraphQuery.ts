@@ -1,4 +1,6 @@
 import { withTimeout } from "./feedQuery";
+import { getEnv } from "./env";
+import { areSubgraphQueriesEnabled } from "./subgraphGate";
 
 export type SubgraphVariables = Record<string, string | number | boolean | null | Array<string | number | boolean | null>>;
 
@@ -13,6 +15,11 @@ export async function querySubgraph<T>(args: {
   variables?: SubgraphVariables;
   timeoutMs?: number;
 }): Promise<T> {
+  const env = getEnv();
+  if (!areSubgraphQueriesEnabled(env)) {
+    throw new Error("Subgraph queries are disabled until the wallet is approved.");
+  }
+
   const url = String(args.url ?? "").trim();
   if (!url) throw new Error("Subgraph URL is missing.");
 

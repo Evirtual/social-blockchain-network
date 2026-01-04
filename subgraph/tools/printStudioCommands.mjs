@@ -55,6 +55,8 @@ const slugs = {
   bscTestnet: pick(env, "STUDIO_SLUG_BSC_TESTNET") || "social-posts-bsc-testnet"
 };
 
+const versionLabel = pick(env, "STUDIO_VERSION_LABEL");
+
 function header(title) {
   console.log("\n=== " + title + " ===");
 }
@@ -68,9 +70,10 @@ header("1) Authenticate (one-time per machine)");
 console.log("npx graph auth <DEPLOY_KEY>");
 
 header("2) Deploy (replace <STUDIO_SUBGRAPH_SLUG> per chain)");
-console.log(`# Base Sepolia\nnpx graph deploy ${slugs.baseSepolia} subgraph.yaml --node ${studioNode}`);
-console.log(`# Ethereum Sepolia\nnpx graph deploy ${slugs.sepolia} subgraph.sepolia.yaml --node ${studioNode}`);
-console.log(`# BSC Testnet\nnpx graph deploy ${slugs.bscTestnet} subgraph.bsc-testnet.yaml --node ${studioNode}`);
+const versionFlag = versionLabel ? ` --version-label ${versionLabel}` : "";
+console.log(`# Base Sepolia\nnpx graph deploy ${slugs.baseSepolia} subgraph.yaml --node ${studioNode}${versionFlag}`);
+console.log(`# Ethereum Sepolia\nnpx graph deploy ${slugs.sepolia} subgraph.sepolia.yaml --node ${studioNode}${versionFlag}`);
+console.log(`# BSC Testnet\nnpx graph deploy ${slugs.bscTestnet} subgraph.bsc-testnet.yaml --node ${studioNode}${versionFlag}`);
 
 header("3) Frontend env vars (set these after you copy Studio Query URLs)");
 console.log("VITE_BASE_SEPOLIA_SUBGRAPH_URL=<STUDIO_QUERY_URL>");
@@ -81,3 +84,7 @@ console.log("\nNotes:");
 console.log("- Use the exact slug Studio shows for each subgraph.");
 console.log("- Set startBlock in each manifest for faster indexing (optional but recommended).");
 console.log("- If Studio rejects a manifest network identifier (especially BSC testnet), you may need a different provider for that chain.");
+
+if (!versionLabel) {
+  console.log("- Tip: set STUDIO_VERSION_LABEL=v0.0.15-local-final-2 to deploy with an explicit version label.");
+}

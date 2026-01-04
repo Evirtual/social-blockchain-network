@@ -10,6 +10,7 @@ import { useWalletState } from "@features/wallet";
 import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { runInFlight } from "@shared/lib/inFlight";
 import { fetchPosterGateStatuses } from "@shared/lib/posterStatus";
+import { setSubgraphQueriesEnabled } from "@shared/lib/subgraphGate";
 import { generateDemoPosts } from "../services/demo/demoPosts";
 import { generateDemoComments } from "../services/demo/demoComments";
 import { commentKey } from "@features/post/services";
@@ -27,16 +28,39 @@ export type { FeedContextValue } from "./feedStateContext";
 
 function getDemoSeed(): number {
   try {
+    // Keep demo posts stable across a full page refresh.
+    if (typeof window !== "undefined") {
+      const existing = window.sessionStorage.getItem("socialBlockchainNetwork.demoSeed");
+      const n = existing ? Number(existing) : NaN;
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+
     const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
     if (cryptoObj?.getRandomValues) {
       const a = new Uint32Array(1);
       cryptoObj.getRandomValues(a);
-      return a[0] ?? Date.now();
+      const seed = a[0] ?? Date.now();
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem("socialBlockchainNetwork.demoSeed", String(seed));
+        } catch {
+          // ignore
+        }
+      }
+      return seed;
     }
   } catch {
     // ignore
   }
-  return Date.now();
+  const seed = Date.now();
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.setItem("socialBlockchainNetwork.demoSeed", String(seed));
+    } catch {
+      // ignore
+    }
+  }
+  return seed;
 }
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
@@ -198,6 +222,12 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   }, [demoModeEnabled, chainId, walletAddress, approvalStatus, debug]);
 
   const isLiveFeedEnabled = !demoModeEnabled || (!!walletAddress && approvalStatus === "approved");
+
+  useEffect(() => {
+    // In demo mode: enable subgraph queries only when wallet is approved.
+    // In non-demo mode: queries are always allowed by the gate, but setting true here is harmless.
+    setSubgraphQueriesEnabled(isLiveFeedEnabled);
+  }, [isLiveFeedEnabled]);
   const showApprovalLoading = demoModeEnabled && !!walletAddress && !isLiveFeedEnabled && approvalStatus === "unknown";
   const demoStep: FeedState["demoStep"] = !demoModeEnabled
     ? null
@@ -326,6 +356,14 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       refreshFeed: async (accountOverride?: string | null) => {
         if (!isLiveFeedEnabled) {
           if (!demoModeEnabled || showApprovalLoading) return;
+          // User explicitly asked for new demo content; update the persisted seed.
+          if (typeof window !== "undefined") {
+            try {
+              window.sessionStorage.removeItem("socialBlockchainNetwork.demoSeed");
+            } catch {
+              // ignore
+            }
+          }
           setDemoPosts(
             generateDemoPosts({
               seed: getDemoSeed(),

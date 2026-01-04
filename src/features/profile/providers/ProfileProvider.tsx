@@ -75,7 +75,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    if (!walletAddress) {
+    // In demo mode we gate all subgraph reads until wallet is approved (live feed enabled).
+    if (!walletAddress || !feedState.isLiveFeedEnabled) {
       setMyPostsCountFromSubgraph(null);
       return () => {
         active = false;
@@ -140,7 +141,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [walletAddress]);
+  }, [walletAddress, feedState.isLiveFeedEnabled]);
 
   const authorIdentity = useAuthorIdentity(posts, profilesByAddress);
 

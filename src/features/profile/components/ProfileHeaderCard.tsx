@@ -11,6 +11,7 @@ type Props = {
   adminActionInFlight?: "approve" | "disapprove" | "reset" | "save" | null;
 
   canFollow: boolean;
+  isFollowDisabled?: boolean;
   isFollowing: boolean | undefined;
   isFollowSubmitting?: boolean;
   onToggleFollow: () => void;
@@ -119,7 +120,7 @@ export function ProfileHeaderCard(props: Props) {
               className="secondary buttonWithSpinner"
               type="button"
               onClick={props.onToggleFollow}
-              disabled={isFollowBusy}
+              disabled={isFollowBusy || !!props.isFollowDisabled}
               aria-busy={isFollowSubmitting}
             >
               {isFollowLoading ? (

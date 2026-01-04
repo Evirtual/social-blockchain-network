@@ -4,6 +4,7 @@ export function useProfileRouteEffects(args: {
   address: string;
   isSelf: boolean;
   walletAddress: string | null;
+  enabled: boolean;
 
   loadProfile: (address: string) => Promise<void>;
 
@@ -58,22 +59,25 @@ export function useProfileRouteEffects(args: {
 
   useEffect(() => {
     if (!args.walletAddress) return;
+    if (!args.enabled) return;
     if (args.isSelf) return;
     void loadIsFollowingRef.current(args.address);
-  }, [args.address, args.walletAddress, args.isSelf]);
+  }, [args.address, args.walletAddress, args.isSelf, args.enabled]);
 
   useEffect(() => {
     if (!args.walletAddress) return;
+    if (!args.enabled) return;
     if (!args.isSelf) return;
     void loadSavedForAddressRef.current(args.address);
     void loadLikesForAddressRef.current(args.address);
-  }, [args.address, args.walletAddress, args.isSelf]);
+  }, [args.address, args.walletAddress, args.isSelf, args.enabled]);
 
   useEffect(() => {
     if (!args.walletAddress) return;
+    if (!args.enabled) return;
     if (!args.isSelf) return;
     void loadFollowerCountForAddressRef.current(args.address);
     void loadFollowersForAddressRef.current(args.address);
     void loadFollowingForAddressRef.current(args.address);
-  }, [args.address, args.walletAddress, args.isSelf]);
+  }, [args.address, args.walletAddress, args.isSelf, args.enabled]);
 }

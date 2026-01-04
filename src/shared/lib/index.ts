@@ -19,6 +19,7 @@ export * from "./rpc";
 export * from "./sessionTokenCache";
 export * from "./subgraph";
 export * from "./subgraphQuery";
+export * from "./subgraphGate";
 export * from "./time";
 export * from "./toggleScan";
 export * from "./reactContext";
