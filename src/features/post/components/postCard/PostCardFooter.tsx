@@ -4,6 +4,7 @@ import type { Post } from "@types";
 import type { CSSProperties } from "react";
 import type { PostPanel } from "../PostCard";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import { requestComposeNudge } from "@shared/lib/composeNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
 import { useFeedState } from "@features/feed";
 
@@ -52,6 +53,15 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
   const isDemoNotApproved = (isDemoGated && feedState.demoStep === "approve") || isDemoPost;
   const effectiveDisabledTitle = isDemoNotApproved ? "Get approved to interact." : props.interactionDisabledTitle;
 
+  const requestDemoApprovalNudge = useCallback(() => {
+    // In demo mode, users either need to connect or request approval.
+    if (!props.walletAddress || feedState.demoStep === "connect") {
+      requestConnectNudge();
+      return;
+    }
+    requestComposeNudge();
+  }, [props.walletAddress, feedState.demoStep]);
+
   const tokenId = props.tokenId;
   const postChainId = props.post.chainId ?? null;
   const {
@@ -77,7 +87,10 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
 
   const onLike = useCallback(async () => {
     if (inFlight) return;
-    if (isDemoNotApproved) return;
+    if (isDemoNotApproved) {
+      requestDemoApprovalNudge();
+      return;
+    }
     if (!props.walletAddress) {
       requestConnectNudge();
       return;
@@ -88,11 +101,14 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId]);
+  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId, requestDemoApprovalNudge]);
 
   const onSave = useCallback(async () => {
     if (inFlight) return;
-    if (isDemoNotApproved) return;
+    if (isDemoNotApproved) {
+      requestDemoApprovalNudge();
+      return;
+    }
     if (!props.walletAddress) {
       requestConnectNudge();
       return;
@@ -103,7 +119,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId]);
+  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId, requestDemoApprovalNudge]);
 
   const canOpenComments = !(props.requiresNetworkSwitch && props.post.comments === 0);
 
@@ -113,13 +129,16 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
   }, [props.onTogglePanel, canOpenComments]);
 
   const onToggleTip = useCallback(() => {
-    if (isDemoNotApproved) return;
+    if (isDemoNotApproved) {
+      requestDemoApprovalNudge();
+      return;
+    }
     if (!props.walletAddress) {
       requestConnectNudge();
       return;
     }
     props.onTogglePanel("tip");
-  }, [props.onTogglePanel, props.walletAddress, isDemoNotApproved]);
+  }, [props.onTogglePanel, props.walletAddress, isDemoNotApproved, requestDemoApprovalNudge]);
 
   const isBusy = inFlight !== null;
 

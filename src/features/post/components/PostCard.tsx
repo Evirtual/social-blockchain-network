@@ -8,6 +8,7 @@ import { runSocialAction } from "@features/social/services/actions/runSocialActi
 import { getAvatarStyle, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
 import { useFeedState } from "@features/feed";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import { requestComposeNudge } from "@shared/lib/composeNudge";
 
 export type PostPanel = "comment" | "tip";
 
@@ -128,7 +129,10 @@ export const PostCard = memo(function PostCard(props: Props) {
       requestConnectNudge();
       return;
     }
-    if (isDemoGated && isDemoNotApproved) return;
+    if (isDemoGated && isDemoNotApproved) {
+      requestComposeNudge();
+      return;
+    }
     setIsReportOpen(true);
   }, [isDemoGated, isDemoNotApproved, props.walletAddress]);
 

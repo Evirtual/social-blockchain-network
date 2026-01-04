@@ -73,7 +73,8 @@ export function PostCardHeader(props: Props) {
                   onClick={props.onOpenReport}
                   aria-label="Report post"
                   title="Report"
-                  disabled={props.requiresNetworkSwitch || !!props.reportDisabled}
+                  aria-disabled={!!props.reportDisabled}
+                  disabled={props.requiresNetworkSwitch}
                 >
                   <IconFlag size={16} />
                 </button>
