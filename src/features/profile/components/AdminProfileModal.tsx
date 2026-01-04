@@ -103,12 +103,14 @@ export function AdminProfileModal(props: Props) {
       <div className="composer">
         <input
           className="input"
+          name="adminProfileName"
           value={adminName}
           onChange={(e) => setAdminName(e.target.value)}
           placeholder="Display name"
         />
         <textarea
           className="textarea"
+          name="adminProfileBio"
           rows={3}
           value={adminBio}
           onChange={(e) => setAdminBio(e.target.value)}
@@ -117,6 +119,7 @@ export function AdminProfileModal(props: Props) {
 
         <input
           className="input"
+          name="adminProfileAvatarUrl"
           value={adminAvatarUrl}
           onChange={(e) => setAdminAvatarUrl(e.target.value)}
           placeholder="Avatar image URL (or upload below)"
@@ -126,6 +129,7 @@ export function AdminProfileModal(props: Props) {
           <input
             className="file-input"
             type="file"
+            name="adminProfileAvatarUpload"
             accept="image/*"
             onChange={(event) => void onSelectAdminAvatarFile(event.target.files?.[0] ?? null)}
           />

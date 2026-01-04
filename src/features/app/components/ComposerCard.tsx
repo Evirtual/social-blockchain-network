@@ -26,6 +26,7 @@ export function ComposerCard({
     <div className="composer">
       <textarea
         className="textarea"
+        name="postBody"
         rows={4}
         value={draft.body}
         maxLength={MAX_POST_BODY_LENGTH}
@@ -38,6 +39,7 @@ export function ComposerCard({
       <div className="row">
         <input
           className="input"
+          name="postMediaUrl"
           value={draft.imageUrl}
           onChange={(event) => onImageUrlChange(event.target.value)}
           placeholder="Media URL (image or video) (or upload below)"
@@ -48,6 +50,7 @@ export function ComposerCard({
         <input
           className="file-input"
           type="file"
+          name="postMediaUpload"
           accept="image/*,video/*"
           onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
         />

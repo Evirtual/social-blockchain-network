@@ -32,6 +32,7 @@ export function ProfileEditModal(props: Props) {
       <div className="composer">
         <input
           className="input"
+          name="profileDisplayName"
           value={props.profileDraftName}
           onChange={(e) => props.onProfileDraftNameChange(e.target.value)}
           placeholder="Display name"
@@ -39,6 +40,7 @@ export function ProfileEditModal(props: Props) {
         />
         <textarea
           className="textarea"
+          name="profileBio"
           rows={3}
           value={props.profileDraftBio}
           onChange={(e) => props.onProfileDraftBioChange(e.target.value)}
@@ -48,6 +50,7 @@ export function ProfileEditModal(props: Props) {
 
         <input
           className="input"
+          name="profileAvatarUrl"
           value={props.profileDraftAvatarUrl}
           onChange={(e) => props.onProfileDraftAvatarUrlChange(e.target.value)}
           placeholder="Avatar image URL (or upload below)"
@@ -58,6 +61,7 @@ export function ProfileEditModal(props: Props) {
           <input
             className="file-input"
             type="file"
+            name="profileAvatarUpload"
             accept="image/*"
             onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
             disabled={isBusy}

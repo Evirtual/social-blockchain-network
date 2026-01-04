@@ -22,6 +22,7 @@ export function PendingApprovalsSection(props: Props) {
       <div className="row">
         <input
           className="input"
+          name="pendingApprovalAddress"
           value={props.pendingInput}
           onChange={(e) => props.onPendingInputChange(e.target.value)}
           placeholder="0x... wallet address"

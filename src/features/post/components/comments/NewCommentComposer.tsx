@@ -14,6 +14,7 @@ export function NewCommentComposer(props: Props) {
         <input
           className="postField"
           type="text"
+          name="newComment"
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
           placeholder="Write a comment to sign"

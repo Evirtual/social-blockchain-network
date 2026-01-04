@@ -27,6 +27,7 @@ export function PostTipModal(props: Props) {
           <input
             className="postField"
             type="text"
+            name="postTipAmount"
             value={props.tipDraft}
             onChange={(event) => props.onTipDraftChange(event.target.value)}
             placeholder={`Tip amount in ${props.nativeSymbol} (e.g. 0.001)`}

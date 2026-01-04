@@ -72,6 +72,7 @@ export function FeedHeaderControls(props: Props) {
         <input
           className="input feedSearch"
           type="search"
+          name="feedSearch"
           value={props.searchQuery}
           onChange={(e) => props.onSearchQueryChange(e.target.value)}
           placeholder="Search"
@@ -111,6 +112,7 @@ export function FeedHeaderControls(props: Props) {
                 <label key={value} className="feedNetworkFilterOption">
                   <input
                     type="checkbox"
+                    name="feedNetworkFilters"
                     checked={checked}
                     onChange={(e) => {
                       props.onSelectedNetworkChainIdsChange((prev) => {

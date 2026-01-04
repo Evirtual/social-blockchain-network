@@ -20,6 +20,7 @@ export function PostReportModal(props: Props) {
           <input
             className="postField"
             type="text"
+            name="postReportReason"
             value={props.reportDraft}
             onChange={(event) => props.onReportDraftChange(event.target.value)}
             placeholder="Report reason"

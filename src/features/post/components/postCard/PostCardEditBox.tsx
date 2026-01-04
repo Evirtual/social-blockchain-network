@@ -39,6 +39,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
     <div className="composer">
       <textarea
         className="textarea"
+        name="editPostBody"
         rows={4}
         value={props.editDraft?.body ?? ""}
         maxLength={MAX_POST_BODY_LENGTH}
@@ -54,6 +55,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
       </div>
       <input
         className="input"
+        name="editPostMediaUrl"
         value={props.editDraft?.imageUrl ?? ""}
         onChange={(e) => {
           const v = e.target.value;
@@ -67,6 +69,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         <input
           className="file-input"
           type="file"
+          name="editPostMediaUpload"
           accept="image/*,video/*"
           onChange={(e) => props.onEditSelectFile(e.target.files?.[0] ?? null)}
         />

@@ -39,6 +39,7 @@ export function CommentComposerPanels(props: Props) {
           <input
             className="postField"
             type="text"
+            name="commentReply"
             value={props.replyDraft}
             onChange={(event) => props.setReplyDraft(event.target.value)}
             placeholder="Write a reply"
@@ -73,6 +74,7 @@ export function CommentComposerPanels(props: Props) {
           <input
             className="postField"
             type="text"
+            name="commentEdit"
             value={props.editDraft}
             onChange={(event) => props.setEditDraft(event.target.value)}
             placeholder="Edit your comment"
@@ -106,6 +108,7 @@ export function CommentComposerPanels(props: Props) {
           <input
             className="postField"
             type="text"
+            name="commentTipAmount"
             value={props.tipDraft}
             onChange={(event) => props.setTipDraft(event.target.value)}
             placeholder={`Tip amount in ${props.nativeSymbol}`}
@@ -140,6 +143,7 @@ export function CommentComposerPanels(props: Props) {
           <input
             className="postField"
             type="text"
+            name="commentReportReason"
             value={props.reportDraft}
             onChange={(event) => props.setReportDraft(event.target.value)}
             placeholder="Report reason"
