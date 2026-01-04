@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function useProfileRouteEffects(args: {
   address: string;
@@ -16,35 +16,64 @@ export function useProfileRouteEffects(args: {
   loadFollowersForAddress: (address: string) => Promise<void>;
   loadFollowingForAddress: (address: string) => Promise<void>;
 }) {
+  const loadProfileRef = useRef(args.loadProfile);
+  const loadIsFollowingRef = useRef(args.loadIsFollowing);
+  const loadSavedForAddressRef = useRef(args.loadSavedForAddress);
+  const loadLikesForAddressRef = useRef(args.loadLikesForAddress);
+  const loadFollowerCountForAddressRef = useRef(args.loadFollowerCountForAddress);
+  const loadFollowersForAddressRef = useRef(args.loadFollowersForAddress);
+  const loadFollowingForAddressRef = useRef(args.loadFollowingForAddress);
+
   useEffect(() => {
-    void args.loadProfile(args.address);
-  }, [args.address, args.loadProfile]);
+    loadProfileRef.current = args.loadProfile;
+  }, [args.loadProfile]);
+
+  useEffect(() => {
+    loadIsFollowingRef.current = args.loadIsFollowing;
+  }, [args.loadIsFollowing]);
+
+  useEffect(() => {
+    loadSavedForAddressRef.current = args.loadSavedForAddress;
+  }, [args.loadSavedForAddress]);
+
+  useEffect(() => {
+    loadLikesForAddressRef.current = args.loadLikesForAddress;
+  }, [args.loadLikesForAddress]);
+
+  useEffect(() => {
+    loadFollowerCountForAddressRef.current = args.loadFollowerCountForAddress;
+  }, [args.loadFollowerCountForAddress]);
+
+  useEffect(() => {
+    loadFollowersForAddressRef.current = args.loadFollowersForAddress;
+  }, [args.loadFollowersForAddress]);
+
+  useEffect(() => {
+    loadFollowingForAddressRef.current = args.loadFollowingForAddress;
+  }, [args.loadFollowingForAddress]);
+
+  useEffect(() => {
+    void loadProfileRef.current(args.address);
+  }, [args.address]);
 
   useEffect(() => {
     if (!args.walletAddress) return;
     if (args.isSelf) return;
-    void args.loadIsFollowing(args.address);
-  }, [args.address, args.walletAddress, args.isSelf, args.loadIsFollowing]);
+    void loadIsFollowingRef.current(args.address);
+  }, [args.address, args.walletAddress, args.isSelf]);
 
   useEffect(() => {
     if (!args.walletAddress) return;
     if (!args.isSelf) return;
-    void args.loadSavedForAddress(args.address);
-    void args.loadLikesForAddress(args.address);
-  }, [args.address, args.walletAddress, args.isSelf, args.loadLikesForAddress, args.loadSavedForAddress]);
+    void loadSavedForAddressRef.current(args.address);
+    void loadLikesForAddressRef.current(args.address);
+  }, [args.address, args.walletAddress, args.isSelf]);
 
   useEffect(() => {
     if (!args.walletAddress) return;
     if (!args.isSelf) return;
-    void args.loadFollowerCountForAddress(args.address);
-    void args.loadFollowersForAddress(args.address);
-    void args.loadFollowingForAddress(args.address);
-  }, [
-    args.address,
-    args.walletAddress,
-    args.isSelf,
-    args.loadFollowerCountForAddress,
-    args.loadFollowersForAddress,
-    args.loadFollowingForAddress
-  ]);
+    void loadFollowerCountForAddressRef.current(args.address);
+    void loadFollowersForAddressRef.current(args.address);
+    void loadFollowingForAddressRef.current(args.address);
+  }, [args.address, args.walletAddress, args.isSelf]);
 }
