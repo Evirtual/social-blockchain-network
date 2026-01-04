@@ -12,8 +12,10 @@ import {
   AUTHOR_COUNT_CACHE,
   REMOTE_SEARCH_CACHE,
   TOTAL_COUNT_CACHE,
-  setCacheWithCap,
-  stableIdsKey
+  buildAuthorCountCacheKey,
+  buildRemoteSearchCacheKey,
+  buildTotalCountCacheKey,
+  setCacheWithCap
 } from "@features/feed/services/subgraph/subgraphCache";
 import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
@@ -138,7 +140,7 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
-    const cacheKey = `total:${stableIdsKey(selectedIds)}`;
+    const cacheKey = buildTotalCountCacheKey(selectedIds);
     const cached = TOTAL_COUNT_CACHE.get(cacheKey);
     if (typeof cached === "number") {
       setTotalPostsCount(cached);
@@ -200,7 +202,7 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
-    const cacheKey = `author:${authorFilter}:${stableIdsKey(selectedIds)}`;
+    const cacheKey = buildAuthorCountCacheKey({ authorAddress: authorFilter, selectedChainIds: selectedIds });
     const cached = AUTHOR_COUNT_CACHE.get(cacheKey);
     if (typeof cached === "number") {
       setAuthorPostsCount(cached);
@@ -256,7 +258,12 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
-    const cacheKey = `search:${trimmedQuery}:${authorFilter}:${args.walletAddress ?? ""}:${stableIdsKey(selectedIds)}`;
+    const cacheKey = buildRemoteSearchCacheKey({
+      searchQuery: trimmedQuery,
+      authorFilter,
+      walletAddress: args.walletAddress,
+      selectedChainIds: selectedIds
+    });
     const cached = REMOTE_SEARCH_CACHE.get(cacheKey);
     if (cached) {
       setRemoteSearchPosts(cached);
