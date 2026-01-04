@@ -12,6 +12,8 @@ type Props = {
   chainId: string | null;
   walletAddress: string | null;
   allowCommenting: boolean;
+  forceReadOnly?: boolean;
+  disableAuthorProfileLookup?: boolean;
   canModerateComments?: boolean;
   comments: PostComment[];
   isLoadingComments: boolean;
@@ -50,6 +52,8 @@ export function PostCommentsModal(props: Props) {
         walletAddress={props.walletAddress}
         useCardWrapper={false}
         allowCommenting={props.allowCommenting}
+        forceReadOnly={props.forceReadOnly}
+        disableAuthorProfileLookup={props.disableAuthorProfileLookup}
         canModerateComments={props.canModerateComments}
         comments={props.comments}
         isLoadingComments={props.isLoadingComments}

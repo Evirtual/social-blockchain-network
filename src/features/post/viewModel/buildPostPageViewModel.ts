@@ -8,6 +8,8 @@ export function buildPostPageViewModel(args: {
   isPostLoading: boolean;
   comments: PostPageViewModel["comments"];
   isLoadingComments: boolean;
+  commentsReadOnly?: boolean;
+  disableCommentAuthorProfileLookup?: boolean;
   posts: PostPageViewModel["posts"];
   isOwner: boolean;
   chainId: string | null;
@@ -27,6 +29,8 @@ export function buildPostPageViewModel(args: {
     isLoadingPost: args.isPostLoading && !args.post,
     comments: args.comments,
     isLoadingComments: args.isLoadingComments,
+    commentsReadOnly: args.commentsReadOnly,
+    disableCommentAuthorProfileLookup: args.disableCommentAuthorProfileLookup,
     posts: args.posts,
     chainId: args.chainId,
     walletAddress: args.walletAddress,

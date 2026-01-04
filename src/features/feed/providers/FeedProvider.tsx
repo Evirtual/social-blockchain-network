@@ -11,6 +11,8 @@ import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { runInFlight } from "@shared/lib/inFlight";
 import { fetchPosterGateStatuses } from "@shared/lib/posterStatus";
 import { generateDemoPosts } from "../services/demo/demoPosts";
+import { generateDemoComments } from "../services/demo/demoComments";
+import { commentKey } from "@features/post/services";
 import {
   FeedActionsContext,
   FeedContext,
@@ -338,7 +340,26 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       },
       setPostComments: comments.setPostComments,
       loadCommentsForPost: async (tokenId: string, postChainId?: string | null) => {
-        if (!isLiveFeedEnabled) return;
+        if (!isLiveFeedEnabled) {
+          if (!demoModeEnabled || showApprovalLoading) return;
+
+          const keyChainId = postChainId ?? null;
+          const key = commentKey(keyChainId, tokenId);
+          const existing = comments.postComments[key];
+          if (existing !== undefined) return;
+
+          const post = demoPostsRef.current.find(
+            (p) => p.tokenId === tokenId && (postChainId ? String(p.chainId ?? "") === String(postChainId) : true)
+          );
+          const count = typeof post?.comments === "number" ? post.comments : 0;
+
+          comments.setPostComments((prev) => ({
+            ...prev,
+            [key]: generateDemoComments({ tokenId, postChainId: keyChainId, count })
+          }));
+          return;
+        }
+
         await comments.loadCommentsForPost(tokenId, postChainId);
       },
       loadPostsByTokenIds: async (tokenIds: string[], postChainId?: string | null) => {
@@ -350,8 +371,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       isLiveFeedEnabled,
       demoModeEnabled,
       showApprovalLoading,
+      demoModeEnabled,
+      showApprovalLoading,
       feedRefresh.setPosts,
       feedRefresh.refreshFeed,
+      comments.postComments,
       comments.setPostComments,
       comments.loadCommentsForPost,
       postsByTokenIds.loadPostsByTokenIds

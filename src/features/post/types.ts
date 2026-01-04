@@ -52,6 +52,8 @@ export type PostPageViewModel = {
   isLoadingPost: boolean;
   comments: ReadonlyArray<PostComment>;
   isLoadingComments: boolean;
+  commentsReadOnly?: boolean;
+  disableCommentAuthorProfileLookup?: boolean;
   posts: ReadonlyArray<Post>;
   chainId: string | null;
   walletAddress: string | null;

@@ -11,6 +11,7 @@ type Props = {
   canModerate?: boolean;
   isEditing: boolean;
   requiresNetworkSwitch: boolean;
+  reportDisabled?: boolean;
   postNetworkLabel: string;
   isCurrentNetworkPost: boolean;
   postNetworkTitle: string;
@@ -72,7 +73,7 @@ export function PostCardHeader(props: Props) {
                   onClick={props.onOpenReport}
                   aria-label="Report post"
                   title="Report"
-                  disabled={props.requiresNetworkSwitch}
+                  disabled={props.requiresNetworkSwitch || !!props.reportDisabled}
                 >
                   <IconFlag size={16} />
                 </button>

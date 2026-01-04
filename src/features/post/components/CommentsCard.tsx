@@ -17,6 +17,8 @@ type Props = {
   walletAddress: string | null;
   useCardWrapper?: boolean;
   allowCommenting?: boolean;
+  forceReadOnly?: boolean;
+  disableAuthorProfileLookup?: boolean;
   canModerateComments?: boolean;
 
   comments: ReadonlyArray<PostComment>;
@@ -63,17 +65,24 @@ export function CommentsCard(props: Props) {
     action: null
   });
 
-  const { requiresNetworkSwitch, interactionDisabledTitle } = getPostNetworkUi({
+  const { requiresNetworkSwitch: baseRequiresNetworkSwitch, interactionDisabledTitle: baseInteractionDisabledTitle } =
+    getPostNetworkUi({
     postChainId: props.postChainId,
     chainId: props.chainId,
     walletAddress: props.walletAddress
   });
+
+  const requiresNetworkSwitch = props.forceReadOnly ? true : baseRequiresNetworkSwitch;
+  const interactionDisabledTitle = props.forceReadOnly
+    ? "Connect and get approved to interact."
+    : baseInteractionDisabledTitle;
 
   const explorerChainId = props.postChainId ?? props.chainId;
   const nativeSymbol = props.getNativeSymbol(explorerChainId);
   const walletLower = props.walletAddress?.toLowerCase() ?? null;
 
   const missingCommentAuthors = useMemo(() => {
+    if (props.disableAuthorProfileLookup) return [];
     const resolvedChainId = explorerChainId;
     if (!resolvedChainId) return [];
     const unique = Array.from(
@@ -81,9 +90,10 @@ export function CommentsCard(props: Props) {
     );
     if (unique.length === 0) return [];
     return unique.filter((addr) => !profileState.profilesByAddress[addr] && !commentProfilesByAddress[addr]);
-  }, [props.comments, profileState.profilesByAddress, commentProfilesByAddress, explorerChainId]);
+  }, [props.disableAuthorProfileLookup, props.comments, profileState.profilesByAddress, commentProfilesByAddress, explorerChainId]);
 
   useEffect(() => {
+    if (props.disableAuthorProfileLookup) return;
     if (missingCommentAuthors.length === 0) return;
     const resolvedChainId = explorerChainId;
     if (!resolvedChainId) return;
@@ -208,7 +218,7 @@ export function CommentsCard(props: Props) {
 
   const wrapperClassName = props.useCardWrapper === false ? undefined : "card";
 
-  const allowCommenting = props.allowCommenting ?? !requiresNetworkSwitch;
+  const allowCommenting = props.forceReadOnly ? false : (props.allowCommenting ?? !requiresNetworkSwitch);
 
   return (
     <section className={wrapperClassName}>

@@ -52,6 +52,9 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
 
   const commentsKey = commentKey(postChainId, tokenId);
 
+  const isDemoGated = feedState.isDemoModeEnabled && !feedState.isLiveFeedEnabled;
+  const isCommentsReadOnly = isDemoGated || !wallet.walletAddress;
+
   const viewModel = buildPostPageViewModel({
     isOwner: contract.isOwner,
     tokenId,
@@ -60,6 +63,8 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     isPostLoading,
     comments: feedState.postComments[commentsKey] ?? [],
     isLoadingComments: !!feedState.isLoadingPostComments[commentsKey],
+    commentsReadOnly: isCommentsReadOnly,
+    disableCommentAuthorProfileLookup: isDemoGated,
     posts: feedState.posts,
     chainId: wallet.chainId,
     walletAddress: wallet.walletAddress,

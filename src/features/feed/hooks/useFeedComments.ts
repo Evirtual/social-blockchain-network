@@ -34,6 +34,9 @@ export function useFeedComments(params: {
   const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({});
   const [isLoadingPostComments, setIsLoadingPostComments] = useState<Record<string, boolean>>({});
 
+  const postCommentsRef = useRef<Record<string, PostComment[]>>({});
+  const isLoadingPostCommentsRef = useRef<Record<string, boolean>>({});
+
   const commentsInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
@@ -50,7 +53,18 @@ export function useFeedComments(params: {
     setPostComments({});
     setIsLoadingPostComments({});
     commentsInFlightRef.current = {};
+
+    postCommentsRef.current = {};
+    isLoadingPostCommentsRef.current = {};
   }, [chainId, provider]);
+
+  useEffect(() => {
+    postCommentsRef.current = postComments;
+  }, [postComments]);
+
+  useEffect(() => {
+    isLoadingPostCommentsRef.current = isLoadingPostComments;
+  }, [isLoadingPostComments]);
 
   const loadCommentsForPost = useCallback(
     async (tokenId: string, postChainId?: string | null) => {
@@ -58,6 +72,12 @@ export function useFeedComments(params: {
 
       const keyChainId = postChainId ?? chainId ?? null;
       const key = commentKey(keyChainId, tokenId);
+
+      // Important: if we've already loaded comments for this key (even an empty array),
+      // don't re-fetch; otherwise UI effects can loop when comment count is 0.
+      if (Object.prototype.hasOwnProperty.call(postCommentsRef.current, key)) return;
+      if (isLoadingPostCommentsRef.current[key]) return;
+
       const keyChainIdNum = parseChainIdNumber(keyChainId);
       const env = getEnv();
       const subgraphUrl = getSubgraphUrlForChainId(env, keyChainIdNum);

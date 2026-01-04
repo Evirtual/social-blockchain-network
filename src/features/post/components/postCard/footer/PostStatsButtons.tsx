@@ -7,6 +7,7 @@ type Props = {
   post: Readonly<Post>;
   requiresNetworkSwitch: boolean;
   interactionDisabledTitle?: string;
+  interactionsDisabled?: boolean;
   nativeSymbol: string;
   openPanel: PostPanel | null;
   isBusy: boolean;
@@ -30,7 +31,7 @@ export function PostStatsButtons(props: Props) {
         onClick={props.onLike}
         aria-label="Like"
         aria-busy={props.inFlight === "like"}
-        disabled={props.requiresNetworkSwitch || props.isBusy}
+        disabled={props.requiresNetworkSwitch || props.isBusy || !!props.interactionsDisabled}
         title={props.interactionDisabledTitle}
       >
         {props.inFlight === "like" ? (
@@ -50,7 +51,7 @@ export function PostStatsButtons(props: Props) {
         onClick={props.onSave}
         aria-label="Save"
         aria-busy={props.inFlight === "save"}
-        disabled={props.requiresNetworkSwitch || props.isBusy}
+        disabled={props.requiresNetworkSwitch || props.isBusy || !!props.interactionsDisabled}
         title={props.interactionDisabledTitle}
       >
         {props.inFlight === "save" ? (
@@ -82,7 +83,7 @@ export function PostStatsButtons(props: Props) {
         onClick={props.onToggleTip}
         aria-label="Tip"
         aria-expanded={props.openPanel === "tip"}
-        disabled={props.requiresNetworkSwitch || props.isBusy}
+        disabled={props.requiresNetworkSwitch || props.isBusy || !!props.interactionsDisabled}
         title={props.interactionDisabledTitle}
       >
         <IconCoin size={18} />

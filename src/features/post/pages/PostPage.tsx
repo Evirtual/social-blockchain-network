@@ -52,6 +52,9 @@ export function PostPage(props: PostPageViewModel) {
             chainId={props.chainId}
             walletAddress={props.walletAddress}
             canModerateComments={props.isOwner}
+            forceReadOnly={!!props.commentsReadOnly}
+            allowCommenting={!props.commentsReadOnly}
+            disableAuthorProfileLookup={!!props.disableCommentAuthorProfileLookup}
             comments={props.comments}
             isLoadingComments={props.isLoadingComments}
             onAction={props.postActions.onAction}

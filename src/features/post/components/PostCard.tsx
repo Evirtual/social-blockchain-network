@@ -6,6 +6,8 @@ import { getPostUrl } from "@features/post/services";
 import { useStatusActions } from "@features/status";
 import { runSocialAction } from "@features/social/services/actions/runSocialAction";
 import { getAvatarStyle, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
+import { useFeedState } from "@features/feed";
+import { requestConnectNudge } from "@shared/lib/connectNudge";
 
 export type PostPanel = "comment" | "tip";
 
@@ -63,6 +65,10 @@ type Props = {
 };
 
 export const PostCard = memo(function PostCard(props: Props) {
+  const feedState = useFeedState();
+  const isDemoGated = feedState.isDemoModeEnabled && !feedState.isLiveFeedEnabled;
+  const isDemoNotApproved = isDemoGated && feedState.demoStep === "approve";
+
   const tokenId = props.post.tokenId;
   const postChainId = props.post.chainId ?? null;
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -101,6 +107,10 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
+      if ((isDemoGated || !props.walletAddress) && panel === "comment") {
+        props.togglePanel(props.panelKey, panel);
+        return;
+      }
       void runSocialAction<void>({
         walletAddress: props.walletAddress,
         setStatus,
@@ -109,8 +119,17 @@ export const PostCard = memo(function PostCard(props: Props) {
         }
       });
     },
-    [props.togglePanel, props.panelKey, props.walletAddress, setStatus]
+    [isDemoGated, props.togglePanel, props.panelKey, props.walletAddress, setStatus]
   );
+
+  const onOpenReport = useCallback(() => {
+    if (!props.walletAddress) {
+      requestConnectNudge();
+      return;
+    }
+    if (isDemoGated && isDemoNotApproved) return;
+    setIsReportOpen(true);
+  }, [isDemoGated, isDemoNotApproved, props.walletAddress]);
 
   const onStartEdit = useCallback(() => {
     props.onStartEditPost(props.post);
@@ -198,7 +217,8 @@ export const PostCard = memo(function PostCard(props: Props) {
         explorer={explorer}
         hasMintTxHash={hasMintTxHash}
         onCopyMintTx={onCopyMintTx}
-        onOpenReport={() => setIsReportOpen(true)}
+        onOpenReport={onOpenReport}
+        reportDisabled={isDemoNotApproved}
         onStartEdit={onStartEdit}
         onBurn={onBurn}
       />

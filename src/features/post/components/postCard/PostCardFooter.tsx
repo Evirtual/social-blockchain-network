@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import type { PostPanel } from "../PostCard";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
+import { useFeedState } from "@features/feed";
 
 export type PostCardFooterProps = {
   className?: string;
@@ -45,6 +46,11 @@ export type PostCardFooterProps = {
 };
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
+  const feedState = useFeedState();
+  const isDemoGated = feedState.isDemoModeEnabled && !feedState.isLiveFeedEnabled;
+  const isDemoNotApproved = isDemoGated && feedState.demoStep === "approve";
+  const effectiveDisabledTitle = isDemoNotApproved ? "Get approved to interact." : props.interactionDisabledTitle;
+
   const tokenId = props.tokenId;
   const postChainId = props.post.chainId ?? null;
   const {
@@ -70,42 +76,49 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
 
   const onLike = useCallback(async () => {
     if (inFlight) return;
+    if (isDemoNotApproved) return;
+    if (!props.walletAddress) {
+      requestConnectNudge();
+      return;
+    }
     setInFlight("like");
     try {
       await props.onAction(tokenId, "like", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, props.onAction, tokenId, postChainId]);
+  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId]);
 
   const onSave = useCallback(async () => {
     if (inFlight) return;
+    if (isDemoNotApproved) return;
+    if (!props.walletAddress) {
+      requestConnectNudge();
+      return;
+    }
     setInFlight("save");
     try {
       await props.onAction(tokenId, "save", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, props.onAction, tokenId, postChainId]);
+  }, [inFlight, isDemoNotApproved, props.walletAddress, props.onAction, tokenId, postChainId]);
 
   const canOpenComments = !(props.requiresNetworkSwitch && props.post.comments === 0);
 
   const onToggleComment = useCallback(() => {
     if (!canOpenComments) return;
-    if (!props.walletAddress) {
-      requestConnectNudge();
-      return;
-    }
     props.onTogglePanel("comment");
-  }, [props.onTogglePanel, canOpenComments, props.walletAddress]);
+  }, [props.onTogglePanel, canOpenComments]);
 
   const onToggleTip = useCallback(() => {
+    if (isDemoNotApproved) return;
     if (!props.walletAddress) {
       requestConnectNudge();
       return;
     }
     props.onTogglePanel("tip");
-  }, [props.onTogglePanel, props.walletAddress]);
+  }, [props.onTogglePanel, props.walletAddress, isDemoNotApproved]);
 
   const isBusy = inFlight !== null;
 
@@ -114,7 +127,8 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
       <PostStatsButtons
         post={props.post}
         requiresNetworkSwitch={props.requiresNetworkSwitch}
-        interactionDisabledTitle={props.interactionDisabledTitle}
+        interactionDisabledTitle={effectiveDisabledTitle}
+        interactionsDisabled={isDemoNotApproved}
         nativeSymbol={nativeSymbol}
         openPanel={props.openPanel}
         isBusy={isBusy}
@@ -136,7 +150,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         onClose={onCloseTip}
         requiresNetworkSwitch={props.requiresNetworkSwitch}
         inFlight={inFlight}
-        interactionDisabledTitle={props.interactionDisabledTitle}
+        interactionDisabledTitle={effectiveDisabledTitle}
       />
 
       <PostCommentsModal
@@ -147,7 +161,9 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         postChainId={postChainId}
         chainId={props.chainId}
         walletAddress={props.walletAddress}
-        allowCommenting={!props.requiresNetworkSwitch}
+        allowCommenting={!props.requiresNetworkSwitch && !!props.walletAddress && !isDemoGated}
+        forceReadOnly={isDemoGated || !props.walletAddress}
+        disableAuthorProfileLookup={isDemoGated}
         canModerateComments={props.canModerateComments}
         comments={comments}
         isLoadingComments={isLoadingComments}
