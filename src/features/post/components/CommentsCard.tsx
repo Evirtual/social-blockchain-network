@@ -1,11 +1,7 @@
 import type { PostComment } from "@types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getPostNetworkUi } from "@shared/lib/network";
-import { useProfileState } from "@features/profile";
-import { getEnv } from "@shared/lib/env";
-import { parseChainIdNumber } from "@shared/lib/chainId";
-import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
+import { useProfileActions, useProfileState } from "@features/profile";
 import { CommentItem } from "./comments/CommentItem";
 import { NewCommentComposer } from "./comments/NewCommentComposer";
 import type { ActionInFlight, ActiveComposer } from "./comments/types";
@@ -47,11 +43,7 @@ type Props = {
 
 export function CommentsCard(props: Props) {
   const profileState = useProfileState();
-
-  const [commentProfilesByAddress, setCommentProfilesByAddress] = useState<
-    Record<string, { name: string; avatarUrl: string }>
-  >({});
-  const commentProfileLoadInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+  const profileActions = useProfileActions();
 
   const [commentDraft, setCommentDraft] = useState<string>("");
   const [activeComposer, setActiveComposer] = useState<ActiveComposer>({ type: null });
@@ -89,8 +81,8 @@ export function CommentsCard(props: Props) {
       new Set(props.comments.map((c) => (c.author ? c.author.toLowerCase() : "")).filter(Boolean))
     );
     if (unique.length === 0) return [];
-    return unique.filter((addr) => !profileState.profilesByAddress[addr] && !commentProfilesByAddress[addr]);
-  }, [props.disableAuthorProfileLookup, props.comments, profileState.profilesByAddress, commentProfilesByAddress, explorerChainId]);
+    return unique.filter((addr) => !profileState.profilesByAddress[addr]);
+  }, [props.disableAuthorProfileLookup, props.comments, profileState.profilesByAddress, explorerChainId]);
 
   useEffect(() => {
     if (props.disableAuthorProfileLookup) return;
@@ -101,62 +93,41 @@ export function CommentsCard(props: Props) {
     const limit = Math.max(1, Math.min(4, missingCommentAuthors.length));
     let next = 0;
 
-    const task = async () => {
-      const chainIdNum = parseChainIdNumber(resolvedChainId);
-      const subgraphUrl = getSubgraphUrlForChainId(getEnv(), chainIdNum);
-      if (!subgraphUrl) return;
+    let active = true;
 
+    const task = async () => {
       const workers = Array.from({ length: limit }, async () => {
         while (true) {
           const i = next++;
           if (i >= missingCommentAuthors.length) break;
 
           const addr = missingCommentAuthors[i];
-          const cacheKey = `${chainIdNum}:${addr}`;
-          const existing = commentProfileLoadInFlightRef.current[cacheKey];
-          if (existing) {
-            await existing;
-            continue;
-          }
-
-          const promise = (async () => {
-            const result = await tryQuerySubgraph<{
-              account: { name?: string | null; avatar?: string | null } | null;
-            }>({
-              url: subgraphUrl,
-              query: `query Profile($id: ID!) { account(id: $id) { name avatar } }`,
-              variables: { id: addr },
-              timeoutMs: 10_000
-            });
-
-            if (!result.ok) return;
-
-            const account = result.data?.account;
-            const name = String(account?.name ?? "");
-            const avatarUrl = String(account?.avatar ?? "");
-            setCommentProfilesByAddress((prev) => ({ ...prev, [addr]: { name, avatarUrl } }));
-          })();
-
-          commentProfileLoadInFlightRef.current[cacheKey] = promise;
+          if (!addr) continue;
           try {
-            await promise;
-          } finally {
-            commentProfileLoadInFlightRef.current[cacheKey] = null;
+            // Reuse the Profile feature loader (deduped + gated).
+            await profileActions.loadProfile(addr);
+          } catch {
+            // ignore
           }
+          if (!active) return;
         }
       });
       await Promise.all(workers);
     };
 
     void task();
-  }, [missingCommentAuthors, explorerChainId]);
+
+    return () => {
+      active = false;
+    };
+  }, [missingCommentAuthors, explorerChainId, props.disableAuthorProfileLookup, profileActions]);
 
   const getDisplayProfile = useCallback(
     (address: string) => {
       const key = address.toLowerCase();
-      return profileState.profilesByAddress[key] ?? commentProfilesByAddress[key];
+      return profileState.profilesByAddress[key];
     },
-    [profileState.profilesByAddress, commentProfilesByAddress]
+    [profileState.profilesByAddress]
   );
 
   const getDisplayName = useCallback(

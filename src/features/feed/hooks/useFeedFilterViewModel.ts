@@ -3,10 +3,11 @@ import type { Post } from "@types";
 import { useSupportedNetworks } from "./useSupportedNetworks";
 import { useNetworkFilterState } from "./useNetworkFilterState";
 import { filterPosts } from "../services/filterPosts";
-import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
-import { loadFeedFromSubgraph } from "@features/feed/services/subgraph/loadFeedFromSubgraph";
-import { getEnv } from "@shared/lib/env";
+import {
+  loadAuthorPostsCountFromSubgraphs,
+  loadTotalPostsCountFromSubgraphs
+} from "@features/feed/services/subgraph/loadFeedCounts";
+import { loadRemoteSearchPostsFromSubgraphs } from "@features/feed/services/subgraph/loadRemoteSearchPosts";
 
 type Args = {
   posts: Post[];
@@ -77,12 +78,9 @@ export function useFeedFilterViewModel(args: Args) {
     }
 
     let active = true;
-    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));
-    const cacheKey = `socialBlockchainNetwork.feed.totalPosts.${selectedIds.slice().sort().join(",")}`;
-    const cacheTtlMs = 5 * 60 * 1000;
 
     if (authorFilter) {
       setTotalPostsCount(null);
@@ -105,51 +103,8 @@ export function useFeedFilterViewModel(args: Args) {
     const loadTotals = async () => {
       if (active) setIsTotalPostsLoading(true);
       try {
-        if (typeof window !== "undefined") {
-          try {
-            const cachedRaw = window.sessionStorage.getItem(cacheKey);
-            if (cachedRaw) {
-              const cached = JSON.parse(cachedRaw) as { count?: number; ts?: number };
-              if (
-                typeof cached?.count === "number" &&
-                typeof cached?.ts === "number" &&
-                Date.now() - cached.ts < cacheTtlMs
-              ) {
-                if (active) setTotalPostsCount(cached.count);
-                return;
-              }
-            }
-          } catch {
-            // Ignore cache read errors.
-          }
-        }
-
-        let sum = 0;
-        for (const id of selectedIds) {
-          const chainIdNum = Number(id);
-          if (!Number.isFinite(chainIdNum)) continue;
-          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-          if (!subgraphUrl) continue;
-          const result = await tryQuerySubgraph<{
-            globalStats: { totalPosts?: string | null } | null;
-          }>({
-            url: subgraphUrl,
-            query: `query GlobalStats { globalStats(id: "global") { totalPosts } }`,
-            variables: {},
-            timeoutMs: 8_000
-          });
-          if (!result.ok) continue;
-          const total = Number(result.data?.globalStats?.totalPosts ?? 0);
-          if (Number.isFinite(total)) sum += total;
-        }
+        const sum = await loadTotalPostsCountFromSubgraphs({ selectedChainIds: selectedIds });
         if (active) setTotalPostsCount(sum);
-        if (typeof window !== "undefined") {
-          try {
-            window.sessionStorage.setItem(cacheKey, JSON.stringify({ count: sum, ts: Date.now() }));
-          } catch {
-            // Ignore cache write errors.
-          }
-        }
       } finally {
         if (active) setIsTotalPostsLoading(false);
       }
@@ -176,12 +131,9 @@ export function useFeedFilterViewModel(args: Args) {
     }
 
     let active = true;
-    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));
-    const cacheKey = `socialBlockchainNetwork.profile.posts.${authorFilter}.${selectedIds.slice().sort().join(",")}`;
-    const cacheTtlMs = 5 * 60 * 1000;
 
     if (!authorFilter) {
       setAuthorPostsCount(null);
@@ -202,51 +154,11 @@ export function useFeedFilterViewModel(args: Args) {
     const loadAuthorTotals = async () => {
       if (active) setIsAuthorPostsLoading(true);
       try {
-        if (typeof window !== "undefined") {
-          try {
-            const cachedRaw = window.sessionStorage.getItem(cacheKey);
-            if (cachedRaw) {
-              const cached = JSON.parse(cachedRaw) as { count?: number; ts?: number };
-              if (
-                typeof cached?.count === "number" &&
-                typeof cached?.ts === "number" &&
-                Date.now() - cached.ts < cacheTtlMs
-              ) {
-                if (active) setAuthorPostsCount(cached.count);
-                return;
-              }
-            }
-          } catch {
-            // Ignore cache read errors.
-          }
-        }
-
-        let sum = 0;
-        for (const id of selectedIds) {
-          const chainIdNum = Number(id);
-          if (!Number.isFinite(chainIdNum)) continue;
-          const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-          if (!subgraphUrl) continue;
-          const result = await tryQuerySubgraph<{
-            account: { postedCount?: string | null } | null;
-          }>({
-            url: subgraphUrl,
-            query: `query AccountPosts($id: ID!) { account(id: $id) { postedCount } }`,
-            variables: { id: authorFilter },
-            timeoutMs: 8_000
-          });
-          if (!result.ok) continue;
-          const count = Number(result.data?.account?.postedCount ?? 0);
-          if (Number.isFinite(count)) sum += count;
-        }
+        const sum = await loadAuthorPostsCountFromSubgraphs({
+          authorAddress: authorFilter,
+          selectedChainIds: selectedIds
+        });
         if (active) setAuthorPostsCount(sum);
-        if (typeof window !== "undefined") {
-          try {
-            window.sessionStorage.setItem(cacheKey, JSON.stringify({ count: sum, ts: Date.now() }));
-          } catch {
-            // Ignore cache write errors.
-          }
-        }
       } finally {
         if (active) setIsAuthorPostsLoading(false);
       }
@@ -278,7 +190,6 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
-    const env = getEnv();
     const selectedIds = selectedNetworkChainIds.length
       ? selectedNetworkChainIds
       : supportedNetworks.map((n) => String(n.chainId));
@@ -291,99 +202,15 @@ export function useFeedFilterViewModel(args: Args) {
     }
 
     const loadSearch = async () => {
-      const collected: Post[] = [];
-      let hadSuccess = false;
-      let hadFailure = false;
-      for (const id of selectedIds) {
-        const chainIdNum = Number(id);
-        if (!Number.isFinite(chainIdNum)) continue;
-        const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-        if (!subgraphUrl) continue;
-        const authorIds: string[] = [];
-        const cacheKey = `socialBlockchainNetwork.search.authors.${subgraphUrl}.${trimmedQuery.toLowerCase()}`;
-
-        if (typeof window !== "undefined") {
-          try {
-            const cachedRaw = window.sessionStorage.getItem(cacheKey);
-            if (cachedRaw) {
-              const cached = JSON.parse(cachedRaw) as { ids?: string[]; ts?: number };
-              if (Array.isArray(cached?.ids) && typeof cached?.ts === "number" && Date.now() - cached.ts < 5 * 60 * 1000) {
-                authorIds.push(...cached.ids);
-              }
-            }
-          } catch {
-            // Ignore cache read errors.
-          }
-        }
-
-        if (!authorIds.length) {
-          try {
-            const byName = await tryQuerySubgraph<{ accounts: Array<{ id: string }> }>({
-              url: subgraphUrl,
-              query: `query AccountByName($query: String!, $first: Int!) { accounts(first: $first, where: { name_contains_nocase: $query }) { id } }`,
-              variables: { query: trimmedQuery, first: 50 },
-              timeoutMs: 8_000
-            });
-            if (byName.ok) {
-              authorIds.push(...(byName.data?.accounts ?? []).map((a) => a.id));
-            }
-          } catch {
-            // Ignore schema mismatches / query errors.
-          }
-
-          try {
-            const byId = await tryQuerySubgraph<{ accounts: Array<{ id: string }> }>({
-              url: subgraphUrl,
-              query: `query AccountById($query: String!, $first: Int!) { accounts(first: $first, where: { id_contains_nocase: $query }) { id } }`,
-              variables: { query: trimmedQuery, first: 50 },
-              timeoutMs: 8_000
-            });
-            if (byId.ok) {
-              authorIds.push(...(byId.data?.accounts ?? []).map((a) => a.id));
-            }
-          } catch {
-            // Ignore schema mismatches / query errors.
-          }
-
-          if (typeof window !== "undefined") {
-            try {
-              window.sessionStorage.setItem(
-                cacheKey,
-                JSON.stringify({ ids: Array.from(new Set(authorIds)), ts: Date.now() })
-              );
-            } catch {
-              // Ignore cache write errors.
-            }
-          }
-        }
-
-        try {
-          const uniqueAuthorIds = Array.from(new Set(authorIds));
-          const found = await loadFeedFromSubgraph({
-            url: subgraphUrl,
-            chainIdStr: String(chainIdNum),
-            first: 200,
-            account: args.walletAddress ? args.walletAddress.toLowerCase() : null,
-            searchQuery: trimmedQuery,
-            author: authorFilter || null,
-            authorIds: uniqueAuthorIds.length ? uniqueAuthorIds : null
-          });
-          hadSuccess = true;
-          collected.push(...found);
-        } catch {
-          hadFailure = true;
-        }
-      }
       if (!active) return;
-      if (!hadSuccess) {
-        setRemoteSearchPosts(null);
-        return;
-      }
-      if (!collected.length && hadFailure) {
-        setRemoteSearchPosts(null);
-        return;
-      }
-      setRemoteSearchPosts(collected.length ? collected : []);
+      const next = await loadRemoteSearchPostsFromSubgraphs({
+        selectedChainIds: selectedIds,
+        searchQuery: trimmedQuery,
+        walletAddress: args.walletAddress,
+        authorFilter
+      });
+      if (!active) return;
+      setRemoteSearchPosts(next);
     };
 
     void loadSearch();
