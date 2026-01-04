@@ -1,4 +1,9 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
+
+import { useProfileActions, useProfileState } from "@features/profile";
+import { stableHueFromSeed } from "@shared/lib/formatters";
+import { getAvatarStyle } from "@shared/lib/avatar";
 
 export function ApprovalListRow(props: {
   addr: string;
@@ -15,6 +20,19 @@ export function ApprovalListRow(props: {
   onDisapprove: () => void;
   onReset: () => void;
 }) {
+  const profileState = useProfileState();
+  const profileActions = useProfileActions();
+
+  const addrKey = props.addr.toLowerCase();
+  const avatarUrl = profileState.profilesByAddress[addrKey]?.avatarUrl?.trim();
+  const avatarStyle = getAvatarStyle({ avatarUrl, hue: stableHueFromSeed(props.addr) });
+
+  useEffect(() => {
+    if (!props.addr) return;
+    if (profileState.profilesByAddress[addrKey]) return;
+    void profileActions.loadProfile(props.addr);
+  }, [addrKey, profileActions, profileState.profilesByAddress, props.addr]);
+
   const actionSkeleton = (widthRem: number) => (
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />
   );
@@ -26,6 +44,7 @@ export function ApprovalListRow(props: {
   return (
     <div key={props.addr} className="listRow" role="listitem">
       <span className="listRowLeft">
+        <div className="avatar tiny" style={avatarStyle} aria-hidden="true" />
         <Link className="value" to={`/profile/${props.addr}`}>
           {props.shortAddress(props.addr)}
         </Link>
