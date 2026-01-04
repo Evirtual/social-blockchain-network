@@ -64,6 +64,9 @@ export function ProfilePage(props: Props) {
   const isFollowDisabled = !props.isLiveFeedEnabled || isDemoProfile;
   const isFollowing = isFollowDisabled ? false : props.isFollowing;
 
+  // In demo mode, demo-generated profiles should still show the Follow control even when disconnected.
+  const showFollowButton = canFollow || isDemoProfile;
+
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
   const [isAdminEditing, setIsAdminEditing] = useState(false);
 
@@ -90,7 +93,7 @@ export function ProfilePage(props: Props) {
           onAdminSetPosterAllowed={props.onAdminSetPosterAllowed}
           onAdminReset={props.onAdminReset}
           adminActionInFlight={props.adminActionInFlight}
-          canFollow={canFollow}
+          canFollow={showFollowButton}
           isFollowDisabled={isFollowDisabled}
           isFollowing={isFollowing}
           isFollowSubmitting={props.isFollowSubmitting}
