@@ -4,6 +4,7 @@ import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post";
 import { DemoFeedBanner } from "@features/feed/components/DemoFeedBanner";
+import { getFeedStorageKeys } from "@features/feed";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
@@ -58,17 +59,21 @@ export function HomePage(props: Props) {
     supportedNetworks,
     searchQuery,
     setSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
-    filteredPosts,
+    displayPosts,
     pillText,
-    isPillLoading
+    isPillLoading,
+    isSearchLoading,
+    isDisplayLoading
   } = useFeedFilterViewModel({
     posts: props.posts,
     authorIdentity: props.authorIdentity,
     shortAddress: props.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
-    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    ...getFeedStorageKeys({ kind: "home" }),
     walletAddress: props.walletAddress,
     chainId: props.chainId,
     isFeedLoading: props.isFeedLoading,
@@ -107,27 +112,21 @@ export function HomePage(props: Props) {
     return "";
   }, [props.walletAddress, props.networkName, props.chainId]);
 
-  const headerAction = useMemo(() => {
-    return (
-      <FeedHeaderControls
-        pillText={pillText}
-        isPillLoading={isPillLoading}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        selectedNetworkChainIds={selectedNetworkChainIds}
-        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-        supportedNetworks={supportedNetworks}
-      />
-    );
-  }, [
-    pillText,
-    isPillLoading,
-    searchQuery,
-    setSearchQuery,
-    selectedNetworkChainIds,
-    setSelectedNetworkChainIds,
-    supportedNetworks
-  ]);
+  const headerAction = (
+    <FeedHeaderControls
+      pillText={pillText}
+      isPillLoading={isPillLoading}
+      isSearchLoading={isSearchLoading}
+      isSearchDirty={isSearchDirty}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onRestoreDraftToApplied={restoreDraftToApplied}
+      onSearchSubmit={submitSearch}
+      selectedNetworkChainIds={selectedNetworkChainIds}
+      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+      supportedNetworks={supportedNetworks}
+    />
+  );
 
   const banner = useMemo(() => {
     if (!props.isDemoModeEnabled || props.isLiveFeedEnabled) return null;
@@ -164,8 +163,8 @@ export function HomePage(props: Props) {
         pillText=""
         banner={banner}
         headerAction={headerAction}
-        isLoading={props.isFeedLoading}
-        posts={filteredPosts}
+        isLoading={isDisplayLoading}
+        posts={displayPosts}
         isOwner={props.isOwner}
         chainId={props.chainId}
         walletAddress={props.walletAddress}

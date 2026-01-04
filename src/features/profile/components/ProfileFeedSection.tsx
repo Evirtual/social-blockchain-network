@@ -1,6 +1,7 @@
 import type { Post } from "@types";
 import { Feed, FeedHeaderControls } from "@features/feed";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
+import { getFeedStorageKeys } from "@features/feed";
 import type { PostActionsController } from "@features/post";
 import { useMemo } from "react";
 
@@ -28,17 +29,21 @@ export function ProfileFeedSection(props: Props) {
     supportedNetworks,
     searchQuery,
     setSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
-    filteredPosts,
+    displayPosts,
     pillText,
-    isPillLoading
+    isPillLoading,
+    isSearchLoading,
+    isDisplayLoading
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: props.authorIdentity,
     shortAddress: props.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
-    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    ...getFeedStorageKeys({ kind: "profile", address: props.authorAddress }),
     walletAddress: props.walletAddress,
     chainId: props.chainId,
     isFeedLoading: props.isFeedLoading,
@@ -46,27 +51,21 @@ export function ProfileFeedSection(props: Props) {
     authorAddress: props.authorAddress
   });
 
-  const headerAction = useMemo(() => {
-    return (
-      <FeedHeaderControls
-        pillText={pillText}
-        isPillLoading={isPillLoading}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        selectedNetworkChainIds={selectedNetworkChainIds}
-        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-        supportedNetworks={supportedNetworks}
-      />
-    );
-  }, [
-    pillText,
-    isPillLoading,
-    searchQuery,
-    setSearchQuery,
-    selectedNetworkChainIds,
-    setSelectedNetworkChainIds,
-    supportedNetworks
-  ]);
+  const headerAction = (
+    <FeedHeaderControls
+      pillText={pillText}
+      isPillLoading={isPillLoading}
+      isSearchLoading={isSearchLoading}
+      isSearchDirty={isSearchDirty}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onRestoreDraftToApplied={restoreDraftToApplied}
+      onSearchSubmit={submitSearch}
+      selectedNetworkChainIds={selectedNetworkChainIds}
+      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+      supportedNetworks={supportedNetworks}
+    />
+  );
 
   return (
     <section className="content">
@@ -74,9 +73,9 @@ export function ProfileFeedSection(props: Props) {
         title={activeTitle}
         pillText=""
         headerAction={headerAction}
-        isLoading={props.isFeedLoading}
+        isLoading={isDisplayLoading}
         loadingText={props.status}
-        posts={filteredPosts}
+        posts={displayPosts}
         isOwner={props.isOwner}
         chainId={props.chainId}
         walletAddress={props.walletAddress}

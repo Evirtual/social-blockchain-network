@@ -1,12 +1,17 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChainLogo } from "@shared/components/ChainLogos";
+import { IconSearch } from "@shared/components/icons";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {
   pillText?: string;
   isPillLoading?: boolean;
+  isSearchLoading?: boolean;
+  isSearchDirty?: boolean;
   searchQuery: string;
   onSearchQueryChange: (next: string) => void;
+  onRestoreDraftToApplied?: () => void;
+  onSearchSubmit: () => void;
   selectedNetworkChainIds: string[];
   onSelectedNetworkChainIdsChange: (updater: (prev: string[]) => string[]) => void;
   supportedNetworks: SupportedNetwork[];
@@ -16,9 +21,12 @@ type BrandHueStyle = CSSProperties & { ["--brand-hue"]?: string | number };
 
 export function FeedHeaderControls(props: Props) {
   const metaRef = useRef<HTMLSpanElement | null>(null);
+  const submitRef = useRef<HTMLButtonElement | null>(null);
   const [metaWidthPx, setMetaWidthPx] = useState(0);
 
   const pillText = (props.pillText ?? "").trim();
+  const isSearchLoading = Boolean(props.isSearchLoading);
+  const isSearchDirty = Boolean(props.isSearchDirty);
   useLayoutEffect(() => {
     const el = metaRef.current;
     if (!el) {
@@ -42,13 +50,13 @@ export function FeedHeaderControls(props: Props) {
 
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [pillText]);
+  }, [pillText, props.isPillLoading, isSearchLoading]);
 
   const searchStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (!pillText || metaWidthPx <= 0) return undefined;
-    // Base right padding is ~0.625rem. Add: label width + a small gap.
+    if (metaWidthPx <= 0) return undefined;
+    // Base right padding is ~0.625rem. Add: end-adornment width + a small gap.
     return { paddingRight: `calc(0.625rem + ${metaWidthPx}px + 0.75rem)` };
-  }, [pillText, metaWidthPx]);
+  }, [metaWidthPx]);
 
   const selectedNetworks = useMemo(() => {
     if (!props.selectedNetworkChainIds.length) return [];
@@ -59,15 +67,28 @@ export function FeedHeaderControls(props: Props) {
   return (
     <div className="feedHeaderControls">
       <div className="feedSearchWrap">
-        {pillText ? (
-          <span ref={metaRef} className="feedSearchMeta" aria-hidden="true">
-            {pillText}
-          </span>
-        ) : props.isPillLoading ? (
-          <span ref={metaRef} className="feedSearchMeta" aria-hidden="true">
-            <span className="skeletonLine" style={{ width: "2.1rem", height: "0.7rem" }} />
-          </span>
-        ) : null}
+        <span ref={metaRef} className="feedSearchEnd">
+          {pillText ? (
+            <span className="feedSearchMeta" aria-hidden="true">
+              {pillText}
+            </span>
+          ) : props.isPillLoading ? (
+            <span className="feedSearchMeta" aria-hidden="true">
+              <span className="skeletonLine" style={{ width: "2.1rem", height: "0.7rem" }} />
+            </span>
+          ) : null}
+
+          <button
+            type="button"
+            className={isSearchDirty ? "feedSearchSubmit primary" : "feedSearchSubmit"}
+            onClick={props.onSearchSubmit}
+            aria-label="Search"
+            title="Search"
+            ref={submitRef}
+          >
+            {isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />}
+          </button>
+        </span>
 
         <input
           className="input feedSearch"
@@ -75,6 +96,19 @@ export function FeedHeaderControls(props: Props) {
           name="feedSearch"
           value={props.searchQuery}
           onChange={(e) => props.onSearchQueryChange(e.target.value)}
+          onBlur={(e) => {
+            const nextFocus = e.relatedTarget as Node | null;
+            if (nextFocus && submitRef.current && submitRef.current.contains(nextFocus)) return;
+
+            const trimmedDraft = (props.searchQuery ?? "").trim();
+            // If the user cleared the input but didn't submit, keep showing the active search.
+            if (!trimmedDraft && props.onRestoreDraftToApplied) props.onRestoreDraftToApplied();
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            props.onSearchSubmit();
+          }}
           placeholder="Search"
           aria-label="Search"
           style={searchStyle}

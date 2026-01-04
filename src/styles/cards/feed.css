@@ -120,6 +120,20 @@
   min-width: 12rem;
 }
 
+/* Hide native search clear button (we render our own end controls). */
+.feedSearch::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.feedSearch::-ms-clear,
+.feedSearch::-ms-reveal {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Demo banner sits above the feed header. */
 .feed > .demoFeedBanner {
   margin-top: 1rem;
@@ -224,16 +238,36 @@
   width: 18rem;
 }
 
-.feedSearchMeta {
+.feedSearchEnd {
   position: absolute;
-  right: 0.625rem;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feedSearchMeta {
   font-size: 0.75rem;
   font-weight: 650;
   color: var(--muted-2);
   pointer-events: none;
   white-space: nowrap;
+}
+
+.feedSearchSubmit {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedSearchSubmit .spinner {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 /* Match the pill sizing in the feed header. */

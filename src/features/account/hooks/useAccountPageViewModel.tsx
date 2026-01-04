@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Post } from "@types";
 import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
 import { useAccountFeedView } from "./useAccountFeedView";
 import { useFeedFilterViewModel } from "@features/feed";
+import { getFeedStorageKeys } from "@features/feed";
 import { loadAccountCountsFromSubgraphs } from "../services/subgraph/loadAccountCounts";
 
 type Args = {
@@ -29,28 +30,43 @@ export function useAccountPageViewModel(args: Args) {
   });
 
   const authorAddress = view === "all" ? args.walletAddress : null;
-  const useSubgraphSearch = view === "all";
+  const useSubgraphSearch = true;
+
+  const postFilter = useCallback(
+    (post: Post) => {
+      if (view === "saved") return post.contextTag === "saved" || Boolean(post.savedByMe);
+      if (view === "liked") return post.contextTag === "liked" || Boolean(post.likedByMe);
+      return true;
+    },
+    [view]
+  );
 
   const {
     supportedNetworks,
     searchQuery,
     setSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     filteredPosts,
+    displayPosts,
+    isDisplayLoading,
     pillText,
-    isPillLoading
+    isPillLoading,
+    isSearchLoading
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: args.authorIdentity,
     shortAddress: args.shortAddress,
-    searchQueryKey: "socialBlockchainNetwork.feed.searchQuery",
-    selectedNetworksKey: "socialBlockchainNetwork.feed.selectedNetworks",
+    ...getFeedStorageKeys({ kind: "profile", address: args.walletAddress }),
     walletAddress: args.walletAddress,
     chainId: args.chainId,
     isFeedLoading: activeLoading,
     useSubgraphSearch,
     authorAddress,
+    postFilter: view === "all" ? null : postFilter,
     countMode: view === "all" ? "auto" : "visible"
   });
 
@@ -130,11 +146,17 @@ export function useAccountPageViewModel(args: Args) {
     activeLoading,
     activePosts,
     filteredActivePosts: filteredPosts,
+    displayActivePosts: displayPosts,
+    isDisplayLoading,
     headerInlineAction,
     pillText,
     isPillLoading,
+    isSearchLoading,
     searchQuery,
     setSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     supportedNetworks

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Post } from "@types";
 import { useSupportedNetworks } from "./useSupportedNetworks";
 import { useNetworkFilterState } from "./useNetworkFilterState";
@@ -8,6 +8,14 @@ import {
   loadTotalPostsCountFromSubgraphs
 } from "@features/feed/services/subgraph/loadFeedCounts";
 import { loadRemoteSearchPostsFromSubgraphs } from "@features/feed/services/subgraph/loadRemoteSearchPosts";
+import {
+  AUTHOR_COUNT_CACHE,
+  REMOTE_SEARCH_CACHE,
+  TOTAL_COUNT_CACHE,
+  setCacheWithCap,
+  stableIdsKey
+} from "@features/feed/services/subgraph/subgraphCache";
+import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 
 type Args = {
   posts: Post[];
@@ -21,6 +29,7 @@ type Args = {
   useSubgraphSearch?: boolean;
   fallbackSelectedNetworkChainIds?: string[];
   authorAddress?: string | null;
+  postFilter?: ((post: Post) => boolean) | null;
   countMode?: "auto" | "visible";
 };
 
@@ -36,12 +45,36 @@ export function useFeedFilterViewModel(args: Args) {
       chainId: args.chainId,
       supportedNetworks
     });
+
+  const [appliedSearchQuery, setAppliedSearchQuery] = useSessionStorageState<string>(
+    `${args.searchQueryKey}.applied`,
+    "",
+    {
+      serialize: (v) => String(v ?? ""),
+      parse: (raw) => String(raw ?? "")
+    }
+  );
+
+  const submitSearch = useCallback(() => {
+    setAppliedSearchQuery(searchQuery);
+  }, [searchQuery, setAppliedSearchQuery]);
+
+  const isSearchDirty = useMemo(() => {
+    const draft = (searchQuery ?? "").trim();
+    const applied = (appliedSearchQuery ?? "").trim();
+    return draft !== applied;
+  }, [searchQuery, appliedSearchQuery]);
+
+  const restoreDraftToApplied = useCallback(() => {
+    setSearchQuery(appliedSearchQuery);
+  }, [setSearchQuery, appliedSearchQuery]);
+
   const [totalPostsCount, setTotalPostsCount] = useState<number | null>(null);
   const [isTotalPostsLoading, setIsTotalPostsLoading] = useState(false);
   const [authorPostsCount, setAuthorPostsCount] = useState<number | null>(null);
   const [isAuthorPostsLoading, setIsAuthorPostsLoading] = useState(false);
   const [remoteSearchPosts, setRemoteSearchPosts] = useState<Post[] | null>(null);
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const [isRemoteSearchLoading, setIsRemoteSearchLoading] = useState(false);
 
   const basePosts = remoteSearchPosts ?? args.posts;
   const authorFilter = typeof args.authorAddress === "string" ? args.authorAddress.trim().toLowerCase() : "";
@@ -51,18 +84,23 @@ export function useFeedFilterViewModel(args: Args) {
     return fallback.length ? fallback : selectedNetworkChainIds;
   }, [selectedNetworkChainIds, args.fallbackSelectedNetworkChainIds]);
   const scopedPosts = useMemo(() => {
-    if (!authorFilter) return basePosts;
-    return basePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter);
-  }, [basePosts, authorFilter]);
+    const filteredByAuthor = authorFilter
+      ? basePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter)
+      : basePosts;
+
+    const postFilter = args.postFilter;
+    if (!postFilter) return filteredByAuthor;
+    return filteredByAuthor.filter(postFilter);
+  }, [basePosts, authorFilter, args.postFilter]);
   const filteredPosts = useMemo(() => {
     return filterPosts({
       posts: scopedPosts,
       authorIdentity: args.authorIdentity,
       shortAddress: args.shortAddress,
-      searchQuery,
+      searchQuery: appliedSearchQuery,
       selectedNetworkChainIds: effectiveSelectedNetworkChainIds
     });
-  }, [scopedPosts, args.authorIdentity, args.shortAddress, searchQuery, effectiveSelectedNetworkChainIds]);
+  }, [scopedPosts, args.authorIdentity, args.shortAddress, appliedSearchQuery, effectiveSelectedNetworkChainIds]);
 
   useEffect(() => {
     if (countMode !== "auto") {
@@ -100,10 +138,21 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
+    const cacheKey = `total:${stableIdsKey(selectedIds)}`;
+    const cached = TOTAL_COUNT_CACHE.get(cacheKey);
+    if (typeof cached === "number") {
+      setTotalPostsCount(cached);
+      setIsTotalPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     const loadTotals = async () => {
       if (active) setIsTotalPostsLoading(true);
       try {
         const sum = await loadTotalPostsCountFromSubgraphs({ selectedChainIds: selectedIds });
+        setCacheWithCap(TOTAL_COUNT_CACHE, cacheKey, sum);
         if (active) setTotalPostsCount(sum);
       } finally {
         if (active) setIsTotalPostsLoading(false);
@@ -151,6 +200,16 @@ export function useFeedFilterViewModel(args: Args) {
       };
     }
 
+    const cacheKey = `author:${authorFilter}:${stableIdsKey(selectedIds)}`;
+    const cached = AUTHOR_COUNT_CACHE.get(cacheKey);
+    if (typeof cached === "number") {
+      setAuthorPostsCount(cached);
+      setIsAuthorPostsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     const loadAuthorTotals = async () => {
       if (active) setIsAuthorPostsLoading(true);
       try {
@@ -158,6 +217,7 @@ export function useFeedFilterViewModel(args: Args) {
           authorAddress: authorFilter,
           selectedChainIds: selectedIds
         });
+        setCacheWithCap(AUTHOR_COUNT_CACHE, cacheKey, sum);
         if (active) setAuthorPostsCount(sum);
       } finally {
         if (active) setIsAuthorPostsLoading(false);
@@ -172,19 +232,13 @@ export function useFeedFilterViewModel(args: Args) {
   }, [countMode, enableSubgraphQueries, supportedNetworks, selectedNetworkChainIds, authorFilter]);
 
   useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 350);
-    return () => window.clearTimeout(handle);
-  }, [searchQuery]);
-
-  useEffect(() => {
     let active = true;
-    const trimmedQuery = debouncedSearchQuery.trim();
+    const trimmedQuery = appliedSearchQuery.trim();
     const minQueryLength = 3;
 
     if (!enableSubgraphQueries || !trimmedQuery || trimmedQuery.length < minQueryLength) {
       setRemoteSearchPosts(null);
+      setIsRemoteSearchLoading(false);
       return () => {
         active = false;
       };
@@ -196,6 +250,17 @@ export function useFeedFilterViewModel(args: Args) {
 
     if (selectedIds.length === 0) {
       setRemoteSearchPosts([]);
+      setIsRemoteSearchLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    const cacheKey = `search:${trimmedQuery}:${authorFilter}:${args.walletAddress ?? ""}:${stableIdsKey(selectedIds)}`;
+    const cached = REMOTE_SEARCH_CACHE.get(cacheKey);
+    if (cached) {
+      setRemoteSearchPosts(cached);
+      setIsRemoteSearchLoading(false);
       return () => {
         active = false;
       };
@@ -203,6 +268,7 @@ export function useFeedFilterViewModel(args: Args) {
 
     const loadSearch = async () => {
       if (!active) return;
+      setIsRemoteSearchLoading(true);
       const next = await loadRemoteSearchPostsFromSubgraphs({
         selectedChainIds: selectedIds,
         searchQuery: trimmedQuery,
@@ -210,7 +276,9 @@ export function useFeedFilterViewModel(args: Args) {
         authorFilter
       });
       if (!active) return;
+      setCacheWithCap(REMOTE_SEARCH_CACHE, cacheKey, next);
       setRemoteSearchPosts(next);
+      setIsRemoteSearchLoading(false);
     };
 
     void loadSearch();
@@ -220,22 +288,23 @@ export function useFeedFilterViewModel(args: Args) {
     };
   }, [
     enableSubgraphQueries,
-    debouncedSearchQuery,
+    appliedSearchQuery,
     selectedNetworkChainIds,
     supportedNetworks,
     args.walletAddress,
     authorFilter
   ]);
 
-  const trimmedQuery = searchQuery.trim();
+  const trimmedQuery = appliedSearchQuery.trim();
   const noNetworksSelected = effectiveSelectedNetworkChainIds.length === 0;
   const visiblePostsCount = filteredPosts.length;
   const isPillLoading =
-    countMode === "auto" &&
-    !noNetworksSelected &&
-    !trimmedQuery &&
-    enableSubgraphQueries &&
-    (Boolean(args.isFeedLoading) || (authorFilter ? isAuthorPostsLoading : isTotalPostsLoading));
+    isRemoteSearchLoading ||
+    (countMode === "auto" &&
+      !noNetworksSelected &&
+      !trimmedQuery &&
+      enableSubgraphQueries &&
+      (Boolean(args.isFeedLoading) || (authorFilter ? isAuthorPostsLoading : isTotalPostsLoading)));
   const pillText = noNetworksSelected
     ? ""
     : isPillLoading
@@ -246,15 +315,25 @@ export function useFeedFilterViewModel(args: Args) {
           ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
           : `${authorFilter ? Math.max(authorPostsCount ?? 0, visiblePostsCount) : Math.max(totalPostsCount ?? 0, visiblePostsCount)} posts`;
 
+  const isDisplayLoading = Boolean(args.isFeedLoading) || isRemoteSearchLoading;
+  const displayPosts = isRemoteSearchLoading ? [] : filteredPosts;
+
   return {
     supportedNetworks,
     searchQuery,
     setSearchQuery,
+    appliedSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     filteredPosts,
+    displayPosts,
+    isDisplayLoading,
     pillText,
     isPillLoading,
+    isSearchLoading: isRemoteSearchLoading,
     isNetworkFilterActive
   };
 }

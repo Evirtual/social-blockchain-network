@@ -4,7 +4,6 @@ import type { Post } from "@types";
 import { FeedHeaderControls } from "@features/feed";
 import { useAccountPageViewModel } from "../hooks/useAccountPageViewModel";
 import { AccountSidebar } from "../components/AccountSidebar";
-import { useMemo } from "react";
 import type { PostActionsController } from "@features/post";
 
 type Props = {
@@ -33,16 +32,20 @@ type Props = {
 
 export function AccountPage(props: Props) {
   const {
-    activeLoading,
-    filteredActivePosts,
+    displayActivePosts,
+    isDisplayLoading,
     headerInlineAction,
     pillText,
     searchQuery,
     setSearchQuery,
+    submitSearch,
+    isSearchDirty,
+    restoreDraftToApplied,
     selectedNetworkChainIds,
     setSelectedNetworkChainIds,
     supportedNetworks,
-    isPillLoading
+    isPillLoading,
+    isSearchLoading
   } = useAccountPageViewModel({
     posts: props.posts,
     savedPosts: props.savedPosts,
@@ -56,27 +59,21 @@ export function AccountPage(props: Props) {
     shortAddress: props.shortAddress
   });
 
-  const headerAction = useMemo(() => {
-    return (
-      <FeedHeaderControls
-        pillText={pillText}
-        isPillLoading={isPillLoading}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        selectedNetworkChainIds={selectedNetworkChainIds}
-        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-        supportedNetworks={supportedNetworks}
-      />
-    );
-  }, [
-    pillText,
-    isPillLoading,
-    searchQuery,
-    setSearchQuery,
-    selectedNetworkChainIds,
-    setSelectedNetworkChainIds,
-    supportedNetworks
-  ]);
+  const headerAction = (
+    <FeedHeaderControls
+      pillText={pillText}
+      isPillLoading={isPillLoading}
+      isSearchLoading={isSearchLoading}
+      isSearchDirty={isSearchDirty}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onRestoreDraftToApplied={restoreDraftToApplied}
+      onSearchSubmit={submitSearch}
+      selectedNetworkChainIds={selectedNetworkChainIds}
+      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+      supportedNetworks={supportedNetworks}
+    />
+  );
 
   return (
     <main className="profileLayout">
@@ -90,8 +87,8 @@ export function AccountPage(props: Props) {
           pillText=""
           headerInlineAction={headerInlineAction}
           headerAction={headerAction}
-          isLoading={activeLoading}
-          posts={filteredActivePosts}
+          isLoading={isDisplayLoading}
+          posts={displayActivePosts}
           isOwner={props.isOwner}
           chainId={props.chainId}
           walletAddress={props.walletAddress}
