@@ -68,8 +68,6 @@ export function useFeedComments(params: {
 
   const loadCommentsForPost = useCallback(
     async (tokenId: string, postChainId?: string | null) => {
-      const tokenIdBig = BigInt(tokenId);
-
       const keyChainId = postChainId ?? chainId ?? null;
       const key = commentKey(keyChainId, tokenId);
 
@@ -82,6 +80,15 @@ export function useFeedComments(params: {
       const env = getEnv();
       const subgraphUrl = getSubgraphUrlForChainId(env, keyChainIdNum);
       const accountLower = typeof walletAddress === "string" ? walletAddress.toLowerCase() : null;
+
+      // Demo posts (and other non-numeric IDs) should never hit BigInt parsing / on-chain scanning.
+      // Treat them as having no on-chain comments.
+      let tokenIdBig: bigint | null = null;
+      try {
+        tokenIdBig = BigInt(tokenId);
+      } catch {
+        tokenIdBig = null;
+      }
 
       await runInFlight(commentsInFlightRef.current, key, async () => {
         setIsLoadingPostComments((prev) => ({ ...prev, [key]: true }));
@@ -102,6 +109,11 @@ export function useFeedComments(params: {
           // Subgraphs can be warming up or temporarily out of sync.
           // Keep the app usable by falling back to RPC log scanning.
           subgraphError = err;
+        }
+
+        if (tokenIdBig == null) {
+          setPostComments((prev) => ({ ...prev, [key]: [] }));
+          return;
         }
 
         const readCtx = await getCommentsReadContext({ provider, chainId, postChainId, contract });

@@ -10,7 +10,12 @@ export async function fetchPostByTokenId(params: {
 }): Promise<Post | null> {
   const { id, currentChainId, readContract, walletAddress } = params;
 
-  const tokenIdBig = BigInt(id);
+  let tokenIdBig: bigint;
+  try {
+    tokenIdBig = BigInt(id);
+  } catch {
+    return null;
+  }
   let tokenUri = "";
   let likesRaw = 0n;
   let commentsRaw = 0n;

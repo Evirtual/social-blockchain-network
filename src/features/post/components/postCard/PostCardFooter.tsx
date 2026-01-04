@@ -47,8 +47,9 @@ export type PostCardFooterProps = {
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
   const feedState = useFeedState();
-  const isDemoGated = feedState.isDemoModeEnabled && !feedState.isLiveFeedEnabled;
-  const isDemoNotApproved = isDemoGated && feedState.demoStep === "approve";
+  const isDemoPost = String(props.post.tokenId ?? "").startsWith("demo-");
+  const isDemoGated = feedState.isDemoModeEnabled && (!feedState.isLiveFeedEnabled || isDemoPost);
+  const isDemoNotApproved = (isDemoGated && feedState.demoStep === "approve") || isDemoPost;
   const effectiveDisabledTitle = isDemoNotApproved ? "Get approved to interact." : props.interactionDisabledTitle;
 
   const tokenId = props.tokenId;

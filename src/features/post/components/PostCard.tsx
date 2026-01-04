@@ -66,8 +66,9 @@ type Props = {
 
 export const PostCard = memo(function PostCard(props: Props) {
   const feedState = useFeedState();
-  const isDemoGated = feedState.isDemoModeEnabled && !feedState.isLiveFeedEnabled;
-  const isDemoNotApproved = isDemoGated && feedState.demoStep === "approve";
+  const isDemoPost = String(props.post.tokenId ?? "").startsWith("demo-");
+  const isDemoGated = feedState.isDemoModeEnabled && (!feedState.isLiveFeedEnabled || isDemoPost);
+  const isDemoNotApproved = (isDemoGated && feedState.demoStep === "approve") || isDemoPost;
 
   const tokenId = props.post.tokenId;
   const postChainId = props.post.chainId ?? null;
