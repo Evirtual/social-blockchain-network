@@ -1,4 +1,6 @@
 import { stableHueFromSeed } from "@shared/lib/formatters";
+import { getEnv } from "@shared/lib/env";
+import { getConfiguredFeedNetworks } from "./feedNetworks";
 
 export type SupportedNetwork = {
   chainId: number;
@@ -47,16 +49,15 @@ function mk(args: { chainId: number; chainName: string; networkName: string; des
 
 export function getSupportedNetworks(): SupportedNetwork[] {
   // UX requirement: show supported networks as pills with logo + name.
-  const networks: SupportedNetwork[] = [
+  // Important: only show networks that actually have a configured contract address.
+  const candidates: SupportedNetwork[] = [
+    mk({ chainId: 31337, chainName: "Local", networkName: "" }),
     mk({ chainId: 84532, chainName: "Base", networkName: "Sepolia" }),
     mk({ chainId: 11155111, chainName: "Ethereum", networkName: "Sepolia" }),
     mk({ chainId: 97, chainName: "BSC", networkName: "Testnet" })
   ];
 
-  const localAddr = (import.meta.env.VITE_CONTRACT_ADDRESS || "").trim();
-  if (localAddr) {
-    networks.unshift(mk({ chainId: 31337, chainName: "Local", networkName: "" }));
-  }
-
-  return networks;
+  const env = getEnv();
+  const configuredChainIds = new Set(getConfiguredFeedNetworks(env).map((n) => n.chainId));
+  return candidates.filter((n) => configuredChainIds.has(n.chainId));
 }
