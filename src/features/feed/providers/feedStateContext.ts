@@ -2,6 +2,11 @@ import { createContext } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
 import type { Post, PostComment } from "@types";
 
+export type LoadPostsByTokenIdsResult = {
+  didFetch: boolean;
+  posts: Post[];
+};
+
 export type FeedState = {
   posts: Post[];
   isFeedLoading: boolean;
@@ -18,7 +23,7 @@ export type FeedActions = {
   refreshFeed: (accountOverride?: string | null) => Promise<void>;
   setPostComments: React.Dispatch<React.SetStateAction<Record<string, PostComment[]>>>;
   loadCommentsForPost: (tokenId: string, postChainId?: string | null) => Promise<void>;
-  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
+  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
 };
 
 export type FeedContextValue = FeedState & FeedActions;

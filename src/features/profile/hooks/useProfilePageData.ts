@@ -6,6 +6,7 @@ import { useSavedPostsByAddress } from "./useSavedPostsByAddress";
 import { useSelfSavedLikedPosts } from "./useSelfSavedLikedPosts";
 import type { ReadContractFactory } from "@features/contract";
 import { useNetworkFilterState, useSupportedNetworks } from "@features/feed";
+import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 export function useProfilePageData(args: {
   address: string;
@@ -25,7 +26,7 @@ export function useProfilePageData(args: {
     posts: Post[];
   };
   feedActions: {
-    loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
+    loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
   };
   profileState: {
     profilesByAddress: Record<string, { name?: string; bio?: string; avatarUrl?: string }>;

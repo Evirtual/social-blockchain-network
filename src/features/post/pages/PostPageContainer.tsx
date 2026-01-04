@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Post } from "@types";
 import { useContractState } from "@features/contract";
 import { useFeedMutations, useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
@@ -25,10 +26,12 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   const profile = useProfileState();
   const postActions = usePostActionsController();
 
-  // Default to loading to avoid a brief "not found" flash on hard refresh,
-  // before wallet/provider + feed gating settle.
+  // Avoid a brief "not found" flash on hard refresh before wallet/provider + feed gating settle.
+  // Also keep a local copy of fetched posts so the page can render without waiting on
+  // global state flush.
   const [isPostLoading, setIsPostLoading] = useState(true);
-  const [loadFinishedAt, setLoadFinishedAt] = useState<number | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [localPost, setLocalPost] = useState<Post | null>(null);
 
   const isDemoTokenId = tokenId.startsWith("demo-");
 
@@ -82,6 +85,12 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   const loadCommentsForPost = feedActions.loadCommentsForPost;
   const loadPostsByTokenIds = feedActions.loadPostsByTokenIds;
 
+  // Reset local state between navigations.
+  useEffect(() => {
+    setHasAttemptedLoad(false);
+    setLocalPost(null);
+  }, [tokenId, postChainId]);
+
   useEffect(() => {
     if (isDemoTokenId) return;
     if (isApprovalLoadingGate) return;
@@ -92,24 +101,35 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   useEffect(() => {
     if (isDemoTokenId) {
       setIsPostLoading(false);
-      setLoadFinishedAt(null);
+      setHasAttemptedLoad(true);
       return;
     }
 
     if (isApprovalLoadingGate || isProviderNotReadyGate) {
       setIsPostLoading(true);
-      setLoadFinishedAt(null);
+      setHasAttemptedLoad(false);
       return;
     }
 
     let cancelled = false;
     setIsPostLoading(true);
-    setLoadFinishedAt(null);
+    setHasAttemptedLoad(false);
     void (async () => {
       try {
-        await loadPostsByTokenIds([tokenId], postChainId);
+        const result = await loadPostsByTokenIds([tokenId], postChainId);
+        if (cancelled) return;
+
+        if (result.didFetch) {
+          setHasAttemptedLoad(true);
+
+          const match =
+            result.posts.find(
+              (p) => p.tokenId === tokenId && (postChainId ? String(p.chainId ?? "") === String(postChainId) : true)
+            ) ?? null;
+          if (match) setLocalPost(match);
+        }
       } finally {
-        if (!cancelled) setLoadFinishedAt(Date.now());
+        if (!cancelled) setIsPostLoading(false);
       }
     })();
     return () => {
@@ -118,7 +138,8 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   }, [isDemoTokenId, isApprovalLoadingGate, isProviderNotReadyGate, tokenId, postChainId, loadPostsByTokenIds]);
 
   const post =
-    feedState.posts.find((p) => p.tokenId === tokenId && (postChainId ? p.chainId === postChainId : true)) ??
+    feedState.posts.find((p) => p.tokenId === tokenId && (postChainId ? String(p.chainId ?? "") === String(postChainId) : true)) ??
+    localPost ??
     demoPost ??
     null;
 
@@ -127,23 +148,9 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     if (isDemoTokenId) return;
     if (post) {
       setIsPostLoading(false);
-      setLoadFinishedAt(null);
+      setHasAttemptedLoad(true);
     }
   }, [isDemoTokenId, post]);
-
-  // If a load attempt finished but React hasn't flushed the merged post into the feed yet,
-  // keep the skeleton for a short settle window to avoid flashing "not found".
-  useEffect(() => {
-    if (isDemoTokenId) return;
-    if (post) return;
-    if (loadFinishedAt == null) return;
-    if (isApprovalLoadingGate || isProviderNotReadyGate) return;
-
-    const t = window.setTimeout(() => {
-      setIsPostLoading(false);
-    }, 250);
-    return () => window.clearTimeout(t);
-  }, [isDemoTokenId, post, loadFinishedAt, isApprovalLoadingGate, isProviderNotReadyGate]);
 
   const commentsKey = commentKey(postChainId, tokenId);
 
@@ -153,7 +160,16 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   const resolvedComments = isDemoTokenId ? (demoComments ?? []) : feedState.postComments[commentsKey] ?? [];
   const resolvedIsLoadingComments =
     isDemoTokenId ? false : isApprovalLoadingGate || isProviderNotReadyGate ? true : !!feedState.isLoadingPostComments[commentsKey];
-  const resolvedIsPostLoading = isDemoTokenId ? false : isApprovalLoadingGate || isProviderNotReadyGate ? true : isPostLoading;
+  const resolvedIsPostLoading =
+    isDemoTokenId
+      ? false
+      : isApprovalLoadingGate || isProviderNotReadyGate
+        ? true
+        : post
+          ? false
+          : !hasAttemptedLoad
+            ? true
+            : isPostLoading;
 
   const viewModel = buildPostPageViewModel({
     isOwner: contract.isOwner,

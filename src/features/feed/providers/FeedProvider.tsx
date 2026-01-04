@@ -19,7 +19,8 @@ import {
   FeedStateContext,
   type FeedActions,
   type FeedContextValue,
-  type FeedState
+  type FeedState,
+  type LoadPostsByTokenIdsResult
 } from "./feedStateContext";
 
 export type { FeedContextValue } from "./feedStateContext";
@@ -363,8 +364,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         await comments.loadCommentsForPost(tokenId, postChainId);
       },
       loadPostsByTokenIds: async (tokenIds: string[], postChainId?: string | null) => {
-        if (!isLiveFeedEnabled) return;
-        await postsByTokenIds.loadPostsByTokenIds(tokenIds, postChainId);
+        if (!isLiveFeedEnabled) {
+          return { didFetch: false, posts: [] } satisfies LoadPostsByTokenIdsResult;
+        }
+        return await postsByTokenIds.loadPostsByTokenIds(tokenIds, postChainId);
       }
     }),
     [

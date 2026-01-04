@@ -10,6 +10,7 @@ import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { getEnv } from "@shared/lib/env";
+import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 type Args = {
   walletProvider: BrowserProvider | null;
@@ -20,7 +21,7 @@ type Args = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
   getReadContract: ReadContractFactory;
 
-  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<void>;
+  loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
   setStatus: (status: string) => void;
 };
 
