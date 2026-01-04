@@ -10,6 +10,7 @@ import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { getEnv } from "@shared/lib/env";
+import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
 import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 type Args = {
@@ -26,6 +27,7 @@ type Args = {
 };
 
 export function useSavedPostsByAddress(args: Args) {
+  const cacheTtlMs = 60 * 1000;
   const [savedTokenIdsByAddress, setSavedTokenIdsByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingSavedByAddress, setIsLoadingSavedByAddress] = useState<Record<string, boolean>>({});
 
@@ -83,6 +85,26 @@ export function useSavedPostsByAddress(args: Args) {
               const loadedKey = `${networkKey}:${key}`;
               if (savedLoadedByKeyRef.current[loadedKey]) continue;
 
+              const sessionKey = `socialBlockchainNetwork.profile.saves.${loadedKey}`;
+              const cached = readSessionCache<{ tokenIds?: string[]; ts?: number }>(sessionKey);
+              if (Array.isArray(cached?.tokenIds) && typeof cached?.ts === "number" && Date.now() - cached.ts < cacheTtlMs) {
+                const tokenIds = cached.tokenIds.map((t) => String(t ?? "").trim()).filter(Boolean);
+
+                const chainKey = parseChainKey(chainIdStr);
+                const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
+
+                setSavedTokenIdsByAddress((prev) => {
+                  const existing = prev[key] ?? [];
+                  const preserved = chainKey ? existing.filter((k) => !k.startsWith(`${chainKey}:`)) : existing;
+                  const merged = Array.from(new Set([...activeKeys, ...preserved]));
+                  return { ...prev, [key]: merged };
+                });
+
+                await args.loadPostsByTokenIds(tokenIds, chainIdStr);
+                savedLoadedByKeyRef.current[loadedKey] = true;
+                continue;
+              }
+
               const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
               if (subgraphUrl) {
                 try {
@@ -108,6 +130,7 @@ export function useSavedPostsByAddress(args: Args) {
                   });
 
                   await args.loadPostsByTokenIds(tokenIds, chainIdStr);
+                  writeSessionCache(sessionKey, { tokenIds, ts: Date.now() });
                   savedLoadedByKeyRef.current[loadedKey] = true;
                   continue;
                 } catch {
@@ -161,6 +184,7 @@ export function useSavedPostsByAddress(args: Args) {
               });
 
               await args.loadPostsByTokenIds(activeTokenIds, chainIdStr);
+              writeSessionCache(sessionKey, { tokenIds: activeTokenIds, ts: Date.now() });
               savedLoadedByKeyRef.current[loadedKey] = true;
             }
           } finally {

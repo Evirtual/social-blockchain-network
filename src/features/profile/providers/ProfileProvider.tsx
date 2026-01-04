@@ -8,9 +8,7 @@ import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import { getSupportedNetworks } from "@features/feed";
-import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
-import { getEnv } from "@shared/lib/env";
+import { loadAuthorPostsCountFromSubgraphs } from "@features/feed/services/subgraph/loadFeedCounts";
 import {
   ProfileActionsContext,
   ProfileContext,
@@ -83,57 +81,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const env = getEnv();
     const supported = getSupportedNetworks().map((n) => String(n.chainId));
-    const cacheKey = `socialBlockchainNetwork.profile.posts.${walletAddress.toLowerCase()}.${supported.slice().sort().join(",")}`;
-    const cacheTtlMs = 5 * 60 * 1000;
 
     const load = async () => {
-      if (typeof window !== "undefined") {
-        try {
-          const cachedRaw = window.sessionStorage.getItem(cacheKey);
-          if (cachedRaw) {
-            const cached = JSON.parse(cachedRaw) as { count?: number; ts?: number };
-            if (
-              typeof cached?.count === "number" &&
-              typeof cached?.ts === "number" &&
-              Date.now() - cached.ts < cacheTtlMs
-            ) {
-              if (active) setMyPostsCountFromSubgraph(cached.count);
-              return;
-            }
-          }
-        } catch {
-          // Ignore cache read errors.
-        }
-      }
-
-      let sum = 0;
-      for (const id of supported) {
-        const chainIdNum = Number(id);
-        if (!Number.isFinite(chainIdNum)) continue;
-        const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-        if (!subgraphUrl) continue;
-        const result = await tryQuerySubgraph<{
-          account: { postedCount?: string | null } | null;
-        }>({
-          url: subgraphUrl,
-          query: `query AccountPosts($id: ID!) { account(id: $id) { postedCount } }`,
-          variables: { id: walletAddress.toLowerCase() },
-          timeoutMs: 8_000
-        });
-        if (!result.ok) continue;
-        const count = Number(result.data?.account?.postedCount ?? 0);
-        if (Number.isFinite(count)) sum += count;
-      }
+      const sum = await loadAuthorPostsCountFromSubgraphs({
+        authorAddress: walletAddress,
+        selectedChainIds: supported
+      });
       if (active) setMyPostsCountFromSubgraph(sum);
-      if (typeof window !== "undefined") {
-        try {
-          window.sessionStorage.setItem(cacheKey, JSON.stringify({ count: sum, ts: Date.now() }));
-        } catch {
-          // Ignore cache write errors.
-        }
-      }
     };
 
     void load();

@@ -10,6 +10,7 @@ import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { getEnv } from "@shared/lib/env";
+import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
 import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 type Args = {
@@ -26,6 +27,7 @@ type Args = {
 };
 
 export function useLikedPostsByAddress(args: Args) {
+  const cacheTtlMs = 60 * 1000;
   const [likedTokenIdsByAddress, setLikedTokenIdsByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingLikesByAddress, setIsLoadingLikesByAddress] = useState<Record<string, boolean>>({});
 
@@ -83,6 +85,28 @@ export function useLikedPostsByAddress(args: Args) {
               const loadedKey = `${networkKey}:${key}`;
               if (likesLoadedByKeyRef.current[loadedKey]) continue;
 
+              const sessionKey = `socialBlockchainNetwork.profile.likes.${loadedKey}`;
+              const cached = readSessionCache<{ tokenIds?: string[]; ts?: number }>(sessionKey);
+              if (Array.isArray(cached?.tokenIds) && typeof cached?.ts === "number" && Date.now() - cached.ts < cacheTtlMs) {
+                const tokenIds = cached.tokenIds.map((t) => String(t ?? "").trim()).filter(Boolean);
+
+                const chainKey = parseChainKey(chainIdStr);
+                const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
+
+                setLikedTokenIdsByAddress((prev) => {
+                  const existingLikes = prev[key] ?? [];
+                  const preserved = chainKey
+                    ? existingLikes.filter((k) => !k.startsWith(`${chainKey}:`))
+                    : existingLikes;
+                  const merged = Array.from(new Set([...activeKeys, ...preserved]));
+                  return { ...prev, [key]: merged };
+                });
+
+                await args.loadPostsByTokenIds(tokenIds, chainIdStr);
+                likesLoadedByKeyRef.current[loadedKey] = true;
+                continue;
+              }
+
               const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
               if (subgraphUrl) {
                 try {
@@ -110,6 +134,7 @@ export function useLikedPostsByAddress(args: Args) {
                   });
 
                   await args.loadPostsByTokenIds(tokenIds, chainIdStr);
+                  writeSessionCache(sessionKey, { tokenIds, ts: Date.now() });
                   likesLoadedByKeyRef.current[loadedKey] = true;
                   continue;
                 } catch {
@@ -165,6 +190,7 @@ export function useLikedPostsByAddress(args: Args) {
               });
 
               await args.loadPostsByTokenIds(activeTokenIds, chainIdStr);
+              writeSessionCache(sessionKey, { tokenIds: activeTokenIds, ts: Date.now() });
               likesLoadedByKeyRef.current[loadedKey] = true;
             }
           } finally {
