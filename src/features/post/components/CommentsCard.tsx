@@ -1,5 +1,6 @@
 import type { PostComment } from "@types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { getPostNetworkUi } from "@shared/lib/network";
 import { useProfileActions, useProfileState } from "@features/profile";
 import { CommentItem } from "./comments/CommentItem";
@@ -42,8 +43,11 @@ type Props = {
 };
 
 export function CommentsCard(props: Props) {
+  const location = useLocation();
   const profileState = useProfileState();
   const profileActions = useProfileActions();
+
+  const lastHashScroll = useRef<string>("");
 
   const [commentDraft, setCommentDraft] = useState<string>("");
   const [activeComposer, setActiveComposer] = useState<ActiveComposer>({ type: null });
@@ -121,6 +125,24 @@ export function CommentsCard(props: Props) {
       active = false;
     };
   }, [missingCommentAuthors, explorerChainId, props.disableAuthorProfileLookup, profileActions]);
+
+  useEffect(() => {
+    const hash = String(location.hash ?? "").trim();
+    if (!hash || !hash.startsWith("#comment-")) return;
+    if (hash === lastHashScroll.current) return;
+    if (props.isLoadingComments) return;
+    if (!props.comments.length) return;
+
+    const id = hash.slice(1);
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      lastHashScroll.current = hash;
+      el.scrollIntoView({ block: "center" });
+    }, 50);
+
+    return () => window.clearTimeout(t);
+  }, [location.hash, props.isLoadingComments, props.comments.length]);
 
   const getDisplayProfile = useCallback(
     (address: string) => {
@@ -237,7 +259,11 @@ export function CommentsCard(props: Props) {
               (comment) => rootIdById.get(comment.commentId) === c.commentId && comment.parentId
             );
             return (
-              <article key={c.commentId ?? `${c.txHash ?? "nohash"}-${c.logIndex ?? idx}`} className="post comment">
+              <article
+                key={c.commentId ?? `${c.txHash ?? "nohash"}-${c.logIndex ?? idx}`}
+                id={c.commentId ? `comment-${c.commentId}` : undefined}
+                className="post comment"
+              >
                 <CommentItem
                   comment={c}
                   authorLabel={getDisplayName(c.author)}
@@ -279,6 +305,7 @@ export function CommentsCard(props: Props) {
                     {replies.map((reply, replyIdx) => (
                       <div
                         key={reply.commentId ?? `${reply.txHash ?? "nohash"}-${reply.logIndex ?? replyIdx}`}
+                        id={reply.commentId ? `comment-${reply.commentId}` : undefined}
                         className="commentReply"
                       >
                         <CommentItem

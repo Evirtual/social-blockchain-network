@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconMoon, IconPlus, IconSun } from "@shared/components/icons";
+import { IconMessage, IconMoon, IconPlus, IconSun } from "@shared/components/icons";
 
 type Props = {
   theme: "light" | "dark";
@@ -8,12 +8,25 @@ type Props = {
   walletAddress: string | null;
   onConnectWallet: () => void;
   onOpenComposer: () => void;
+  onOpenNotifications?: () => void;
+  hasUnreadNotifications?: boolean;
   rightSlot?: ReactNode;
   connectNudge?: boolean;
   composeNudge?: boolean;
 };
 
-export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, onOpenComposer, rightSlot, connectNudge, composeNudge }: Props) {
+export function Topbar({
+  theme,
+  onToggleTheme,
+  walletAddress,
+  onConnectWallet,
+  onOpenComposer,
+  onOpenNotifications,
+  hasUnreadNotifications,
+  rightSlot,
+  connectNudge,
+  composeNudge
+}: Props) {
   return (
     <header className="topbar">
       <Link className="brand" to="/">
@@ -40,7 +53,19 @@ export function Topbar({ theme, onToggleTheme, walletAddress, onConnectWallet, o
             </button>
           ) : null}
           {walletAddress ? (
-            rightSlot ?? null
+            <>
+              {typeof onOpenNotifications === "function" ? (
+                <button
+                  className={`ghost iconButton ${hasUnreadNotifications ? "hasUnread" : ""}`}
+                  type="button"
+                  onClick={onOpenNotifications}
+                  aria-label="Notifications"
+                >
+                  <IconMessage size={18} />
+                </button>
+              ) : null}
+              {rightSlot ?? null}
+            </>
           ) : (
             <button className={`primary ${connectNudge ? "connectNudge" : ""}`} onClick={onConnectWallet}>
               Connect

@@ -42,6 +42,7 @@ import {
   CommentReport,
   FollowEdge,
   LikeEdge,
+  Notification,
   Post,
   PostReport,
   SaveEdge,
@@ -130,7 +131,7 @@ function getOrCreatePost(tokenId: BigInt): Post {
     p.editedAtBlock = null;
     p.burnedAtBlock = null;
     p.updatedAtBlock = null;
-    p.author = null;
+    p.author = Address.zero();
     p.mintTxHash = null;
   }
   return p as Post;
@@ -150,6 +151,81 @@ function getFollowEdgeId(follower: Address, followee: Address): string {
 
 function getLogId(txHashHex: string, logIndex: BigInt): string {
   return txHashHex + "-" + logIndex.toString();
+}
+
+function maybeCreatePostNotification(
+  kind: string,
+  post: Post,
+  actorAddress: Address,
+  tokenId: BigInt,
+  commentId: string,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  const recipientBytes = post.author;
+  if (recipientBytes.equals(Address.zero())) return;
+  if (recipientBytes.equals(actorAddress)) return;
+
+  const recipient = getOrCreateAccount(Address.fromBytes(recipientBytes), blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  const id = getLogId(txHash.toHexString(), logIndex);
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = tokenId.toString();
+  if (commentId.length > 0) {
+    n.commentId = commentId;
+  } else {
+    n.commentId = null;
+  }
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
+}
+
+function maybeCreateCommentNotification(
+  kind: string,
+  recipientId: string,
+  actorAddress: Address,
+  tokenId: BigInt,
+  commentId: BigInt,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  const actorId = actorAddress.toHexString();
+  if (recipientId.length == 0) return;
+  if (recipientId == actorId) return;
+  if (recipientId == Address.zero().toHexString()) return;
+
+  const recipient = getOrCreateAccount(Address.fromString(recipientId), blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  const id = getLogId(txHash.toHexString(), logIndex);
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = tokenId.toString();
+  n.commentId = commentId.toString();
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
 }
 
 function decodeBase64Char(code: i32): i32 {
@@ -492,6 +568,18 @@ export function handlePostLiked(event: PostLiked): void {
     const stats = getOrCreateGlobalStats();
     stats.totalLikes = stats.totalLikes.plus(BigInt.fromI32(1));
     stats.save();
+
+    maybeCreatePostNotification(
+      "POST_LIKED",
+      p,
+      event.params.liker,
+      tokenId,
+      "",
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   edge.updatedAtBlock = event.block.number;
@@ -566,6 +654,18 @@ export function handlePostSaved(event: PostSaved): void {
     const stats = getOrCreateGlobalStats();
     stats.totalSaves = stats.totalSaves.plus(BigInt.fromI32(1));
     stats.save();
+
+    maybeCreatePostNotification(
+      "POST_SAVED",
+      p,
+      event.params.saver,
+      tokenId,
+      "",
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   edge.updatedAtBlock = event.block.number;
@@ -647,6 +747,35 @@ export function handleCommentAdded(event: CommentAdded): void {
     const stats = getOrCreateGlobalStats();
     stats.totalComments = stats.totalComments.plus(BigInt.fromI32(1));
     stats.save();
+
+    maybeCreatePostNotification(
+      "POST_COMMENTED",
+      p,
+      event.params.commenter,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+
+    if (c.parentId != null) {
+      const parent = Comment.load(c.parentId as string);
+      if (parent != null) {
+        maybeCreateCommentNotification(
+          "COMMENT_REPLIED",
+          parent.author,
+          event.params.commenter,
+          tokenId,
+          event.params.commentId,
+          event.transaction.hash,
+          event.logIndex,
+          event.block.number,
+          event.block.timestamp
+        );
+      }
+    }
   }
 
   p.updatedAtBlock = event.block.number;
@@ -732,6 +861,18 @@ export function handleCommentLiked(event: CommentLiked): void {
     const stats = getOrCreateGlobalStats();
     stats.totalCommentLikes = stats.totalCommentLikes.plus(BigInt.fromI32(1));
     stats.save();
+
+    maybeCreateCommentNotification(
+      "COMMENT_LIKED",
+      c.author,
+      event.params.liker,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
     c.save();
   }
 
@@ -810,6 +951,18 @@ export function handleCommentSaved(event: CommentSaved): void {
     const stats = getOrCreateGlobalStats();
     stats.totalCommentSaves = stats.totalCommentSaves.plus(BigInt.fromI32(1));
     stats.save();
+
+    maybeCreateCommentNotification(
+      "COMMENT_SAVED",
+      c.author,
+      event.params.saver,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
     c.save();
   }
 

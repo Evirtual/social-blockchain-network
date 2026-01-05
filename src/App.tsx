@@ -13,8 +13,12 @@ import { useProfileState } from "./features/profile";
 import { useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";
 import { ipfsToHttp } from "./features/ipfs";
+import { NotificationsModal } from "./features/notifications";
+import { useState } from "react";
+import { useNotificationsBadge } from "./features/notifications/hooks/useNotificationsBadge";
 
 function AppInner() {
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const theme = useTheme();
   const walletState = useWalletState();
   const walletActions = useWalletActions();
@@ -40,6 +44,12 @@ function AppInner() {
       ? { backgroundImage: `url(${ipfsToHttp(profile.profileAvatarUrl)})` }
       : { background: `hsl(${profile.selfAvatarHue} 75% 55%)` };
 
+  const { hasUnread } = useNotificationsBadge({
+    walletAddress: walletState.walletAddress,
+    chainId: walletState.chainId,
+    first: 30
+  });
+
   return (
     <div className="app">
       <ScrollToTop />
@@ -51,6 +61,8 @@ function AppInner() {
         onToggleTheme={theme.toggleTheme}
         onConnectWallet={connectWallet}
         onOpenComposer={composer.openComposer}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        hasUnreadNotifications={hasUnread}
         rightSlot={
           <WalletProfileLink
             profileLink={profile.profileLink}
@@ -58,6 +70,13 @@ function AppInner() {
             chainId={walletState.chainId}
           />
         }
+      />
+
+      <NotificationsModal
+        open={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        walletAddress={walletState.walletAddress}
+        chainId={walletState.chainId}
       />
 
       <Modal

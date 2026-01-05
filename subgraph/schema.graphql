@@ -2,7 +2,7 @@ type Post @entity(immutable: false) {
   id: ID!
 
   tokenId: String!
-  author: Bytes
+  author: Bytes!
   tokenURI: String!
   title: String!
   body: String!
@@ -53,6 +53,8 @@ type Account @entity(immutable: false) {
   # Relationships
   followers: [FollowEdge!]! @derivedFrom(field: "followee")
   following: [FollowEdge!]! @derivedFrom(field: "follower")
+
+  notifications: [Notification!]! @derivedFrom(field: "recipient")
 }
 
 type GlobalStats @entity(immutable: false) {
@@ -206,6 +208,22 @@ type Withdrawal @entity(immutable: true) {
   amountWei: BigInt!
 
   txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type Notification @entity(immutable: true) {
+  id: ID!
+
+  kind: String!
+  recipient: Account!
+  actor: Account!
+
+  tokenId: String!
+  commentId: String
+
+  txHash: Bytes!
+  logIndex: BigInt!
   blockNumber: BigInt!
   timestamp: BigInt!
 }

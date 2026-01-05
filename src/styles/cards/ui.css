@@ -109,3 +109,11 @@
 .listRow:hover {
   background: var(--surface-2);
 }
+
+.listRow.isUnread {
+  background: var(--surface-2);
+}
+
+.listRow.isUnread .profileName {
+  font-weight: 600;
+}

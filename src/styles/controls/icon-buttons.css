@@ -12,6 +12,22 @@
   border-radius: 62.4375rem;
 }
 
+.iconButton.hasUnread {
+  position: relative;
+}
+
+.iconButton.hasUnread::after {
+  content: "";
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 62.4375rem;
+  background: var(--accent);
+  border: 0.125rem solid var(--bg);
+}
+
 .iconButton svg {
   display: block;
   flex: 0 0 auto;
