@@ -24,6 +24,10 @@ coverage.json
 # Misc
 .DS_Store
 
+# Local tooling (dev-only)
+/tools/findUnusedCssClasses.mjs
+/tools/reports/
+
 # TypeScript
 *.tsbuildinfo
 

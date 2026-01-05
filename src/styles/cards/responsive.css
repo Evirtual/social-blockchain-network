@@ -17,10 +17,6 @@
     justify-content: center;
   }
 
-  .profileDropdown .cardHeaderPills {
-    justify-content: center;
-  }
-
   .walletRow {
     grid-template-columns: 1fr;
     row-gap: 0.5rem;

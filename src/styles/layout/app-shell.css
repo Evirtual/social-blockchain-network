@@ -8,13 +8,6 @@
   padding: var(--app-pad);
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: 21.25rem 1fr;
-  gap: 0.875rem;
-  margin-top: 0.875rem;
-}
-
 .profileLayout {
   display: flex;
   flex-direction: column;
@@ -75,10 +68,6 @@
 }
 
 @media (max-width: 56.25rem) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
   .homeHeroRow {
     grid-template-columns: 1fr;
   }

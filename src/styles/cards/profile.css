@@ -1,11 +1,5 @@
 /* Split from src/styles/cards.css (profile + shared card header actions) */
 
-.profileRow {
-  display: flex;
-  gap: 0.625rem;
-  align-items: center;
-}
-
 .cardHeader {
   display: flex;
   align-items: center;
@@ -16,14 +10,6 @@
 
 .cardHeader .cardTitle {
   margin-bottom: 0;
-}
-
-.cardHeaderPills {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .cardHeaderStats {
@@ -104,10 +90,6 @@
 .cardActionLink:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.cardActionLinkIconOnly {
-  padding: 0.25rem;
 }
 
 .cardActionApprove {

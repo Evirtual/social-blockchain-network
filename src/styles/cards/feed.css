@@ -169,32 +169,6 @@
   font-weight: 700;
 }
 
-.demoBannerSkeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.demoBannerSkeletonTitle {
-  height: 1.35rem;
-  width: 12rem;
-  border-radius: 0.75rem;
-}
-
-.demoBannerSkeletonLine {
-  display: block;
-  max-width: 100%;
-}
-
-.demoBannerSkeletonLine1 {
-  width: 26rem;
-}
-
-.demoBannerSkeletonLine2 {
-  width: 20rem;
-}
-
 .demoFeedBanner.hero .demoFeedBannerTooltip {
   position: absolute;
   top: calc(var(--pad-sm) + 2.5rem);
