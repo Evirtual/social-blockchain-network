@@ -2,28 +2,9 @@ import type { Post } from "@types";
 import { mapWithConcurrency } from "@shared/lib/async";
 import { fetchTokenMetadata } from "@features/metadata";
 import { querySubgraph, tryQuerySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery";
-
-type ErrorInput = Error | { message?: string } | string | null | undefined;
-
-function getErrMsg(err: ErrorInput): string {
-  if (err instanceof Error) return err.message;
-  if (err && typeof err === "object" && "message" in err) {
-    return String((err as { message?: string }).message ?? "");
-  }
-  return String(err ?? "");
-}
-
-function isLikelySchemaMismatch(err: ErrorInput): boolean {
-  const m = getErrMsg(err).toLowerCase();
-  return (
-    m.includes("cannot query field") ||
-    m.includes("unknown type") ||
-    m.includes("unknown argument") ||
-    m.includes("unknown field") ||
-    m.includes("unknown value") ||
-    m.includes("expected type")
-  );
-}
+import { runInFlight, type InFlightMap } from "@shared/lib/inFlight";
+import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
+import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
 
 type SubgraphPostRow = {
   tokenId: string;
@@ -40,6 +21,12 @@ type SubgraphPostRow = {
   tipsWei?: string;
   burnedAtBlock?: string | null;
 };
+
+const FEED_POSTS_CACHE_TTL_MS = 15 * 1000;
+const FEED_EDGES_CACHE_TTL_MS = 15 * 1000;
+
+const feedPostsInFlight: InFlightMap<SubgraphPostRow[]> = {};
+const feedEdgesInFlight: InFlightMap<{ liked: string[]; saved: string[] }> = {};
 
 function toInt(v: string | number | bigint | null | undefined): number {
   const n = Number(v ?? 0);
@@ -259,34 +246,43 @@ export async function loadFeedFromSubgraph(args: {
     ...(authorFilter ? { author: authorFilter } : {}),
     ...(authorIds.length ? { authors: authorIds } : {})
   } satisfies SubgraphVariables;
-  const primary = await tryQuerySubgraph<{ posts: SubgraphPostRow[] }>({
-    url: args.url,
-    query,
-    variables,
-    timeoutMs: 12_000
-  });
-  if (primary.ok) {
-    data = primary.data;
+  const postsCacheKey = `socialBlockchainNetwork.feed.posts.${args.url}.${first}.${bodyQuery}.${authorFilter}.${authorIds.join("|")}`;
+  const cachedPosts = readSessionCache<{ posts?: SubgraphPostRow[]; ts?: number }>(postsCacheKey);
+  if (Array.isArray(cachedPosts?.posts) && typeof cachedPosts?.ts === "number" && Date.now() - cachedPosts.ts < FEED_POSTS_CACHE_TTL_MS) {
+    data = { posts: cachedPosts.posts };
   } else {
-    if (!isLikelySchemaMismatch(primary.error as ErrorInput)) throw primary.error;
-    try {
-      const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
+    const posts = await runInFlight(feedPostsInFlight, postsCacheKey, async () => {
+      const primary = await tryQuerySubgraph<{ posts: SubgraphPostRow[] }>({
         url: args.url,
         query,
         variables,
         timeoutMs: 12_000
       });
-      data = fallback;
-    } catch (err) {
-      if (!isLikelySchemaMismatch(err as ErrorInput)) throw err;
-      const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
-        url: args.url,
-        query: queryMinimal,
-        variables: { first },
-        timeoutMs: 12_000
-      });
-      data = fallback;
-    }
+      if (primary.ok) return primary.data.posts;
+
+      if (!isLikelySubgraphSchemaMismatch(primary.error)) throw primary.error;
+      try {
+        const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
+          url: args.url,
+          query,
+          variables,
+          timeoutMs: 12_000
+        });
+        return fallback.posts;
+      } catch (err) {
+        if (!isLikelySubgraphSchemaMismatch(err)) throw err;
+        const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
+          url: args.url,
+          query: queryMinimal,
+          variables: { first },
+          timeoutMs: 12_000
+        });
+        return fallback.posts;
+      }
+    });
+
+    writeSessionCache(postsCacheKey, { posts, ts: Date.now() });
+    data = { posts };
   }
 
   const rows = Array.isArray(data?.posts) ? data.posts : [];
@@ -340,41 +336,59 @@ export async function loadFeedFromSubgraph(args: {
         }
       `;
 
-      let edges:
-        | {
-            likeEdges: Array<{ tokenId: string }>;
-            saveEdges: Array<{ tokenId: string }>;
-          }
-        | undefined;
+      const edgesCacheKey = `socialBlockchainNetwork.feed.edges.${args.url}.${accountLower}.${tokenIds.join(",")}`;
+      const cachedEdges = readSessionCache<{ liked?: string[]; saved?: string[]; ts?: number }>(edgesCacheKey);
 
-      try {
-        edges = await querySubgraph<{
-          likeEdges: Array<{ tokenId: string }>;
-          saveEdges: Array<{ tokenId: string }>;
-        }>({
-          url: args.url,
-          query: edgesQuery,
-          variables: { account: accountLower, tokenIds },
-          timeoutMs: 8_000
-        });
-      } catch (err) {
-        if (!isLikelySchemaMismatch(err as ErrorInput)) throw err;
-        edges = await querySubgraph<{
-          likeEdges: Array<{ tokenId: string }>;
-          saveEdges: Array<{ tokenId: string }>;
-        }>({
-          url: args.url,
-          query: edgesQueryBigInt,
-          variables: { account: accountLower, tokenIds },
-          timeoutMs: 8_000
-        });
-      }
+      const resolved =
+        Array.isArray(cachedEdges?.liked) &&
+        Array.isArray(cachedEdges?.saved) &&
+        typeof cachedEdges?.ts === "number" &&
+        Date.now() - cachedEdges.ts < FEED_EDGES_CACHE_TTL_MS
+          ? { liked: cachedEdges.liked, saved: cachedEdges.saved }
+          : await runInFlight(feedEdgesInFlight, edgesCacheKey, async () => {
+              let edges:
+                | {
+                    likeEdges: Array<{ tokenId: string }>;
+                    saveEdges: Array<{ tokenId: string }>;
+                  }
+                | undefined;
 
-      const liked = Array.isArray(edges?.likeEdges) ? edges.likeEdges : [];
-      const saved = Array.isArray(edges?.saveEdges) ? edges.saveEdges : [];
+              try {
+                edges = await querySubgraph<{
+                  likeEdges: Array<{ tokenId: string }>;
+                  saveEdges: Array<{ tokenId: string }>;
+                }>({
+                  url: args.url,
+                  query: edgesQuery,
+                  variables: { account: accountLower, tokenIds },
+                  timeoutMs: 8_000
+                });
+              } catch (err) {
+                if (!isLikelySubgraphSchemaMismatch(err)) throw err;
+                edges = await querySubgraph<{
+                  likeEdges: Array<{ tokenId: string }>;
+                  saveEdges: Array<{ tokenId: string }>;
+                }>({
+                  url: args.url,
+                  query: edgesQueryBigInt,
+                  variables: { account: accountLower, tokenIds },
+                  timeoutMs: 8_000
+                });
+              }
 
-      likedTokenIdSet = new Set(liked.map((e) => String(e.tokenId)));
-      savedTokenIdSet = new Set(saved.map((e) => String(e.tokenId)));
+              const liked = (Array.isArray(edges?.likeEdges) ? edges.likeEdges : [])
+                .map((e) => String(e.tokenId))
+                .filter(Boolean);
+              const saved = (Array.isArray(edges?.saveEdges) ? edges.saveEdges : [])
+                .map((e) => String(e.tokenId))
+                .filter(Boolean);
+
+              writeSessionCache(edgesCacheKey, { liked, saved, ts: Date.now() });
+              return { liked, saved };
+            });
+
+      likedTokenIdSet = new Set((resolved?.liked ?? []).map((t) => String(t)));
+      savedTokenIdSet = new Set((resolved?.saved ?? []).map((t) => String(t)));
     } catch {
       // If edge queries fail (warming subgraph / schema mismatch), keep feed usable.
       likedTokenIdSet = null;

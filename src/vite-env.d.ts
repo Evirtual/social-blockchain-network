@@ -24,6 +24,11 @@ interface ImportMetaEnv {
   readonly VITE_BASE_SEPOLIA_SUBGRAPH_URL?: string;
   readonly VITE_BSC_SUBGRAPH_URL?: string;
   readonly VITE_BSC_TESTNET_SUBGRAPH_URL?: string;
+
+  // Optional: formatted console logs for all subgraph requests
+  readonly VITE_SUBGRAPH_LOG?: string;
+  // Optional: print summary tables every N requests (default: 25)
+  readonly VITE_SUBGRAPH_LOG_SUMMARY_EVERY?: string;
 }
 
 interface ImportMeta {

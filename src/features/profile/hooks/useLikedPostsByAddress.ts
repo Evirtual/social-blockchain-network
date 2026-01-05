@@ -4,13 +4,12 @@ import { getSocialContract, socialInterface, type ChainProvider, type ReadContra
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";
-import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { scanToggleEventsForAddress } from "../services/toggleEventScanner";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { getEnv } from "@shared/lib/env";
 import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
+import { loadAccountLikeSaveEdgesFromSubgraph } from "../services/subgraph/loadAccountLikeSaveEdges";
 import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 type Args = {
@@ -63,24 +62,10 @@ export function useLikedPostsByAddress(args: Args) {
           setIsLoadingLikesByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const env = getEnv();
-            const likeEdgesQuery = `
-              query AccountLikes($account: ID!, $first: Int!) {
-                likeEdges(
-                  first: $first,
-                  where: { account: $account, active: true },
-                  orderBy: updatedAtBlock,
-                  orderDirection: desc
-                ) {
-                  tokenId
-                }
-              }
-            `;
 
             for (const selectedChainId of selectedIds) {
               const chainIdStr = String(selectedChainId ?? "").trim();
               if (!chainIdStr) continue;
-
-              const chainIdNum = parseChainIdNumber(chainIdStr);
               const networkKey = chainIdStr.toLowerCase();
               const loadedKey = `${networkKey}:${key}`;
               if (likesLoadedByKeyRef.current[loadedKey]) continue;
@@ -107,19 +92,15 @@ export function useLikedPostsByAddress(args: Args) {
                 continue;
               }
 
-              const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
-              if (subgraphUrl) {
-                try {
-                  const data = await querySubgraph<{ likeEdges: Array<{ tokenId: string }> }>({
-                    url: subgraphUrl,
-                    query: likeEdgesQuery,
-                    variables: { account: key, first: 1000 },
-                    timeoutMs: 10_000
-                  });
+              try {
+                const bundled = await loadAccountLikeSaveEdgesFromSubgraph({
+                  chainIdStr,
+                  account: key,
+                  first: 1000
+                });
 
-                  const tokenIds = (Array.isArray(data?.likeEdges) ? data.likeEdges : [])
-                    .map((e) => String(e?.tokenId ?? "").trim())
-                    .filter(Boolean);
+                if (bundled) {
+                  const tokenIds = (bundled.likedTokenIds ?? []).map((t) => String(t ?? "").trim()).filter(Boolean);
 
                   const chainKey = parseChainKey(chainIdStr);
                   const activeKeys = chainKey ? tokenIds.map((id) => `${chainKey}:${id}`) : tokenIds;
@@ -137,9 +118,9 @@ export function useLikedPostsByAddress(args: Args) {
                   writeSessionCache(sessionKey, { tokenIds, ts: Date.now() });
                   likesLoadedByKeyRef.current[loadedKey] = true;
                   continue;
-                } catch {
-                  // If the subgraph is warming up or unavailable, fall back (current chain only).
                 }
+              } catch {
+                // If the subgraph is warming up or unavailable, fall back (current chain only).
               }
 
               // Fallback: only for the currently connected chain (we don't reliably have other chains' contract addresses).

@@ -8,7 +8,7 @@ import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import { getSupportedNetworks } from "@features/feed";
-import { loadAuthorPostsCountFromSubgraphs } from "@features/feed/services/subgraph/loadFeedCounts";
+import { loadAccountCountsFromSubgraphs } from "@features/account/services/subgraph/loadAccountCounts";
 import {
   ProfileActionsContext,
   ProfileContext,
@@ -84,11 +84,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const supported = getSupportedNetworks().map((n) => String(n.chainId));
 
     const load = async () => {
-      const sum = await loadAuthorPostsCountFromSubgraphs({
-        authorAddress: walletAddress,
-        selectedChainIds: supported
-      });
-      if (active) setMyPostsCountFromSubgraph(sum);
+      const counts = await loadAccountCountsFromSubgraphs({ walletAddress, selectedChainIds: supported });
+      if (active) setMyPostsCountFromSubgraph(counts.posted);
     };
 
     void load();

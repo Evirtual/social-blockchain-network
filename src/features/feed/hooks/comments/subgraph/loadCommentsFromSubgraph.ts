@@ -1,27 +1,6 @@
 import type { PostComment } from "@types";
 import { querySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery";
-
-type ErrorInput = Error | { message?: string } | string | null | undefined;
-
-function getErrMsg(err: ErrorInput): string {
-  if (err instanceof Error) return err.message;
-  if (err && typeof err === "object" && "message" in err) {
-    return String((err as { message?: string }).message ?? "");
-  }
-  return String(err ?? "");
-}
-
-function isLikelySchemaMismatch(err: ErrorInput): boolean {
-  const m = getErrMsg(err).toLowerCase();
-  return (
-    m.includes("cannot query field") ||
-    m.includes("unknown type") ||
-    m.includes("unknown argument") ||
-    m.includes("unknown field") ||
-    m.includes("unknown value") ||
-    m.includes("expected type")
-  );
-}
+import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
 
 function toInt(v: string | number | bigint | null | undefined): number {
   const n = Number(v ?? 0);
@@ -94,7 +73,7 @@ export async function loadCommentsFromSubgraph(args: {
       timeoutMs: 12_000
     });
   } catch (err) {
-    if (isLikelySchemaMismatch(err as ErrorInput)) {
+    if (isLikelySubgraphSchemaMismatch(err)) {
       // If the deployment doesn't include comment indexing yet, treat as empty.
       return [];
     }

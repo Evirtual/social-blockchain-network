@@ -24,6 +24,9 @@ export function useFollowScans(params: {
   const loadedFollowersByAddressRef = useRef<Record<string, boolean>>({});
   const loadedFollowingByAddressRef = useRef<Record<string, boolean>>({});
 
+  const loadedFollowBundleByAddressRef = useRef<Record<string, boolean>>({});
+  const followBundleInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+
   const [followerCountByAddress, setFollowerCountByAddress] = useState<Record<string, number>>({});
   const [isLoadingFollowerCountByAddress, setIsLoadingFollowerCountByAddress] = useState<Record<string, boolean>>({});
   const followerCountInFlightRef = useRef<Record<string, Promise<void> | null>>({});
@@ -35,6 +38,98 @@ export function useFollowScans(params: {
   const [followingByAddress, setFollowingByAddress] = useState<Record<string, string[]>>({});
   const [isLoadingFollowingByAddress, setIsLoadingFollowingByAddress] = useState<Record<string, boolean>>({});
   const followingInFlightRef = useRef<Record<string, Promise<void> | null>>({});
+
+  const loadFollowBundleForAddress = useCallback(
+    async (address: string, epoch: number) => {
+      if (!address) return;
+      const key = addressKey(address);
+      if (!key) return;
+
+      if (loadedFollowBundleByAddressRef.current[key]) return;
+      if (!params.chainId) return;
+
+      const env = getEnv();
+      const chainIdNum = parseChainIdNumber(params.chainId);
+      const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
+      if (!subgraphUrl) return;
+
+      await runInFlight(followBundleInFlightRef.current, key, async () => {
+        setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
+        setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
+        setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
+
+        try {
+          const query = `
+            query FollowBundle($id: ID!, $first: Int!) {
+              account(id: $id) {
+                followersCount
+              }
+              followersEdges: followEdges(
+                first: $first,
+                where: { followee: $id, active: true },
+                orderBy: updatedAtBlock,
+                orderDirection: desc
+              ) {
+                follower {
+                  id
+                }
+              }
+              followingEdges: followEdges(
+                first: $first,
+                where: { follower: $id, active: true },
+                orderBy: updatedAtBlock,
+                orderDirection: desc
+              ) {
+                followee {
+                  id
+                }
+              }
+            }
+          `;
+
+          const result = await tryQuerySubgraph<{
+            account: { followersCount?: string } | null;
+            followersEdges: Array<{ follower?: { id?: string } | null }>;
+            followingEdges: Array<{ followee?: { id?: string } | null }>;
+          }>({
+            url: subgraphUrl,
+            query,
+            variables: { id: key, first: 1000 },
+            timeoutMs: 12_000
+          });
+
+          if (!result.ok) return;
+          if (isStale(epoch)) return;
+
+          const followers = (Array.isArray(result.data?.followersEdges) ? result.data.followersEdges : [])
+            .map((e) => String(e?.follower?.id ?? "").trim().toLowerCase())
+            .filter(Boolean);
+          const following = (Array.isArray(result.data?.followingEdges) ? result.data.followingEdges : [])
+            .map((e) => String(e?.followee?.id ?? "").trim().toLowerCase())
+            .filter(Boolean);
+
+          const countRaw = Number(result.data?.account?.followersCount ?? NaN);
+          const count = Number.isFinite(countRaw) ? countRaw : followers.length;
+
+          setFollowerCountByAddress((prev) => ({ ...prev, [key]: count }));
+          setFollowersByAddress((prev) => ({ ...prev, [key]: followers }));
+          setFollowingByAddress((prev) => ({ ...prev, [key]: following }));
+
+          loadedFollowerCountByAddressRef.current[key] = true;
+          loadedFollowersByAddressRef.current[key] = true;
+          loadedFollowingByAddressRef.current[key] = true;
+          loadedFollowBundleByAddressRef.current[key] = true;
+        } finally {
+          if (!isStale(epoch)) {
+            setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: false }));
+            setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: false }));
+            setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: false }));
+          }
+        }
+      });
+    },
+    [params.chainId]
+  );
 
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
@@ -75,6 +170,9 @@ export function useFollowScans(params: {
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
+        await loadFollowBundleForAddress(address, epoch);
+        if (loadedFollowerCountByAddressRef.current[key]) return;
+
         await runInFlight(followerCountInFlightRef.current, key, async () => {
           setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
           try {
@@ -160,7 +258,14 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [
+      params.provider,
+      params.chainId,
+      params.ensureContractDeployedOnCurrentNetwork,
+      params.getReadContract,
+      params.setStatus,
+      loadFollowBundleForAddress
+    ]
   );
 
   const loadFollowersForAddress = useCallback(
@@ -178,6 +283,9 @@ export function useFollowScans(params: {
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
+        await loadFollowBundleForAddress(address, epoch);
+        if (loadedFollowersByAddressRef.current[key]) return;
+
         await runInFlight(followersInFlightRef.current, key, async () => {
           setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
           try {
@@ -276,7 +384,14 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [
+      params.provider,
+      params.chainId,
+      params.ensureContractDeployedOnCurrentNetwork,
+      params.getReadContract,
+      params.setStatus,
+      loadFollowBundleForAddress
+    ]
   );
 
   const loadFollowingForAddress = useCallback(
@@ -294,6 +409,9 @@ export function useFollowScans(params: {
       const chainIdNum = parseChainIdNumber(params.chainId);
       const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
       if (subgraphUrl) {
+        await loadFollowBundleForAddress(address, epoch);
+        if (loadedFollowingByAddressRef.current[key]) return;
+
         await runInFlight(followingInFlightRef.current, key, async () => {
           setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
           try {
@@ -388,7 +506,14 @@ export function useFollowScans(params: {
         }
       });
     },
-    [params.provider, params.chainId, params.ensureContractDeployedOnCurrentNetwork, params.getReadContract, params.setStatus]
+    [
+      params.provider,
+      params.chainId,
+      params.ensureContractDeployedOnCurrentNetwork,
+      params.getReadContract,
+      params.setStatus,
+      loadFollowBundleForAddress
+    ]
   );
 
   const applyFollowUpdate = useCallback(
