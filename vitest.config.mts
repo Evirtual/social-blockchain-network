@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,18 +14,6 @@ export default defineConfig({
       "@features": path.resolve(__dirname, "src/features"),
       "@shared": path.resolve(__dirname, "src/shared"),
       "@types": path.resolve(__dirname, "src/types.ts")
-    }
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ["react", "react-dom"],
-          router: ["react-router-dom"],
-          ethers: ["ethers"],
-          // Keep the rest in the default chunking strategy.
-        }
-      }
     }
   },
   test: {
