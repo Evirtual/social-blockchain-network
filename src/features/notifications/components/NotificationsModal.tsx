@@ -91,23 +91,14 @@ export function NotificationsModal(props: NotificationsModalProps) {
     if (loading) {
       return (
         <div className="list" aria-busy="true">
-          <div className="listRow">
-            <div className="listRowLeft">
+          <div className="listRow" aria-hidden="true">
+            <span className="listRowLeft">
               <div className="avatar tiny skeleton" />
-              <div style={{ minWidth: 0 }}>
-                <div className="profileName skeleton" style={{ width: "12rem", height: "1rem" }} />
-                <div className="profileMeta skeleton" style={{ width: "10rem", height: "0.9rem", marginTop: "0.25rem" }} />
-              </div>
-            </div>
-          </div>
-          <div className="listRow">
-            <div className="listRowLeft">
-              <div className="avatar tiny skeleton" />
-              <div style={{ minWidth: 0 }}>
-                <div className="profileName skeleton" style={{ width: "14rem", height: "1rem" }} />
-                <div className="profileMeta skeleton" style={{ width: "9rem", height: "0.9rem", marginTop: "0.25rem" }} />
-              </div>
-            </div>
+              <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                <span className="skeletonLine" style={{ width: "13rem", height: "1rem" }} />
+                <span className="skeletonLine" style={{ width: "10rem", height: "0.9rem" }} />
+              </span>
+            </span>
           </div>
         </div>
       );
