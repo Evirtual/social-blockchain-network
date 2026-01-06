@@ -16,6 +16,7 @@ export type NotificationItem = {
   id: string;
   kind: string;
   tokenId: string;
+  chainId?: string | null;
   commentId?: string | null;
   timestamp: number;
   actor: NotificationActor;

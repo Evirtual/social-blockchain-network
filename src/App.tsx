@@ -2,7 +2,7 @@ import { AppProviders } from "./features/app";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ComposerCard, Topbar, TxToaster, WalletProfileLink } from "./features/app";
 import { Modal } from "@shared/components/Modal";
-import { HomeRoute, PostRoute, ProfileRoute } from "./features/app";
+import { HomeRoute, NotificationsRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useComposeNudge, useConnectNudge, useConnectWallet } from "./features/app";
 import { ScrollToTop } from "./features/app/components/ScrollToTop";
 import { useStatusActions } from "./features/status";
@@ -119,6 +119,7 @@ function AppInner() {
 
       <Routes>
         <Route path="/" element={<HomeRoute />} />
+        <Route path="/notifications" element={<NotificationsRoute />} />
         <Route path="/post/:chainId/:tokenId" element={<PostRoute />} />
         <Route path="/post/:tokenId" element={<PostRoute />} />
         <Route path="/profile/:address" element={<ProfileRoute />} />

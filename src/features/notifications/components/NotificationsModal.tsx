@@ -1,45 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@shared/components/Modal";
-import { getAvatarStyle } from "@shared/lib/avatar";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { useNotifications } from "../hooks/useNotifications";
-import type { NotificationItem } from "../types";
 import { useNavigate } from "react-router-dom";
 import {
   maxNotificationTimestamp,
   readNotificationsLastSeen,
   writeNotificationsLastSeen
 } from "../services/notificationReadState";
-
-function actionText(kind: string): string {
-  switch (kind) {
-    case "POST_LIKED":
-      return "liked your post";
-    case "POST_SAVED":
-      return "saved your post";
-    case "POST_COMMENTED":
-      return "commented on your post";
-    case "COMMENT_LIKED":
-      return "liked your comment";
-    case "COMMENT_SAVED":
-      return "saved your comment";
-    case "COMMENT_REPLIED":
-      return "replied to your comment";
-    default:
-      return "interacted with you";
-  }
-}
-
-function detailText(n: NotificationItem): string {
-  const base = `Post #${n.tokenId}`;
-  const cid = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
-  if (!cid) return base;
-
-  if (n.kind === "COMMENT_REPLIED") return `${base} · Reply to comment #${cid}`;
-  if (n.kind === "COMMENT_LIKED" || n.kind === "COMMENT_SAVED") return `${base} · Comment #${cid}`;
-  if (n.kind === "POST_COMMENTED") return `${base} · Comment #${cid}`;
-  return base;
-}
+import { NotificationsList } from "./NotificationsList";
 
 export type NotificationsModalProps = {
   open: boolean;
@@ -75,6 +43,11 @@ export function NotificationsModal(props: NotificationsModalProps) {
     props.onClose();
   };
 
+  const unreadItems = useMemo(
+    () => items.filter((n) => (typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false)),
+    [items, lastSeenTs]
+  );
+
   const body = useMemo(() => {
     if (!props.walletAddress) return <div className="muted">Connect your wallet to view notifications.</div>;
 
@@ -108,49 +81,52 @@ export function NotificationsModal(props: NotificationsModalProps) {
       return <div className="muted">No notifications yet.</div>;
     }
 
+    if (!unreadItems.length) {
+      return <div className="muted">You're all caught up.</div>;
+    }
+
     return (
-      <div className="list">
-        {items.map((n) => {
-          const actorId = String(n.actor?.id ?? "");
-          const displayName = String(n.actor?.name ?? "").trim() || (actorId ? shortAddress(actorId) : "Unknown");
-          const avatarStyle = getAvatarStyle({ avatarUrl: n.actor?.avatar ?? undefined, hue: stableHueFromSeed(actorId) });
-
-          const commentId = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
-          const hash = commentId ? `#comment-${commentId}` : "";
-          const to = `/post/${n.tokenId}${hash}`;
-          const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
-
-          return (
-            <button
-              key={n.id}
-              type="button"
-              className={`listRow ${isUnread ? "isUnread" : ""}`}
-              style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
-              onClick={() => {
-                markAllSeen();
-                navigate(to, { state: { chainId: props.chainId } });
-                props.onClose();
-              }}
-            >
-              <div className="listRowLeft">
-                <div className="avatar tiny" style={avatarStyle} aria-hidden="true" />
-                <div style={{ minWidth: 0 }}>
-                  <div className="profileName" title={displayName}>
-                    {displayName} {actionText(n.kind)}
-                  </div>
-                  <div className="profileMeta">{detailText(n)}</div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <NotificationsList
+        items={unreadItems}
+        lastSeenTs={lastSeenTs}
+        chainId={props.chainId}
+        onSelect={(_notification, to) => {
+          markAllSeen();
+          navigate(to, { state: { chainId: props.chainId } });
+          props.onClose();
+        }}
+      />
     );
-  }, [props.walletAddress, props.chainId, props.onClose, subgraphUrl, schemaMismatch, error, loading, items, navigate, lastSeenTs]);
+  }, [
+    props.walletAddress,
+    props.chainId,
+    props.onClose,
+    subgraphUrl,
+    schemaMismatch,
+    error,
+    loading,
+    items,
+    unreadItems,
+    navigate,
+    lastSeenTs
+  ]);
 
   return (
     <Modal open={props.open} title="Notifications" onClose={handleClose}>
       {body}
+      <div className="rowActions notificationsModalFooter">
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => {
+            markAllSeen();
+            navigate("/notifications");
+            props.onClose();
+          }}
+        >
+          Notification history
+        </button>
+      </div>
     </Modal>
   );
 }

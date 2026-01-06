@@ -46,6 +46,10 @@
   gap: 0.625rem;
 }
 
+.notificationsModalFooter {
+  padding-top: 1rem;
+}
+
 .modalBody .image-preview {
   margin-top: 0.75rem;
 }
