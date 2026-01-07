@@ -245,13 +245,6 @@
 }
 
 /* Match the pill sizing in the feed header. */
-.feedSearch,
-.feedNetworkFilterSummary {
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1.5;
-  padding: 0.5rem 0.75rem;
-}
 
 .feedNetworkFilter {
   position: relative;
@@ -283,8 +276,8 @@
 }
 
 .feedNetworkFilterSummaryIcons .chainBrandMark {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .feedNetworkFilterSummary::after {

@@ -5,9 +5,10 @@ button {
   border: 0.0625rem solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 0.5625rem 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 650;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
   font-family: inherit;
   cursor: pointer;
   box-shadow: none;
@@ -27,10 +28,10 @@ button {
   border: 0.0625rem solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 0.5625rem 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
   text-decoration: none;
   user-select: none;
   white-space: nowrap;

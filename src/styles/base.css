@@ -36,6 +36,11 @@
   --pad-lg: 1.125rem;
   --pad: 0.875rem;
   --pad-sm: 0.75rem;
+  --control-padding-y: 0.625rem;
+  --control-padding-x: 0.75rem;
+  --control-font-size: 0.95rem;
+  --control-font-weight: 650;
+  --control-line-height: 1.1;
 }
 
 html[data-theme="light"] {

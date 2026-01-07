@@ -3,13 +3,18 @@
 .input,
 .textarea,
 .file-input,
-.comment-box input {
+.comment-box input,
+select,
+.select {
   width: 100%;
   border-radius: var(--radius-md);
   border: 0.0625rem solid var(--border);
   background: var(--surface-2);
   color: var(--text);
-  padding: 0.625rem 0.75rem;
+  padding: var(--control-padding-y) var(--control-padding-x);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
   outline: none;
   box-shadow: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.08);
 }
@@ -32,9 +37,11 @@ textarea::placeholder {
   border: 0.0625rem solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 0.4375rem 0.625rem;
+  padding: var(--control-padding-y) var(--control-padding-x);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
   margin-right: 0.625rem;
   cursor: pointer;
 }
@@ -44,9 +51,11 @@ textarea::placeholder {
   border: 0.0625rem solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 0.4375rem 0.625rem;
+  padding: var(--control-padding-y) var(--control-padding-x);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
   margin-right: 0.625rem;
   cursor: pointer;
 }
