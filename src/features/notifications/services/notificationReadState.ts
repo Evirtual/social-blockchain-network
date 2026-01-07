@@ -1,4 +1,4 @@
-import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
+import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
 import type { NotificationItem } from "../types";
 
 const EVENT_NAME = "sbn:notificationsSeen";
@@ -17,14 +17,14 @@ export function notificationsLastSeenKey(chainId: string | null, walletAddress: 
 
 export function readNotificationsLastSeen(chainId: string | null, walletAddress: string | null): number {
   const key = notificationsLastSeenKey(chainId, walletAddress);
-  const cached = readSessionCache<{ ts?: number }>(key);
+  const cached = readLocalCache<{ ts?: number }>(key);
   const ts = typeof cached?.ts === "number" ? cached.ts : 0;
   return Number.isFinite(ts) ? ts : 0;
 }
 
 export function writeNotificationsLastSeen(chainId: string | null, walletAddress: string | null, ts: number): void {
   const key = notificationsLastSeenKey(chainId, walletAddress);
-  writeSessionCache(key, { ts });
+  writeLocalCache(key, { ts });
   try {
     window.dispatchEvent(new Event(EVENT_NAME));
   } catch {

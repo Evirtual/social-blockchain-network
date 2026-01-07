@@ -2,7 +2,7 @@ import type { NotificationItem } from "../types";
 import { querySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery";
 import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
 import { runInFlight, type InFlightMap } from "@shared/lib/inFlight";
-import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
+import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
 
 const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean }> = {};
 const CACHE_TTL_MS = 20 * 1000;
@@ -42,7 +42,7 @@ export async function loadNotificationsFromSubgraph(args: {
 
   const cacheKey = `socialBlockchainNetwork.notifications.${recipient}.${first}.${url}`;
   if (!bypassCache) {
-    const cached = readSessionCache<{ items?: NotificationItem[]; schemaMismatch?: boolean; ts?: number }>(cacheKey);
+    const cached = readLocalCache<{ items?: NotificationItem[]; schemaMismatch?: boolean; ts?: number }>(cacheKey);
     if (
       Array.isArray(cached?.items) &&
       typeof cached?.ts === "number" &&
@@ -87,7 +87,7 @@ export async function loadNotificationsFromSubgraph(args: {
     } catch (err) {
       if (isLikelySubgraphSchemaMismatch(err)) {
         const res = { items: [], schemaMismatch: true };
-        writeSessionCache(cacheKey, { ...res, ts: Date.now() });
+        writeLocalCache(cacheKey, { ...res, ts: Date.now() });
         return res;
       }
       throw err;
@@ -114,7 +114,7 @@ export async function loadNotificationsFromSubgraph(args: {
       .filter((n) => Boolean(n.id) && Boolean(n.actor.id) && Boolean(n.tokenId));
 
     const res = { items, schemaMismatch: false };
-    writeSessionCache(cacheKey, { ...res, ts: Date.now() });
+    writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });
 }
