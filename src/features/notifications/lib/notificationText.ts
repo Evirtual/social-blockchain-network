@@ -24,8 +24,8 @@ export function notificationDetailText(n: NotificationItem): string {
   const cid = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
   if (!cid) return base;
 
-  if (n.kind === "COMMENT_REPLIED") return `${base} Жњ Reply to comment #${cid}`;
-  if (n.kind === "COMMENT_LIKED" || n.kind === "COMMENT_SAVED") return `${base} Жњ Comment #${cid}`;
-  if (n.kind === "POST_COMMENTED") return `${base} Жњ Comment #${cid}`;
+  if (n.kind === "COMMENT_REPLIED") return `${base} | Reply to comment #${cid}`;
+  if (n.kind === "COMMENT_LIKED" || n.kind === "COMMENT_SAVED") return `${base} | Comment #${cid}`;
+  if (n.kind === "POST_COMMENTED") return `${base} | Comment #${cid}`;
   return base;
 }

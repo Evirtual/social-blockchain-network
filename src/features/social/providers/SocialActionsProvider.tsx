@@ -77,6 +77,7 @@ export function SocialActionsProvider({ children }: { children: React.ReactNode 
     feed: {
       posts: feedState.posts,
       setPosts: feedActions.setPosts,
+      setPostComments: feedActions.setPostComments,
       loadCommentsForPost: feedActions.loadCommentsForPost
     },
     setStatus,

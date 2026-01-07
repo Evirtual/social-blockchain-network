@@ -8,7 +8,9 @@ import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
+import type { TransactionReceipt } from "ethers";
 import type { WriteContractFactory } from "@features/contract";
+import { parseCommentAddedFromReceipt } from "../services/commentAddedFromReceipt";
 
 type FeedLike = {
   posts: Post[];
@@ -20,7 +22,7 @@ type FeedLike = {
 type RunContractTxLike = <T = void>(
   label: string,
   send: () => Promise<TransactionResponse>,
-  onSuccess?: () => T
+  onReceipt?: (receipt: TransactionReceipt) => Promise<T> | T
 ) => Promise<T | undefined>;
 
 export function useCommentActions(args: {
@@ -71,7 +73,49 @@ export function useCommentActions(args: {
         const ok = await runContractTx<boolean>(
           "Reply",
           () => writeContract.replyToComment(BigInt(tokenId), BigInt(parentCommentId), text),
-          () => true
+          (receipt) => {
+            try {
+              const tokenIdBig = BigInt(tokenId);
+              const parentIdBig = BigInt(parentCommentId);
+
+              const ev = parseCommentAddedFromReceipt({
+                receipt,
+                contractInterface: writeContract.interface,
+                contractAddress: String(writeContract.target ?? ""),
+                expectedTokenId: tokenIdBig,
+                expectedParentId: parentIdBig
+              });
+              if (!ev) return true;
+
+              const key = commentKey(postChainId ?? chainId, tokenId);
+              feed.setPostComments((prev) => {
+                // Only patch the modal if comments are already loaded.
+                if (!Object.prototype.hasOwnProperty.call(prev, key)) return prev;
+                const existing = prev[key] ?? [];
+                if (existing.some((c) => c.commentId === ev.commentId)) return prev;
+                const nextItem: PostComment = {
+                  commentId: ev.commentId,
+                  tokenId: ev.tokenId,
+                  author: ev.commenter,
+                  parentId: ev.parentId,
+                  comment: ev.comment || text,
+                  deleted: false,
+                  edited: false,
+                  likeCount: 0,
+                  saveCount: 0,
+                  tipWei: 0n,
+                  likedByMe: false,
+                  savedByMe: false,
+                  txHash: receipt.hash,
+                  blockNumber: receipt.blockNumber
+                };
+                return { ...prev, [key]: [...existing, nextItem] };
+              });
+            } catch {
+              // ignore
+            }
+            return true;
+          }
         );
         if (!ok) return false;
 
