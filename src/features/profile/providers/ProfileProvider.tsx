@@ -99,6 +99,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   usePrefetchMissingAuthorProfiles(Boolean(provider) && feedState.isLiveFeedEnabled, posts, profilesByAddress, loadProfile, 4);
 
+  const resolvedMyPostsCount =
+    myPostsCountFromSubgraph == null
+      ? myPostsCount
+      : feedState.isFeedLoading
+        ? myPostsCountFromSubgraph
+        : Math.min(myPostsCountFromSubgraph, myPostsCount);
+
   const stateValue = useMemo<ProfileState>(
     () => ({
       profilesByAddress,
@@ -106,7 +113,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profileBio,
       profileAvatarUrl,
       displayName,
-      myPostsCount: Math.max(myPostsCountFromSubgraph ?? 0, myPostsCount),
+      myPostsCount: resolvedMyPostsCount,
       isEditingProfile,
       profileDraftName,
       profileDraftBio,
@@ -124,8 +131,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profileBio,
       profileAvatarUrl,
       displayName,
-      myPostsCount,
-      myPostsCountFromSubgraph,
+      resolvedMyPostsCount,
       isEditingProfile,
       profileDraftName,
       profileDraftBio,

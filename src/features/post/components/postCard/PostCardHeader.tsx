@@ -10,6 +10,7 @@ type Props = {
   isMine: boolean;
   canModerate?: boolean;
   isEditing: boolean;
+  isBurning?: boolean;
   requiresNetworkSwitch: boolean;
   reportDisabled?: boolean;
   postNetworkLabel: string;
@@ -98,9 +99,10 @@ export function PostCardHeader(props: Props) {
                   onClick={props.onBurn}
                   aria-label="Burn post"
                   title="Burn"
-                  disabled={props.requiresNetworkSwitch}
+                  aria-busy={props.isBurning}
+                  disabled={props.requiresNetworkSwitch || props.isBurning}
                 >
-                  <IconFlame size={16} />
+                  {props.isBurning ? <span className="spinner" aria-hidden="true" /> : <IconFlame size={16} />}
                 </button>
               </span>
             ) : null}

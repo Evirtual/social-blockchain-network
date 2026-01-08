@@ -78,7 +78,8 @@ export function HomePage(props: Props) {
     chainId: props.chainId,
     isFeedLoading: props.isFeedLoading,
     useSubgraphSearch: props.isLiveFeedEnabled,
-    fallbackSelectedNetworkChainIds: demoFallbackSelectedNetworkChainIds
+    fallbackSelectedNetworkChainIds: demoFallbackSelectedNetworkChainIds,
+    countMode: "visible"
   });
 
   const [isSupportedNetworksDismissed, setIsSupportedNetworksDismissed] = usePersistedFlag(

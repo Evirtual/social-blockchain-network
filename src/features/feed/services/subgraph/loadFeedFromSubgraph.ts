@@ -5,6 +5,7 @@ import { querySubgraph, tryQuerySubgraph, type SubgraphVariables } from "@shared
 import { runInFlight, type InFlightMap } from "@shared/lib/inFlight";
 import { readSessionCache, writeSessionCache } from "@shared/lib/sessionCache";
 import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
+import { filterBurnedPosts } from "@shared/lib/burnedPostsCache";
 
 type SubgraphPostRow = {
   tokenId: string;
@@ -289,9 +290,15 @@ export async function loadFeedFromSubgraph(args: {
 
   // Filter burned posts if the schema provides burnedAtBlock.
   const visible = rows.filter((p) => !(p?.burnedAtBlock && String(p.burnedAtBlock).length > 0));
+  const unburned = filterBurnedPosts(
+    visible.map((p) => ({
+      ...p,
+      chainId: args.chainIdStr
+    }))
+  );
   const authorLower = authorFilter.toLowerCase();
   const authorIdSet = new Set(authorIds.map((id) => id.toLowerCase()));
-  const filtered = visible.filter((p) => {
+  const filtered = unburned.filter((p) => {
     if (authorLower) {
       const postAuthor = String(p.author ?? "").toLowerCase();
       if (postAuthor !== authorLower) return false;

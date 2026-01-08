@@ -67,7 +67,7 @@ export function useAccountPageViewModel(args: Args) {
     useSubgraphSearch,
     authorAddress,
     postFilter: view === "all" ? null : postFilter,
-    countMode: view === "all" ? "auto" : "visible"
+    countMode: "visible"
   });
 
   const [accountCounts, setAccountCounts] = useState<{ posted: number; saved: number; liked: number } | null>(null);
@@ -118,9 +118,10 @@ export function useAccountPageViewModel(args: Args) {
     const localPosted = args.posts.length;
     const localSaved = args.savedPosts.length;
     const localLiked = args.likedPosts.length;
-    const resolvedPosted = Math.max(accountCounts?.posted ?? 0, localPosted);
-    const resolvedSaved = Math.max(accountCounts?.saved ?? 0, localSaved);
-    const resolvedLiked = Math.max(accountCounts?.liked ?? 0, localLiked);
+    const resolvedPosted =
+      isAccountCountsLoading || activeLoading ? accountCounts?.posted ?? localPosted : localPosted;
+    const resolvedSaved = localSaved;
+    const resolvedLiked = localLiked;
 
     // Only show loading skeletons on the active tab.
     // (If we're fetching subgraph counts, all tabs can skeleton since they're all being refreshed.)
@@ -140,7 +141,18 @@ export function useAccountPageViewModel(args: Args) {
         isLikedLoading={isLikedLoading}
       />
     );
-  }, [view, setView, accountCounts, activeLoading, isAccountCountsLoading, args.posts.length, args.savedPosts.length, args.likedPosts.length]);
+  }, [
+    view,
+    setView,
+    accountCounts,
+    activeLoading,
+    isAccountCountsLoading,
+    args.posts.length,
+    args.savedPosts.length,
+    args.likedPosts.length,
+    args.isLoadingSaved,
+    args.isLoadingLiked
+  ]);
 
   return {
     activeLoading,

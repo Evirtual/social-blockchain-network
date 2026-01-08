@@ -3,6 +3,7 @@ import type { Post } from "@types";
 import { useSupportedNetworks } from "./useSupportedNetworks";
 import { useNetworkFilterState } from "./useNetworkFilterState";
 import { filterPosts } from "../services/filterPosts";
+import { filterBurnedPosts } from "@shared/lib/burnedPostsCache";
 import {
   loadAuthorPostsCountFromSubgraphs,
   loadTotalPostsCountFromSubgraphs
@@ -79,6 +80,7 @@ export function useFeedFilterViewModel(args: Args) {
   const [isRemoteSearchLoading, setIsRemoteSearchLoading] = useState(false);
 
   const basePosts = remoteSearchPosts ?? args.posts;
+  const visibleBasePosts = useMemo(() => filterBurnedPosts(basePosts), [basePosts]);
   const authorFilter = typeof args.authorAddress === "string" ? args.authorAddress.trim().toLowerCase() : "";
   const effectiveSelectedNetworkChainIds = useMemo(() => {
     if (selectedNetworkChainIds.length) return selectedNetworkChainIds;
@@ -87,13 +89,13 @@ export function useFeedFilterViewModel(args: Args) {
   }, [selectedNetworkChainIds, args.fallbackSelectedNetworkChainIds]);
   const scopedPosts = useMemo(() => {
     const filteredByAuthor = authorFilter
-      ? basePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter)
-      : basePosts;
+      ? visibleBasePosts.filter((post) => (post.author ?? "").toLowerCase() === authorFilter)
+      : visibleBasePosts;
 
     const postFilter = args.postFilter;
     if (!postFilter) return filteredByAuthor;
     return filteredByAuthor.filter(postFilter);
-  }, [basePosts, authorFilter, args.postFilter]);
+  }, [visibleBasePosts, authorFilter, args.postFilter]);
   const filteredPosts = useMemo(() => {
     return filterPosts({
       posts: scopedPosts,
@@ -305,6 +307,9 @@ export function useFeedFilterViewModel(args: Args) {
   const trimmedQuery = appliedSearchQuery.trim();
   const noNetworksSelected = effectiveSelectedNetworkChainIds.length === 0;
   const visiblePostsCount = filteredPosts.length;
+  const resolvedAutoCount = authorFilter
+    ? authorPostsCount ?? visiblePostsCount
+    : totalPostsCount ?? visiblePostsCount;
   const isPillLoading =
     isRemoteSearchLoading ||
     (countMode === "auto" &&
@@ -317,10 +322,10 @@ export function useFeedFilterViewModel(args: Args) {
     : isPillLoading
       ? ""
       : trimmedQuery
+      ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
+      : countMode === "visible"
         ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
-        : countMode === "visible"
-          ? `${visiblePostsCount} ${visiblePostsCount === 1 ? "post" : "posts"}`
-          : `${authorFilter ? Math.max(authorPostsCount ?? 0, visiblePostsCount) : Math.max(totalPostsCount ?? 0, visiblePostsCount)} posts`;
+        : `${resolvedAutoCount} posts`;
 
   const isDisplayLoading = Boolean(args.isFeedLoading) || isRemoteSearchLoading;
   const displayPosts = isRemoteSearchLoading ? [] : filteredPosts;

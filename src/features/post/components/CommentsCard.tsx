@@ -77,16 +77,18 @@ export function CommentsCard(props: Props) {
   const nativeSymbol = props.getNativeSymbol(explorerChainId);
   const walletLower = props.walletAddress?.toLowerCase() ?? null;
 
+  const visibleComments = useMemo(() => props.comments.filter((comment) => !comment.deleted), [props.comments]);
+
   const missingCommentAuthors = useMemo(() => {
     if (props.disableAuthorProfileLookup) return [];
     const resolvedChainId = explorerChainId;
     if (!resolvedChainId) return [];
     const unique = Array.from(
-      new Set(props.comments.map((c) => (c.author ? c.author.toLowerCase() : "")).filter(Boolean))
+      new Set(visibleComments.map((c) => (c.author ? c.author.toLowerCase() : "")).filter(Boolean))
     );
     if (unique.length === 0) return [];
     return unique.filter((addr) => !profileState.profilesByAddress[addr]);
-  }, [props.disableAuthorProfileLookup, props.comments, profileState.profilesByAddress, explorerChainId]);
+  }, [props.disableAuthorProfileLookup, visibleComments, profileState.profilesByAddress, explorerChainId]);
 
   useEffect(() => {
     if (props.disableAuthorProfileLookup) return;
@@ -171,14 +173,14 @@ export function CommentsCard(props: Props) {
     const commentIds = new Set<string>();
     const parentById = new Map<string, string | null>();
     const authorMap = new Map<string, string>();
-    props.comments.forEach((comment) => {
+    visibleComments.forEach((comment) => {
       commentIds.add(comment.commentId);
       parentById.set(comment.commentId, comment.parentId ?? null);
       authorMap.set(comment.commentId, comment.author);
     });
 
     const rootMap = new Map<string, string>();
-    props.comments.forEach((comment) => {
+    visibleComments.forEach((comment) => {
       let current = comment.commentId;
       let parent = parentById.get(current);
       let guard = 0;
@@ -191,11 +193,11 @@ export function CommentsCard(props: Props) {
     });
 
     return { rootIdById: rootMap, authorById: authorMap };
-  }, [props.comments]);
+  }, [visibleComments]);
 
   const rootComments = useMemo(
-    () => props.comments.filter((comment) => rootIdById.get(comment.commentId) === comment.commentId),
-    [props.comments, rootIdById]
+    () => visibleComments.filter((comment) => rootIdById.get(comment.commentId) === comment.commentId),
+    [visibleComments, rootIdById]
   );
 
   const onSubmitComment = useCallback(async () => {
@@ -248,14 +250,14 @@ export function CommentsCard(props: Props) {
             </article>
           ))}
         </div>
-      ) : props.comments.length === 0 ? (
+      ) : visibleComments.length === 0 ? (
         <div className="commentEmpty">
           <div className="muted">No comments yet.</div>
         </div>
       ) : (
         <div className="commentList">
           {rootComments.map((c, idx) => {
-            const replies = props.comments.filter(
+            const replies = visibleComments.filter(
               (comment) => rootIdById.get(comment.commentId) === c.commentId && comment.parentId
             );
             return (

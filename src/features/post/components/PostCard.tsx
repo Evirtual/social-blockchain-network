@@ -56,7 +56,7 @@ type Props = {
   onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onBurn: (tokenId: string, postChainId?: string | null) => void;
+  onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
   shortAddress: (address: string) => string;
@@ -76,6 +76,7 @@ export const PostCard = memo(function PostCard(props: Props) {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportDraft, setReportDraft] = useState("");
   const [isReporting, setIsReporting] = useState(false);
+  const [isBurning, setIsBurning] = useState(false);
 
   const { setStatus } = useStatusActions();
 
@@ -140,9 +141,15 @@ export const PostCard = memo(function PostCard(props: Props) {
     props.onStartEditPost(props.post);
   }, [props.onStartEditPost, props.post]);
 
-  const onBurn = useCallback(() => {
-    props.onBurn(tokenId, postChainId);
-  }, [props.onBurn, tokenId, postChainId]);
+  const onBurn = useCallback(async () => {
+    if (isBurning) return;
+    setIsBurning(true);
+    try {
+      await props.onBurn(tokenId, postChainId);
+    } finally {
+      setIsBurning(false);
+    }
+  }, [props.onBurn, tokenId, postChainId, isBurning]);
 
   const onSubmitReport = useCallback(async () => {
     if (isReporting) return;
@@ -213,6 +220,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         isMine={props.isMine}
         canModerate={props.canModerate}
         isEditing={props.isEditing}
+        isBurning={isBurning}
         requiresNetworkSwitch={requiresNetworkSwitch}
         postNetworkLabel={postNetworkLabel}
         isCurrentNetworkPost={isCurrentNetworkPost}

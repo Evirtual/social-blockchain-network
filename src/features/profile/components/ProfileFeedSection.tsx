@@ -48,7 +48,8 @@ export function ProfileFeedSection(props: Props) {
     chainId: props.chainId,
     isFeedLoading: props.isFeedLoading,
     useSubgraphSearch: true,
-    authorAddress: props.authorAddress
+    authorAddress: props.authorAddress,
+    countMode: "visible"
   });
 
   const headerAction = (

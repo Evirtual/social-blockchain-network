@@ -4,6 +4,7 @@ import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
 import { isSamePost } from "../services/postActions/matchPost";
 import { postKeyFromParts } from "@features/post/services";
 import { runSocialAction } from "../services/actions/runSocialAction";
+import { markPostBurned } from "@shared/lib/burnedPostsCache";
 
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
@@ -122,6 +123,8 @@ export function usePostModeration(args: {
           if (ipfsConfigured && pinnedCids) {
             void bestEffortUnpinCidsSafe(pinnedCids, { chainId: postChainId ?? chainId, tokenIds: [tokenId] });
           }
+
+          markPostBurned(postChainId ?? chainId, tokenId);
 
           const editKey = editingTokenId ? postKeyFromParts(postChainId ?? null, tokenId) : null;
           if (editingTokenId && editKey === editingTokenId) {

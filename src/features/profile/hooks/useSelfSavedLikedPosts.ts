@@ -28,12 +28,18 @@ export function useSelfSavedLikedPosts(params: {
 
     const savedPosts =
       savedKeys.length > 0
-        ? resolvePostsFromKeys({ keys: savedKeys, postsByKey, postsFallback: feedPosts })
+        ? uniqueByChainTokenKey(
+            [...resolvePostsFromKeys({ keys: savedKeys, postsByKey, postsFallback: feedPosts }), ...savedFromFeed],
+            () => true
+          )
         : savedFromFeed;
 
     const likedPosts =
       likedKeys.length > 0
-        ? resolvePostsFromKeys({ keys: likedKeys, postsByKey, postsFallback: feedPosts })
+        ? uniqueByChainTokenKey(
+            [...resolvePostsFromKeys({ keys: likedKeys, postsByKey, postsFallback: feedPosts }), ...likedFromFeed],
+            () => true
+          )
         : likedFromFeed;
 
     return { savedPosts, likedPosts };

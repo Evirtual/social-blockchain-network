@@ -53,7 +53,8 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     loadNotificationsFromSubgraph({
       url: subgraphUrl,
       recipient: args.walletAddress,
-      first: args.first
+      first: args.first,
+      chainIdStr: args.chainId
     })
       .then((res) => {
         if (cancelled) return;
@@ -100,7 +101,8 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
         url: subgraphUrl,
         recipient: args.walletAddress as string,
         first: args.first,
-        bypassCache: true
+        bypassCache: true,
+        chainIdStr: args.chainId
       })
         .then((res) => {
           if (cancelled) return;

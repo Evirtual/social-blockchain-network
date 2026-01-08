@@ -61,7 +61,8 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
         const res = await loadNotificationsFromSubgraph({
           url: subgraphUrl,
           recipient: wallet,
-          first: args.first
+          first: args.first,
+          chainIdStr: args.chainId
         });
         if (cancelled) return;
         const unread = countUnreadNotifications(res.items, lastSeen);

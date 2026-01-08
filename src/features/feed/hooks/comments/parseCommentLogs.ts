@@ -1,5 +1,6 @@
 import type { PostComment } from "@types";
 import { socialInterface } from "@features/contract";
+import { markCommentDeleted } from "@shared/lib/deletedCommentsCache";
 import type { EventLog, Log, LogDescription } from "ethers";
 
 type CommentLog = EventLog | Log;
@@ -72,6 +73,7 @@ export function parseCommentLogs(logs: CommentLog[]): PostComment[] {
     } else if (name === "CommentDeleted") {
       current.deleted = true;
       current.comment = "";
+      markCommentDeleted(null, current.tokenId, current.commentId);
     } else if (name === "CommentLiked") {
       current.likeCount = (current.likeCount ?? 0) + 1;
     } else if (name === "CommentUnliked") {

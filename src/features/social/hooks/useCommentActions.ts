@@ -11,6 +11,7 @@ import type { TransactionResponse } from "ethers";
 import type { TransactionReceipt } from "ethers";
 import type { WriteContractFactory } from "@features/contract";
 import { parseCommentAddedFromReceipt } from "../services/commentAddedFromReceipt";
+import { markCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
 type FeedLike = {
   posts: Post[];
@@ -171,11 +172,8 @@ export function useCommentActions(args: {
         );
         if (!ok) return false;
 
-        updateCommentsForPost(tokenId, postChainId, (prev) =>
-          prev.map((c) =>
-            c.commentId === commentId ? { ...c, comment: "", deleted: true, edited: c.edited ?? false } : c
-          )
-        );
+        markCommentDeleted(postChainId ?? chainId, tokenId, commentId);
+        updateCommentsForPost(tokenId, postChainId, (prev) => prev.filter((c) => c.commentId !== commentId));
         feed.setPosts((prev) =>
           prev.map((post) => {
             if (!isSamePost({ post, tokenId, postChainId })) return post;

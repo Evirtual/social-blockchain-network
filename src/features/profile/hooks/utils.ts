@@ -40,7 +40,7 @@ export function resolvePostsFromKeys(params: {
       if (rawKey.includes(":")) {
         const [chainPart, tokenId] = rawKey.split(":");
         const normalized = `${normalizeChainIdForKey(chainPart)}:${tokenId}`;
-        return postsByKey.get(normalized) ?? postsFallback.find((p) => p.tokenId === tokenId);
+        return postsByKey.get(normalized);
       }
       return postsFallback.find((p) => p.tokenId === rawKey);
     })

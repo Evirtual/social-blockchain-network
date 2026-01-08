@@ -3,6 +3,8 @@ import { querySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery
 import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
 import { runInFlight, type InFlightMap } from "@shared/lib/inFlight";
 import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
+import { isPostBurned } from "@shared/lib/burnedPostsCache";
+import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
 const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean }> = {};
 const CACHE_TTL_MS = 20 * 1000;
@@ -12,6 +14,15 @@ function toInt(v: string | number | bigint | null | undefined): number {
   if (typeof v === "bigint") return Number(v);
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function filterDeleted(items: NotificationItem[], chainIdStr: string): NotificationItem[] {
+  if (!chainIdStr) return items;
+  return items.filter((n) => {
+    if (isPostBurned(chainIdStr, n.tokenId)) return false;
+    if (n.commentId && isCommentDeleted(chainIdStr, n.tokenId, n.commentId)) return false;
+    return true;
+  });
 }
 
 type SubgraphNotificationRow = {
@@ -32,11 +43,13 @@ export async function loadNotificationsFromSubgraph(args: {
   recipient: string;
   first?: number;
   bypassCache?: boolean;
+  chainIdStr?: string | null;
 }): Promise<{ items: NotificationItem[]; schemaMismatch: boolean }> {
   const first = Math.max(1, Math.min(200, Number(args.first ?? 50)));
   const recipient = String(args.recipient ?? "").trim().toLowerCase();
   const url = String(args.url ?? "").trim();
   const bypassCache = Boolean(args.bypassCache);
+  const chainIdStr = typeof args.chainIdStr === "string" ? args.chainIdStr.trim() : "";
 
   if (!url || !recipient) return { items: [], schemaMismatch: false };
 
@@ -48,7 +61,7 @@ export async function loadNotificationsFromSubgraph(args: {
       typeof cached?.ts === "number" &&
       Date.now() - cached.ts < CACHE_TTL_MS
     ) {
-      return { items: cached.items, schemaMismatch: Boolean(cached?.schemaMismatch) };
+      return { items: filterDeleted(cached.items, chainIdStr), schemaMismatch: Boolean(cached?.schemaMismatch) };
     }
   }
 
@@ -103,6 +116,7 @@ export async function loadNotificationsFromSubgraph(args: {
           kind: String(n?.kind ?? ""),
           tokenId: String(n?.tokenId ?? ""),
           commentId: n?.commentId ?? null,
+          chainId: chainIdStr || undefined,
           timestamp: toInt(n?.timestamp),
           actor: {
             id: actorId,
@@ -113,7 +127,7 @@ export async function loadNotificationsFromSubgraph(args: {
       })
       .filter((n) => Boolean(n.id) && Boolean(n.actor.id) && Boolean(n.tokenId));
 
-    const res = { items, schemaMismatch: false };
+    const res = { items: filterDeleted(items, chainIdStr), schemaMismatch: false };
     writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });
