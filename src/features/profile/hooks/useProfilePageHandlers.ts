@@ -27,6 +27,7 @@ export function useProfilePageHandlers(args: {
   };
 }) {
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
+  const [isWithdrawSubmitting, setIsWithdrawSubmitting] = useState(false);
   const [adminActionInFlight, setAdminActionInFlight] = useState<AdminAction>(null);
 
   const onDisconnectWallet = useCallback(() => {
@@ -39,6 +40,8 @@ export function useProfilePageHandlers(args: {
   }, [args]);
 
   const onWithdrawTips = useCallback(async () => {
+    if (isWithdrawSubmitting) return;
+    setIsWithdrawSubmitting(true);
     try {
       await args.social.withdrawTips();
       try {
@@ -48,8 +51,10 @@ export function useProfilePageHandlers(args: {
       }
     } catch (error) {
       setStatusFromError(args.setStatus, error as ErrorInput);
+    } finally {
+      setIsWithdrawSubmitting(false);
     }
-  }, [args]);
+  }, [args, isWithdrawSubmitting]);
 
   const onToggleFollow = useCallback(async () => {
     if (isFollowSubmitting) return;
@@ -109,6 +114,7 @@ export function useProfilePageHandlers(args: {
   return {
     adminActionInFlight,
     isFollowSubmitting,
+    isWithdrawSubmitting,
     onDisconnectWallet,
     onSaveProfile,
     onWithdrawTips,

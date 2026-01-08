@@ -72,6 +72,7 @@ export function useAccountPageProps(args: {
 
   onDisconnectWallet: () => void;
   onWithdrawTips: () => void | Promise<void>;
+  isWithdrawSubmitting: boolean;
   onSaveProfile: () => void;
 
   postActions: PostActionsController;
@@ -98,6 +99,7 @@ export function useAccountPageProps(args: {
     postActions,
     onDisconnectWallet,
     onWithdrawTips,
+    isWithdrawSubmitting,
     onSaveProfile,
     shortAddress,
     stableHueFromSeed,
@@ -145,6 +147,7 @@ export function useAccountPageProps(args: {
         contractDeployed: contract.contractDeployed,
         status,
         onWithdrawTips,
+        isWithdrawSubmitting,
         shortAddress,
         getNativeSymbol
       },
@@ -217,6 +220,7 @@ export function useAccountPageProps(args: {
     postActions.onEditClearImage,
     onDisconnectWallet,
     onWithdrawTips,
+    isWithdrawSubmitting,
     onSaveProfile,
     postActions.onSetEditDraft,
     postActions.onSaveEditedPost,

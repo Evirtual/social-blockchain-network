@@ -43,6 +43,7 @@ export function Sidebar({
   contractDeployed,
   status,
   onWithdrawTips,
+  isWithdrawSubmitting,
   shortAddress,
   getNativeSymbol
 }: Props) {
@@ -90,6 +91,7 @@ export function Sidebar({
         contractDeployed={contractDeployed}
         status={status}
         onWithdrawTips={onWithdrawTips}
+        isWithdrawSubmitting={isWithdrawSubmitting}
         shortAddress={shortAddress}
         getNativeSymbol={getNativeSymbol}
       />

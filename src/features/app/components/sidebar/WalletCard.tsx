@@ -14,6 +14,7 @@ export type WalletCardProps = {
   contractDeployed: boolean | null;
   status: string;
   onWithdrawTips: () => void;
+  isWithdrawSubmitting: boolean;
   shortAddress: (address: string) => string;
   getNativeSymbol: (chainId: string | null) => string;
 };
@@ -99,12 +100,13 @@ export function WalletCard(props: WalletCardProps) {
 
             <div className="walletContractActions">
               <button
-                className="btn primary cardActionButton"
+                className="btn primary cardActionButton buttonWithSpinner"
                 type="button"
                 onClick={props.onWithdrawTips}
-                disabled={!props.walletAddress || props.withdrawableTipsWei === 0n}
+                disabled={!props.walletAddress || props.withdrawableTipsWei === 0n || props.isWithdrawSubmitting}
+                aria-busy={props.isWithdrawSubmitting}
               >
-                <IconCoin size={16} />
+                {props.isWithdrawSubmitting ? <span className="spinner" aria-hidden="true" /> : <IconCoin size={16} />}
                 Withdraw
               </button>
             </div>

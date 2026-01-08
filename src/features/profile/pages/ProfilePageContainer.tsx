@@ -53,6 +53,7 @@ export function ProfilePageContainer({ address }: Props) {
   const {
     adminActionInFlight,
     isFollowSubmitting,
+    isWithdrawSubmitting,
     onDisconnectWallet,
     onSaveProfile,
     onWithdrawTips,
@@ -157,6 +158,7 @@ export function ProfilePageContainer({ address }: Props) {
     handlers: {
       adminActionInFlight,
       isFollowSubmitting,
+      isWithdrawSubmitting,
       onDisconnectWallet,
       onWithdrawTips,
       onSaveProfile,

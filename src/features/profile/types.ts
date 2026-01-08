@@ -71,6 +71,7 @@ export type ProfilePageViewModelInput = {
   handlers: {
     adminActionInFlight: "approve" | "disapprove" | "reset" | "save" | null;
     isFollowSubmitting: boolean;
+    isWithdrawSubmitting: boolean;
     onDisconnectWallet: () => void;
     onWithdrawTips: () => Promise<void>;
     onSaveProfile: () => void;

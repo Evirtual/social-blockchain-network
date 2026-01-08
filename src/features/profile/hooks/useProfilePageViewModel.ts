@@ -59,6 +59,7 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     isLoadingLiked: args.data.isLoadingLiked,
     onDisconnectWallet: args.handlers.onDisconnectWallet,
     onWithdrawTips: args.handlers.onWithdrawTips,
+    isWithdrawSubmitting: args.handlers.isWithdrawSubmitting,
     onSaveProfile: args.handlers.onSaveProfile,
     postActions: args.postActions,
     shortAddress,
