@@ -37,12 +37,18 @@ export function markPostBurned(chainId: string | null | undefined, tokenId: stri
   const key = buildBurnedKey(chainId, tokenId);
   const next = loadCache();
   next.add(key);
+  next.add(buildBurnedKey(null, tokenId));
   persistCache(next);
 }
 
 export function isPostBurned(chainId: string | null | undefined, tokenId: string) {
+  const cache = loadCache();
   const key = buildBurnedKey(chainId, tokenId);
-  return loadCache().has(key);
+  if (cache.has(key)) return true;
+  if (chainId) {
+    return cache.has(buildBurnedKey(null, tokenId));
+  }
+  return false;
 }
 
 export function filterBurnedPosts<T extends { tokenId: string; chainId?: string }>(posts: T[]): T[] {

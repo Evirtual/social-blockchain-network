@@ -8,6 +8,7 @@ import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
 const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean }> = {};
 const CACHE_TTL_MS = 20 * 1000;
+const BURNED_CHECK_LIMIT = 200;
 
 function toInt(v: string | number | bigint | null | undefined): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -23,6 +24,39 @@ function filterDeleted(items: NotificationItem[], chainIdStr: string): Notificat
     if (n.commentId && isCommentDeleted(chainIdStr, n.tokenId, n.commentId)) return false;
     return true;
   });
+}
+
+async function fetchBurnedTokenIds(url: string, tokenIds: string[]): Promise<Set<string> | null> {
+  const keys = Array.from(new Set(tokenIds.map((t) => String(t ?? "").trim()).filter(Boolean))).slice(0, BURNED_CHECK_LIMIT);
+  if (keys.length === 0) return new Set();
+
+  try {
+    const data = await querySubgraph<{
+      posts: Array<{ tokenId?: string; burnedAtBlock?: string | null }>;
+    }>({
+      url,
+      query: `
+        query BurnedPosts($tokenIds: [String!]!) {
+          posts(where: { tokenId_in: $tokenIds }) {
+            tokenId
+            burnedAtBlock
+          }
+        }
+      `,
+      variables: { tokenIds: keys } satisfies SubgraphVariables,
+      timeoutMs: 8_000
+    });
+
+    const burned = new Set<string>();
+    for (const row of Array.isArray(data?.posts) ? data.posts : []) {
+      const tokenId = String(row?.tokenId ?? "").trim();
+      if (!tokenId) continue;
+      if (row?.burnedAtBlock && String(row.burnedAtBlock).length > 0) burned.add(tokenId);
+    }
+    return burned;
+  } catch {
+    return null;
+  }
 }
 
 type SubgraphNotificationRow = {
@@ -127,7 +161,13 @@ export async function loadNotificationsFromSubgraph(args: {
       })
       .filter((n) => Boolean(n.id) && Boolean(n.actor.id) && Boolean(n.tokenId));
 
-    const res = { items: filterDeleted(items, chainIdStr), schemaMismatch: false };
+    let filtered = filterDeleted(items, chainIdStr);
+    const burnedFromSubgraph = await fetchBurnedTokenIds(url, filtered.map((n) => n.tokenId));
+    if (burnedFromSubgraph && burnedFromSubgraph.size > 0) {
+      filtered = filtered.filter((n) => !burnedFromSubgraph.has(n.tokenId));
+    }
+
+    const res = { items: filtered, schemaMismatch: false };
     writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });
