@@ -53,7 +53,7 @@ To deploy via GitHub Pages:
 2. Keep `.env.testnet` up to date with the values you want baked into the build.
 3. Push to `main` to trigger `.github/workflows/pages.yml`.
 
-Note: the workflow sets `VITE_BASE=/<repo>/` and builds with `--mode testnet`, so Vite loads `.env.testnet`.
+Note: the workflow sets `VITE_BASE=/<repo>/` and builds with `--mode testnet`, so Vite loads `.env.testnet` by default.
 
 ## Deploying to Ethereum + Base
 
