@@ -38,6 +38,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
   const [animationSrc, setAnimationSrc] = useState<string>(animationPrimaryUrl);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hasPrimedPreview = useRef(false);
 
   // Keep state in sync if the post changes.
   // Use effects so user-driven state (like IPFS gateway fallback) isn't overwritten.
@@ -61,6 +62,24 @@ export function PostCardMedia(props: PostCardMediaProps) {
     if (imageSrc) return;
     const node = videoRef.current;
     if (!node) return;
+    if (!hasPrimedPreview.current) {
+      hasPrimedPreview.current = true;
+      const prevMuted = node.muted;
+      node.muted = true;
+      const playPromise = node.play();
+      if (playPromise && typeof playPromise.then === "function") {
+        playPromise
+          .then(() => {
+            node.pause();
+          })
+          .catch(() => {})
+          .finally(() => {
+            node.muted = prevMuted;
+          });
+      } else {
+        node.muted = prevMuted;
+      }
+    }
     try {
       if (node.currentTime === 0) node.currentTime = 0.01;
     } catch {
