@@ -19,12 +19,23 @@ function json(body: unknown, init: ResponseInit = {}) {
   });
 }
 
-async function forwardPinata(request: Request, env: Env, url: string, init?: RequestInit) {
+async function forwardPinata(
+  request: Request,
+  env: Env,
+  url: string,
+  init?: RequestInit,
+  baseHeaders?: HeadersInit
+) {
   if (!env.PINATA_JWT) {
     return json({ error: "Missing PINATA_JWT" }, { status: 500 });
   }
 
-  const headers = new Headers(init?.headers ?? {});
+  const headers = new Headers(baseHeaders ?? {});
+  if (init?.headers) {
+    new Headers(init.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
   headers.set("Authorization", `Bearer ${env.PINATA_JWT}`);
 
   const res = await fetch(url, { ...init, headers });
@@ -48,7 +59,7 @@ export default {
       return await forwardPinata(request, env, `${PINATA_BASE}/pinFileToIPFS`, {
         method: "POST",
         body: request.body
-      });
+      }, request.headers);
     }
 
     if (request.method === "POST" && path === "/pin/json") {
