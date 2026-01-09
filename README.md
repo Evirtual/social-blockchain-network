@@ -50,10 +50,10 @@ GitHub Actions runs on every PR and push to `main`:
 To deploy via GitHub Pages:
 
 1. In GitHub → Settings → Pages, select **GitHub Actions** as the source.
-2. Keep `.env.testnet` up to date with the values you want baked into the build.
+2. In GitHub → Settings → Secrets and variables → Actions, add repo variables for the `VITE_*` values you want to bake into the build (see `.env.example`).
 3. Push to `main` to trigger `.github/workflows/pages.yml`.
 
-Note: the workflow sets `VITE_BASE=/<repo>/` and builds with `--mode testnet`, so Vite loads `.env.testnet` by default.
+Note: the workflow sets `VITE_BASE=/<repo>/` so asset paths work on Pages.
 
 ## Deploying to Ethereum + Base
 
