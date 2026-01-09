@@ -441,6 +441,7 @@
   }
 
   .feed-header {
+    margin-top: 0;
     grid-template-columns: 1fr auto;
     grid-template-areas:
       "title pill"
