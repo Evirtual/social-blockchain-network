@@ -1,6 +1,8 @@
+@use "../breakpoints" as bp;
+
 /* Split from src/styles/cards.css (mobile responsive adjustments) */
 
-@media (max-width: 32.5rem) {
+@include bp.breakpoint($max: bp.bp(sm)) {
   .profileHeader {
     grid-template-columns: 1fr;
     justify-items: center;

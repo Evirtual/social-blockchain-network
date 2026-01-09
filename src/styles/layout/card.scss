@@ -1,11 +1,10 @@
+@use "../mixins" as m;
+
 /* Split from src/styles/layout.css (card primitives + typography) */
 
 .card {
-  border: 0.0625rem solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-lg);
+  @include m.card-surface;
   padding: var(--pad);
-  box-shadow: var(--shadow);
   backdrop-filter: blur(0.625rem);
 }
 

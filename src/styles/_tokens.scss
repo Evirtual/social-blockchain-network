@@ -1,0 +1,13 @@
+$breakpoints: (
+  sm: 32.5rem,
+  md: 56.25rem,
+  lg: 47.5rem
+);
+
+$card-bg: var(--surface);
+$card-border: var(--border);
+$card-radius: var(--radius-lg);
+$card-shadow: var(--shadow);
+
+$skeleton-bg: color-mix(in srgb, var(--surface-2) 85%, var(--border) 15%);
+$skeleton-highlight: color-mix(in srgb, var(--surface-2) 65%, var(--text) 10%);

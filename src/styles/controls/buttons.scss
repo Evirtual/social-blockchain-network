@@ -1,98 +1,65 @@
 /* Split from src/styles/controls.css (buttons + variants) */
 
+@use "../mixins" as m;
+@use "../breakpoints" as bp;
+
 button {
-  border-radius: var(--radius-md);
-  border: 0.0625rem solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  padding: var(--control-padding-y) var(--control-padding-x);
-  font-size: var(--control-font-size);
-  font-weight: var(--control-font-weight);
-  line-height: var(--control-line-height);
+  @include m.button-base;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: none;
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    transform 120ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0.03125rem);
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .btn {
+  @include m.button-base;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: var(--radius-md);
-  border: 0.0625rem solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  padding: var(--control-padding-y) var(--control-padding-x);
-  font-size: var(--control-font-size);
-  font-weight: var(--control-font-weight);
-  line-height: var(--control-line-height);
   text-decoration: none;
   user-select: none;
   white-space: nowrap;
-  transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    transform 120ms ease;
-}
 
-@media (max-width: 32.5rem) {
-  .topbar-actions .btn,
-  .topbar-actions button {
-    padding: 0.5rem 0.625rem;
-    font-size: 0.9rem;
+  &:hover {
+    background: var(--surface-2);
+    text-decoration: none;
   }
 
-  .topbar-actions .iconButton {
-    width: 2.375rem;
-    height: 2.375rem;
+  &:active {
+    transform: translateY(0.03125rem);
   }
 }
 
-button:hover:not(:disabled) {
-  background: var(--surface-2);
+$focus-targets: (
+  ".input",
+  ".textarea",
+  ".file-input",
+  ".comment-box input"
+);
+
+@each $selector in $focus-targets {
+  #{$selector}:focus-visible {
+    @include m.focus-ring;
+  }
 }
 
-.btn:hover {
-  background: var(--surface-2);
-  text-decoration: none;
-}
-
-button:active:not(:disabled) {
-  transform: translateY(0.03125rem);
-}
-
-.btn:active {
-  transform: translateY(0.03125rem);
-}
-
-button:focus-visible,
-.input:focus-visible,
-.textarea:focus-visible,
-.file-input:focus-visible,
-.comment-box input:focus-visible {
-  outline: 0.125rem solid var(--link);
-  outline-offset: 0.125rem;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.primary {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: transparent;
-  box-shadow: none;
-}
-
+.primary,
 .btn.primary {
   background: var(--accent);
   color: var(--accent-contrast);
@@ -100,42 +67,26 @@ button:disabled {
   box-shadow: none;
 }
 
-.primary:hover:not(:disabled) {
-  background: var(--accent);
-}
-
+.primary:hover:not(:disabled),
 .btn.primary:hover {
   background: var(--accent);
 }
 
-.secondary {
-  background: var(--surface-2);
-  border-color: var(--border);
-  color: var(--text);
-}
-
+.secondary,
 .btn.secondary {
   background: var(--surface-2);
   border-color: var(--border);
   color: var(--text);
 }
 
-.ghost {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text);
-}
-
+.ghost,
 .btn.ghost {
   background: transparent;
   border-color: var(--border);
   color: var(--text);
 }
 
-.ghost:hover:not(:disabled) {
-  background: var(--surface-2);
-}
-
+.ghost:hover:not(:disabled),
 .btn.ghost:hover {
   background: var(--surface-2);
 }
@@ -144,4 +95,19 @@ button:disabled {
   background: rgba(255, 120, 120, 0.18);
   border-color: rgba(255, 120, 120, 0.35);
   color: var(--danger);
+}
+
+@include bp.breakpoint($max: bp.bp(sm)) {
+  .topbar-actions {
+    .btn,
+    button {
+      padding: 0.5rem 0.625rem;
+      font-size: 0.9rem;
+    }
+
+    .iconButton {
+      width: 2.375rem;
+      height: 2.375rem;
+    }
+  }
 }

@@ -6,10 +6,10 @@
   Import order is preserved to avoid cascade/override changes.
 */
 
-@import "./controls/inputs.scss";
-@import "./controls/form-layout.scss";
-@import "./controls/buttons.scss";
-@import "./controls/animations.scss";
-@import "./controls/icon-buttons.scss";
-@import "./controls/theme.scss";
+@use "./controls/inputs";
+@use "./controls/form-layout";
+@use "./controls/buttons";
+@use "./controls/animations";
+@use "./controls/icon-buttons";
+@use "./controls/theme";
 

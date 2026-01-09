@@ -14,10 +14,10 @@
   border-top: 0.0625rem solid var(--border);
   display: flex;
   flex-direction: column;
-}
 
-.commentReply + .commentReply {
-  border-top: 0.0625rem solid var(--border);
+  .commentReply + .commentReply {
+    border-top: 0.0625rem solid var(--border);
+  }
 }
 
 .commentReplyTo {

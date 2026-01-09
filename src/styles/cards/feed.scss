@@ -1,3 +1,5 @@
+@use "../breakpoints" as bp;
+
 /* Split from src/styles/cards.css (feed header + filters) */
 
 .feed {
@@ -422,7 +424,7 @@
   border-color: var(--link);
 }
 
-@media (max-width: 56.25rem) {
+@include bp.breakpoint($max: bp.bp(md)) {
   .feedNetworkFilterSummary {
     min-width: 9.25rem;
   }
@@ -482,7 +484,7 @@
   }
 }
 
-@media (max-width: 32.5rem) {
+@include bp.breakpoint($max: bp.bp(sm)) {
   .feedNetworkFilterSummary {
     min-width: 10rem;
   }

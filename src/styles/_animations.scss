@@ -1,0 +1,38 @@
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes connectNudgePop {
+  0% {
+    transform: translateZ(0) scale(1);
+    box-shadow: none;
+  }
+  22% {
+    transform: translateZ(0) scale(1.22);
+    box-shadow: var(--shadow);
+  }
+  44% {
+    transform: translateZ(0) scale(0.95);
+    box-shadow: none;
+  }
+  62% {
+    transform: translateZ(0) scale(1.06);
+    box-shadow: none;
+  }
+  78% {
+    transform: translateZ(0) scale(0.985);
+    box-shadow: none;
+  }
+  100% {
+    transform: translateZ(0) scale(1);
+    box-shadow: none;
+  }
+}
+
+@keyframes spinnerSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

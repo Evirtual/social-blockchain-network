@@ -6,9 +6,9 @@
   Import order is preserved to avoid cascade/override changes.
 */
 
-@import "./layout/app-shell.scss";
-@import "./layout/topbar.scss";
-@import "./layout/card.scss";
-@import "./layout/utilities.scss";
-@import "./layout/toasts.scss";
+@use "./layout/app-shell";
+@use "./layout/topbar";
+@use "./layout/card";
+@use "./layout/utilities";
+@use "./layout/toasts";
 

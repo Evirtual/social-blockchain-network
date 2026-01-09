@@ -1,0 +1,29 @@
+@use "sass:map";
+@use "tokens" as t;
+
+@function bp($name) {
+  @return map.get(t.$breakpoints, $name);
+}
+
+@mixin breakpoint($min: null, $max: null) {
+  $query: "";
+  @if $min != null {
+    $query: "(min-width: #{$min})";
+  }
+  @if $max != null {
+    $next: "(max-width: #{$max})";
+    @if $query == "" {
+      $query: $next;
+    } @else {
+      $query: "#{$query} and #{$next}";
+    }
+  }
+
+  @if $query == "" {
+    @content;
+  } @else {
+    @media #{$query} {
+      @content;
+    }
+  }
+}

@@ -1,3 +1,5 @@
+@use "../breakpoints" as bp;
+
 /* Split from src/styles/layout.css (app container + overall layout grids) */
 
 .app {
@@ -19,18 +21,18 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.875rem;
   align-items: stretch;
+
+  > * {
+    min-width: 0;
+  }
+
+  .card {
+    height: 100%;
+  }
 }
 
 .profileTopSingle {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.profileTop > * {
-  min-width: 0;
-}
-
-.profileTop .card {
-  height: 100%;
 }
 
 .sidebar {
@@ -61,27 +63,26 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.875rem;
   align-items: stretch;
-}
 
-.homeHeroRowSingle > * {
-  grid-column: 1 / -1;
-}
-
-.homeHeroRow > * {
-  min-width: 0;
-}
-
-@media (max-width: 56.25rem) {
-  .homeHeroRow {
-    grid-template-columns: 1fr;
+  > * {
+    min-width: 0;
   }
+}
 
+.homeHeroRowSingle {
+  > * {
+    grid-column: 1 / -1;
+  }
+}
+
+@include bp.breakpoint($max: bp.bp(md)) {
+  .homeHeroRow,
   .profileTop {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 32.5rem) {
+@include bp.breakpoint($max: bp.bp(sm)) {
   .app {
     --app-pad: var(--pad-sm);
     padding: var(--app-pad);

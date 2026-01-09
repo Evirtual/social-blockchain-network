@@ -1,4 +1,5 @@
-@import "./styles/base.scss";
-@import "./styles/layout.scss";
-@import "./styles/controls.scss";
-@import "./styles/cards.scss";
+@use "./styles/base";
+@use "./styles/animations";
+@use "./styles/layout";
+@use "./styles/controls";
+@use "./styles/cards";

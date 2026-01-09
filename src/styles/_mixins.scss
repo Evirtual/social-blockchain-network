@@ -1,0 +1,45 @@
+@use "tokens" as t;
+
+@mixin button-base {
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: var(--control-padding-y) var(--control-padding-x);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: var(--control-line-height);
+  box-shadow: none;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms ease;
+}
+
+@mixin card-surface($radius: t.$card-radius) {
+  border: 0.0625rem solid t.$card-border;
+  background: t.$card-bg;
+  border-radius: $radius;
+  box-shadow: t.$card-shadow;
+}
+
+@mixin skeleton-base($bg, $highlight) {
+  position: relative;
+  overflow: hidden;
+  background: $bg;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, $highlight, transparent);
+    animation: skeletonShimmer 1.2s ease-in-out infinite;
+  }
+}
+
+@mixin focus-ring {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}

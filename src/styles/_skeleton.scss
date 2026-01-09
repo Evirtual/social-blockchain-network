@@ -1,0 +1,15 @@
+@use "tokens" as t;
+@use "mixins" as m;
+
+.skeleton {
+  @include m.skeleton-base(t.$skeleton-bg, t.$skeleton-highlight);
+}
+
+.skeletonLine {
+  display: inline-block;
+  vertical-align: middle;
+  height: 0.75rem;
+  border-radius: 0.5rem;
+
+  @include m.skeleton-base(t.$skeleton-bg, t.$skeleton-highlight);
+}

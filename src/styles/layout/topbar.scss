@@ -1,3 +1,5 @@
+@use "../breakpoints" as bp;
+
 /* Split from src/styles/layout.css (topbar + brand) */
 
 .topbar {
@@ -84,21 +86,10 @@
   padding-bottom: 0;
 }
 
-@media (max-width: 56.25rem) {
+@include bp.breakpoint($max: bp.bp(md)) {
   .topbar {
     position: sticky;
     top: var(--app-pad);
-  }
-
-  /* Keep the brand subtext visible on mobile/tablet */
-  .brand-sub {
-    display: block;
-  }
-
-}
-
-@media (max-width: 56.25rem) {
-  .topbar {
     gap: 0.625rem;
     flex-wrap: nowrap;
     padding: 0;
@@ -138,9 +129,14 @@
     gap: 0.5rem;
     justify-content: flex-end;
   }
+
+  /* Keep the brand subtext visible on mobile/tablet */
+  .brand-sub {
+    display: block;
+  }
 }
 
-@media (max-width: 32.5rem) {
+@include bp.breakpoint($max: bp.bp(sm)) {
   .brand {
     gap: 0.625rem;
   }

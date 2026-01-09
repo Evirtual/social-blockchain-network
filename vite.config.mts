@@ -9,6 +9,13 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   base: process.env.VITE_BASE ?? "/",
   plugins: [react()],
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: "modern"
+      }
+    }
+  },
   resolve: {
     alias: {
       "@assets": path.resolve(__dirname, "src/assets"),
