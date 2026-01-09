@@ -1,0 +1,15 @@
+/*
+  controls.css is intentionally a small import index.
+  The original file was split into modules under ./controls/
+  to keep controls maintainable.
+
+  Import order is preserved to avoid cascade/override changes.
+*/
+
+@import "./controls/inputs.scss";
+@import "./controls/form-layout.scss";
+@import "./controls/buttons.scss";
+@import "./controls/animations.scss";
+@import "./controls/icon-buttons.scss";
+@import "./controls/theme.scss";
+

@@ -1,0 +1,23 @@
+/*
+  cards.css is intentionally a small import index.
+  The original monolithic file was split into modules under ./cards/
+  to match the feature-ish structure and keep it maintainable.
+
+  Import order is preserved to avoid cascade/override changes.
+*/
+
+@import "./cards/profile.scss";
+@import "./cards/networks.scss";
+@import "./cards/dropdowns.scss";
+@import "./cards/wallet.scss";
+@import "./cards/responsive.scss";
+@import "./cards/composer.scss";
+@import "./cards/hero.scss";
+@import "./cards/feed.scss";
+@import "./cards/ui.scss";
+@import "./cards/posts.scss";
+@import "./cards/post-detail.scss";
+@import "./cards/tx.scss";
+@import "./cards/comments.scss";
+@import "./cards/modal.scss";
+
