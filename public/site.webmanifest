@@ -2,13 +2,13 @@
   "name": "Social Blockchain Network",
   "short_name": "SBN",
   "description": "A social blockchain network where posts are NFTs. Mint posts on-chain with signed reactions and creator tips.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#070b16",
   "theme_color": "#070b16",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "./favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
