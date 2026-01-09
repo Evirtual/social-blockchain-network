@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { IconMessage, IconMoon, IconPlus, IconSun } from "@shared/components/icons";
+import brandMarkUrl from "@assets/favicon.svg";
 
 type Props = {
   theme: "light" | "dark";
@@ -30,7 +31,7 @@ export function Topbar({
   return (
     <header className="topbar">
       <Link className="brand" to="/">
-        <div className="brand-mark" />
+        <div className="brand-mark" style={{ backgroundImage: `url(${brandMarkUrl})` }} />
         <div>
           <div className="brand-name">Social Blockchain Network</div>
           <div className="brand-sub">Posts are NFTs. Reactions are signatures.</div>
@@ -38,7 +39,7 @@ export function Topbar({
       </Link>
       <div className="topbar-actions">
         <Link className="topbarLogo" to="/" aria-label="Home">
-          <div className="brand-mark" />
+          <div className="brand-mark" style={{ backgroundImage: `url(${brandMarkUrl})` }} />
         </Link>
 
         <div className="topbarControls">
