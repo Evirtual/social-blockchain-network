@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ipfsToHttp, ipfsToHttpWithGateway } from "@features/ipfs";
@@ -37,6 +37,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
 
   const [animationSrc, setAnimationSrc] = useState<string>(animationPrimaryUrl);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Keep state in sync if the post changes.
   // Use effects so user-driven state (like IPFS gateway fallback) isn't overwritten.
@@ -56,22 +57,31 @@ export function PostCardMedia(props: PostCardMediaProps) {
     </>
   );
 
+  const handleVideoLoaded = () => {
+    if (imageSrc) return;
+    const node = videoRef.current;
+    if (!node) return;
+    try {
+      if (node.currentTime === 0) node.currentTime = 0.01;
+    } catch {
+      // Ignore seek errors; the poster may still render once the browser has data.
+    }
+  };
+
   return (
     <>
       {!!props.animationUrl ? (
-        <Link
-          className="postImageLink"
-          to={props.postUrl}
-          state={postLinkState}
-          aria-label="Open post"
-        >
+        <div className="postImageLink">
           <video
             className="postImage"
             src={animationSrc}
             poster={imageSrc || undefined}
             controls
             playsInline
-            preload="metadata"
+            preload="auto"
+            ref={videoRef}
+            onLoadedMetadata={handleVideoLoaded}
+            onLoadedData={handleVideoLoaded}
             onError={() => {
               if (!props.animationUrl?.startsWith("ipfs://")) return;
               if (animationSrc.startsWith(fallbackGateway)) return;
@@ -79,7 +89,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
               setAnimationSrc(next);
             }}
           />
-        </Link>
+        </div>
       ) : props.image ? (
         <Link
           className="postImageLink"

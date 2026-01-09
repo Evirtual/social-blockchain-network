@@ -106,6 +106,10 @@
   min-width: 0;
 }
 
+.listRowLeft .avatar {
+  flex: 0 0 auto;
+}
+
 .listRowRight {
   display: flex;
   align-items: center;
