@@ -46,6 +46,26 @@ export function useNetworkFilterState({
   });
 
   const didInitDisconnectedNetworksRef = useRef(false);
+  const autoSelectedNetworksRef = useRef(false);
+
+  const normalizeIds = (ids: string[]) =>
+    ids
+      .map((id) => String(id).trim())
+      .filter(Boolean)
+      .slice()
+      .sort()
+      .join(",");
+
+  useEffect(() => {
+    const current = normalizeChainIdToString(chainId) ?? null;
+    const isAll = normalizeIds(selectedNetworkChainIds) === normalizeIds(defaultSelectedNetworkChainIds);
+    const isCurrentOnly =
+      current != null &&
+      normalizeIds(selectedNetworkChainIds) === normalizeIds([current]);
+    if (!isAll && !isCurrentOnly) {
+      autoSelectedNetworksRef.current = false;
+    }
+  }, [selectedNetworkChainIds, defaultSelectedNetworkChainIds, chainId]);
 
   useEffect(() => {
     if (walletAddress) {
@@ -54,16 +74,24 @@ export function useNetworkFilterState({
     }
     if (didInitDisconnectedNetworksRef.current) return;
     didInitDisconnectedNetworksRef.current = true;
+    if (hasStoredSelectedNetworks) return;
+    autoSelectedNetworksRef.current = true;
     setSelectedNetworkChainIds(defaultSelectedNetworkChainIds);
-  }, [walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds]);
+  }, [walletAddress, defaultSelectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks]);
 
   useEffect(() => {
     if (!walletAddress) return;
     // If the user already has a stored network selection, respect it.
     // (Otherwise the connected chain can never be deselected.)
-    if (hasStoredSelectedNetworks) return;
     const current = normalizeChainIdToString(chainId) ?? null;
     if (!current) return;
+
+    if (!hasStoredSelectedNetworks || autoSelectedNetworksRef.current) {
+      if (selectedNetworkChainIds.length === 1 && selectedNetworkChainIds[0] === current) return;
+      autoSelectedNetworksRef.current = true;
+      setSelectedNetworkChainIds([current]);
+      return;
+    }
 
     // If the user previously filtered to some other network(s), ensure the
     // currently connected chain is included so the feed updates immediately.
@@ -74,7 +102,13 @@ export function useNetworkFilterState({
       next.push(current);
       return next;
     });
-  }, [walletAddress, chainId, selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks]);
+  }, [
+    walletAddress,
+    chainId,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    hasStoredSelectedNetworks
+  ]);
 
   const isNetworkFilterActive = useMemo(() => {
     const all = new Set(supportedNetworks.map((n) => String(n.chainId)));
