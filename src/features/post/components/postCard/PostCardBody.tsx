@@ -10,9 +10,12 @@ type Props = {
   tokenId: string;
   from: string;
   hasMedia: boolean;
+  showCaption?: boolean;
 };
 
 export function PostCardBody(props: Props) {
+  const showCaption = props.showCaption ?? true;
+
   return (
     <>
       {!props.hasMedia && !!props.post.body?.trim() ? (
@@ -38,7 +41,7 @@ export function PostCardBody(props: Props) {
         />
       ) : null}
 
-      {props.hasMedia && !!props.post.body?.trim() ? (
+      {showCaption && props.hasMedia && !!props.post.body?.trim() ? (
         <div className="postCaption">
           <div className="postText">
             <p>{props.post.body}</p>

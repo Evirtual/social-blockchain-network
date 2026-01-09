@@ -38,7 +38,7 @@ export function PostStatsButtons(props: Props) {
         {props.inFlight === "like" ? (
           <span className="spinner" aria-hidden="true" />
         ) : (
-          <IconHeart size={18} filled={!!props.post.likedByMe} />
+          <IconHeart size={20} filled={!!props.post.likedByMe} />
         )}
         <span className="postActionCount">{props.post.likes}</span>
       </button>
@@ -59,7 +59,7 @@ export function PostStatsButtons(props: Props) {
         {props.inFlight === "save" ? (
           <span className="spinner" aria-hidden="true" />
         ) : (
-          <IconBookmark size={18} filled={!!props.post.savedByMe} />
+          <IconBookmark size={20} filled={!!props.post.savedByMe} />
         )}
         <span className="postActionCount">{props.post.saves}</span>
       </button>
@@ -73,7 +73,7 @@ export function PostStatsButtons(props: Props) {
         disabled={props.isBusy || !props.canOpenComments}
         title={props.interactionDisabledTitle}
       >
-        <IconMessage size={18} />
+        <IconMessage size={20} />
         <span className="postActionCount">{props.post.comments}</span>
       </button>
 
@@ -89,7 +89,7 @@ export function PostStatsButtons(props: Props) {
         disabled={props.requiresNetworkSwitch || props.isBusy}
         title={props.interactionDisabledTitle}
       >
-        <IconCoin size={18} />
+        <IconCoin size={20} />
         <span className="postActionCount">{props.nativeSymbol}</span>
       </button>
     </div>

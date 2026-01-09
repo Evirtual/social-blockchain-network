@@ -244,6 +244,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         tokenId={tokenId}
         from={props.from}
         hasMedia={hasMedia}
+        showCaption={!hasMedia}
       />
 
       <PostCardFooter
@@ -273,6 +274,14 @@ export const PostCard = memo(function PostCard(props: Props) {
         getExplorerTxUrl={props.getExplorerTxUrl}
         getNativeSymbol={props.getNativeSymbol}
       />
+
+      {hasMedia && !!props.post.body?.trim() ? (
+        <div className="postCaption">
+          <div className="postText">
+            <p>{props.post.body}</p>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 });
