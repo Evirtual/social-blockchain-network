@@ -21,6 +21,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.875rem;
   align-items: stretch;
+  margin-bottom: 0.5rem;
 
   > * {
     min-width: 0;

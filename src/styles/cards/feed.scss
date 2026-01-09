@@ -15,7 +15,6 @@
   align-items: center;
   gap: 0.625rem;
   padding: 0.625rem 0;
-  margin-top: 0.625rem;
 }
 
 .feedHeaderLeft {
@@ -441,7 +440,6 @@
   }
 
   .feed-header {
-    margin-top: 0;
     grid-template-columns: 1fr auto;
     grid-template-areas:
       "title pill"
