@@ -31,7 +31,7 @@ export function Topbar({
   return (
     <header className="topbar">
       <Link className="brand" to="/">
-        <div className="brand-mark" style={{ backgroundImage: `url(${brandMarkUrl})` }} />
+        <img className="brand-mark" src={brandMarkUrl} alt="" />
         <div>
           <div className="brand-name">Social Blockchain Network</div>
           <div className="brand-sub">Posts are NFTs. Reactions are signatures.</div>
@@ -39,7 +39,7 @@ export function Topbar({
       </Link>
       <div className="topbar-actions">
         <Link className="topbarLogo" to="/" aria-label="Home">
-          <div className="brand-mark" style={{ backgroundImage: `url(${brandMarkUrl})` }} />
+          <img className="brand-mark" src={brandMarkUrl} alt="" />
         </Link>
 
         <div className="topbarControls">
