@@ -21,7 +21,7 @@ export function useContractAddress(params: {
     throw new Error(
       `Missing contract address${chainHint}. Set it in your environment (e.g. .env.local).\n\n` +
         `For multi-network: set VITE_CONTRACT_ADDRESS_ETH (1) and/or VITE_CONTRACT_ADDRESS_BASE (8453).\n` +
-        "For local dev: set VITE_CONTRACT_ADDRESS after deploy:local, then restart the dev server."
+        "For local dev: set VITE_CONTRACT_ADDRESS_LOCAL after deploy:local, then restart the dev server."
     );
   }, [params.chainId, params.chainIdNumberRef]);
 

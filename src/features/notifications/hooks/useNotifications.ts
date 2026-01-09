@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { NotificationItem } from "../types";
 import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFromSubgraph";
 import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { buildDemoNotifications } from "../services/demo/demoNotifications";
 import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
+import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 
 export function useNotifications(args: { open: boolean; walletAddress: string | null; chainId: string | null; first?: number }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [schemaMismatch, setSchemaMismatch] = useState(false);
   const [error, setError] = useState<string>("");
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   const env = getEnv();
   const chainIdNum = useMemo(() => {
@@ -94,33 +96,61 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) return;
 
     let cancelled = false;
-    const intervalMs = 12_000;
-
-    const id = window.setInterval(() => {
-      loadNotificationsFromSubgraph({
-        url: subgraphUrl,
-        recipient: args.walletAddress as string,
-        first: args.first,
-        bypassCache: true,
-        chainIdStr: args.chainId
-      })
-        .then((res) => {
-          if (cancelled) return;
-          setSchemaMismatch(res.schemaMismatch);
-          if (res.items.length > 0) {
-            setItems(res.items);
-          }
+    const scheduleRefresh = () => {
+      if (cancelled) return;
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        loadNotificationsFromSubgraph({
+          url: subgraphUrl,
+          recipient: args.walletAddress as string,
+          first: args.first,
+          bypassCache: true,
+          chainIdStr: args.chainId
         })
-        .catch(() => {
-          // ignore background refresh errors
-        });
-    }, intervalMs);
+          .then((res) => {
+            if (cancelled) return;
+            setSchemaMismatch(res.schemaMismatch);
+            if (res.items.length > 0) {
+              setItems(res.items);
+            }
+          })
+          .catch(() => {
+            // ignore background refresh errors
+          });
+      }, 400);
+    };
 
+    const supportsEvents = isSocialEventsAvailable(chainIdNum, env);
+    if (!supportsEvents) {
+      const intervalMs = 12_000;
+      const id = window.setInterval(() => {
+        scheduleRefresh();
+      }, intervalMs);
+      return () => {
+        cancelled = true;
+        if (refreshTimeoutRef.current != null) {
+          window.clearTimeout(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = null;
+        }
+        window.clearInterval(id);
+      };
+    }
+
+    const off = subscribeSocialEvents({
+      chainIds: [chainIdNum ?? -1],
+      onEvent: () => scheduleRefresh(),
+      env
+    });
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      if (refreshTimeoutRef.current != null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+      off();
     };
-  }, [args.open, args.walletAddress, args.first, subgraphUrl, schemaMismatch, demoModeEnabled, env, gateEpoch]);
+  }, [args.open, args.walletAddress, args.first, subgraphUrl, schemaMismatch, demoModeEnabled, env, gateEpoch, chainIdNum]);
 
   return { items, loading, schemaMismatch, error, subgraphUrl };
 }

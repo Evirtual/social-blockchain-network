@@ -13,11 +13,11 @@ A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 3. Deploy the contract to localhost
    - `npm run deploy:local`
 
-   This writes the deployed address into `.env.local` as `VITE_CONTRACT_ADDRESS`.
+   This writes the deployed address into `.env.local` as `VITE_CONTRACT_ADDRESS_LOCAL`.
 
 4. Create `.env.local`
-   - If you didn’t run `npm run deploy:local`, copy `.env.example` → `.env.local`
-   - Set `VITE_CONTRACT_ADDRESS` (single-network) or the per-network vars (recommended)
+   - If you didn't run `npm run deploy:local`, copy `.env.example` to `.env.local`
+   - Set the per-network vars (recommended)
 
 5. Start the frontend
    - `npm run dev`
@@ -51,10 +51,10 @@ GitHub Pages (or any static host) can host the frontend, but the contract must b
 
 ### 1) Configure deploy environment
 
-- Copy `.env.example` to `.env` (for Hardhat)
+- Copy `.env.hardhat.example` to `.env.hardhat` (for Hardhat)
 - Copy `.env.example` to `.env.local` (for Vite) if you want to run the frontend locally
 
-Set at minimum:
+Set at minimum (in `.env.hardhat`):
 
 - `DEPLOYER_PRIVATE_KEY` (no `0x` prefix)
 - RPC URLs:
@@ -93,21 +93,33 @@ Each deploy writes the resulting address into `.env` using a chain-specific key:
 - `VITE_CONTRACT_ADDRESS_BSC` for BSC (chainId 56)
 - `VITE_CONTRACT_ADDRESS_BASE_SEPOLIA` for Base Sepolia (chainId 84532)
 - `VITE_CONTRACT_ADDRESS_BSC_TESTNET` for BSC Testnet (chainId 97)
+- `VITE_CONTRACT_ADDRESS_LOCAL` for Hardhat/local (chainId 31337)
 
-The frontend will automatically select the correct address based on the user’s connected network.
+The frontend will automatically select the correct address based on the user's connected network.
 
 ## Frontend environment variables
 
 See `.env.example` for the full list. Common ones:
 
 - Contract address selection:
-   - `VITE_CONTRACT_ADDRESS` (legacy single-network)
    - `VITE_CONTRACT_ADDRESS_<NETWORK>` (recommended multi-network)
 - Optional multi-network feed reads (browser-side, must be CORS-enabled):
    - `VITE_<NETWORK>_RPC_URL` (e.g. `VITE_BASE_RPC_URL`)
+- Optional WebSocket RPC endpoints (enable event-driven refresh without polling):
+   - `VITE_<NETWORK>_RPC_WS_URL` (e.g. `VITE_BASE_RPC_WS_URL`)
 - Optional The Graph subgraph feeds (recommended for stability on long-lived networks):
    - `VITE_<NETWORK>_SUBGRAPH_URL` (e.g. `VITE_BASE_SUBGRAPH_URL`)
    - Use Subgraph Studio for testing/staging; publish to The Graph Network to appear in Graph Explorer.
+- Explorer base URLs for transaction links:
+   - `VITE_ETH_EXPLORER_BASE_URL`
+   - `VITE_ETH_SEPOLIA_EXPLORER_BASE_URL`
+   - `VITE_BASE_EXPLORER_BASE_URL`
+   - `VITE_BASE_SEPOLIA_EXPLORER_BASE_URL`
+   - `VITE_BSC_EXPLORER_BASE_URL`
+   - `VITE_BSC_TESTNET_EXPLORER_BASE_URL`
+- Optional subgraph request logging:
+   - `VITE_SUBGRAPH_LOG=true`
+   - `VITE_SUBGRAPH_LOG_SUMMARY_EVERY` (default 25)
 
 Tip: use `.env.subgraph.example` as a starter for the per-network subgraph endpoints.
 - Optional IPFS gateway override:
@@ -120,5 +132,8 @@ This repo is set up great for demos and local development.
 Before using it in production on a public network:
 
 - **Do not ship `VITE_PINATA_JWT`**. Vite exposes all `VITE_` variables to the browser, so a Pinata JWT would be public. Use a backend or serverless function to pin files/JSON to IPFS.
-- **Set a real contract address per network**. Prefer `VITE_CONTRACT_ADDRESS_BASE` (Base) and `VITE_CONTRACT_ADDRESS_BSC` (BSC). `VITE_CONTRACT_ADDRESS` remains as a legacy single-network fallback.
+- **Set a real contract address per network**. Prefer `VITE_CONTRACT_ADDRESS_BASE` (Base) and `VITE_CONTRACT_ADDRESS_BSC` (BSC).
 - **Review contract and wallet flows**. If real value is involved, do a security review/audit.
+
+
+

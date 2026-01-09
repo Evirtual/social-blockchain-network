@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFromSubgraph";
 import { buildDemoNotifications } from "../services/demo/demoNotifications";
 import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
+import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import {
   countUnreadNotifications,
   onNotificationsLastSeenChanged,
@@ -14,6 +15,7 @@ import {
 export function useNotificationsBadge(args: { walletAddress: string | null; chainId: string | null; first?: number }) {
   const [hasUnread, setHasUnread] = useState(false);
   const [gateEpoch, setGateEpoch] = useState(0);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   const env = getEnv();
   const demoModeEnabled = getEnvBoolean(env, "VITE_DEMO_MODE", false);
@@ -74,16 +76,47 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
 
     void compute();
 
-    // Recompute periodically and when lastSeen changes.
-    const interval = window.setInterval(() => void compute(), 20_000);
-    const off = onNotificationsLastSeenChanged(() => void compute());
+    const scheduleCompute = () => {
+      if (cancelled) return;
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void compute();
+      }, 300);
+    };
+
+    const supportsEvents = isSocialEventsAvailable(chainIdNum, env);
+    const offSeen = onNotificationsLastSeenChanged(() => scheduleCompute());
+
+    if (!supportsEvents) {
+      const interval = window.setInterval(() => scheduleCompute(), 20_000);
+      return () => {
+        cancelled = true;
+        if (refreshTimeoutRef.current != null) {
+          window.clearTimeout(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = null;
+        }
+        window.clearInterval(interval);
+        offSeen();
+      };
+    }
+
+    const offEvents = subscribeSocialEvents({
+      chainIds: [chainIdNum ?? -1],
+      onEvent: () => scheduleCompute(),
+      env
+    });
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
-      off();
+      if (refreshTimeoutRef.current != null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+      offSeen();
+      offEvents();
     };
-  }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch]);
+  }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch, chainIdNum]);
 
   return { hasUnread };
 }

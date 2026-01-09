@@ -24,6 +24,7 @@ type FeedRefreshArgs = {
   chainId: string | null;
   account: string | null;
   selectedNetworkChainIds: string[];
+  targetChainIdNum?: number | null;
   contract: ContractLike;
   postsSnapshot: Post[];
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
@@ -39,6 +40,7 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     chainId,
     account,
     selectedNetworkChainIds,
+    targetChainIdNum,
     contract,
     postsSnapshot,
     setPosts,
@@ -57,7 +59,9 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
     currentChainIdNumber
   });
 
-  const selectedIds = Array.isArray(selectedNetworkChainIds) ? selectedNetworkChainIds : [];
+  const selectedIdsRaw = Array.isArray(selectedNetworkChainIds) ? selectedNetworkChainIds : [];
+  const targetChainIdStr = targetChainIdNum != null ? String(targetChainIdNum) : null;
+  const selectedIds = targetChainIdStr ? [targetChainIdStr] : selectedIdsRaw;
   const selectedSet = new Set(selectedIds.map((id) => String(id)));
 
   // If the user explicitly selected zero networks, show an empty feed.
@@ -65,6 +69,10 @@ export async function refreshFeedFromNetworks(args: FeedRefreshArgs): Promise<vo
   if (selectedIds.length === 0) {
     setPosts([]);
     if (shouldReportStatus) setStatus("No networks selected.");
+    return;
+  }
+
+  if (targetChainIdStr && !selectedIdsRaw.map(String).includes(targetChainIdStr)) {
     return;
   }
 

@@ -4,6 +4,8 @@ import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { refreshFeedFromNetworks } from "../services/feedRefresh";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
+import { getEnv } from "@shared/lib/env";
+import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
@@ -46,9 +48,11 @@ export function useFeedRefresh(params: {
 
   const refreshFeedInFlightRef = useRef<Promise<void> | null>(null);
   const queuedRefreshAccountRef = useRef<string | null | undefined>(undefined);
+  const queuedRefreshChainIdRef = useRef<number | null | undefined>(undefined);
   const lastRefreshedAccountRef = useRef<string | null>(null);
   const lastRefreshCompletedAtRef = useRef<number>(0);
   const lastRefreshedNetworksSigRef = useRef<string>("");
+  const lastRefreshedChainIdRef = useRef<number | null>(null);
 
   const selectedNetworksSig = useMemo(() => {
     const ids = Array.isArray(selectedNetworkChainIds) ? selectedNetworkChainIds : [];
@@ -61,20 +65,30 @@ export function useFeedRefresh(params: {
       .join(",");
   }, [selectedNetworkChainIds]);
 
+  const selectedNetworkIds = useMemo(() => {
+    const ids = Array.isArray(selectedNetworkChainIds) ? selectedNetworkChainIds : [];
+    const numeric = ids
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id)) as number[];
+    return Array.from(new Set(numeric));
+  }, [selectedNetworkChainIds]);
+
   const refreshFeed = useCallback(
-    async (accountOverride?: string | null) => {
+    async (accountOverride?: string | null, chainIdOverride?: number | null) => {
       if (!isEnabled) return;
       const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
       const MIN_REFRESH_INTERVAL_MS = 1_500;
       const refreshEpoch = snapshotEpoch();
 
       const account = typeof accountOverride === "string" ? accountOverride : walletAddress;
+      const targetChainIdNum = typeof chainIdOverride === "number" ? chainIdOverride : null;
       const normalizedAccount = typeof account === "string" ? account.toLowerCase() : null;
       const normalizedLastAccount =
         typeof lastRefreshedAccountRef.current === "string" ? lastRefreshedAccountRef.current.toLowerCase() : null;
 
       if (refreshFeedInFlightRef.current) {
         queuedRefreshAccountRef.current = account ?? null;
+        queuedRefreshChainIdRef.current = targetChainIdNum ?? null;
         try {
           await refreshFeedInFlightRef.current;
         } catch {
@@ -83,8 +97,13 @@ export function useFeedRefresh(params: {
 
         const queued = queuedRefreshAccountRef.current;
         queuedRefreshAccountRef.current = undefined;
-        if (queued !== undefined && queued !== lastRefreshedAccountRef.current) {
-          await refreshFeed(queued);
+        const queuedChainId = queuedRefreshChainIdRef.current;
+        queuedRefreshChainIdRef.current = undefined;
+        if (
+          queued !== undefined &&
+          (queued !== lastRefreshedAccountRef.current || queuedChainId !== lastRefreshedChainIdRef.current)
+        ) {
+          await refreshFeed(queued, queuedChainId ?? null);
         }
         return;
       }
@@ -96,7 +115,8 @@ export function useFeedRefresh(params: {
           lastCompletedAt > 0 &&
           now - lastCompletedAt < MIN_REFRESH_INTERVAL_MS &&
           normalizedAccount === normalizedLastAccount &&
-          lastRefreshedNetworksSigRef.current === selectedNetworksSig
+          lastRefreshedNetworksSigRef.current === selectedNetworksSig &&
+          lastRefreshedChainIdRef.current === targetChainIdNum
         ) {
           return;
         }
@@ -125,6 +145,7 @@ export function useFeedRefresh(params: {
             chainId,
             account,
             selectedNetworkChainIds,
+            targetChainIdNum,
             contract,
             postsSnapshot: postsRef.current,
             setPosts: setPostsGuarded,
@@ -155,6 +176,7 @@ export function useFeedRefresh(params: {
         lastRefreshedAccountRef.current = account ?? null;
         lastRefreshCompletedAtRef.current = Date.now();
         lastRefreshedNetworksSigRef.current = selectedNetworksSig;
+        lastRefreshedChainIdRef.current = targetChainIdNum ?? null;
       }
     },
     [isEnabled, provider, walletAddress, chainId, contract, setStatus, selectedNetworkChainIds, selectedNetworksSig]
@@ -178,8 +200,10 @@ export function useFeedRefresh(params: {
     postsRef.current = [];
     refreshFeedInFlightRef.current = null;
     queuedRefreshAccountRef.current = undefined;
+    queuedRefreshChainIdRef.current = undefined;
     lastRefreshedAccountRef.current = null;
     lastRefreshCompletedAtRef.current = 0;
+    lastRefreshedChainIdRef.current = null;
 
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status
@@ -222,8 +246,10 @@ export function useFeedRefresh(params: {
       postsRef.current = [];
       refreshFeedInFlightRef.current = null;
       queuedRefreshAccountRef.current = undefined;
+      queuedRefreshChainIdRef.current = undefined;
       lastRefreshedAccountRef.current = null;
       lastRefreshCompletedAtRef.current = 0;
+      lastRefreshedChainIdRef.current = null;
     }
 
     if (!walletChanged && !chainChanged && !isInitialEpoch) return;
@@ -233,11 +259,49 @@ export function useFeedRefresh(params: {
     });
   }, [isEnabled, provider, walletEpoch, chainId, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
 
+  const eventRefreshTimeoutRef = useRef<number | null>(null);
+  const scheduleEventRefresh = useCallback((chainIdNum?: number) => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    if (eventRefreshTimeoutRef.current != null) return;
+    eventRefreshTimeoutRef.current = window.setTimeout(() => {
+      eventRefreshTimeoutRef.current = null;
+      void refreshFeed(walletAddress, chainIdNum ?? null).catch(() => {
+        // already reported
+      });
+    }, 500);
+  }, [refreshFeed, walletAddress]);
+
+  useEffect(() => {
+    if (!isEnabled) return;
+    if (selectedNetworkIds.length === 0) return;
+
+    const env = getEnv();
+    const wsChainIds = selectedNetworkIds.filter((id) => isSocialEventsAvailable(id, env));
+    if (wsChainIds.length === 0) return;
+
+    const off = subscribeSocialEvents({
+      chainIds: wsChainIds,
+      onEvent: (event) => scheduleEventRefresh(event.chainId),
+      env
+    });
+    return () => {
+      if (eventRefreshTimeoutRef.current != null) {
+        window.clearTimeout(eventRefreshTimeoutRef.current);
+        eventRefreshTimeoutRef.current = null;
+      }
+      off();
+    };
+  }, [isEnabled, selectedNetworkIds, scheduleEventRefresh]);
+
   useEffect(() => {
     const isVitest = typeof (globalThis as { __vitest_worker__?: boolean }).__vitest_worker__ !== "undefined";
     if (isVitest) return;
     if (!isEnabled) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
+
+    const env = getEnv();
+    const shouldPoll = selectedNetworkIds.some((id) => !isSocialEventsAvailable(id, env));
+    if (!shouldPoll) return;
 
     let stopped = false;
     const refreshNow = () => {
@@ -260,7 +324,7 @@ export function useFeedRefresh(params: {
       window.clearInterval(id);
       document.removeEventListener?.("visibilitychange", onVisibility);
     };
-  }, [isEnabled, provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc]);
+  }, [isEnabled, provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc, selectedNetworkIds]);
 
   return useMemo(
     () => ({

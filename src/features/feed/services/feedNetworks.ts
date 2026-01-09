@@ -16,7 +16,7 @@ export function getConfiguredFeedNetworks(env: EnvMap): FeedNetworkConfig[] {
     { chainId: 97, contractAddress: env.VITE_CONTRACT_ADDRESS_BSC_TESTNET, rpcUrl: env.VITE_BSC_TESTNET_RPC_URL },
     {
       chainId: 31337,
-      contractAddress: env.VITE_CONTRACT_ADDRESS,
+      contractAddress: env.VITE_CONTRACT_ADDRESS_LOCAL,
       rpcUrl: env.VITE_LOCAL_RPC_URL
     }
   ]

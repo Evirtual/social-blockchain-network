@@ -35,15 +35,17 @@ async function main() {
   // Write contract address for Vite
   const networkName = hre.network.name;
   const keyByNetwork: Record<string, string> = {
-    localhost: "VITE_CONTRACT_ADDRESS",
-    hardhat: "VITE_CONTRACT_ADDRESS",
+    localhost: "VITE_CONTRACT_ADDRESS_LOCAL",
+    hardhat: "VITE_CONTRACT_ADDRESS_LOCAL",
+    ethereum: "VITE_CONTRACT_ADDRESS_ETH",
+    sepolia: "VITE_CONTRACT_ADDRESS_SEPOLIA",
     base: "VITE_CONTRACT_ADDRESS_BASE",
     baseSepolia: "VITE_CONTRACT_ADDRESS_BASE_SEPOLIA",
     bsc: "VITE_CONTRACT_ADDRESS_BSC",
     bscTestnet: "VITE_CONTRACT_ADDRESS_BSC_TESTNET"
   };
 
-  const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS";
+  const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS_LOCAL";
   const envPath = path.join(process.cwd(), ".env.local");
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);

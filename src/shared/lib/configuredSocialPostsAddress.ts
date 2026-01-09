@@ -5,8 +5,6 @@ export function resolveConfiguredSocialPostsAddress(
   chainIdNumber: number | null,
   env: EnvMap = getEnv()
 ): string | undefined {
-  const legacy = env?.VITE_CONTRACT_ADDRESS as string | undefined;
-
   const byChainId: Record<number, string | undefined> = {
     // Ethereum
     1: env?.VITE_CONTRACT_ADDRESS_ETH,
@@ -21,7 +19,7 @@ export function resolveConfiguredSocialPostsAddress(
     97: env?.VITE_CONTRACT_ADDRESS_BSC_TESTNET,
 
     // Local (Hardhat)
-    31337: env?.VITE_CONTRACT_ADDRESS
+    31337: env?.VITE_CONTRACT_ADDRESS_LOCAL
   };
 
   if (typeof chainIdNumber === "number") {
@@ -29,5 +27,5 @@ export function resolveConfiguredSocialPostsAddress(
     if (typeof mapped === "string" && mapped.trim()) return mapped.trim();
   }
 
-  return typeof legacy === "string" && legacy.trim() ? legacy.trim() : undefined;
+  return undefined;
 }

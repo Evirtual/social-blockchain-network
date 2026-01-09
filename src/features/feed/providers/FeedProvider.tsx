@@ -11,6 +11,7 @@ import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { runInFlight } from "@shared/lib/inFlight";
 import { fetchPosterGateStatuses } from "@shared/lib/posterStatus";
 import { setSubgraphQueriesEnabled } from "@shared/lib/subgraphGate";
+import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import { generateDemoPosts } from "../services/demo/demoPosts";
 import { generateDemoComments } from "../services/demo/demoComments";
 import { commentKey } from "@features/post/services";
@@ -130,6 +131,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
+    let offEvents: (() => void) | null = null;
     const stopPolling = () => {
       if (approvalUnknownTimeoutRef.current !== null) {
         window.clearTimeout(approvalUnknownTimeoutRef.current);
@@ -141,6 +143,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
       for (const t of approvalBurstTimeoutsRef.current) window.clearTimeout(t);
       approvalBurstTimeoutsRef.current = [];
+      if (offEvents) {
+        offEvents();
+        offEvents = null;
+      }
     };
 
     const checkOnce = async () => {
@@ -190,16 +196,35 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       window.setTimeout(() => void checkOnce(), 2_500)
     ];
 
-    if (approvalPollRef.current !== null) {
-      window.clearInterval(approvalPollRef.current);
-      approvalPollRef.current = null;
+    const chainIdNum = Number(chainId);
+    const env = getEnv();
+    const supportsEvents = Number.isFinite(chainIdNum) && isSocialEventsAvailable(chainIdNum, env);
+
+    if (supportsEvents) {
+      offEvents = subscribeSocialEvents({
+        chainIds: [chainIdNum],
+        env,
+        onEvent: (event) => {
+          if (!walletAddress) return;
+          if (event.name !== "PosterAllowed" && event.name !== "PosterApprovalRequested") return;
+          const account = String(event.args[0] ?? "").toLowerCase();
+          if (!account || account !== walletAddress.toLowerCase()) return;
+          void checkOnce();
+        }
+      });
+      debug?.("demo enabled; approval events armed", { chainId, walletAddress });
+    } else {
+      if (approvalPollRef.current !== null) {
+        window.clearInterval(approvalPollRef.current);
+        approvalPollRef.current = null;
+      }
+
+      approvalPollRef.current = window.setInterval(() => {
+        void checkOnce();
+      }, 10_000);
+
+      debug?.("demo enabled; approval polling armed", { chainId, walletAddress });
     }
-
-    approvalPollRef.current = window.setInterval(() => {
-      void checkOnce();
-    }, 10_000);
-
-    debug?.("demo enabled; approval polling armed", { chainId, walletAddress });
 
     return () => {
       cancelled = true;

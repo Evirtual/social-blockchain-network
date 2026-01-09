@@ -1,5 +1,6 @@
 import { withTimeout } from "./feedQuery";
 import { getEnv, getEnvBoolean, getEnvString } from "./env";
+import { getNetworkBadgeLabel } from "./chain";
 import { areSubgraphQueriesEnabled } from "./subgraphGate";
 
 export type SubgraphVariables = Record<string, string | number | boolean | null | Array<string | number | boolean | null>>;
@@ -49,6 +50,33 @@ function safeHost(url: string): string {
   } catch {
     return url;
   }
+}
+
+function normalizeUrlForCompare(url: string): string {
+  return String(url ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
+function getSubgraphLabelForUrl(env: ReturnType<typeof getEnv>, url: string): string {
+  const target = normalizeUrlForCompare(url);
+  const urlByChainId: Record<number, string | undefined> = {
+    1: env?.VITE_ETH_SUBGRAPH_URL,
+    11155111: env?.VITE_ETH_SEPOLIA_SUBGRAPH_URL,
+    8453: env?.VITE_BASE_SUBGRAPH_URL,
+    84532: env?.VITE_BASE_SEPOLIA_SUBGRAPH_URL,
+    56: env?.VITE_BSC_SUBGRAPH_URL,
+    97: env?.VITE_BSC_TESTNET_SUBGRAPH_URL
+  };
+
+  for (const [chainId, candidate] of Object.entries(urlByChainId)) {
+    if (!candidate) continue;
+    if (normalizeUrlForCompare(candidate) === target) {
+      return getNetworkBadgeLabel(chainId);
+    }
+  }
+
+  return "";
 }
 
 function summarizeVariables(vars: SubgraphVariables | undefined): Record<string, string | number | boolean | null> {
@@ -144,6 +172,8 @@ export async function querySubgraph<T>(args: {
   if (!url) throw new Error("Subgraph URL is missing.");
 
   const host = logEnabled ? safeHost(url) : "";
+  const label = logEnabled ? getSubgraphLabelForUrl(env, url) : "";
+  const hostLabel = logEnabled && label ? `${host} (${label})` : host;
   const stats = logEnabled ? getGlobalSubgraphStats() : null;
   const reqId = logEnabled && stats ? ++stats.seq : 0;
   const start = logEnabled ? performance.now() : 0;
@@ -182,11 +212,11 @@ export async function querySubgraph<T>(args: {
       stats.total += 1;
       stats.ok += 1;
       bumpStats(stats, opName, true, ms);
-      bumpHostStats(stats, host, true, ms);
+      bumpHostStats(stats, hostLabel, true, ms);
 
       // eslint-disable-next-line no-console
       console.groupCollapsed(
-        `%cSubgraph%c #${reqId} %c✓%c ${opName} %c${ms}ms%c %c${host}`,
+        `%cSubgraph%c #${reqId} %c✓%c ${opName} %c${ms}ms%c %c${hostLabel}`,
         "color:#2563eb;font-weight:700",
         "color:inherit",
         "color:#16a34a;font-weight:700",
@@ -216,11 +246,11 @@ export async function querySubgraph<T>(args: {
       stats.total += 1;
       stats.fail += 1;
       bumpStats(stats, opName, false, ms);
-      bumpHostStats(stats, host, false, ms);
+      bumpHostStats(stats, hostLabel, false, ms);
 
       // eslint-disable-next-line no-console
       console.groupCollapsed(
-        `%cSubgraph%c #${reqId} %c✗%c ${opName} %c${ms}ms%c %c${host}`,
+        `%cSubgraph%c #${reqId} %c✗%c ${opName} %c${ms}ms%c %c${hostLabel}`,
         "color:#2563eb;font-weight:700",
         "color:inherit",
         "color:#dc2626;font-weight:700",

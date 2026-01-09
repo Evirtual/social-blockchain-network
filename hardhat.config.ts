@@ -3,6 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "solidity-coverage";
 import * as dotenv from "dotenv";
 
+dotenv.config({ path: ".env.hardhat" });
 dotenv.config();
 
 function normalizePrivateKey(maybePk: string | undefined) {

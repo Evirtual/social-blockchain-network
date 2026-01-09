@@ -8,8 +8,16 @@ export function getExplorerTxUrl(chainId: string | null, txHash: string) {
   // IMPORTANT: Use `import.meta.env` directly so Vite can inject env values.
   // Avoid indirect access like `(import.meta as any).env` which won't be transformed.
   const env = getEnv();
-  const baseKey = `VITE_EXPLORER_BASE_URL_${id}`;
-  const envBase = getEnvString(env, baseKey);
+  const baseKeyByChainId: Record<number, string> = {
+    1: "VITE_ETH_EXPLORER_BASE_URL",
+    11155111: "VITE_ETH_SEPOLIA_EXPLORER_BASE_URL",
+    8453: "VITE_BASE_EXPLORER_BASE_URL",
+    84532: "VITE_BASE_SEPOLIA_EXPLORER_BASE_URL",
+    56: "VITE_BSC_EXPLORER_BASE_URL",
+    97: "VITE_BSC_TESTNET_EXPLORER_BASE_URL"
+  };
+  const baseKey = Number.isFinite(id) ? baseKeyByChainId[id] : undefined;
+  const envBase = baseKey ? getEnvString(env, baseKey) : undefined;
   if (typeof envBase === "string" && envBase.trim()) {
     const base = envBase.trim().replace(/\/+$/, "");
     return `${base}/tx/${txHash}`;
