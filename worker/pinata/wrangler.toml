@@ -2,6 +2,4 @@ name = "social-posts-pinata"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
-[vars]
 # Set via: wrangler secret put PINATA_JWT
-PINATA_JWT = ""
