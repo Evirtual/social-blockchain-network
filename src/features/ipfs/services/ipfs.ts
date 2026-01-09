@@ -72,7 +72,13 @@ export const ipfsToHttpCandidates = (uri: string, gatewayBases?: string[]) => {
   return bases.map((base) => ipfsToHttpWithGateway(uri, base));
 };
 
-export const hasPinata = () => Boolean(import.meta.env.VITE_PINATA_JWT);
+const getPinataWorkerUrl = (): string => {
+  const raw = import.meta.env.VITE_PINATA_WORKER_URL as string | undefined;
+  const trimmed = String(raw ?? "").trim();
+  return trimmed.replace(/\/+$/, "");
+};
+
+export const hasPinata = () => Boolean(getPinataWorkerUrl() || import.meta.env.VITE_PINATA_JWT);
 
 export const extractIpfsCid = (uri: string): string | null => {
   const raw = String(uri ?? "").trim();
@@ -103,10 +109,22 @@ export const extractIpfsCid = (uri: string): string | null => {
 };
 
 export const pinataUnpinCid = async (cid: string) => {
+  const workerUrl = getPinataWorkerUrl();
+  if (workerUrl) {
+    const hash = String(cid ?? "").trim();
+    if (!hash) return;
+    const res = await fetch(`${workerUrl}/pin/${hash}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Pinata unpin failed (${res.status}). ${text}`);
+    }
+    return;
+  }
+
   const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
   if (!jwt) {
     throw new Error(
-      "Missing VITE_PINATA_JWT (Pinata). Note: do not ship a Pinata JWT in client-side env vars for production; use a backend/serverless pinning endpoint instead."
+      "Missing Pinata credentials. Configure VITE_PINATA_WORKER_URL (recommended) or VITE_PINATA_JWT for local dev."
     );
   }
 
@@ -129,10 +147,22 @@ export const pinataUnpinCid = async (cid: string) => {
 };
 
 export const pinataPinFile = async (file: Blob, filename: string) => {
+  const workerUrl = getPinataWorkerUrl();
+  if (workerUrl) {
+    const form = new FormData();
+    form.append("file", file, filename);
+    const res = await fetch(`${workerUrl}/pin/file`, { method: "POST", body: form });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Pinata file upload failed (${res.status}). ${text}`);
+    }
+    return (await res.json()) as PinataPinResponse;
+  }
+
   const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
   if (!jwt) {
     throw new Error(
-      "Missing VITE_PINATA_JWT (Pinata). Note: do not ship a Pinata JWT in client-side env vars for production; use a backend/serverless pinning endpoint instead."
+      "Missing Pinata credentials. Configure VITE_PINATA_WORKER_URL (recommended) or VITE_PINATA_JWT for local dev."
     );
   }
 
@@ -156,10 +186,26 @@ export const pinataPinFile = async (file: Blob, filename: string) => {
 };
 
 export const pinataPinJson = async (json: JsonValue) => {
+  const workerUrl = getPinataWorkerUrl();
+  if (workerUrl) {
+    const res = await fetch(`${workerUrl}/pin/json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(json)
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Pinata metadata upload failed (${res.status}). ${text}`);
+    }
+    return (await res.json()) as PinataPinResponse;
+  }
+
   const jwt = import.meta.env.VITE_PINATA_JWT as string | undefined;
   if (!jwt) {
     throw new Error(
-      "Missing VITE_PINATA_JWT (Pinata). Note: do not ship a Pinata JWT in client-side env vars for production; use a backend/serverless pinning endpoint instead."
+      "Missing Pinata credentials. Configure VITE_PINATA_WORKER_URL (recommended) or VITE_PINATA_JWT for local dev."
     );
   }
 

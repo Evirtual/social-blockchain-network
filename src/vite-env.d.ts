@@ -27,6 +27,7 @@ interface ImportMetaEnv {
   readonly VITE_PINATA_JWT?: string;
   readonly VITE_PINATA_API_KEY?: string;
   readonly VITE_PINATA_API_SECRET?: string;
+  readonly VITE_PINATA_WORKER_URL?: string;
   readonly VITE_IPFS_GATEWAY?: string;
   readonly VITE_ETH_EXPLORER_BASE_URL?: string;
   readonly VITE_ETH_SEPOLIA_EXPLORER_BASE_URL?: string;

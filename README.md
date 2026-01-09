@@ -45,6 +45,16 @@ GitHub Actions runs on every PR and push to `main`:
 
 - Production build (`npm run build`)
 
+## GitHub Pages (Actions)
+
+To deploy via GitHub Pages:
+
+1. In GitHub → Settings → Pages, select **GitHub Actions** as the source.
+2. Keep `.env.testnet` up to date with the values you want baked into the build.
+3. Push to `main` to trigger `.github/workflows/pages.yml`.
+
+Note: the workflow sets `VITE_BASE=/<repo>/` and builds with `--mode testnet`, so Vite loads `.env.testnet`.
+
 ## Deploying to Ethereum + Base
 
 GitHub Pages (or any static host) can host the frontend, but the contract must be deployed to each chain separately.
@@ -97,6 +107,18 @@ Each deploy writes the resulting address into `.env` using a chain-specific key:
 
 The frontend will automatically select the correct address based on the user's connected network.
 
+## Pinata worker (Cloudflare)
+
+To avoid exposing a Pinata JWT in the browser, run the included Cloudflare Worker:
+
+1. Deploy the worker
+   - `cd worker/pinata`
+   - `wrangler deploy`
+2. Set the secret
+   - `wrangler secret put PINATA_JWT`
+3. Configure the frontend
+   - Set `VITE_PINATA_WORKER_URL` in `.env.local` to your worker URL
+
 ## Frontend environment variables
 
 See `.env.example` for the full list. Common ones:
@@ -124,6 +146,8 @@ See `.env.example` for the full list. Common ones:
 Tip: use `.env.subgraph.example` as a starter for the per-network subgraph endpoints.
 - Optional IPFS gateway override:
    - `VITE_IPFS_GATEWAY` (e.g. `https://gateway.pinata.cloud/ipfs/`)
+- Optional Pinata worker (recommended for production uploads):
+   - `VITE_PINATA_WORKER_URL` (e.g. `https://your-worker.your-domain.workers.dev`)
 
 ## Production notes / readiness
 
@@ -131,7 +155,7 @@ This repo is set up great for demos and local development.
 
 Before using it in production on a public network:
 
-- **Do not ship `VITE_PINATA_JWT`**. Vite exposes all `VITE_` variables to the browser, so a Pinata JWT would be public. Use a backend or serverless function to pin files/JSON to IPFS.
+- **Do not ship `VITE_PINATA_JWT`**. Vite exposes all `VITE_` variables to the browser. Use a backend/worker to pin files/JSON to IPFS.
 - **Set a real contract address per network**. Prefer `VITE_CONTRACT_ADDRESS_BASE` (Base) and `VITE_CONTRACT_ADDRESS_BSC` (BSC).
 - **Review contract and wallet flows**. If real value is involved, do a security review/audit.
 
