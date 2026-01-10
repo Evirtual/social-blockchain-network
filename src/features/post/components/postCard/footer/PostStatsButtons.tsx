@@ -1,4 +1,5 @@
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@shared/components/icons";
+import { formatTipsWei } from "./formatTips";
 import { getStatButtonClass } from "./getStatButtonClass";
 import type { PostPanel } from "../../PostCard";
 import type { Post } from "@types";
@@ -90,7 +91,7 @@ export function PostStatsButtons(props: Props) {
         title={props.interactionDisabledTitle}
       >
         <IconCoin size={20} />
-        <span className="postActionCount">{props.nativeSymbol}</span>
+        <span className="postActionCount">{formatTipsWei({ tipsWei: props.post.tipsWei, nativeSymbol: props.nativeSymbol })}</span>
       </button>
     </div>
   );

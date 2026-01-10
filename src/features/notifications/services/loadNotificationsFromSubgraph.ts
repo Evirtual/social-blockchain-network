@@ -20,8 +20,10 @@ function toInt(v: string | number | bigint | null | undefined): number {
 function filterDeleted(items: NotificationItem[], chainIdStr: string): NotificationItem[] {
   if (!chainIdStr) return items;
   return items.filter((n) => {
-    if (isPostBurned(chainIdStr, n.tokenId)) return false;
-    if (n.commentId && isCommentDeleted(chainIdStr, n.tokenId, n.commentId)) return false;
+    const keepPostRemoval = n.kind === "POST_REMOVED_BY_ADMIN";
+    const keepCommentRemoval = n.kind === "COMMENT_REMOVED";
+    if (!keepPostRemoval && isPostBurned(chainIdStr, n.tokenId)) return false;
+    if (!keepCommentRemoval && n.commentId && isCommentDeleted(chainIdStr, n.tokenId, n.commentId)) return false;
     return true;
   });
 }
@@ -162,9 +164,12 @@ export async function loadNotificationsFromSubgraph(args: {
       .filter((n) => Boolean(n.id) && Boolean(n.actor.id) && Boolean(n.tokenId));
 
     let filtered = filterDeleted(items, chainIdStr);
-    const burnedFromSubgraph = await fetchBurnedTokenIds(url, filtered.map((n) => n.tokenId));
+    const burnedFromSubgraph = await fetchBurnedTokenIds(
+      url,
+      filtered.filter((n) => n.kind !== "POST_REMOVED_BY_ADMIN").map((n) => n.tokenId)
+    );
     if (burnedFromSubgraph && burnedFromSubgraph.size > 0) {
-      filtered = filtered.filter((n) => !burnedFromSubgraph.has(n.tokenId));
+      filtered = filtered.filter((n) => n.kind === "POST_REMOVED_BY_ADMIN" || !burnedFromSubgraph.has(n.tokenId));
     }
 
     const res = { items: filtered, schemaMismatch: false };

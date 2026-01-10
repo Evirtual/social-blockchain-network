@@ -228,6 +228,37 @@ function maybeCreateCommentNotification(
   actor.save();
 }
 
+function createAccountNotification(
+  kind: string,
+  recipientAddress: Address,
+  actorAddress: Address,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (recipientAddress.equals(Address.zero())) return;
+
+  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  const id = getLogId(txHash.toHexString(), logIndex);
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = "0";
+  n.commentId = null;
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
+}
+
 function decodeBase64Char(code: i32): i32 {
   if (code >= 65 && code <= 90) return code - 65;
   if (code >= 97 && code <= 122) return code - 97 + 26;
@@ -324,12 +355,34 @@ export function handlePosterAllowed(event: PosterAllowed): void {
   }
 
   a.save();
+
+  if (event.params.allowed) {
+    createAccountNotification(
+      "POSTER_APPROVED",
+      event.params.account,
+      event.params.account,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  }
 }
 
 export function handlePosterApprovalRequested(event: PosterApprovalRequested): void {
   const a = getOrCreateAccount(event.params.account, event.block.number, event.block.timestamp);
   a.posterRequested = true;
   a.save();
+
+  createAccountNotification(
+    "POSTER_APPROVAL_REQUESTED",
+    event.params.account,
+    event.params.account,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleProfileUpdated(event: ProfileUpdated): void {
@@ -543,6 +596,18 @@ export function handlePostBurnedByAdmin(event: PostBurnedByAdmin): void {
 
   author.save();
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_REMOVED_BY_ADMIN",
+    p,
+    event.params.admin,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostLiked(event: PostLiked): void {
@@ -809,6 +874,18 @@ export function handleCommentDeleted(event: CommentDeleted): void {
   if (c == null) return;
 
   if (!c.deleted) {
+    maybeCreateCommentNotification(
+      "COMMENT_REMOVED",
+      c.author,
+      event.params.deleter,
+      tokenId,
+      event.params.commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+
     c.deleted = true;
     c.comment = "";
     if (p.comments.gt(BigInt.zero())) {
@@ -1047,6 +1124,18 @@ export function handleCommentTipped(event: CommentTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalCommentTipsWei = stats.totalCommentTipsWei.plus(event.params.amountWei);
     stats.save();
+
+    maybeCreateCommentNotification(
+      "COMMENT_TIPPED",
+      author.id,
+      event.params.tipper,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   p.updatedAtBlock = event.block.number;
@@ -1133,6 +1222,18 @@ export function handlePostTipped(event: PostTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalTipsWei = stats.totalTipsWei.plus(event.params.amountWei);
     stats.save();
+
+    maybeCreatePostNotification(
+      "POST_TIPPED",
+      p,
+      event.params.tipper,
+      tokenId,
+      "",
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   p.updatedAtBlock = event.block.number;
