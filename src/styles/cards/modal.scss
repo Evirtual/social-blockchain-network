@@ -85,3 +85,94 @@
   padding: 1.125rem;
   overflow: auto;
 }
+
+.walletConnectModal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.walletConnectError {
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: rgba(255, 120, 120, 0.18);
+  border: 0.0625rem solid rgba(255, 120, 120, 0.35);
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.walletConnectList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.walletConnectItem {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 1rem;
+  border: 0.0625rem solid var(--border);
+  background: color-mix(in srgb, var(--bg) 76%, var(--surface-2));
+  box-shadow: inset 0 0 0 0.03125rem rgba(255, 255, 255, 0.03);
+}
+
+.walletConnectItem:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+}
+
+.walletConnectIcon {
+  width: 2.625rem;
+  height: 2.625rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  background: linear-gradient(135deg, rgba(120, 170, 255, 0.35), rgba(120, 255, 216, 0.2));
+  border: 0.0625rem solid rgba(255, 255, 255, 0.08);
+}
+
+.walletConnectMeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.walletConnectName {
+  font-weight: 600;
+}
+
+.walletConnectDescription {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.walletConnectBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(120, 170, 255, 0.2);
+  color: var(--text);
+  border: 0.0625rem solid rgba(120, 170, 255, 0.35);
+  white-space: nowrap;
+}
+
+.walletConnectBadge.is-installed {
+  background: rgba(70, 190, 120, 0.18);
+  border-color: rgba(70, 190, 120, 0.35);
+  color: rgba(120, 255, 180, 0.95);
+}
+
+.walletConnectBadge.is-unavailable {
+  background: rgba(255, 120, 120, 0.16);
+  border-color: rgba(255, 120, 120, 0.3);
+  color: rgba(255, 180, 180, 0.9);
+}

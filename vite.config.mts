@@ -25,12 +25,28 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 4000,
     rollupOptions: {
+      onwarn(warning, warn) {
+        if (typeof warning.message === "string" && warning.message.includes("contains an annotation that Rollup cannot interpret")) {
+          return;
+        }
+        warn(warning);
+      },
       output: {
-        manualChunks: {
-          react: ["react", "react-dom"],
-          router: ["react-router-dom"],
-          ethers: ["ethers"]
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
+              return "react";
+            }
+            if (id.includes("node_modules/react-router")) {
+              return "router";
+            }
+            if (id.includes("node_modules/ethers/")) {
+              return "ethers";
+            }
+          }
+          return undefined;
         }
       }
     }
