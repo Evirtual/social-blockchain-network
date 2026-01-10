@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { Modal } from "@shared/components/Modal";
+import { IconRepeat } from "@shared/components/icons";
 
 type Props = {
   open: boolean;
@@ -58,17 +59,26 @@ export function ProfileEditModal(props: Props) {
         />
 
         <div className="row fileRow">
-          <input
-            className="file-input"
-            type="file"
-            name="profileAvatarUpload"
-            accept="image/*"
-            onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
-            disabled={isBusy}
-          />
-          <button type="button" className="secondary" onClick={props.onClearProfileAvatar} disabled={isBusy}>
-            Clear
-          </button>
+          <div className="fileInputWrap">
+            <input
+              className="file-input"
+              type="file"
+              name="profileAvatarUpload"
+              accept="image/*"
+              onChange={(event) => props.onSelectProfileAvatarFile(event.target.files?.[0] ?? null)}
+              disabled={isBusy}
+            />
+            <button
+              type="button"
+              className="ghost iconButton fileInputAction"
+              onClick={props.onClearProfileAvatar}
+              disabled={isBusy}
+              aria-label="Clear avatar upload"
+              title="Clear avatar upload"
+            >
+              <IconRepeat size={16} />
+            </button>
+          </div>
         </div>
 
         {props.profileDraftAvatarDataUrl.startsWith("data:image/") && (
@@ -76,9 +86,6 @@ export function ProfileEditModal(props: Props) {
         )}
 
         <div className="rowActions">
-          <button className="secondary" type="button" onClick={props.onCancelEditProfile} disabled={isBusy}>
-            Cancel
-          </button>
           <button
             className="primary buttonWithSpinner"
             type="button"

@@ -1,3 +1,5 @@
+@use "../breakpoints" as bp;
+
 /* Split from src/styles/cards.css (modal) */
 
 .modalOverlay {
@@ -84,6 +86,37 @@
 .modalBody {
   padding: 1.125rem;
   overflow: auto;
+}
+
+@include bp.breakpoint($max: bp.bp(sm)) {
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 0.75rem;
+  }
+
+  .modalContent {
+    max-height: calc(100vh - 1.5rem);
+  }
+
+  .modalHeader {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .modalBody {
+    padding: 0.875rem;
+  }
+
+  .modalBody .row,
+  .modalBody .row.fileRow,
+  .modalBody .rowActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modalBody .rowActions > * {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .walletConnectModal {

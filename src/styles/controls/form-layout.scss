@@ -8,6 +8,26 @@
   flex: 1;
 }
 
+.fileInputWrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.fileInputWrap .file-input {
+  padding-right: 3rem;
+}
+
+.fileInputAction {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
 .rowActions {
   display: flex;
   justify-content: flex-end;

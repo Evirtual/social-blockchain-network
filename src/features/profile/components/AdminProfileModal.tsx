@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@shared/components/Modal";
+import { IconRepeat } from "@shared/components/icons";
 
 type InitialDraft = {
   name: string;
@@ -126,16 +127,24 @@ export function AdminProfileModal(props: Props) {
         />
 
         <div className="row fileRow">
-          <input
-            className="file-input"
-            type="file"
-            name="adminProfileAvatarUpload"
-            accept="image/*"
-            onChange={(event) => void onSelectAdminAvatarFile(event.target.files?.[0] ?? null)}
-          />
-          <button type="button" className="secondary" onClick={onClearAdminAvatar}>
-            Clear
-          </button>
+          <div className="fileInputWrap">
+            <input
+              className="file-input"
+              type="file"
+              name="adminProfileAvatarUpload"
+              accept="image/*"
+              onChange={(event) => void onSelectAdminAvatarFile(event.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              className="ghost iconButton fileInputAction"
+              onClick={onClearAdminAvatar}
+              aria-label="Clear avatar upload"
+              title="Clear avatar upload"
+            >
+              <IconRepeat size={16} />
+            </button>
+          </div>
         </div>
 
         {adminAvatarDataUrl.startsWith("data:image/") && (

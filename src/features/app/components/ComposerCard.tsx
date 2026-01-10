@@ -1,5 +1,6 @@
 import type { Draft } from "@types";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
+import { IconRepeat } from "@shared/components/icons";
 
 type Props = {
   draft: Draft;
@@ -47,16 +48,24 @@ export function ComposerCard({
       </div>
 
       <div className="row fileRow">
-        <input
-          className="file-input"
-          type="file"
-          name="postMediaUpload"
-          accept="image/*,video/*"
-          onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
-        />
-        <button type="button" className="secondary" onClick={onClearImage}>
-          Clear
-        </button>
+        <div className="fileInputWrap">
+          <input
+            className="file-input"
+            type="file"
+            name="postMediaUpload"
+            accept="image/*,video/*"
+            onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            className="ghost iconButton fileInputAction"
+            onClick={onClearImage}
+            aria-label="Clear upload"
+            title="Clear upload"
+          >
+            <IconRepeat size={16} />
+          </button>
+        </div>
       </div>
 
       {draft.imageDataUrl.startsWith("data:image/") && (

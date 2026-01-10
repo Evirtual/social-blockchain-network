@@ -1,5 +1,6 @@
 import type { Draft } from "@types";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
+import { IconRepeat } from "@shared/components/icons";
 import { useCallback, useState } from "react";
 
 export type PostCardEditBoxProps = {
@@ -66,16 +67,24 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
       />
 
       <div className="row fileRow">
-        <input
-          className="file-input"
-          type="file"
-          name="editPostMediaUpload"
-          accept="image/*,video/*"
-          onChange={(e) => props.onEditSelectFile(e.target.files?.[0] ?? null)}
-        />
-        <button className="secondary" type="button" onClick={props.onEditClearImage}>
-          Clear
-        </button>
+        <div className="fileInputWrap">
+          <input
+            className="file-input"
+            type="file"
+            name="editPostMediaUpload"
+            accept="image/*,video/*"
+            onChange={(e) => props.onEditSelectFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            className="ghost iconButton fileInputAction"
+            type="button"
+            onClick={props.onEditClearImage}
+            aria-label="Clear upload"
+            title="Clear upload"
+          >
+            <IconRepeat size={16} />
+          </button>
+        </div>
       </div>
 
       {props.editDraft?.imageDataUrl?.startsWith("data:image/") && (
@@ -98,9 +107,6 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
             Freeze
           </button>
         ) : null}
-        <button className="secondary" type="button" onClick={props.onCancelEditPost}>
-          Cancel
-        </button>
         <button
           className="primary buttonWithSpinner"
           type="button"
