@@ -87,7 +87,7 @@ export function Topbar({
 
           <details className="topbarOverflow" ref={detailsRef}>
             <summary className="ghost iconButton" aria-label="More" title="More">
-              <IconDotsVertical size={18} />
+              <IconDotsVertical size={20} />
             </summary>
             <div className="topbarOverflowMenu" role="menu" aria-label="More actions">
               <div className="topbarOverflowIcons" role="group" aria-label="Quick actions">
