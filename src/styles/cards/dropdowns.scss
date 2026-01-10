@@ -39,7 +39,7 @@
   user-select: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.625rem;
   padding: var(--pad);
 }
@@ -55,10 +55,27 @@
 .cardDropdownMeta {
   color: var(--muted);
   font-size: 0.9rem;
+  margin-left: auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.cardDropdownChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--muted);
+  transition:
+    transform 160ms ease,
+    color 160ms ease;
+}
+
+.cardDropdown[open] .cardDropdownChevron {
+  transform: rotate(180deg);
+  color: var(--text);
 }
 
 .cardDropdownBody {

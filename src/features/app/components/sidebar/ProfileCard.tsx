@@ -12,6 +12,7 @@ import { normalizeAddress } from "@shared/lib/address";
 import { ProfileEditModal } from "./profileCard/ProfileEditModal";
 import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
 import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
+import { IconChevronDown } from "@shared/components/icons";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -98,6 +99,9 @@ export function ProfileCard(props: ProfileCardProps) {
       <summary className="cardDropdownSummary">
         <span className="cardTitle">Profile</span>
         <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+        <span className="cardDropdownChevron" aria-hidden="true">
+          <IconChevronDown size={18} />
+        </span>
       </summary>
 
       <div className="cardDropdownBody">

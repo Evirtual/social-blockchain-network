@@ -233,3 +233,11 @@ export function IconDotsVertical(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function IconChevronDown(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </BaseIcon>
+  );
+}

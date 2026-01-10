@@ -2,7 +2,7 @@ import { formatEther } from "ethers";
 import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
-import { IconCoin } from "@shared/components/icons";
+import { IconChevronDown, IconCoin } from "@shared/components/icons";
 
 export type WalletCardProps = {
   walletAddress: string | null;
@@ -21,7 +21,7 @@ export type WalletCardProps = {
 
 export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
-  const [isOpen, setIsOpen] = useState<boolean>(true);
+  const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
   const isBalanceLoading = props.nativeBalance === "?";
   const isTipsLoading = props.contractDeployed === null && !!props.walletAddress;
   const balanceSkeleton = (
@@ -41,8 +41,8 @@ export function WalletCard(props: WalletCardProps) {
   };
 
   useEffect(() => {
-    // Keep expanded by default on mobile; also ensure we never get stuck collapsed on desktop.
-    setIsOpen(true);
+    // Mobile: collapsed by default. Desktop: expanded by default.
+    setIsOpen(!isMobile);
   }, [isMobile]);
 
   return (
@@ -54,6 +54,9 @@ export function WalletCard(props: WalletCardProps) {
       <summary className="cardDropdownSummary">
         <span className="cardTitle">Wallet</span>
         <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+        <span className="cardDropdownChevron" aria-hidden="true">
+          <IconChevronDown size={18} />
+        </span>
       </summary>
 
       <div className="cardDropdownBody">
