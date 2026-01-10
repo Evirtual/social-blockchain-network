@@ -9,11 +9,12 @@ function normalizeAddressForKey(address?: string | null) {
 
 export function getFeedStorageKeys(scope: Scope) {
   const base = "socialBlockchainNetwork.feed";
+  const selectedNetworksKey = `${base}.selectedNetworks`;
 
   if (scope.kind === "home") {
     return {
       searchQueryKey: `${base}.searchQuery.home`,
-      selectedNetworksKey: `${base}.selectedNetworks.home`
+      selectedNetworksKey
     };
   }
 
@@ -22,6 +23,6 @@ export function getFeedStorageKeys(scope: Scope) {
 
   return {
     searchQueryKey: `${base}.searchQuery.${suffix}`,
-    selectedNetworksKey: `${base}.selectedNetworks.${suffix}`
+    selectedNetworksKey
   };
 }

@@ -215,33 +215,37 @@ export function useFeedRefresh(params: {
   const lastWalletEpochRef = useRef<number>(-1);
   const lastChainIdRef = useRef<string | null | undefined>(undefined);
   const lastWalletAddressLowerRef = useRef<string | null | undefined>(undefined);
+  const didInitWalletRefreshRef = useRef(false);
 
   useEffect(() => {
     if (!isEnabled) return;
     if (!provider && !hasAnyReadOnlyRpc) return;
 
-    const isInitialEpoch = lastWalletEpochRef.current === -1;
-    if (walletEpoch === lastWalletEpochRef.current) return;
-    lastWalletEpochRef.current = walletEpoch;
+    const isInitial = !didInitWalletRefreshRef.current;
 
     const walletAddressLower = walletAddress ? walletAddress.toLowerCase() : null;
 
+    const epochChanged = walletEpoch !== lastWalletEpochRef.current;
     const rawChainChanged = lastChainIdRef.current !== chainId;
     const rawWalletChanged = lastWalletAddressLowerRef.current !== walletAddressLower;
 
+    // Fast exit if nothing meaningful changed.
+    if (!epochChanged && !rawChainChanged && !rawWalletChanged && !isInitial) return;
+
+    didInitWalletRefreshRef.current = true;
+    lastWalletEpochRef.current = walletEpoch;
+
     const chainChanged = rawChainChanged;
     const walletChanged = rawWalletChanged;
-
-    if (!chainChanged && !walletChanged) return;
     lastChainIdRef.current = chainId;
     lastWalletAddressLowerRef.current = walletAddressLower;
 
     // On network change, reset state so we don't show stale data.
-    if ((chainChanged || walletChanged) && !isInitialEpoch) {
+    if ((chainChanged || walletChanged) && !isInitial) {
       bumpEpoch();
     }
 
-    if (chainChanged && !isInitialEpoch) {
+    if (chainChanged && !isInitial) {
       setPosts([]);
       postsRef.current = [];
       refreshFeedInFlightRef.current = null;
@@ -251,8 +255,6 @@ export function useFeedRefresh(params: {
       lastRefreshCompletedAtRef.current = 0;
       lastRefreshedChainIdRef.current = null;
     }
-
-    if (!walletChanged && !chainChanged && !isInitialEpoch) return;
 
     void refreshFeed(walletAddress).catch(() => {
       // refreshFeed already reports status

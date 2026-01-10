@@ -59,22 +59,23 @@ export function useNetworkFilterState({
 
   useEffect(() => {
     if (!walletAddress) return;
-    // If the user already has a stored network selection, respect it.
-    // (Otherwise the connected chain can never be deselected.)
-    if (hasStoredSelectedNetworks) return;
     const current = normalizeChainIdToString(chainId) ?? null;
     if (!current) return;
 
-    // If the user previously filtered to some other network(s), ensure the
-    // currently connected chain is included so the feed updates immediately.
-    if (selectedNetworkChainIds.includes(current)) return;
-    setSelectedNetworkChainIds((prev) => {
-      const next = Array.isArray(prev) ? prev.slice() : [];
-      if (next.includes(current)) return next;
-      next.push(current);
-      return next;
-    });
-  }, [walletAddress, chainId, selectedNetworkChainIds, setSelectedNetworkChainIds, hasStoredSelectedNetworks]);
+    // While connected, always scope to the wallet's current chain.
+    // (Network changes should immediately update the feed and topbar filter.)
+    const isSupported = supportedNetworks.some((n) => String(n.chainId) === current);
+    if (!isSupported) return;
+
+    if (selectedNetworkChainIds.length === 1 && selectedNetworkChainIds[0] === current) return;
+    setSelectedNetworkChainIds([current]);
+  }, [
+    walletAddress,
+    chainId,
+    selectedNetworkChainIds,
+    setSelectedNetworkChainIds,
+    supportedNetworks
+  ]);
 
   const isNetworkFilterActive = useMemo(() => {
     const all = new Set(supportedNetworks.map((n) => String(n.chainId)));

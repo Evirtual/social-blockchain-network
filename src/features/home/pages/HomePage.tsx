@@ -1,5 +1,5 @@
 import type { Draft, Post } from "@types";
-import { Feed, FeedHeaderControls } from "@features/feed";
+import { Feed, FeedTopbarControls } from "@features/feed";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post";
@@ -9,6 +9,7 @@ import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
 import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
+import { useTopbarCenter } from "@features/app";
 
 type Props = {
   isOwner: boolean;
@@ -113,21 +114,42 @@ export function HomePage(props: Props) {
     return "";
   }, [props.walletAddress, props.networkName, props.chainId]);
 
-  const headerAction = (
-    <FeedHeaderControls
-      pillText={pillText}
-      isPillLoading={isPillLoading}
-      isSearchLoading={isSearchLoading}
-      isSearchDirty={isSearchDirty}
-      searchQuery={searchQuery}
-      onSearchQueryChange={setSearchQuery}
-      onRestoreDraftToApplied={restoreDraftToApplied}
-      onSearchSubmit={submitSearch}
-      selectedNetworkChainIds={selectedNetworkChainIds}
-      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-      supportedNetworks={supportedNetworks}
-    />
+  const topbarCenter = useMemo(
+    () => (
+      <FeedTopbarControls
+        pillText={pillText}
+        isPillLoading={isPillLoading}
+        isSearchLoading={isSearchLoading}
+        isSearchDirty={isSearchDirty}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onRestoreDraftToApplied={restoreDraftToApplied}
+        onSearchSubmit={submitSearch}
+        walletAddress={props.walletAddress}
+        chainId={props.chainId}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    ),
+    [
+      pillText,
+      isPillLoading,
+      isSearchLoading,
+      isSearchDirty,
+      searchQuery,
+      setSearchQuery,
+      restoreDraftToApplied,
+      submitSearch,
+      props.walletAddress,
+      props.chainId,
+      selectedNetworkChainIds,
+      setSelectedNetworkChainIds,
+      supportedNetworks
+    ]
   );
+
+  useTopbarCenter(topbarCenter);
 
   const banner = useMemo(() => {
     if (!props.isDemoModeEnabled || props.isLiveFeedEnabled) return null;
@@ -163,7 +185,7 @@ export function HomePage(props: Props) {
         title="Main Feed"
         pillText=""
         banner={banner}
-        headerAction={headerAction}
+        hideHeader
         isLoading={isDisplayLoading}
         posts={displayPosts}
         isOwner={props.isOwner}

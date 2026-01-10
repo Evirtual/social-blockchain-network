@@ -223,3 +223,13 @@ export function IconWindowOpen(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function IconDotsVertical(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M12 5h.01" />
+      <path d="M12 12h.01" />
+      <path d="M12 19h.01" />
+    </BaseIcon>
+  );
+}

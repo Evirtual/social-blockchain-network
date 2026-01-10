@@ -21,7 +21,7 @@ export type WalletCardProps = {
 
 export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
-  const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+  const [isOpen, setIsOpen] = useState<boolean>(true);
   const isBalanceLoading = props.nativeBalance === "?";
   const isTipsLoading = props.contractDeployed === null && !!props.walletAddress;
   const balanceSkeleton = (
@@ -41,7 +41,8 @@ export function WalletCard(props: WalletCardProps) {
   };
 
   useEffect(() => {
-    setIsOpen(!isMobile);
+    // Keep expanded by default on mobile; also ensure we never get stuck collapsed on desktop.
+    setIsOpen(true);
   }, [isMobile]);
 
   return (

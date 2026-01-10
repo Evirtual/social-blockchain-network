@@ -8,11 +8,12 @@ type Props = {
   open: boolean;
   title: ReactNode;
   headerLeading?: ReactNode;
+  headerTrailing?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 };
 
-export function Modal({ open, title, headerLeading, onClose, children }: Props) {
+export function Modal({ open, title, headerLeading, headerTrailing, onClose, children }: Props) {
   useEffect(() => {
     if (!open) return;
     if (!hasDocument()) return;
@@ -52,9 +53,12 @@ export function Modal({ open, title, headerLeading, onClose, children }: Props) 
             {headerLeading ? <div className="modalHeaderLeading">{headerLeading}</div> : null}
             <div className="modalTitle">{title}</div>
           </div>
-          <button className="ghost iconButton" type="button" onClick={onClose} aria-label="Close">
-            <IconX size={16} />
-          </button>
+          <div className="modalHeaderActions">
+            {headerTrailing ? <div className="modalHeaderTrailing">{headerTrailing}</div> : null}
+            <button className="ghost iconButton" type="button" onClick={onClose} aria-label="Close">
+              <IconX size={16} />
+            </button>
+          </div>
         </div>
         <div className="modalBody">{children}</div>
       </div>

@@ -47,10 +47,11 @@ export type ProfileCardProps = {
 
 export function ProfileCard(props: ProfileCardProps) {
   const isMobile = useIsMobile();
-  const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
+  const [isOpen, setIsOpen] = useState<boolean>(true);
 
   useEffect(() => {
-    setIsOpen(!isMobile);
+    // Keep expanded by default on mobile; also ensure we never get stuck collapsed on desktop.
+    setIsOpen(true);
   }, [isMobile]);
 
   const profileLink = props.walletAddress ? `/profile/${props.walletAddress}` : null;

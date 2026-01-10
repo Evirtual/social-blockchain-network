@@ -149,6 +149,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const chainChanged = (chainIdValue: unknown) => {
         const parsedChainId = parseChainId(chainIdValue);
         if (parsedChainId === null) return;
+
+        // Recreate the ethers BrowserProvider on network switch.
+        // Ethers can cache the network on the provider instance, which can lead to
+        // reads continuing against the previous chain until a full page refresh.
+        const nextProvider = new BrowserProvider(ethereum);
+        providerRef.current = nextProvider;
+        setProvider(nextProvider);
+
         setChainId(String(parsedChainId));
         void refreshWalletPanel();
       };

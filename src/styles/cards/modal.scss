@@ -72,6 +72,19 @@
   gap: 0.75rem;
 }
 
+.modalHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modalHeaderTrailing {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
 .modalHeader .iconButton {
   width: 2.25rem;
   height: 2.25rem;

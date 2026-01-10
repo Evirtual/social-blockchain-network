@@ -256,6 +256,133 @@
   min-width: 0;
 }
 
+.feedTopbarSearchModal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feedTopbarSearchRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.feedTopbarSearchField {
+  position: relative;
+  width: 100%;
+}
+
+.feedTopbarSearchInput {
+  padding-right: 3.25rem;
+}
+
+.feedTopbarSearchSubmit {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+}
+
+
+.feedNetworksModal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feedNetworksModalList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.feedNetworksModalOption {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-sm);
+  border: 0.0625rem solid transparent;
+  background: color-mix(in srgb, var(--bg) 86%, var(--surface-2));
+  color: var(--text);
+  cursor: pointer;
+}
+
+.feedNetworksModalOption.isActive {
+  border-color: var(--link);
+  background: color-mix(in srgb, var(--bg) 76%, var(--surface-2));
+}
+
+.feedNetworksModalOptionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.feedNetworksModalOptionText {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 1.05rem;
+}
+
+.feedNetworksModalOptionPrimary {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.feedNetworksModalOptionSecondary {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.92em;
+}
+
+.feedNetworksModalOption:hover {
+  background: color-mix(in srgb, var(--bg) 78%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--border) 70%, var(--bg) 30%);
+}
+
+.feedNetworksModalList input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  border-radius: 0.35rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, var(--text) 18%);
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--bg) 18%);
+  box-shadow: none;
+}
+
+.feedNetworksModalList input[type="checkbox"]::after {
+  content: "";
+  width: 0.65rem;
+  height: 0.35rem;
+  border-left: 0.16rem solid var(--accent-contrast);
+  border-bottom: 0.16rem solid var(--accent-contrast);
+  transform: rotate(-45deg) translateY(-0.03rem);
+  opacity: 0;
+}
+
+.feedNetworksModalList input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--text) 10%);
+}
+
+.feedNetworksModalList input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.feedNetworksModalList input[type="checkbox"]:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+}
+
 /* Match the pill sizing in the feed header. */
 
 .feedNetworkFilter {
@@ -529,12 +656,4 @@
     min-width: 10rem;
   }
 
-  .feedSearch {
-    width: 100%;
-  }
-
-  .feedSearchEnd {
-    right: auto;
-    left: 0;
-  }
 }

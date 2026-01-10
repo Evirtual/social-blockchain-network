@@ -1,9 +1,10 @@
 import type { Post } from "@types";
-import { Feed, FeedHeaderControls } from "@features/feed";
+import { Feed, FeedTopbarControls } from "@features/feed";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { getFeedStorageKeys } from "@features/feed";
 import type { PostActionsController } from "@features/post";
 import { useMemo } from "react";
+import { useTopbarCenter } from "@features/app";
 
 type Props = {
   posts: Post[];
@@ -52,28 +53,47 @@ export function ProfileFeedSection(props: Props) {
     countMode: "visible"
   });
 
-  const headerAction = (
-    <FeedHeaderControls
-      pillText={pillText}
-      isPillLoading={isPillLoading}
-      isSearchLoading={isSearchLoading}
-      isSearchDirty={isSearchDirty}
-      searchQuery={searchQuery}
-      onSearchQueryChange={setSearchQuery}
-      onRestoreDraftToApplied={restoreDraftToApplied}
-      onSearchSubmit={submitSearch}
-      selectedNetworkChainIds={selectedNetworkChainIds}
-      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-      supportedNetworks={supportedNetworks}
-    />
+  const topbarCenter = useMemo(
+    () => (
+      <FeedTopbarControls
+        pillText={pillText}
+        isPillLoading={isPillLoading}
+        isSearchLoading={isSearchLoading}
+        isSearchDirty={isSearchDirty}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onRestoreDraftToApplied={restoreDraftToApplied}
+        onSearchSubmit={submitSearch}
+        walletAddress={props.walletAddress}
+        chainId={props.chainId}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    ),
+    [
+      pillText,
+      isPillLoading,
+      isSearchLoading,
+      isSearchDirty,
+      searchQuery,
+      restoreDraftToApplied,
+      submitSearch,
+      props.walletAddress,
+      props.chainId,
+      selectedNetworkChainIds,
+      supportedNetworks
+    ]
   );
+
+  useTopbarCenter(topbarCenter);
 
   return (
     <section className="content">
       <Feed
         title={activeTitle}
         pillText=""
-        headerAction={headerAction}
+        hideHeader
         isLoading={isDisplayLoading}
         loadingText={props.status}
         posts={displayPosts}

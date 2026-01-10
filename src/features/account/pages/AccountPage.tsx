@@ -1,10 +1,12 @@
 import type { ProfileCardProps, WalletCardProps } from "@features/app";
 import { Feed } from "@features/feed";
 import type { Post } from "@types";
-import { FeedHeaderControls } from "@features/feed";
+import { FeedTopbarControls } from "@features/feed";
 import { useAccountPageViewModel } from "../hooks/useAccountPageViewModel";
 import { AccountSidebar } from "../components/AccountSidebar";
 import type { PostActionsController } from "@features/post";
+import { useTopbarCenter } from "@features/app";
+import { useMemo } from "react";
 
 type Props = {
   isOwner: boolean;
@@ -59,21 +61,44 @@ export function AccountPage(props: Props) {
     shortAddress: props.shortAddress
   });
 
-  const headerAction = (
-    <FeedHeaderControls
-      pillText={pillText}
-      isPillLoading={isPillLoading}
-      isSearchLoading={isSearchLoading}
-      isSearchDirty={isSearchDirty}
-      searchQuery={searchQuery}
-      onSearchQueryChange={setSearchQuery}
-      onRestoreDraftToApplied={restoreDraftToApplied}
-      onSearchSubmit={submitSearch}
-      selectedNetworkChainIds={selectedNetworkChainIds}
-      onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
-      supportedNetworks={supportedNetworks}
-    />
+  const topbarCenter = useMemo(
+    () => (
+      <FeedTopbarControls
+        inlineSlot={headerInlineAction ?? null}
+        pillText={pillText}
+        isPillLoading={isPillLoading}
+        isSearchLoading={isSearchLoading}
+        isSearchDirty={isSearchDirty}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onRestoreDraftToApplied={restoreDraftToApplied}
+        onSearchSubmit={submitSearch}
+        walletAddress={props.walletAddress}
+        chainId={props.chainId}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    ),
+    [
+      headerInlineAction,
+      pillText,
+      isPillLoading,
+      isSearchLoading,
+      isSearchDirty,
+      searchQuery,
+      setSearchQuery,
+      restoreDraftToApplied,
+      submitSearch,
+      props.walletAddress,
+      props.chainId,
+      selectedNetworkChainIds,
+      setSelectedNetworkChainIds,
+      supportedNetworks
+    ]
   );
+
+  useTopbarCenter(topbarCenter);
 
   return (
     <main className="profileLayout">
@@ -85,8 +110,7 @@ export function AccountPage(props: Props) {
         <Feed
           title="Your posts"
           pillText=""
-          headerInlineAction={headerInlineAction}
-          headerAction={headerAction}
+          hideHeader
           isLoading={isDisplayLoading}
           posts={displayActivePosts}
           isOwner={props.isOwner}

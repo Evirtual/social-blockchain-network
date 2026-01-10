@@ -1,6 +1,6 @@
 import { AppProviders } from "./features/app";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ComposerCard, Topbar, TxToaster, WalletProfileLink } from "./features/app";
+import { ComposerCard, Topbar, TopbarOverflowProvider, TopbarSlotsProvider, TxToaster, WalletProfileLink } from "./features/app";
 import { Modal } from "@shared/components/Modal";
 import { HomeRoute, NotificationsRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useComposeNudge, useConnectNudge, useConnectWallet } from "./features/app";
@@ -14,10 +14,11 @@ import { useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";
 import { ipfsToHttp } from "./features/ipfs";
 import { NotificationsModal } from "./features/notifications";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNotificationsBadge } from "./features/notifications/hooks/useNotificationsBadge";
 
 function AppInner() {
+  const [topbarCenter, setTopbarCenter] = useState<ReactNode | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const theme = useTheme();
   const walletState = useWalletState();
@@ -51,26 +52,28 @@ function AppInner() {
   });
 
   return (
-    <div className="app">
-      <ScrollToTop />
-      <Topbar
-        theme={theme.theme}
-        connectNudge={connectNudge}
-        composeNudge={composeNudge}
-        walletAddress={walletState.walletAddress}
-        onToggleTheme={theme.toggleTheme}
-        onConnectWallet={connectWallet}
-        onOpenComposer={composer.openComposer}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
-        hasUnreadNotifications={hasUnread}
-        rightSlot={
-          <WalletProfileLink
-            profileLink={profile.profileLink}
+    <TopbarOverflowProvider>
+      <TopbarSlotsProvider
+        value={{
+          center: topbarCenter,
+          setCenter: setTopbarCenter
+        }}
+      >
+        <div className="app">
+          <ScrollToTop />
+          <Topbar
+            theme={theme.theme}
+            connectNudge={connectNudge}
+            composeNudge={composeNudge}
             walletAddress={walletState.walletAddress}
-            chainId={walletState.chainId}
+            onToggleTheme={theme.toggleTheme}
+            onConnectWallet={connectWallet}
+            onOpenComposer={composer.openComposer}
+            onOpenNotifications={() => setIsNotificationsOpen(true)}
+            hasUnreadNotifications={hasUnread}
+            centerSlot={topbarCenter}
+            rightSlot={<WalletProfileLink profileLink={profile.profileLink} walletAddress={walletState.walletAddress} />}
           />
-        }
-      />
 
       <NotificationsModal
         open={isNotificationsOpen}
@@ -126,8 +129,10 @@ function AppInner() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <TxToaster />
-    </div>
+        <TxToaster />
+        </div>
+      </TopbarSlotsProvider>
+    </TopbarOverflowProvider>
   );
 }
 
