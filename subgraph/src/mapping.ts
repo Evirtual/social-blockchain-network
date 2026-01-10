@@ -1,6 +1,7 @@
 import { Address, BigInt, ByteArray, Bytes, JSONValueKind, json, ipfs } from "@graphprotocol/graph-ts";
 
 import {
+  SocialPosts,
   Followed,
   PostFrozen,
   PostMinted,
@@ -53,6 +54,12 @@ import {
 
 const GLOBAL_STATS_ID = "global";
 const DATA_URI_PREFIX = "data:application/json;base64,";
+
+function getContractOwner(contractAddress: Address): Address {
+  const contract = SocialPosts.bind(contractAddress);
+  const ownerResult = contract.try_owner();
+  return ownerResult.reverted ? Address.zero() : ownerResult.value;
+}
 
 function getOrCreateGlobalStats(): GlobalStats {
   let s = GlobalStats.load(GLOBAL_STATS_ID);
@@ -360,7 +367,7 @@ export function handlePosterAllowed(event: PosterAllowed): void {
     createAccountNotification(
       "POSTER_APPROVED",
       event.params.account,
-      event.params.account,
+      event.transaction.from,
       event.transaction.hash,
       event.logIndex,
       event.block.number,
@@ -374,9 +381,11 @@ export function handlePosterApprovalRequested(event: PosterApprovalRequested): v
   a.posterRequested = true;
   a.save();
 
+  const owner = getContractOwner(event.address);
+
   createAccountNotification(
     "POSTER_APPROVAL_REQUESTED",
-    event.params.account,
+    owner.equals(Address.zero()) ? event.params.account : owner,
     event.params.account,
     event.transaction.hash,
     event.logIndex,
@@ -399,6 +408,16 @@ export function handleProfileModerated(event: ProfileModerated): void {
   a.bio = event.params.bio;
   a.avatar = event.params.avatar;
   a.save();
+
+  createAccountNotification(
+    "PROFILE_MODERATED",
+    event.params.account,
+    event.params.admin,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void {
@@ -407,6 +426,16 @@ export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void 
   a.bio = null;
   a.avatar = null;
   a.save();
+
+  createAccountNotification(
+    "PROFILE_CLEARED_BY_ADMIN",
+    event.params.account,
+    event.params.admin,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleFollowed(event: Followed): void {
@@ -428,6 +457,16 @@ export function handleFollowed(event: Followed): void {
     edge.active = true;
     follower.followingCount = follower.followingCount.plus(BigInt.fromI32(1));
     followee.followersCount = followee.followersCount.plus(BigInt.fromI32(1));
+
+    createAccountNotification(
+      "FOLLOWED",
+      event.params.followee,
+      event.params.follower,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   edge.updatedAtBlock = event.block.number;
@@ -533,6 +572,18 @@ export function handlePostUpdatedByAdmin(event: PostUpdatedByAdmin): void {
   p.updatedAtBlock = event.block.number;
 
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_UPDATED_BY_ADMIN",
+    p,
+    event.params.admin,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostEditedStatus(event: PostEditedStatus): void {
@@ -550,10 +601,24 @@ export function handlePostFrozen(event: PostFrozen): void {
   const tokenId = event.params.tokenId;
   const p = getOrCreatePost(tokenId);
 
+  p.author = event.params.author;
+
   p.frozenAtBlock = event.block.number;
   p.updatedAtBlock = event.block.number;
 
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_FROZEN",
+    p,
+    event.transaction.from,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostBurned(event: PostBurned): void {

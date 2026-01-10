@@ -74,11 +74,13 @@ export function buildDemoNotifications(recipientAddress: string, chainId: string
   const a3 = safeActors[2] ?? actor3;
 
   return [
+    { id: "demo-0", kind: "FOLLOWED", tokenId: "0", chainId: chainIdA, commentId: null, timestamp: baseTs - 10, actor: a2 },
     { id: "demo-1", kind: "POST_LIKED", tokenId: tokenIdA, chainId: chainIdA, commentId: null, timestamp: baseTs - 20, actor: a1 },
     { id: "demo-2", kind: "POST_SAVED", tokenId: tokenIdB, chainId: chainIdB, commentId: null, timestamp: baseTs - 45, actor: a2 },
     { id: "demo-3", kind: "POST_COMMENTED", tokenId: tokenIdA, chainId: chainIdA, commentId: aC1, timestamp: baseTs - 80, actor: a3 },
     { id: "demo-4", kind: "COMMENT_LIKED", tokenId: tokenIdB, chainId: chainIdB, commentId: bC1, timestamp: baseTs - 120, actor: a2 },
     { id: "demo-5", kind: "COMMENT_SAVED", tokenId: tokenIdA, chainId: chainIdA, commentId: aC1, timestamp: baseTs - 180, actor: a1 },
-    { id: "demo-6", kind: "COMMENT_REPLIED", tokenId: tokenIdB, chainId: chainIdB, commentId: bC2, timestamp: baseTs - 240, actor: a3 }
+    { id: "demo-6", kind: "COMMENT_REPLIED", tokenId: tokenIdB, chainId: chainIdB, commentId: bC2, timestamp: baseTs - 240, actor: a3 },
+    { id: "demo-7", kind: "POST_FROZEN", tokenId: tokenIdB, chainId: chainIdB, commentId: null, timestamp: baseTs - 300, actor: a3 }
   ];
 }
