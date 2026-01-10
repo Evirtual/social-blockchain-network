@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserProvider, formatEther } from "ethers";
-import { writeWalletAutoConnectDisabled } from "../hooks/storage";
+import { readWalletAutoConnectDisabled, writeWalletAutoConnectDisabled } from "../hooks/storage";
 import { useStatusActions } from "@features/status";
 import { ConnectWalletModal } from "../components/ConnectWalletModal";
 import {
@@ -119,10 +119,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setNativeBalance("?");
   }, [cleanupListeners]);
 
-  const refreshWalletPanel = useCallback(async () => {
-    if (!providerRef.current || !walletAddress) return;
+  const refreshWalletPanel = useCallback(async (addressOverride?: string | null) => {
+    const address = addressOverride ?? walletAddress;
+    if (!providerRef.current || !address) return;
     try {
-      const balance = await providerRef.current.getBalance(walletAddress);
+      const balance = await providerRef.current.getBalance(address);
       setNativeBalance(formatBalance(balance));
     } catch {
       // ignore
@@ -142,7 +143,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setWalletAddress(nextAddress);
-        void refreshWalletPanel();
+        void refreshWalletPanel(nextAddress);
       };
 
       const chainChanged = (chainIdValue: unknown) => {
@@ -163,6 +164,54 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (!isConnectModalOpen) return;
     setConnectorAvailability({ injected: Boolean(getEthereum()) });
   }, [isConnectModalOpen]);
+
+  useEffect(() => {
+    let active = true;
+
+    const autoConnect = async () => {
+      if (walletAddress) return;
+      if (readWalletAutoConnectDisabled()) return;
+      const ethereum = getEthereum();
+      if (!ethereum) return;
+
+      try {
+        const accounts = (await ethereum.request({ method: "eth_accounts" })) as string[] | undefined;
+        const nextAddress = accounts?.[0] ?? null;
+        if (!nextAddress || !active) return;
+
+        const chainIdValue = await ethereum.request({ method: "eth_chainId" });
+        const parsedChainId = parseChainId(chainIdValue);
+
+        const nextProvider = new BrowserProvider(ethereum);
+        providerRef.current = nextProvider;
+        ethereumRef.current = ethereum;
+        setProvider(nextProvider);
+        setWalletAddress(nextAddress);
+        setChainId(parsedChainId ? String(parsedChainId) : null);
+
+        cleanupListeners();
+        setupListeners(ethereum);
+
+        await refreshWalletPanel(nextAddress);
+      } catch {
+        // ignore
+      }
+    };
+
+    void autoConnect();
+
+    return () => {
+      active = false;
+    };
+  }, [cleanupListeners, refreshWalletPanel, setupListeners, walletAddress]);
+
+  useEffect(() => {
+    if (!provider || !walletAddress) {
+      setNativeBalance("?");
+      return;
+    }
+    void refreshWalletPanel(walletAddress);
+  }, [provider, walletAddress, refreshWalletPanel]);
 
   useEffect(() => {
     setWalletEpoch((value) => value + 1);
@@ -227,7 +276,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       cleanupListeners();
       setupListeners(ethereum);
 
-      await refreshWalletPanel();
+      await refreshWalletPanel(nextAddress);
 
       setIsConnectModalOpen(false);
       resolveConnect(nextAddress);
