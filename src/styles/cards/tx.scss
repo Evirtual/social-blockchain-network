@@ -32,27 +32,38 @@
   border-radius: 62.4375rem;
   border: 0.0625rem solid var(--border);
   font-weight: 650;
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 90%, var(--surface-2));
 }
 
 .tx-pending {
-  background: rgba(255, 220, 150, 0.22);
-  border-color: rgba(255, 220, 150, 0.28);
+  /* Yellow: "Confirm in wallet" / pending */
+  background: color-mix(in srgb, #ffd166 22%, transparent);
+  border-color: color-mix(in srgb, #ffd166 65%, var(--border));
+}
+
+.tx-signing {
+  /* Also yellow while waiting for wallet signature */
+  background: color-mix(in srgb, #ffd166 22%, transparent);
+  border-color: color-mix(in srgb, #ffd166 65%, var(--border));
 }
 
 .tx-confirmed {
-  background: rgba(130, 255, 200, 0.18);
-  border-color: rgba(130, 255, 200, 0.24);
+  /* Green */
+  background: color-mix(in srgb, #2ee59d 18%, transparent);
+  border-color: color-mix(in srgb, #2ee59d 62%, var(--border));
 }
 
 .tx-failed {
-  background: rgba(255, 140, 140, 0.18);
-  border-color: rgba(255, 140, 140, 0.24);
+  /* Red */
+  background: color-mix(in srgb, #ff6b6b 18%, transparent);
+  border-color: color-mix(in srgb, #ff6b6b 62%, var(--border));
 }
 
 .tx-cancelled {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.14);
+  /* Blue */
+  background: color-mix(in srgb, #5aa7ff 16%, transparent);
+  border-color: color-mix(in srgb, #5aa7ff 60%, var(--border));
 }
 
 .tx-link,

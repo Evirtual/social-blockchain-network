@@ -16,8 +16,8 @@
 
 .txToast {
   pointer-events: auto;
-  border: 0.0625rem solid var(--border);
-  background: var(--surface-2);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 55%, var(--text) 18%);
+  background: color-mix(in srgb, var(--bg) 94%, var(--surface-2));
   border-radius: var(--radius-lg);
   padding: 0.625rem;
   box-shadow: var(--shadow);
@@ -26,23 +26,33 @@
 }
 
 .txToast--pending {
-  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface-2);
+  background:
+    linear-gradient(135deg, var(--tx-tint-pending), transparent 65%),
+    color-mix(in srgb, var(--bg) 94%, var(--surface-2));
 }
 
 .txToast--signing {
-  background: linear-gradient(135deg, var(--tx-tint-pending), transparent 65%), var(--surface-2);
+  background:
+    linear-gradient(135deg, var(--tx-tint-pending), transparent 65%),
+    color-mix(in srgb, var(--bg) 94%, var(--surface-2));
 }
 
 .txToast--confirmed {
-  background: linear-gradient(135deg, var(--tx-tint-confirmed), transparent 65%), var(--surface-2);
+  background:
+    linear-gradient(135deg, var(--tx-tint-confirmed), transparent 65%),
+    color-mix(in srgb, var(--bg) 94%, var(--surface-2));
 }
 
 .txToast--failed {
-  background: linear-gradient(135deg, var(--tx-tint-failed), transparent 65%), var(--surface-2);
+  background:
+    linear-gradient(135deg, var(--tx-tint-failed), transparent 65%),
+    color-mix(in srgb, var(--bg) 94%, var(--surface-2));
 }
 
 .txToast--cancelled {
-  background: linear-gradient(135deg, var(--tx-tint-cancelled), transparent 65%), var(--surface-2);
+  background:
+    linear-gradient(135deg, var(--tx-tint-cancelled), transparent 65%),
+    color-mix(in srgb, var(--bg) 94%, var(--surface-2));
 }
 
 .txToastRow {
@@ -82,5 +92,9 @@
     right: 0.75rem;
     left: 0.75rem;
     width: auto;
+  }
+
+  .txToast {
+    background: color-mix(in srgb, var(--bg) 96%, var(--surface-2));
   }
 }
