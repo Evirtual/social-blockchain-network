@@ -180,7 +180,7 @@
 }
 
 .topbarOverflowIcons {
-  display: grid;
+  display: flex;
   grid-auto-flow: column;
   grid-auto-columns: 2.5rem;
   align-items: center;
@@ -189,7 +189,7 @@
 }
 
 .topbarOverflowIconButton {
-  width: 2.5rem;
+  width: auto;
   height: 2.5rem;
 }
 
@@ -359,18 +359,14 @@
     height: 2.5rem;
   }
 
-  .topbar-actions .iconButton.topbarFeedNetworks {
+  .topbar-actions .iconButton.topbarFeedNetworks,
+  .topbar-actions .iconButton.topbarOverflowIconButton {
     width: auto;
   }
 
   /* Match the smaller mobile iconButton sizing used in controls/buttons.scss */
   .topbarOverflowIcons {
     grid-auto-columns: 2.375rem;
-  }
-
-  .topbarOverflowIconButton {
-    width: 2.375rem;
-    height: 2.375rem;
   }
 
   .topbarOverflowPanelInner .accountFeedHeaderTabs {
