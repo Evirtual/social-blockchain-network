@@ -72,6 +72,11 @@
   align-items: center;
 }
 
+.walletProfileLinkChain.chainBrandMark {
+  display: none;
+  margin-left: 0.375rem;
+}
+
 .topbarCenter {
   display: flex;
   align-items: center;
@@ -308,6 +313,13 @@
 
   .topbarOverflow {
     display: inline-flex;
+  }
+
+  /* On mobile/tablet, show the connected network icon next to the short address. */
+  .walletProfileLinkChain.chainBrandMark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
 

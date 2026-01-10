@@ -72,7 +72,13 @@ function AppInner() {
             onOpenNotifications={() => setIsNotificationsOpen(true)}
             hasUnreadNotifications={hasUnread}
             centerSlot={topbarCenter}
-            rightSlot={<WalletProfileLink profileLink={profile.profileLink} walletAddress={walletState.walletAddress} />}
+            rightSlot={
+              <WalletProfileLink
+                profileLink={profile.profileLink}
+                walletAddress={walletState.walletAddress}
+                chainId={walletState.chainId}
+              />
+            }
           />
 
       <NotificationsModal
