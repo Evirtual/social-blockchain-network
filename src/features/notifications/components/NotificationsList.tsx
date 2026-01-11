@@ -131,6 +131,7 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
 
         const commentId = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
         const hash = commentId ? `#comment-${commentId}` : "";
+        const isRemovedPost = n.kind === "POST_REMOVED_BY_ADMIN";
         const to = `/post/${n.tokenId}${hash}`;
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const rowChainId = parseChainIdNumber(n.chainId ?? chainId);
@@ -148,8 +149,12 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
             key={n.id}
             type="button"
             className={`listRow notificationRow ${isUnread ? "isUnread" : ""}`}
-            style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
-            onClick={() => onSelect(n, to)}
+            style={{ width: "100%", textAlign: "left", cursor: isRemovedPost ? "default" : "pointer" }}
+            onClick={() => {
+              if (isRemovedPost) return;
+              onSelect(n, to);
+            }}
+            aria-disabled={isRemovedPost ? true : undefined}
           >
             <div className="listRowLeft">
               <div className="avatar tiny" style={avatarStyle} aria-hidden="true" />

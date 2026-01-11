@@ -86,5 +86,5 @@ console.log("- Set startBlock in each manifest for faster indexing (optional but
 console.log("- If Studio rejects a manifest network identifier (especially BSC testnet), you may need a different provider for that chain.");
 
 if (!versionLabel) {
-  console.log("- Tip: set STUDIO_VERSION_LABEL=v0.0.18-testnet to deploy with an explicit version label.");
+  console.log("- Tip: set STUDIO_VERSION_LABEL=v0.0.15-local-final-2 to deploy with an explicit version label.");
 }

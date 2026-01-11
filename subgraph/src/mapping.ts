@@ -1,7 +1,6 @@
 import { Address, BigInt, ByteArray, Bytes, JSONValueKind, json, ipfs } from "@graphprotocol/graph-ts";
 
 import {
-  SocialPosts,
   Followed,
   PostFrozen,
   PostMinted,
@@ -54,12 +53,6 @@ import {
 
 const GLOBAL_STATS_ID = "global";
 const DATA_URI_PREFIX = "data:application/json;base64,";
-
-function getContractOwner(contractAddress: Address): Address {
-  const contract = SocialPosts.bind(contractAddress);
-  const ownerResult = contract.try_owner();
-  return ownerResult.reverted ? Address.zero() : ownerResult.value;
-}
 
 function getOrCreateGlobalStats(): GlobalStats {
   let s = GlobalStats.load(GLOBAL_STATS_ID);
@@ -235,38 +228,6 @@ function maybeCreateCommentNotification(
   actor.save();
 }
 
-function createAccountNotification(
-  kind: string,
-  recipientAddress: Address,
-  actorAddress: Address,
-  txHash: Bytes,
-  logIndex: BigInt,
-  blockNumber: BigInt,
-  timestamp: BigInt
-): void {
-  if (recipientAddress.equals(Address.zero())) return;
-  if (recipientAddress.equals(actorAddress)) return;
-
-  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
-  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
-
-  const id = getLogId(txHash.toHexString(), logIndex);
-  const n = new Notification(id);
-  n.kind = kind;
-  n.recipient = recipient.id;
-  n.actor = actor.id;
-  n.tokenId = "0";
-  n.commentId = null;
-  n.txHash = txHash;
-  n.logIndex = logIndex;
-  n.blockNumber = blockNumber;
-  n.timestamp = timestamp;
-  n.save();
-
-  recipient.save();
-  actor.save();
-}
-
 function decodeBase64Char(code: i32): i32 {
   if (code >= 65 && code <= 90) return code - 65;
   if (code >= 97 && code <= 122) return code - 97 + 26;
@@ -363,46 +324,12 @@ export function handlePosterAllowed(event: PosterAllowed): void {
   }
 
   a.save();
-
-  if (event.params.allowed) {
-    createAccountNotification(
-      "POSTER_APPROVED",
-      event.params.account,
-      event.transaction.from,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  } else {
-    createAccountNotification(
-      "POSTER_DISAPPROVED",
-      event.params.account,
-      event.transaction.from,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  }
 }
 
 export function handlePosterApprovalRequested(event: PosterApprovalRequested): void {
   const a = getOrCreateAccount(event.params.account, event.block.number, event.block.timestamp);
   a.posterRequested = true;
   a.save();
-
-  const owner = getContractOwner(event.address);
-
-  createAccountNotification(
-    "POSTER_APPROVAL_REQUESTED",
-    owner.equals(Address.zero()) ? event.params.account : owner,
-    event.params.account,
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handleProfileUpdated(event: ProfileUpdated): void {
@@ -419,16 +346,6 @@ export function handleProfileModerated(event: ProfileModerated): void {
   a.bio = event.params.bio;
   a.avatar = event.params.avatar;
   a.save();
-
-  createAccountNotification(
-    "PROFILE_MODERATED",
-    event.params.account,
-    event.params.admin,
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void {
@@ -437,16 +354,6 @@ export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void 
   a.bio = null;
   a.avatar = null;
   a.save();
-
-  createAccountNotification(
-    "PROFILE_CLEARED_BY_ADMIN",
-    event.params.account,
-    event.params.admin,
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handleFollowed(event: Followed): void {
@@ -468,16 +375,6 @@ export function handleFollowed(event: Followed): void {
     edge.active = true;
     follower.followingCount = follower.followingCount.plus(BigInt.fromI32(1));
     followee.followersCount = followee.followersCount.plus(BigInt.fromI32(1));
-
-    createAccountNotification(
-      "FOLLOWED",
-      event.params.followee,
-      event.params.follower,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
   }
 
   edge.updatedAtBlock = event.block.number;
@@ -517,16 +414,6 @@ export function handleUnfollowed(event: Unfollowed): void {
   follower.save();
   followee.save();
   edge.save();
-
-  createAccountNotification(
-    "UNFOLLOWED",
-    event.params.followee,
-    event.params.follower,
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handlePostMinted(event: PostMinted): void {
@@ -593,18 +480,6 @@ export function handlePostUpdatedByAdmin(event: PostUpdatedByAdmin): void {
   p.updatedAtBlock = event.block.number;
 
   p.save();
-
-  maybeCreatePostNotification(
-    "POST_UPDATED_BY_ADMIN",
-    p,
-    event.params.admin,
-    tokenId,
-    "",
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handlePostEditedStatus(event: PostEditedStatus): void {
@@ -622,24 +497,10 @@ export function handlePostFrozen(event: PostFrozen): void {
   const tokenId = event.params.tokenId;
   const p = getOrCreatePost(tokenId);
 
-  p.author = event.params.author;
-
   p.frozenAtBlock = event.block.number;
   p.updatedAtBlock = event.block.number;
 
   p.save();
-
-  maybeCreatePostNotification(
-    "POST_FROZEN",
-    p,
-    event.transaction.from,
-    tokenId,
-    "",
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handlePostBurned(event: PostBurned): void {
@@ -682,18 +543,6 @@ export function handlePostBurnedByAdmin(event: PostBurnedByAdmin): void {
 
   author.save();
   p.save();
-
-  maybeCreatePostNotification(
-    "POST_REMOVED_BY_ADMIN",
-    p,
-    event.params.admin,
-    tokenId,
-    "",
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handlePostLiked(event: PostLiked): void {
@@ -780,18 +629,6 @@ export function handlePostUnliked(event: PostUnliked): void {
   a.save();
   edge.save();
   p.save();
-
-  maybeCreatePostNotification(
-    "POST_UNLIKED",
-    p,
-    event.params.unliker,
-    tokenId,
-    "",
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handlePostSaved(event: PostSaved): void {
@@ -878,18 +715,6 @@ export function handlePostUnsaved(event: PostUnsaved): void {
   a.save();
   edge.save();
   p.save();
-
-  maybeCreatePostNotification(
-    "POST_UNSAVED",
-    p,
-    event.params.unsaver,
-    tokenId,
-    "",
-    event.transaction.hash,
-    event.logIndex,
-    event.block.number,
-    event.block.timestamp
-  );
 }
 
 export function handleCommentAdded(event: CommentAdded): void {
@@ -984,18 +809,6 @@ export function handleCommentDeleted(event: CommentDeleted): void {
   if (c == null) return;
 
   if (!c.deleted) {
-    maybeCreateCommentNotification(
-      "COMMENT_REMOVED",
-      c.author,
-      event.params.deleter,
-      tokenId,
-      event.params.commentId,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-
     c.deleted = true;
     c.comment = "";
     if (p.comments.gt(BigInt.zero())) {
@@ -1111,21 +924,6 @@ export function handleCommentUnliked(event: CommentUnliked): void {
   a.save();
   edge.save();
   p.save();
-
-  const c2 = Comment.load(commentId.toString());
-  if (c2 != null) {
-    maybeCreateCommentNotification(
-      "COMMENT_UNLIKED",
-      c2.author,
-      event.params.unliker,
-      tokenId,
-      commentId,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  }
 }
 
 export function handleCommentSaved(event: CommentSaved): void {
@@ -1216,21 +1014,6 @@ export function handleCommentUnsaved(event: CommentUnsaved): void {
   a.save();
   edge.save();
   p.save();
-
-  const c2 = Comment.load(commentId.toString());
-  if (c2 != null) {
-    maybeCreateCommentNotification(
-      "COMMENT_UNSAVED",
-      c2.author,
-      event.params.unsaver,
-      tokenId,
-      commentId,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  }
 }
 
 export function handleCommentTipped(event: CommentTipped): void {
@@ -1264,18 +1047,6 @@ export function handleCommentTipped(event: CommentTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalCommentTipsWei = stats.totalCommentTipsWei.plus(event.params.amountWei);
     stats.save();
-
-    maybeCreateCommentNotification(
-      "COMMENT_TIPPED",
-      author.id,
-      event.params.tipper,
-      tokenId,
-      commentId,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
   }
 
   p.updatedAtBlock = event.block.number;
@@ -1309,19 +1080,6 @@ export function handlePostReported(event: PostReported): void {
 
   reporter.save();
   r.save();
-
-  const owner = getContractOwner(event.address);
-  if (!owner.equals(Address.zero())) {
-    createAccountNotification(
-      "POST_REPORTED",
-      owner,
-      event.params.reporter,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  }
 }
 
 export function handleCommentReported(event: CommentReported): void {
@@ -1349,19 +1107,6 @@ export function handleCommentReported(event: CommentReported): void {
 
   reporter.save();
   r.save();
-
-  const owner = getContractOwner(event.address);
-  if (!owner.equals(Address.zero())) {
-    createAccountNotification(
-      "COMMENT_REPORTED",
-      owner,
-      event.params.reporter,
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
-  }
 }
 
 export function handlePostTipped(event: PostTipped): void {
@@ -1388,18 +1133,6 @@ export function handlePostTipped(event: PostTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalTipsWei = stats.totalTipsWei.plus(event.params.amountWei);
     stats.save();
-
-    maybeCreatePostNotification(
-      "POST_TIPPED",
-      p,
-      event.params.tipper,
-      tokenId,
-      "",
-      event.transaction.hash,
-      event.logIndex,
-      event.block.number,
-      event.block.timestamp
-    );
   }
 
   p.updatedAtBlock = event.block.number;
