@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTopbarCenter } from "@features/app";
+import { FeedTopbarControls, useSupportedNetworks } from "@features/feed";
 import { useWalletState } from "@features/wallet";
 import { useNotifications } from "../hooks/useNotifications";
 import { NotificationsList } from "../components/NotificationsList";
@@ -8,6 +10,40 @@ import { readNotificationsLastSeen } from "../services/notificationReadState";
 export function NotificationsHistoryPage() {
   const navigate = useNavigate();
   const wallet = useWalletState();
+  const supportedNetworks = useSupportedNetworks();
+
+  const [selectedNetworkChainIds, setSelectedNetworkChainIds] = useState<string[]>(() =>
+    wallet.chainId ? [wallet.chainId] : []
+  );
+
+  useEffect(() => {
+    if (!wallet.chainId) return;
+    setSelectedNetworkChainIds([wallet.chainId]);
+  }, [wallet.chainId]);
+
+  const topbarCenter = useMemo(
+    () => (
+      <FeedTopbarControls
+        title="Notifications"
+        showSearch={false}
+        searchQuery=""
+        onSearchQueryChange={() => {
+          // search disabled
+        }}
+        onSearchSubmit={() => {
+          // search disabled
+        }}
+        walletAddress={wallet.walletAddress}
+        chainId={wallet.chainId}
+        selectedNetworkChainIds={selectedNetworkChainIds}
+        onSelectedNetworkChainIdsChange={setSelectedNetworkChainIds}
+        supportedNetworks={supportedNetworks}
+      />
+    ),
+    [wallet.walletAddress, wallet.chainId, selectedNetworkChainIds, supportedNetworks]
+  );
+
+  useTopbarCenter(topbarCenter);
 
   const { items, loading, schemaMismatch, error, subgraphUrl } = useNotifications({
     open: true,

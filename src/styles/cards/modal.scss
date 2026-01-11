@@ -219,6 +219,12 @@
   color: rgba(120, 255, 180, 0.95);
 }
 
+html[data-theme="light"] .walletConnectBadge.is-installed {
+  background: rgba(40, 200, 120, 0.18);
+  border-color: rgba(40, 200, 120, 0.42);
+  color: rgba(10, 90, 45, 0.92);
+}
+
 .walletConnectBadge.is-unavailable {
   background: rgba(255, 120, 120, 0.16);
   border-color: rgba(255, 120, 120, 0.3);

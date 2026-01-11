@@ -46,48 +46,48 @@ function getKindClass(kind: string): string {
 function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
   switch (kind) {
     case "FOLLOWED":
-      return { icon: <IconRepeat size={14} />, label: "Followed" };
+      return { icon: <IconRepeat size={14} filled />, label: "Followed" };
     case "UNFOLLOWED":
-      return { icon: <IconRepeat size={14} />, label: "Unfollowed" };
+      return { icon: <IconRepeat size={14} filled />, label: "Unfollowed" };
     case "POST_LIKED":
     case "COMMENT_LIKED":
       return { icon: <IconHeart size={14} filled />, label: "Liked" };
     case "POST_UNLIKED":
     case "COMMENT_UNLIKED":
-      return { icon: <IconHeart size={14} />, label: "Unliked" };
+      return { icon: <IconHeart size={14} filled />, label: "Unliked" };
     case "POST_SAVED":
     case "COMMENT_SAVED":
       return { icon: <IconBookmark size={14} filled />, label: "Saved" };
     case "POST_UNSAVED":
     case "COMMENT_UNSAVED":
-      return { icon: <IconBookmark size={14} />, label: "Unsaved" };
+      return { icon: <IconBookmark size={14} filled />, label: "Unsaved" };
     case "POST_COMMENTED":
     case "COMMENT_REPLIED":
     case "COMMENT_REMOVED":
-      return { icon: <IconMessage size={14} />, label: "Comment" };
+      return { icon: <IconMessage size={14} filled />, label: "Comment" };
     case "POST_TIPPED":
     case "COMMENT_TIPPED":
-      return { icon: <IconCoin size={14} />, label: "Tipped" };
+      return { icon: <IconCoin size={14} filled />, label: "Tipped" };
     case "POST_UPDATED_BY_ADMIN":
-      return { icon: <IconEdit size={14} />, label: "Updated by admin" };
+      return { icon: <IconEdit size={14} filled />, label: "Updated by admin" };
     case "POST_FROZEN":
-      return { icon: <IconEye size={14} />, label: "Post frozen" };
+      return { icon: <IconEye size={14} filled />, label: "Post frozen" };
     case "POST_REMOVED_BY_ADMIN":
-      return { icon: <IconTrash size={14} />, label: "Post removed" };
+      return { icon: <IconTrash size={14} filled />, label: "Post removed" };
     case "POST_REPORTED":
     case "COMMENT_REPORTED":
-      return { icon: <IconFlag size={14} />, label: "Reported" };
+      return { icon: <IconFlag size={14} filled />, label: "Reported" };
     case "POSTER_APPROVAL_REQUESTED":
-      return { icon: <IconQuestion size={14} />, label: "Approval requested" };
+      return { icon: <IconQuestion size={14} filled />, label: "Approval requested" };
     case "POSTER_APPROVED":
-      return { icon: <IconCheck size={14} />, label: "Approved" };
+      return { icon: <IconCheck size={14} filled />, label: "Approved" };
     case "POSTER_DISAPPROVED":
-      return { icon: <IconX size={14} />, label: "Disapproved" };
+      return { icon: <IconX size={14} filled />, label: "Disapproved" };
     case "PROFILE_MODERATED":
     case "PROFILE_CLEARED_BY_ADMIN":
-      return { icon: <IconEdit size={14} />, label: "Profile action" };
+      return { icon: <IconEdit size={14} filled />, label: "Profile action" };
     default:
-      return { icon: <IconMessage size={14} />, label: "Notification" };
+      return { icon: <IconMessage size={14} filled />, label: "Notification" };
   }
 }
 
