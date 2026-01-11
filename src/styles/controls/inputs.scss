@@ -22,13 +22,13 @@ select,
 .input::placeholder,
 .textarea::placeholder,
 .comment-box input::placeholder {
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
   opacity: 1;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
   opacity: 1;
 }
 
@@ -58,6 +58,14 @@ textarea::placeholder {
   line-height: var(--control-line-height);
   margin-right: 0.625rem;
   cursor: pointer;
+}
+
+.file-input {
+  color: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.file-input[data-has-file="true"] {
+  color: var(--text);
 }
 
 .textarea {

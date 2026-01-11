@@ -40,7 +40,6 @@ export function useAccountPageProps(args: {
 
     setProfileDraftName: (v: string) => void;
     setProfileDraftBio: (v: string) => void;
-    setProfileDraftAvatarUrl: (v: string) => void;
 
     onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
     onClearProfileAvatar: () => void;
@@ -132,7 +131,6 @@ export function useAccountPageProps(args: {
         isProfileSaving: profileCtx.isProfileSaving,
         onProfileDraftNameChange: profileCtx.setProfileDraftName,
         onProfileDraftBioChange: profileCtx.setProfileDraftBio,
-        onProfileDraftAvatarUrlChange: profileCtx.setProfileDraftAvatarUrl,
         onSelectProfileAvatarFile: profileCtx.onSelectProfileAvatarFile,
         onClearProfileAvatar: profileCtx.onClearProfileAvatar,
         onStartEditProfile: profileCtx.startEditProfile,
@@ -194,7 +192,6 @@ export function useAccountPageProps(args: {
     profileCtx.isProfileSaving,
     profileCtx.setProfileDraftName,
     profileCtx.setProfileDraftBio,
-    profileCtx.setProfileDraftAvatarUrl,
     profileCtx.onSelectProfileAvatarFile,
     profileCtx.onClearProfileAvatar,
     profileCtx.startEditProfile,

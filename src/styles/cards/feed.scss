@@ -94,7 +94,7 @@
 
 .feedHeaderTitle {
   grid-area: title;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: 0.0125rem;
   margin: 0;

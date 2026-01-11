@@ -93,7 +93,6 @@ export function HomePageContainer() {
     draft: composer.draft,
     isImageLoading: composer.isImageLoading,
     onDraftFieldChange: composer.handleDraftChange,
-    onImageUrlChange: composer.onComposerImageUrlChange,
     onSelectFile: composer.onSelectComposerFile,
     onClearImage: composer.onComposerClearImage,
     onPost: composer.mintPost,

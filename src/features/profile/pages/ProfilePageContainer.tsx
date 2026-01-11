@@ -132,7 +132,6 @@ export function ProfilePageContainer({ address }: Props) {
     profileActions: {
       setProfileDraftName: profileActions.setProfileDraftName,
       setProfileDraftBio: profileActions.setProfileDraftBio,
-      setProfileDraftAvatarUrl: profileActions.setProfileDraftAvatarUrl,
       onSelectProfileAvatarFile: profileActions.onSelectProfileAvatarFile,
       onClearProfileAvatar: profileActions.onClearProfileAvatar,
       startEditProfile: profileActions.startEditProfile,

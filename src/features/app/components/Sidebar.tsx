@@ -28,7 +28,6 @@ export function Sidebar({
   isProfileSaving,
   onProfileDraftNameChange,
   onProfileDraftBioChange,
-  onProfileDraftAvatarUrlChange,
   onSelectProfileAvatarFile,
   onClearProfileAvatar,
   onStartEditProfile,
@@ -71,7 +70,6 @@ export function Sidebar({
         isProfileSaving={isProfileSaving}
         onProfileDraftNameChange={onProfileDraftNameChange}
         onProfileDraftBioChange={onProfileDraftBioChange}
-        onProfileDraftAvatarUrlChange={onProfileDraftAvatarUrlChange}
         onSelectProfileAvatarFile={onSelectProfileAvatarFile}
         onClearProfileAvatar={onClearProfileAvatar}
         onStartEditProfile={onStartEditProfile}

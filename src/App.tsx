@@ -99,7 +99,6 @@ function AppInner() {
           isImageLoading={composer.isImageLoading}
           isPosting={composer.isPosting}
           onDraftFieldChange={composer.handleDraftChange}
-          onImageUrlChange={composer.onComposerImageUrlChange}
           onSelectFile={composer.onSelectComposerFile}
           onClearImage={composer.onComposerClearImage}
           onPost={composer.mintPost}

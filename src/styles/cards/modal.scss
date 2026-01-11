@@ -52,10 +52,6 @@
   padding-top: 1rem;
 }
 
-.modalBody .image-preview {
-  margin-top: 0.75rem;
-}
-
 .modalHeader {
   display: flex;
   align-items: center;
@@ -90,8 +86,14 @@
   height: 2.25rem;
 }
 
+.modalFreezeButton {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
 .modalTitle {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: 0.0125rem;
 }

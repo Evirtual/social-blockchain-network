@@ -25,7 +25,6 @@ type SubgraphPostRow = {
 
 const FEED_POSTS_CACHE_TTL_MS = 15 * 1000;
 const FEED_EDGES_CACHE_TTL_MS = 15 * 1000;
-
 const feedPostsInFlight: InFlightMap<SubgraphPostRow[]> = {};
 const feedEdgesInFlight: InFlightMap<{ liked: string[]; saved: string[] }> = {};
 

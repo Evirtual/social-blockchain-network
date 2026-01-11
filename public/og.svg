@@ -2,8 +2,8 @@
 <svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="g" x1="260" y1="140" x2="560" y2="440" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#788CFF"/>
-      <stop offset="1" stop-color="#3CF0BE"/>
+      <stop stop-color="#6B7BFF"/>
+      <stop offset="1" stop-color="#34E1C8"/>
     </linearGradient>
     <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
       <stop stop-color="#070B16"/>
@@ -17,10 +17,12 @@
   </g>
 
   <rect x="96" y="126" width="220" height="220" rx="64" fill="url(#g)"/>
-  <rect x="96" y="126" width="220" height="220" rx="64" fill="#070B16" fill-opacity="0.20"/>
+  <line x1="156" y1="236" x2="256" y2="236" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" />
+  <circle cx="156" cy="236" r="16" fill="#FFFFFF" />
+  <circle cx="256" cy="236" r="16" fill="#FFFFFF" />
 
-  <text x="360" y="244" fill="#FFFFFF" fill-opacity="0.95" font-family="Space Grotesk, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="60" font-weight="800">Social Blockchain</text>
-  <text x="360" y="306" fill="#FFFFFF" fill-opacity="0.95" font-family="Space Grotesk, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="60" font-weight="800">Network</text>
+  <text x="360" y="244" fill="#FFFFFF" fill-opacity="0.95" font-family="IBM Plex Sans, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="60" font-weight="700">Social Blockchain</text>
+  <text x="360" y="306" fill="#FFFFFF" fill-opacity="0.95" font-family="IBM Plex Sans, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="60" font-weight="700">Network</text>
   <text x="360" y="362" fill="#FFFFFF" fill-opacity="0.74" font-family="IBM Plex Sans, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="30" font-weight="500">A social blockchain network where posts are NFTs</text>
-  <text x="360" y="388" fill="#FFFFFF" fill-opacity="0.60" font-family="IBM Plex Sans, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="24" font-weight="500">Mint on-chain • Signed reactions • Creator tips</text>
+  <text x="360" y="388" fill="#FFFFFF" fill-opacity="0.60" font-family="IBM Plex Sans, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="24" font-weight="500">Mint on-chain - Signed reactions - Creator tips</text>
 </svg>

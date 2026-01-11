@@ -26,17 +26,66 @@
   min-width: 0;
 }
 
-.brand-mark {
+.brandMarkSwap {
+  position: relative;
   width: 3rem;
   height: 3rem;
-  border-radius: var(--radius-md);
-  display: block;
-  object-fit: cover;
+  display: grid;
+  place-items: center;
   flex: 0 0 auto;
 }
 
+.brandMarkSwap > * {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.brand-mark {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  display: block;
+  object-fit: cover;
+}
+
+.brand-mark-icon {
+  border-radius: var(--radius-md);
+  border: 0.0625rem solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  box-shadow: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.brand-mark-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.topbar.isHome .brand-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.topbar.isHome .brand-mark-icon {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.topbar.isAway .brand-mark {
+  opacity: 0;
+  transform: scale(1.08);
+}
+
+.topbar.isAway .brand-mark-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .brand-name {
-  font-family: "Space Grotesk", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 700;
   letter-spacing: 0.0125rem;
 }
@@ -355,6 +404,11 @@
   }
 
   .topbarLogo .brand-mark {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .topbarLogo .brandMarkSwap {
     width: 2.5rem;
     height: 2.5rem;
   }

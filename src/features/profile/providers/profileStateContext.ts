@@ -29,7 +29,6 @@ export type ProfileActions = {
   loadProfile: (address: string) => Promise<void>;
   setProfileDraftName: (v: string) => void;
   setProfileDraftBio: (v: string) => void;
-  setProfileDraftAvatarUrl: (v: string) => void;
   onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
   onClearProfileAvatar: () => void;
   startEditProfile: () => void;

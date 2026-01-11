@@ -8,6 +8,8 @@ type Props = {
 };
 
 export function NewCommentComposer(props: Props) {
+  const canSubmit = props.value.trim().length > 0 && !props.requiresNetworkSwitch && !props.isSigning;
+
   return (
     <div className="postForm commentComposer">
       <div className="postFormRow">
@@ -17,19 +19,19 @@ export function NewCommentComposer(props: Props) {
           name="newComment"
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
-          placeholder="Write a comment to sign"
+          placeholder="Write a comment to post"
           disabled={props.isSigning}
           title={props.interactionDisabledTitle}
         />
         <button
-          className={`secondary buttonWithSpinner${props.requiresNetworkSwitch ? " notAllowed" : ""}`}
+          className={`primary buttonWithSpinner${!canSubmit ? " notAllowed" : ""}`}
           type="button"
           onClick={props.onSubmit}
-          disabled={props.isSigning}
+          disabled={!canSubmit}
           title={props.interactionDisabledTitle}
         >
           {props.isSigning ? <span className="spinner" aria-hidden="true" /> : null}
-          Sign
+          Post
         </button>
       </div>
     </div>

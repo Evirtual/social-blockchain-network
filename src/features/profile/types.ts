@@ -45,7 +45,6 @@ export type ProfilePageViewModelInput = {
   profileActions: {
     setProfileDraftName: (next: string) => void;
     setProfileDraftBio: (next: string) => void;
-    setProfileDraftAvatarUrl: (next: string) => void;
     onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
     onClearProfileAvatar: () => void;
     startEditProfile: () => void;

@@ -36,7 +36,6 @@ export type ProfileCardProps = {
   isProfileSaving: boolean;
   onProfileDraftNameChange: (value: string) => void;
   onProfileDraftBioChange: (value: string) => void;
-  onProfileDraftAvatarUrlChange: (value: string) => void;
   onSelectProfileAvatarFile: (file: File | null) => Promise<void>;
   onClearProfileAvatar: () => void;
   onStartEditProfile: () => void;
@@ -171,7 +170,6 @@ export function ProfileCard(props: ProfileCardProps) {
           isProfileSaving={props.isProfileSaving}
           onProfileDraftNameChange={props.onProfileDraftNameChange}
           onProfileDraftBioChange={props.onProfileDraftBioChange}
-          onProfileDraftAvatarUrlChange={props.onProfileDraftAvatarUrlChange}
           onSelectProfileAvatarFile={props.onSelectProfileAvatarFile}
           onClearProfileAvatar={props.onClearProfileAvatar}
           onCancelEditProfile={props.onCancelEditProfile}

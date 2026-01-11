@@ -15,6 +15,13 @@ type Props = {
 };
 
 export function PostTipModal(props: Props) {
+  const tipValue = Number(props.tipDraft);
+  const canTip =
+    Number.isFinite(tipValue) &&
+    tipValue > 0 &&
+    !props.requiresNetworkSwitch &&
+    props.inFlight !== "tip";
+
   return (
     <Modal
       open={props.open}
@@ -34,10 +41,10 @@ export function PostTipModal(props: Props) {
             disabled={props.requiresNetworkSwitch || props.inFlight === "tip"}
           />
           <button
-            className={"secondary buttonWithSpinner"}
+            className={`primary buttonWithSpinner${!canTip ? " notAllowed" : ""}`}
             type="button"
             onClick={props.onSubmitTip}
-            disabled={props.requiresNetworkSwitch || props.inFlight === "tip"}
+            disabled={!canTip}
             title={props.interactionDisabledTitle}
           >
             {props.inFlight === "tip" ? <span className="spinner" aria-hidden="true" /> : null}

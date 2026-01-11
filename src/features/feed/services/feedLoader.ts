@@ -434,6 +434,7 @@ async function queryAnyFeedEventsPaged(args: {
   });
 }
 
+
 type FilterWithTopics = { topics?: ReadonlyArray<string | string[] | null> };
 type FilterLike = DeferredTopicFilter | TopicFilter | FilterWithTopics;
 

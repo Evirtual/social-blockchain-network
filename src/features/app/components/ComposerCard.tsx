@@ -1,13 +1,13 @@
 import type { Draft } from "@types";
+import { useRef, useState } from "react";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
-import { IconRepeat } from "@shared/components/icons";
+import { IconPlus, IconX } from "@shared/components/icons";
 
 type Props = {
   draft: Draft;
   isImageLoading: boolean;
   isPosting: boolean;
   onDraftFieldChange: (field: keyof Draft, value: string) => void;
-  onImageUrlChange: (value: string) => void;
   onSelectFile: (file: File | null) => void;
   onClearImage: () => void;
   onPost: () => void | Promise<void>;
@@ -18,11 +18,23 @@ export function ComposerCard({
   isImageLoading,
   isPosting,
   onDraftFieldChange,
-  onImageUrlChange,
   onSelectFile,
   onClearImage,
   onPost
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [hasFileSelected, setHasFileSelected] = useState(false);
+
+  const handleClearUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.dataset.hasFile = "false";
+    }
+    setHasFileSelected(false);
+    onClearImage();
+  };
+  const hasMedia = Boolean(draft.imageDataUrl) || hasFileSelected;
+
   return (
     <div className="composer">
       <textarea
@@ -37,47 +49,69 @@ export function ComposerCard({
 
       <div className="muted">{draft.body.length}/{MAX_POST_BODY_LENGTH}</div>
 
-      <div className="row">
-        <input
-          className="input"
-          name="postMediaUrl"
-          value={draft.imageUrl}
-          onChange={(event) => onImageUrlChange(event.target.value)}
-          placeholder="Media URL (image or video) (or upload below)"
-        />
-      </div>
+      {!hasMedia ? (
+        <div className="row fileRow">
+          <div className="fileInputWrap">
+            <input
+              className="file-input file-input-hidden"
+              type="file"
+              name="postMediaUpload"
+              id="postMediaUpload"
+              accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg"
+              data-has-file="false"
+              ref={fileInputRef}
+              onChange={(event) => {
+                const input = event.currentTarget;
+                const hasFile = (input.files?.length ?? 0) > 0;
+                input.dataset.hasFile = hasFile ? "true" : "false";
+                setHasFileSelected(hasFile);
+                onSelectFile(input.files?.[0] ?? null);
+              }}
+            />
+            <label className="btn secondary fileInputButton" htmlFor="postMediaUpload">
+              <IconPlus size={16} />
+              Add image/video
+            </label>
+          </div>
+        </div>
+      ) : null}
 
-      <div className="row fileRow">
-        <div className="fileInputWrap">
-          <input
-            className="file-input"
-            type="file"
-            name="postMediaUpload"
-            accept="image/*,video/*"
-            onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
-          />
+      {draft.imageDataUrl.startsWith("data:image/") ? (
+        <div className="mediaPreview">
+          <img className="image-preview" src={draft.imageDataUrl} alt="Selected upload" />
           <button
             type="button"
-            className="ghost iconButton fileInputAction"
-            onClick={onClearImage}
-            aria-label="Clear upload"
-            title="Clear upload"
+            className="ghost iconButton mediaPreviewClear"
+            onClick={handleClearUpload}
+            aria-label="Remove media"
+            title="Remove media"
           >
-            <IconRepeat size={16} />
+            <IconX size={16} />
           </button>
         </div>
-      </div>
+      ) : null}
 
-      {draft.imageDataUrl.startsWith("data:image/") && (
-        <img className="image-preview" src={draft.imageDataUrl} alt="Selected upload" />
-      )}
-
-      {draft.imageDataUrl.startsWith("blob:") && (
-        <video className="image-preview" src={draft.imageDataUrl} controls playsInline preload="metadata" />
-      )}
+      {draft.imageDataUrl.startsWith("blob:") ? (
+        <div className="mediaPreview">
+          <video className="image-preview" src={draft.imageDataUrl} controls playsInline preload="metadata" />
+          <button
+            type="button"
+            className="ghost iconButton mediaPreviewClear"
+            onClick={handleClearUpload}
+            aria-label="Remove media"
+            title="Remove media"
+          >
+            <IconX size={16} />
+          </button>
+        </div>
+      ) : null}
 
       <div className="rowActions">
-        <button className="primary buttonWithSpinner" onClick={onPost} disabled={isImageLoading || isPosting}>
+        <button
+          className="primary buttonWithSpinner"
+          onClick={onPost}
+          disabled={isImageLoading || isPosting || (!draft.body.trim() && !draft.imageDataUrl)}
+        >
           {isPosting ? <span className="spinner" aria-hidden="true" /> : null}
           Post
         </button>

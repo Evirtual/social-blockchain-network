@@ -208,6 +208,7 @@ export function CommentItem(props: Props) {
           tokenId={props.tokenId}
           postChainId={props.postChainId}
           nativeSymbol={props.nativeSymbol}
+          originalComment={comment.comment}
           isSigning={props.isSigning}
           isBusy={isBusy}
           activeComposer={props.activeComposer}

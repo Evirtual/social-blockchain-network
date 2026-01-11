@@ -9,6 +9,7 @@ import type { SupportedNetwork } from "../services/supportedNetworks";
 type Props = {
   title?: string;
   inlineSlot?: ReactNode;
+  showSearch?: boolean;
 
   pillText?: string;
   isPillLoading?: boolean;
@@ -35,6 +36,7 @@ export function FeedTopbarControls(props: Props) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNetworksOpen, setIsNetworksOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const showSearch = props.showSearch ?? true;
 
   const pillText = (props.pillText ?? "").trim();
   const isSearchLoading = Boolean(props.isSearchLoading);
@@ -67,24 +69,25 @@ export function FeedTopbarControls(props: Props) {
     [isSearchLoading]
   );
 
-  const overflowActions = useMemo(
-    () => [
-      {
+  const overflowActions = useMemo(() => {
+    const actions = [];
+    if (showSearch) {
+      actions.push({
         id: "feed-search",
         label: "Search",
         icon: overflowSearchIcon,
         className: isSearchDirty ? "primary" : "ghost",
         onClick: () => setIsSearchOpen(true)
-      },
-      {
-        id: "feed-networks",
-        label: "Networks",
-        icon: overflowNetworksIcon,
-        onClick: () => setIsNetworksOpen(true)
-      }
-    ],
-    [isSearchDirty, overflowNetworksIcon, overflowSearchIcon]
-  );
+      });
+    }
+    actions.push({
+      id: "feed-networks",
+      label: "Networks",
+      icon: overflowNetworksIcon,
+      onClick: () => setIsNetworksOpen(true)
+    });
+    return actions;
+  }, [isSearchDirty, overflowNetworksIcon, overflowSearchIcon, showSearch]);
 
   const isConnected = Boolean(props.walletAddress);
 
@@ -122,15 +125,17 @@ export function FeedTopbarControls(props: Props) {
         {props.inlineSlot ? <div className="topbarFeedInline">{props.inlineSlot}</div> : null}
 
         <div className="topbarFeedControls" role="group" aria-label="Feed controls">
-          <button
-            type="button"
-            className={`${isSearchDirty ? "primary" : "ghost"} iconButton topbarFeedIcon`}
-            onClick={() => setIsSearchOpen(true)}
-            aria-label="Search"
-            title="Search"
-          >
-            {isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />}
-          </button>
+          {showSearch ? (
+            <button
+              type="button"
+              className={`${isSearchDirty ? "primary" : "ghost"} iconButton topbarFeedIcon`}
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Search"
+              title="Search"
+            >
+              {isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />}
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -153,60 +158,62 @@ export function FeedTopbarControls(props: Props) {
         </div>
       </div>
 
-      <Modal
-        open={isSearchOpen}
-        title="Search"
-        headerTrailing={
-          pillText ? (
-            <span>{pillText}</span>
-          ) : props.isPillLoading ? (
-            <span className="skeletonLine" style={{ width: "3.2rem", height: "0.7rem" }} />
-          ) : null
-        }
-        onClose={() => {
-          const trimmedDraft = (props.searchQuery ?? "").trim();
-          if (!trimmedDraft && props.onRestoreDraftToApplied) props.onRestoreDraftToApplied();
-          setIsSearchOpen(false);
-        }}
-      >
-        <div className="feedTopbarSearchModal">
-          <div className="feedTopbarSearchRow">
-            <div className="feedTopbarSearchField">
-              <input
-                className="input feedSearchModalInput feedTopbarSearchInput"
-                type="search"
-                name="feedSearchModal"
-                ref={searchInputRef}
-                value={props.searchQuery}
-                onChange={(e) => props.onSearchQueryChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  e.preventDefault();
-                  props.onSearchSubmit();
-                  setIsSearchOpen(false);
-                }}
-                placeholder="Search"
-                aria-label="Search"
-              />
-
-              <span className="feedSearchEnd" aria-hidden="true">
-                <button
-                  type="button"
-                  className="ghost iconButton feedSearchSubmit feedTopbarSearchSubmit"
-                  onClick={() => {
+      {showSearch ? (
+        <Modal
+          open={isSearchOpen}
+          title="Search"
+          headerTrailing={
+            pillText ? (
+              <span>{pillText}</span>
+            ) : props.isPillLoading ? (
+              <span className="skeletonLine" style={{ width: "3.2rem", height: "0.7rem" }} />
+            ) : null
+          }
+          onClose={() => {
+            const trimmedDraft = (props.searchQuery ?? "").trim();
+            if (!trimmedDraft && props.onRestoreDraftToApplied) props.onRestoreDraftToApplied();
+            setIsSearchOpen(false);
+          }}
+        >
+          <div className="feedTopbarSearchModal">
+            <div className="feedTopbarSearchRow">
+              <div className="feedTopbarSearchField">
+                <input
+                  className="input feedSearchModalInput feedTopbarSearchInput"
+                  type="search"
+                  name="feedSearchModal"
+                  ref={searchInputRef}
+                  value={props.searchQuery}
+                  onChange={(e) => props.onSearchQueryChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
                     props.onSearchSubmit();
                     setIsSearchOpen(false);
                   }}
+                  placeholder="Search"
                   aria-label="Search"
-                  title="Search"
-                >
-                  {isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />}
-                </button>
-              </span>
+                />
+
+                <span className="feedSearchEnd" aria-hidden="true">
+                  <button
+                    type="button"
+                    className="ghost iconButton feedSearchSubmit feedTopbarSearchSubmit"
+                    onClick={() => {
+                      props.onSearchSubmit();
+                      setIsSearchOpen(false);
+                    }}
+                    aria-label="Search"
+                    title="Search"
+                  >
+                    {isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />}
+                  </button>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      ) : null}
 
       <Modal open={isNetworksOpen} title="Networks" onClose={() => setIsNetworksOpen(false)}>
         <div className="feedNetworksModal">

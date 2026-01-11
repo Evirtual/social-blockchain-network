@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { IconDotsVertical, IconMessage, IconMoon, IconPlus, IconSun } from "@shared/components/icons";
+import { Link, useLocation } from "react-router-dom";
+import { IconDotsVertical, IconHome, IconMessage, IconMoon, IconPlus, IconSun } from "@shared/components/icons";
 import brandMarkUrl from "@assets/favicon.svg";
 import { useTopbarOverflow } from "./TopbarOverflowContext";
 
@@ -33,15 +33,22 @@ export function Topbar({
 }: Props) {
   const { actions, panel } = useTopbarOverflow();
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const location = useLocation();
+  const isHome = location.pathname === "/";
 
   const closeOverflowMenu = () => {
     if (detailsRef.current) detailsRef.current.open = false;
   };
 
   return (
-    <header className="topbar">
+    <header className={`topbar ${isHome ? "isHome" : "isAway"}`}>
       <Link className="brand" to="/">
-        <img className="brand-mark" src={brandMarkUrl} alt="" />
+        <span className="brandMarkSwap" aria-hidden="true">
+          <img className="brand-mark" src={brandMarkUrl} alt="" />
+          <span className="brand-mark-icon">
+            <IconHome size={20} />
+          </span>
+        </span>
         <div>
           <div className="brand-name">Social Blockchain Network</div>
           <div className="brand-sub">Posts are NFTs. Reactions are signatures.</div>
@@ -49,7 +56,12 @@ export function Topbar({
       </Link>
       <div className="topbar-actions">
         <Link className="topbarLogo" to="/" aria-label="Home">
-          <img className="brand-mark" src={brandMarkUrl} alt="" />
+          <span className="brandMarkSwap" aria-hidden="true">
+            <img className="brand-mark" src={brandMarkUrl} alt="" />
+            <span className="brand-mark-icon">
+              <IconHome size={18} />
+            </span>
+          </span>
         </Link>
 
         <div className="topbarControls">

@@ -6,6 +6,7 @@ type Props = {
   tokenId: string;
   postChainId: string | null;
   nativeSymbol: string;
+  originalComment: string;
   isSigning: boolean;
   isBusy: boolean;
   activeComposer: ActiveComposer;
@@ -31,6 +32,15 @@ export function CommentComposerPanels(props: Props) {
   const isEditBusy = props.actionInFlight.id === props.commentId && props.actionInFlight.action === "edit";
   const isTipBusy = props.actionInFlight.id === props.commentId && props.actionInFlight.action === "tip";
   const isReportBusy = props.actionInFlight.id === props.commentId && props.actionInFlight.action === "report";
+  const replyTrimmed = props.replyDraft.trim();
+  const editTrimmed = props.editDraft.trim();
+  const reportTrimmed = props.reportDraft.trim();
+  const tipValue = Number(props.tipDraft);
+  const canReply = replyTrimmed.length > 0 && !props.isSigning && !props.isBusy;
+  const canEdit =
+    editTrimmed.length > 0 && editTrimmed !== props.originalComment.trim() && !props.isSigning && !props.isBusy;
+  const canTip = Number.isFinite(tipValue) && tipValue > 0 && !props.isSigning && !props.isBusy;
+  const canReport = reportTrimmed.length > 0 && !props.isSigning && !props.isBusy;
 
   return (
     <>
@@ -46,7 +56,7 @@ export function CommentComposerPanels(props: Props) {
             disabled={props.isSigning || props.isBusy}
           />
           <button
-            className="secondary buttonWithSpinner"
+            className={`primary buttonWithSpinner${!canReply ? " notAllowed" : ""}`}
             type="button"
             onClick={async () => {
               props.setActionInFlight({ id: props.commentId, action: "reply" });
@@ -60,7 +70,7 @@ export function CommentComposerPanels(props: Props) {
                 props.setActionInFlight({ id: null, action: null });
               }
             }}
-            disabled={props.isSigning || props.isBusy}
+            disabled={!canReply}
             aria-busy={isReplyBusy}
           >
             {isReplyBusy ? <span className="spinner" aria-hidden="true" /> : null}
@@ -81,7 +91,7 @@ export function CommentComposerPanels(props: Props) {
             disabled={props.isSigning || props.isBusy}
           />
           <button
-            className="secondary buttonWithSpinner"
+            className={`secondary buttonWithSpinner${!canEdit ? " notAllowed" : ""}`}
             type="button"
             onClick={async () => {
               props.setActionInFlight({ id: props.commentId, action: "edit" });
@@ -94,7 +104,7 @@ export function CommentComposerPanels(props: Props) {
                 props.setActionInFlight({ id: null, action: null });
               }
             }}
-            disabled={props.isSigning || props.isBusy}
+            disabled={!canEdit}
             aria-busy={isEditBusy}
           >
             {isEditBusy ? <span className="spinner" aria-hidden="true" /> : null}
@@ -115,7 +125,7 @@ export function CommentComposerPanels(props: Props) {
             disabled={props.isSigning || props.isBusy}
           />
           <button
-            className="secondary buttonWithSpinner"
+            className={`primary buttonWithSpinner${!canTip ? " notAllowed" : ""}`}
             type="button"
             onClick={async () => {
               props.setActionInFlight({ id: props.commentId, action: "tip" });
@@ -129,7 +139,7 @@ export function CommentComposerPanels(props: Props) {
                 props.setActionInFlight({ id: null, action: null });
               }
             }}
-            disabled={props.isSigning || props.isBusy}
+            disabled={!canTip}
             aria-busy={isTipBusy}
           >
             {isTipBusy ? <span className="spinner" aria-hidden="true" /> : null}
@@ -150,7 +160,7 @@ export function CommentComposerPanels(props: Props) {
             disabled={props.isSigning || props.isBusy}
           />
           <button
-            className="secondary buttonWithSpinner"
+            className={`secondary buttonWithSpinner${!canReport ? " notAllowed" : ""}`}
             type="button"
             onClick={async () => {
               props.setActionInFlight({ id: props.commentId, action: "report" });
@@ -169,7 +179,7 @@ export function CommentComposerPanels(props: Props) {
                 props.setActionInFlight({ id: null, action: null });
               }
             }}
-            disabled={props.isSigning || props.isBusy}
+            disabled={!canReport}
             aria-busy={isReportBusy}
           >
             {isReportBusy ? <span className="spinner" aria-hidden="true" /> : null}

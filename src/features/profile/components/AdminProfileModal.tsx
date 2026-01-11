@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
-import { IconRepeat } from "@shared/components/icons";
+import { IconPlus, IconX } from "@shared/components/icons";
 
 type InitialDraft = {
   name: string;
@@ -32,6 +32,21 @@ export function AdminProfileModal(props: Props) {
   const [adminAvatarFile, setAdminAvatarFile] = useState<File | null>(null);
   const [adminAvatarFilename, setAdminAvatarFilename] = useState<string>("");
   const [isAdminAvatarLoading, setIsAdminAvatarLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [hasFileSelected, setHasFileSelected] = useState(false);
+  const hasAvatarPreview = adminAvatarDataUrl.startsWith("data:image/");
+  const nameTrimmed = adminName.trim();
+  const bioTrimmed = adminBio.trim();
+  const avatarUrlTrimmed = adminAvatarUrl.trim();
+  const initialName = props.initialDraft.name.trim();
+  const initialBio = props.initialDraft.bio.trim();
+  const initialAvatarUrl = props.initialDraft.avatarUrl.trim();
+  const hasChanges =
+    nameTrimmed !== initialName ||
+    bioTrimmed !== initialBio ||
+    avatarUrlTrimmed !== initialAvatarUrl ||
+    Boolean(adminAvatarFile) ||
+    hasAvatarPreview;
 
   const resetToInitial = useMemo(() => {
     return () => {
@@ -41,6 +56,11 @@ export function AdminProfileModal(props: Props) {
       setAdminAvatarDataUrl("");
       setAdminAvatarFile(null);
       setAdminAvatarFilename("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+        fileInputRef.current.dataset.hasFile = "false";
+      }
+      setHasFileSelected(false);
     };
   }, [props.initialDraft]);
 
@@ -92,7 +112,13 @@ export function AdminProfileModal(props: Props) {
     setAdminAvatarDataUrl("");
     setAdminAvatarFile(null);
     setAdminAvatarFilename("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.dataset.hasFile = "false";
+    }
+    setHasFileSelected(false);
   }
+  const showUpload = !hasAvatarPreview && !hasFileSelected;
 
   return (
     <Modal
@@ -118,37 +144,47 @@ export function AdminProfileModal(props: Props) {
           placeholder="Bio"
         />
 
-        <input
-          className="input"
-          name="adminProfileAvatarUrl"
-          value={adminAvatarUrl}
-          onChange={(e) => setAdminAvatarUrl(e.target.value)}
-          placeholder="Avatar image URL (or upload below)"
-        />
-
         <div className="row fileRow">
           <div className="fileInputWrap">
             <input
-              className="file-input"
+              className="file-input file-input-hidden"
               type="file"
               name="adminProfileAvatarUpload"
-              accept="image/*"
-              onChange={(event) => void onSelectAdminAvatarFile(event.target.files?.[0] ?? null)}
+              id="adminProfileAvatarUpload"
+              accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif"
+              data-has-file="false"
+              ref={fileInputRef}
+              onChange={(event) => {
+                const input = event.currentTarget;
+                const hasFile = (input.files?.length ?? 0) > 0;
+                input.dataset.hasFile = hasFile ? "true" : "false";
+                setHasFileSelected(hasFile);
+                const selected = input.files?.[0] ?? null;
+                void onSelectAdminAvatarFile(selected);
+              }}
             />
-            <button
-              type="button"
-              className="ghost iconButton fileInputAction"
-              onClick={onClearAdminAvatar}
-              aria-label="Clear avatar upload"
-              title="Clear avatar upload"
-            >
-              <IconRepeat size={16} />
-            </button>
+            {showUpload ? (
+              <label className="btn secondary fileInputButton" htmlFor="adminProfileAvatarUpload">
+                <IconPlus size={16} />
+                Upload avatar
+              </label>
+            ) : null}
           </div>
         </div>
 
-        {adminAvatarDataUrl.startsWith("data:image/") && (
-          <img className="image-preview" src={adminAvatarDataUrl} alt="Avatar preview" />
+        {hasAvatarPreview && (
+          <div className="mediaPreview">
+            <img className="image-preview" src={adminAvatarDataUrl} alt="Avatar preview" />
+            <button
+              type="button"
+              className="ghost iconButton mediaPreviewClear"
+              onClick={onClearAdminAvatar}
+              aria-label="Remove avatar"
+              title="Remove avatar"
+            >
+              <IconX size={16} />
+            </button>
+          </div>
         )}
 
         <div className="rowActions">
@@ -164,7 +200,7 @@ export function AdminProfileModal(props: Props) {
             Cancel
           </button>
           <button
-            className="primary buttonWithSpinner"
+            className={`primary buttonWithSpinner${!hasChanges ? " notAllowed" : ""}`}
             type="button"
             onClick={() =>
               props.onSave({
@@ -176,7 +212,7 @@ export function AdminProfileModal(props: Props) {
                 avatarDataUrl: adminAvatarDataUrl
               })
             }
-            disabled={isAdminAvatarLoading || props.isSaving}
+            disabled={isAdminAvatarLoading || props.isSaving || !hasChanges}
             aria-busy={props.isSaving}
           >
             {props.isSaving ? <span className="spinner" aria-hidden="true" /> : null}

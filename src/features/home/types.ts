@@ -9,7 +9,6 @@ export type HomePageViewModel = {
   draft: Draft;
   isImageLoading: boolean;
   onDraftFieldChange: (field: keyof Draft, value: string) => void;
-  onImageUrlChange: (value: string) => void;
   onSelectFile: (file: File | null) => void;
   onClearImage: () => void;
   onPost: () => void;

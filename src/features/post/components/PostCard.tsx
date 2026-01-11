@@ -182,11 +182,28 @@ export const PostCard = memo(function PostCard(props: Props) {
         open={props.isEditing}
         title="Edit post"
         headerLeading={<div className="avatar small" style={avatarStyle} />}
+        headerTrailing={
+          props.isMine || props.canModerate ? (
+            <button
+              type="button"
+              className="ghost iconButton modalFreezeButton"
+              onClick={() => props.onFreezePost(tokenId, postChainId)}
+              disabled={requiresNetworkSwitch}
+              title={interactionDisabledTitle || "Freeze post"}
+              aria-label="Freeze post"
+            >
+              <span aria-hidden="true">🧊</span>
+            </button>
+          ) : null
+        }
         onClose={props.onCancelEditPost}
       >
         <PostCardEditBox
           tokenId={tokenId}
           postChainId={postChainId}
+          existingIsVideo={Boolean(props.post.animationUrl)}
+          originalBody={props.post.body}
+          originalMediaUrl={props.post.animationUrl ?? props.post.image}
           requiresNetworkSwitch={requiresNetworkSwitch}
           interactionDisabledTitle={interactionDisabledTitle}
           editDraft={props.editDraft}

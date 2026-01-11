@@ -146,6 +146,15 @@ export function IconMessage(props: IconProps) {
   );
 }
 
+export function IconHome(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M3 10.5L12 3l9 7.5" />
+      <path d="M5 9.5V21a1 1 0 0 0 1 1h5v-6h2v6h5a1 1 0 0 0 1-1V9.5" />
+    </BaseIcon>
+  );
+}
+
 export function IconCoin(props: IconProps) {
   return (
     <BaseIcon {...props}>
