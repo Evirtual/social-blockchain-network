@@ -22,7 +22,11 @@
   break-inside: avoid;
   margin: 0 0 0.75rem 0;
   width: 100%;
+  &.comment {
+    margin: 0;
+  }
 }
+
 
 .postSkeleton {
   user-select: none;
