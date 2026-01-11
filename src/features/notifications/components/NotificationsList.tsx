@@ -92,6 +92,15 @@ function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
 
 function buildMetaPills(notification: NotificationItem): Array<{ label: string; icon?: JSX.Element }> {
   const pills: Array<{ label: string; icon?: JSX.Element }> = [];
+  if (
+    notification.kind === "POSTER_APPROVAL_REQUESTED" ||
+    notification.kind === "POSTER_APPROVED" ||
+    notification.kind === "POSTER_DISAPPROVED" ||
+    notification.kind === "PROFILE_MODERATED" ||
+    notification.kind === "PROFILE_CLEARED_BY_ADMIN"
+  ) {
+    return pills;
+  }
   const tokenId = String(notification.tokenId ?? "").trim();
   const commentId = typeof notification.commentId === "string" ? notification.commentId.trim() : "";
   if (tokenId && tokenId !== "0") {
@@ -111,8 +120,14 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
     <div className="list">
       {items.map((n) => {
         const actorId = String(n.actor?.id ?? "");
-        const displayName = String(n.actor?.name ?? "").trim() || (actorId ? shortAddress(actorId) : "Unknown");
-        const avatarStyle = getAvatarStyle({ avatarUrl: n.actor?.avatar ?? undefined, hue: stableHueFromSeed(actorId) });
+        const isSelfApproval = n.kind === "POSTER_APPROVED";
+        const displayName = isSelfApproval
+          ? "You"
+          : String(n.actor?.name ?? "").trim() || (actorId ? shortAddress(actorId) : "Unknown");
+        const avatarStyle = getAvatarStyle({
+          avatarUrl: isSelfApproval ? undefined : n.actor?.avatar ?? undefined,
+          hue: stableHueFromSeed(isSelfApproval ? "" : actorId)
+        });
 
         const commentId = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
         const hash = commentId ? `#comment-${commentId}` : "";
@@ -125,7 +140,8 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
         const kindIcon = getKindIcon(n.kind);
         const metaPills = buildMetaPills(n);
         const detailText = notificationDetailText(n);
-        const profileLink = actorId ? `/profile/${actorId}` : "";
+        const profileLink = !isSelfApproval && actorId ? `/profile/${actorId}` : "";
+        const actionText = isSelfApproval ? "were approved to post" : notificationActionText(n.kind);
 
         return (
           <button
@@ -153,7 +169,7 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
                   ) : (
                     displayName
                   )}{" "}
-                  {notificationActionText(n.kind)}
+                  {actionText}
                 </div>
                 <div className="profileMeta notificationMeta">
                   {metaPills.length > 0 ? (
