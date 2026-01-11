@@ -129,3 +129,103 @@
 .listRow.isUnread .profileName {
   font-weight: 600;
 }
+
+.notificationRow {
+  align-items: center;
+}
+
+.notificationActionIcon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.notificationActionIcon.isLike {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text));
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+}
+
+.notificationActionIcon.isSave {
+  color: color-mix(in srgb, var(--link) 85%, var(--text));
+  background: color-mix(in srgb, var(--link) 12%, var(--surface-2));
+}
+
+.notificationActionIcon.isComment {
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+
+.notificationActionIcon.isTip {
+  color: color-mix(in srgb, var(--accent) 60%, var(--text));
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+}
+
+.notificationActionIcon.isFollow {
+  color: color-mix(in srgb, var(--link) 70%, var(--text));
+  background: color-mix(in srgb, var(--link) 10%, var(--surface-2));
+}
+
+.notificationActionIcon.isAdmin {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+}
+
+.notificationActionIcon.isApproval {
+  color: color-mix(in srgb, var(--link) 80%, var(--text));
+  background: color-mix(in srgb, var(--link) 12%, var(--surface-2));
+}
+
+.notificationActionIcon.isRemove,
+.notificationActionIcon.isReport {
+  color: color-mix(in srgb, var(--danger) 85%, var(--text));
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+}
+
+.notificationMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.notificationPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.notificationPill {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text);
+}
+
+.notificationDetailText {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.notificationActorLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.notificationActorLink:hover {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 70%, transparent);
+}
+
+.notificationActorLink:focus-visible {
+  outline: 0.125rem solid var(--link);
+  outline-offset: 0.125rem;
+  border-radius: 0.25rem;
+}

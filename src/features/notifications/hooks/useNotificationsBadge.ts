@@ -11,11 +11,14 @@ import {
   readNotificationsLastSeen,
   seedDemoUnreadOncePerLoad
 } from "../services/notificationReadState";
+import { useContractState } from "@features/contract";
+import { filterNotificationsForViewer } from "../lib/notificationFilters";
 
 export function useNotificationsBadge(args: { walletAddress: string | null; chainId: string | null; first?: number }) {
   const [hasUnread, setHasUnread] = useState(false);
   const [gateEpoch, setGateEpoch] = useState(0);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const { isOwner } = useContractState();
 
   const env = getEnv();
   const demoModeEnabled = getEnvBoolean(env, "VITE_DEMO_MODE", false);
@@ -46,7 +49,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) {
         seedDemoUnreadOncePerLoad(args.chainId, wallet);
         const lastSeen = readNotificationsLastSeen(args.chainId, wallet);
-        const demoItems = buildDemoNotifications(wallet, args.chainId);
+        const demoItems = filterNotificationsForViewer(buildDemoNotifications(wallet, args.chainId), isOwner);
         const unread = countUnreadNotifications(demoItems, lastSeen);
         if (!cancelled) setHasUnread(unread > 0);
         return;
@@ -67,7 +70,8 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
           chainIdStr: args.chainId
         });
         if (cancelled) return;
-        const unread = countUnreadNotifications(res.items, lastSeen);
+        const filtered = filterNotificationsForViewer(res.items, isOwner);
+        const unread = countUnreadNotifications(filtered, lastSeen);
         setHasUnread(unread > 0);
       } catch {
         if (!cancelled) setHasUnread(false);
@@ -116,7 +120,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       offSeen();
       offEvents();
     };
-  }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch, chainIdNum]);
+  }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch, chainIdNum, isOwner]);
 
   return { hasUnread };
 }

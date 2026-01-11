@@ -6,6 +6,8 @@ import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { buildDemoNotifications } from "../services/demo/demoNotifications";
 import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
+import { useContractState } from "@features/contract";
+import { filterNotificationsForViewer } from "../lib/notificationFilters";
 
 export function useNotifications(args: { open: boolean; walletAddress: string | null; chainId: string | null; first?: number }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -13,6 +15,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
   const [schemaMismatch, setSchemaMismatch] = useState(false);
   const [error, setError] = useState<string>("");
   const refreshTimeoutRef = useRef<number | null>(null);
+  const { isOwner } = useContractState();
 
   const env = getEnv();
   const chainIdNum = useMemo(() => {
@@ -36,8 +39,9 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     if (areSubgraphQueriesEnabled(env)) return;
 
     // Demo mode: only seed notifications while the wallet is not approved (live feed disabled).
-    setItems((prev) => (prev.length ? prev : buildDemoNotifications(args.walletAddress as string, args.chainId)));
-  }, [args.open, args.walletAddress, args.chainId, demoModeEnabled, env, gateEpoch]);
+    const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
+    setItems((prev) => (prev.length ? prev : filterNotificationsForViewer(demo, isOwner)));
+  }, [args.open, args.walletAddress, args.chainId, demoModeEnabled, env, gateEpoch, isOwner]);
 
   useEffect(() => {
     if (!args.open) return;
@@ -65,9 +69,10 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
 
         // If we're approved (live), always show the real subgraph result (even if empty).
         if (res.items.length > 0 || !canUseDemoFallback) {
-          setItems(res.items);
+          setItems(filterNotificationsForViewer(res.items, isOwner));
         } else {
-          setItems((prev) => (prev.length ? prev : buildDemoNotifications(args.walletAddress as string, args.chainId)));
+          const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
+          setItems((prev) => (prev.length ? prev : filterNotificationsForViewer(demo, isOwner)));
         }
       })
       .catch((err) => {
@@ -85,7 +90,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     return () => {
       cancelled = true;
     };
-  }, [args.open, args.walletAddress, args.chainId, args.first, subgraphUrl, demoModeEnabled, env, gateEpoch]);
+  }, [args.open, args.walletAddress, args.chainId, args.first, subgraphUrl, demoModeEnabled, env, gateEpoch, isOwner]);
 
   useEffect(() => {
     if (!args.open) return;
@@ -112,7 +117,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
             if (cancelled) return;
             setSchemaMismatch(res.schemaMismatch);
             if (res.items.length > 0) {
-              setItems(res.items);
+              setItems(filterNotificationsForViewer(res.items, isOwner));
             }
           })
           .catch(() => {
@@ -150,7 +155,18 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
       }
       off();
     };
-  }, [args.open, args.walletAddress, args.first, subgraphUrl, schemaMismatch, demoModeEnabled, env, gateEpoch, chainIdNum]);
+  }, [
+    args.open,
+    args.walletAddress,
+    args.first,
+    subgraphUrl,
+    schemaMismatch,
+    demoModeEnabled,
+    env,
+    gateEpoch,
+    chainIdNum,
+    isOwner
+  ]);
 
   return { items, loading, schemaMismatch, error, subgraphUrl };
 }

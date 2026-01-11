@@ -245,6 +245,7 @@ function createAccountNotification(
   timestamp: BigInt
 ): void {
   if (recipientAddress.equals(Address.zero())) return;
+  if (recipientAddress.equals(actorAddress)) return;
 
   const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
   const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
@@ -366,6 +367,16 @@ export function handlePosterAllowed(event: PosterAllowed): void {
   if (event.params.allowed) {
     createAccountNotification(
       "POSTER_APPROVED",
+      event.params.account,
+      event.transaction.from,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  } else {
+    createAccountNotification(
+      "POSTER_DISAPPROVED",
       event.params.account,
       event.transaction.from,
       event.transaction.hash,
@@ -506,6 +517,16 @@ export function handleUnfollowed(event: Unfollowed): void {
   follower.save();
   followee.save();
   edge.save();
+
+  createAccountNotification(
+    "UNFOLLOWED",
+    event.params.followee,
+    event.params.follower,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostMinted(event: PostMinted): void {
@@ -759,6 +780,18 @@ export function handlePostUnliked(event: PostUnliked): void {
   a.save();
   edge.save();
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_UNLIKED",
+    p,
+    event.params.unliker,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostSaved(event: PostSaved): void {
@@ -845,6 +878,18 @@ export function handlePostUnsaved(event: PostUnsaved): void {
   a.save();
   edge.save();
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_UNSAVED",
+    p,
+    event.params.unsaver,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleCommentAdded(event: CommentAdded): void {
@@ -1066,6 +1111,21 @@ export function handleCommentUnliked(event: CommentUnliked): void {
   a.save();
   edge.save();
   p.save();
+
+  const c2 = Comment.load(commentId.toString());
+  if (c2 != null) {
+    maybeCreateCommentNotification(
+      "COMMENT_UNLIKED",
+      c2.author,
+      event.params.unliker,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  }
 }
 
 export function handleCommentSaved(event: CommentSaved): void {
@@ -1156,6 +1216,21 @@ export function handleCommentUnsaved(event: CommentUnsaved): void {
   a.save();
   edge.save();
   p.save();
+
+  const c2 = Comment.load(commentId.toString());
+  if (c2 != null) {
+    maybeCreateCommentNotification(
+      "COMMENT_UNSAVED",
+      c2.author,
+      event.params.unsaver,
+      tokenId,
+      commentId,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  }
 }
 
 export function handleCommentTipped(event: CommentTipped): void {
@@ -1234,6 +1309,19 @@ export function handlePostReported(event: PostReported): void {
 
   reporter.save();
   r.save();
+
+  const owner = getContractOwner(event.address);
+  if (!owner.equals(Address.zero())) {
+    createAccountNotification(
+      "POST_REPORTED",
+      owner,
+      event.params.reporter,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  }
 }
 
 export function handleCommentReported(event: CommentReported): void {
@@ -1261,6 +1349,19 @@ export function handleCommentReported(event: CommentReported): void {
 
   reporter.save();
   r.save();
+
+  const owner = getContractOwner(event.address);
+  if (!owner.equals(Address.zero())) {
+    createAccountNotification(
+      "COMMENT_REPORTED",
+      owner,
+      event.params.reporter,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+  }
 }
 
 export function handlePostTipped(event: PostTipped): void {
