@@ -116,6 +116,7 @@
   justify-content: flex-end;
   gap: 0.5rem;
   flex: 0 0 auto;
+  position:relative
 }
 
 .listRow:hover {
@@ -132,59 +133,84 @@
 
 .notificationRow {
   align-items: center;
+  position:relative
+}
+
+.notificationAvatarWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.notificationPostThumb {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.6rem;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface-2);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.notificationPostThumb.isPlaceholder {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-2) 85%, transparent),
+    color-mix(in srgb, var(--surface) 85%, transparent)
+  );
 }
 
 .notificationActionIcon {
-  width: 2rem;
-  height: 2rem;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-2);
   color: var(--muted);
-  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, transparent);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.notificationActionIcon svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .notificationActionIcon.isLike {
-  color: color-mix(in srgb, var(--danger) 80%, var(--text));
-  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+  color: var(--danger);
 }
 
 .notificationActionIcon.isSave {
-  color: color-mix(in srgb, var(--link) 85%, var(--text));
-  background: color-mix(in srgb, var(--link) 12%, var(--surface-2));
+  color: var(--link);
 }
 
 .notificationActionIcon.isComment {
-  color: color-mix(in srgb, var(--accent) 85%, var(--text));
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  color: var(--accent);
 }
 
 .notificationActionIcon.isTip {
-  color: color-mix(in srgb, var(--accent) 60%, var(--text));
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
 }
 
 .notificationActionIcon.isFollow {
-  color: color-mix(in srgb, var(--link) 70%, var(--text));
-  background: color-mix(in srgb, var(--link) 10%, var(--surface-2));
+  color: var(--link);
 }
 
 .notificationActionIcon.isAdmin {
-  color: color-mix(in srgb, var(--accent) 75%, var(--text));
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  color: var(--accent);
 }
 
 .notificationActionIcon.isApproval {
-  color: color-mix(in srgb, var(--link) 80%, var(--text));
-  background: color-mix(in srgb, var(--link) 12%, var(--surface-2));
+  color: var(--link);
 }
 
 .notificationActionIcon.isRemove,
 .notificationActionIcon.isReport {
-  color: color-mix(in srgb, var(--danger) 85%, var(--text));
-  background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+  color: var(--danger);
 }
 
 .notificationMeta {
@@ -201,8 +227,8 @@
 }
 
 .notificationPill {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
   letter-spacing: 0.01em;
   border-color: color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface-2) 70%, transparent);

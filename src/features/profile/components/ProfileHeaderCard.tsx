@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import { IconDotsVertical } from "@shared/components/icons";
+import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { buildProfileHeaderCardState } from "@features/profile/viewModel";
 
 type Props = {
@@ -24,6 +27,14 @@ type Props = {
 };
 
 export function ProfileHeaderCard(props: Props) {
+  const isMobile = useIsMobile();
+  const adminMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const closeAdminMenu = () => {
+    if (adminMenuRef.current) {
+      adminMenuRef.current.open = false;
+    }
+  };
+
   const {
     isAllowed,
     isAdminLoading,
@@ -51,70 +62,80 @@ export function ProfileHeaderCard(props: Props) {
     <span className="skeletonLine" style={{ width: `${widthRem}rem`, height: "1rem" }} aria-hidden="true" />
   );
 
+  const renderAdminButtons = (options?: { closeMenu?: () => void; isMenu?: boolean }) => {
+    const wrapAction = (callback: () => void) => () => {
+      options?.closeMenu?.();
+      callback();
+    };
+
+    const adminButtonClass = (baseClass: string) => (options?.isMenu ? `${baseClass} profileAdminOverflowButton` : baseClass);
+
+    return (
+      <>
+        <button
+          className={adminButtonClass("secondary")}
+          type="button"
+          onClick={wrapAction(props.onToggleAdminEdit)}
+        >
+          {props.isAdminEditing ? "Close" : "Edit Profile"}
+        </button>
+
+        {isAdminLoading ? (
+          <>
+            <button className={adminButtonClass("secondary buttonWithSpinner")} type="button" disabled aria-busy="true">
+              {actionSkeleton(6)}
+            </button>
+            <button className={adminButtonClass("secondary buttonWithSpinner")} type="button" disabled aria-busy="true">
+              {actionSkeleton(4)}
+            </button>
+          </>
+        ) : (
+          <>
+            {isAllowed ? (
+              <button
+                className={adminButtonClass("secondary buttonWithSpinner")}
+                type="button"
+                onClick={wrapAction(() => props.onAdminSetPosterAllowed(false))}
+                disabled={isAdminSubmitting}
+                aria-busy={isDisapproveBusy}
+              >
+                {isDisapproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
+                Disapprove
+              </button>
+            ) : (
+              <button
+                className={adminButtonClass("primary buttonWithSpinner")}
+                type="button"
+                onClick={wrapAction(() => props.onAdminSetPosterAllowed(true))}
+                disabled={isAdminSubmitting}
+                aria-busy={isApproveBusy}
+              >
+                {isApproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
+                Approve
+              </button>
+            )}
+
+            <button
+              className={adminButtonClass("secondary buttonWithSpinner")}
+              type="button"
+              onClick={wrapAction(props.onAdminReset)}
+              disabled={isAdminSubmitting}
+              aria-busy={isResetBusy}
+            >
+              {isResetBusy ? <span className="spinner" aria-hidden="true" /> : null}
+              Reset
+            </button>
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="card">
       <div className="cardHeader">
         <div className="cardTitle">Profile</div>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          {props.canAdminEdit ? (
-            <>
-              {props.wasPosterDisapprovedEver ? <span className="pill">Flagged</span> : null}
-              <button
-                className="secondary"
-                type="button"
-                onClick={props.onToggleAdminEdit}
-              >
-                {props.isAdminEditing ? "Close" : "Edit Profile"}
-              </button>
-              {isAdminLoading ? (
-                <>
-                  <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
-                    {actionSkeleton(6)}
-                  </button>
-                  <button className="secondary buttonWithSpinner" type="button" disabled aria-busy="true">
-                    {actionSkeleton(4)}
-                  </button>
-                </>
-              ) : (
-                <>
-                  {isAllowed ? (
-                    <button
-                      className="secondary buttonWithSpinner"
-                      type="button"
-                      onClick={() => props.onAdminSetPosterAllowed(false)}
-                      disabled={isAdminSubmitting}
-                      aria-busy={isDisapproveBusy}
-                    >
-                      {isDisapproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                      Disapprove
-                    </button>
-                  ) : (
-                    <button
-                      className="primary buttonWithSpinner"
-                      type="button"
-                      onClick={() => props.onAdminSetPosterAllowed(true)}
-                      disabled={isAdminSubmitting}
-                      aria-busy={isApproveBusy}
-                    >
-                      {isApproveBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                      Approve
-                    </button>
-                  )}
-                  <button
-                    className="secondary buttonWithSpinner"
-                    type="button"
-                    onClick={props.onAdminReset}
-                    disabled={isAdminSubmitting}
-                    aria-busy={isResetBusy}
-                  >
-                    {isResetBusy ? <span className="spinner" aria-hidden="true" /> : null}
-                    Reset
-                  </button>
-                </>
-              )}
-            </>
-          ) : null}
-
           {props.canFollow ? (
             <button
               className="secondary buttonWithSpinner"
@@ -132,6 +153,26 @@ export function ProfileHeaderCard(props: Props) {
                 </>
               )}
             </button>
+          ) : null}
+
+          {props.canAdminEdit ? (
+            <>
+              {props.wasPosterDisapprovedEver ? <span className="pill">Flagged</span> : null}
+              {isMobile ? (
+                <details className="profileAdminOverflow" ref={adminMenuRef}>
+                  <summary className="ghost iconButton profileAdminOverflowToggle" aria-label="Admin actions" title="Admin actions">
+                    <IconDotsVertical size={18} />
+                  </summary>
+                  <div className="profileAdminOverflowMenu">
+                    <div className="profileAdminOverflowMenuInner">
+                      {renderAdminButtons({ closeMenu: closeAdminMenu, isMenu: true })}
+                    </div>
+                  </div>
+                </details>
+              ) : (
+                <div className="profileAdminOverflowInline">{renderAdminButtons()}</div>
+              )}
+            </>
           ) : null}
         </div>
       </div>

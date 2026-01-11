@@ -189,17 +189,6 @@ export function AdminProfileModal(props: Props) {
 
         <div className="rowActions">
           <button
-            className="secondary"
-            type="button"
-            onClick={() => {
-              props.onClose();
-              resetToInitial();
-            }}
-            disabled={props.isSaving}
-          >
-            Cancel
-          </button>
-          <button
             className={`primary buttonWithSpinner${!hasChanges ? " notAllowed" : ""}`}
             type="button"
             onClick={() =>

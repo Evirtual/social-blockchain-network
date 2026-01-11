@@ -44,7 +44,7 @@ export function ApprovalListRow(props: {
   return (
     <div key={props.addr} className="listRow" role="listitem">
       <span className="listRowLeft">
-        <div className="avatar tiny" style={avatarStyle} aria-hidden="true" />
+        <div className="avatar" style={avatarStyle} aria-hidden="true" />
         <Link className="value" to={`/profile/${props.addr}`}>
           {props.shortAddress(props.addr)}
         </Link>

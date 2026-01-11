@@ -40,7 +40,7 @@ export function NotificationsHistoryPage() {
         <div className="list" aria-busy="true">
           <div className="listRow" aria-hidden="true">
             <span className="listRowLeft">
-              <div className="avatar tiny skeleton" />
+              <div className="avatar skeleton" />
               <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                 <span className="skeletonLine" style={{ width: "13rem", height: "1rem" }} />
                 <span className="skeletonLine" style={{ width: "10rem", height: "0.9rem" }} />

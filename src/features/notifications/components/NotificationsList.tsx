@@ -1,9 +1,11 @@
-import type { CSSProperties } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getAvatarStyle } from "@shared/lib/avatar";
-import { parseChainIdNumber } from "@shared/lib/chainId";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
-import { ChainLogo } from "@shared/components/ChainLogos";
+import { postKeyFromParts } from "@shared/lib/post";
+import type { Post } from "@types";
+import { useFeedActions, useFeedState } from "@features/feed";
+import { ipfsToHttp } from "@features/ipfs";
 import {
   IconBookmark,
   IconCheck,
@@ -18,9 +20,8 @@ import {
   IconTrash,
   IconX
 } from "@shared/components/icons";
-import { getSupportedNetworks } from "@features/feed";
 import type { NotificationItem } from "../types";
-import { notificationActionText, notificationDetailText } from "../lib/notificationText";
+import { notificationActionText } from "../lib/notificationText";
 
 type Props = {
   items: NotificationItem[];
@@ -45,76 +46,78 @@ function getKindClass(kind: string): string {
 function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
   switch (kind) {
     case "FOLLOWED":
-      return { icon: <IconRepeat size={16} />, label: "Followed" };
+      return { icon: <IconRepeat size={14} />, label: "Followed" };
     case "UNFOLLOWED":
-      return { icon: <IconRepeat size={16} />, label: "Unfollowed" };
+      return { icon: <IconRepeat size={14} />, label: "Unfollowed" };
     case "POST_LIKED":
     case "COMMENT_LIKED":
-      return { icon: <IconHeart size={16} />, label: "Liked" };
+      return { icon: <IconHeart size={14} filled />, label: "Liked" };
     case "POST_UNLIKED":
     case "COMMENT_UNLIKED":
-      return { icon: <IconHeart size={16} />, label: "Unliked" };
+      return { icon: <IconHeart size={14} />, label: "Unliked" };
     case "POST_SAVED":
     case "COMMENT_SAVED":
-      return { icon: <IconBookmark size={16} />, label: "Saved" };
+      return { icon: <IconBookmark size={14} filled />, label: "Saved" };
     case "POST_UNSAVED":
     case "COMMENT_UNSAVED":
-      return { icon: <IconBookmark size={16} />, label: "Unsaved" };
+      return { icon: <IconBookmark size={14} />, label: "Unsaved" };
     case "POST_COMMENTED":
     case "COMMENT_REPLIED":
     case "COMMENT_REMOVED":
-      return { icon: <IconMessage size={16} />, label: "Comment" };
+      return { icon: <IconMessage size={14} />, label: "Comment" };
     case "POST_TIPPED":
     case "COMMENT_TIPPED":
-      return { icon: <IconCoin size={16} />, label: "Tipped" };
+      return { icon: <IconCoin size={14} />, label: "Tipped" };
     case "POST_UPDATED_BY_ADMIN":
-      return { icon: <IconEdit size={16} />, label: "Updated by admin" };
+      return { icon: <IconEdit size={14} />, label: "Updated by admin" };
     case "POST_FROZEN":
-      return { icon: <IconEye size={16} />, label: "Post frozen" };
+      return { icon: <IconEye size={14} />, label: "Post frozen" };
     case "POST_REMOVED_BY_ADMIN":
-      return { icon: <IconTrash size={16} />, label: "Post removed" };
+      return { icon: <IconTrash size={14} />, label: "Post removed" };
     case "POST_REPORTED":
     case "COMMENT_REPORTED":
-      return { icon: <IconFlag size={16} />, label: "Reported" };
+      return { icon: <IconFlag size={14} />, label: "Reported" };
     case "POSTER_APPROVAL_REQUESTED":
-      return { icon: <IconQuestion size={16} />, label: "Approval requested" };
+      return { icon: <IconQuestion size={14} />, label: "Approval requested" };
     case "POSTER_APPROVED":
-      return { icon: <IconCheck size={16} />, label: "Approved" };
+      return { icon: <IconCheck size={14} />, label: "Approved" };
     case "POSTER_DISAPPROVED":
-      return { icon: <IconX size={16} />, label: "Disapproved" };
+      return { icon: <IconX size={14} />, label: "Disapproved" };
     case "PROFILE_MODERATED":
     case "PROFILE_CLEARED_BY_ADMIN":
-      return { icon: <IconEdit size={16} />, label: "Profile action" };
+      return { icon: <IconEdit size={14} />, label: "Profile action" };
     default:
-      return { icon: <IconMessage size={16} />, label: "Notification" };
+      return { icon: <IconMessage size={14} />, label: "Notification" };
   }
 }
 
-function buildMetaPills(notification: NotificationItem): Array<{ label: string; icon?: JSX.Element }> {
-  const pills: Array<{ label: string; icon?: JSX.Element }> = [];
-  if (
-    notification.kind === "POSTER_APPROVAL_REQUESTED" ||
-    notification.kind === "POSTER_APPROVED" ||
-    notification.kind === "POSTER_DISAPPROVED" ||
-    notification.kind === "PROFILE_MODERATED" ||
-    notification.kind === "PROFILE_CLEARED_BY_ADMIN"
-  ) {
-    return pills;
-  }
-  const tokenId = String(notification.tokenId ?? "").trim();
-  const commentId = typeof notification.commentId === "string" ? notification.commentId.trim() : "";
-  if (tokenId && tokenId !== "0") {
-    pills.push({ label: `Post #${tokenId}` });
-  }
-  if (commentId) {
-    pills.push({ label: `Comment #${commentId}`, icon: <IconMessage size={14} /> });
-  }
-  return pills;
-}
+export function NotificationsList({ items, lastSeenTs, onSelect }: Props) {
+  const feedState = useFeedState();
+  const feedActions = useFeedActions();
 
-export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Props) {
-  const supportedNetworks = getSupportedNetworks();
-  const brandHueByChainId = new Map(supportedNetworks.map((network) => [network.chainId, network.brandHue]));
+  const tokenIdsForThumbs = useMemo(() => {
+    const ids = (items ?? [])
+      .map((n) => String(n?.tokenId ?? "").trim())
+      .filter((t) => Boolean(t) && t !== "0");
+    return Array.from(new Set(ids));
+  }, [items]);
+
+  const tokenIdsKey = useMemo(() => tokenIdsForThumbs.join(","), [tokenIdsForThumbs]);
+
+  useEffect(() => {
+    if (!tokenIdsForThumbs.length) return;
+    void feedActions.loadPostsByTokenIds(tokenIdsForThumbs);
+  }, [feedActions, tokenIdsKey]);
+
+  const postByKey = useMemo(() => {
+    const map = new Map<string, Post>();
+    for (const p of feedState.posts ?? []) {
+      const tokenId = String(p?.tokenId ?? "").trim();
+      if (!tokenId) continue;
+      map.set(postKeyFromParts(p.chainId, tokenId), p);
+    }
+    return map;
+  }, [feedState.posts]);
 
   return (
     <div className="list">
@@ -134,15 +137,20 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
         const isRemovedPost = n.kind === "POST_REMOVED_BY_ADMIN";
         const to = `/post/${n.tokenId}${hash}`;
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
-        const rowChainId = parseChainIdNumber(n.chainId ?? chainId);
-        const brandHue = rowChainId == null ? undefined : brandHueByChainId.get(rowChainId);
-        const brandStyle: CSSProperties & { ["--brand-hue"]?: string | number } = brandHue != null ? { ["--brand-hue"]: brandHue } : {};
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
-        const metaPills = buildMetaPills(n);
-        const detailText = notificationDetailText(n);
         const profileLink = !isSelfApproval && actorId ? `/profile/${actorId}` : "";
         const actionText = isSelfApproval ? "were approved to post" : notificationActionText(n.kind);
+
+        const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
+        const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;
+        const post = showThumb
+          ? postByKey.get(postKeyFromParts(postChainId, String(n.tokenId))) ??
+            postByKey.get(postKeyFromParts(null, String(n.tokenId))) ??
+            null
+          : null;
+        const postImage = typeof post?.image === "string" ? post.image.trim() : "";
+        const postThumbUrl = postImage ? ipfsToHttp(postImage) : "";
 
         return (
           <button
@@ -157,9 +165,8 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
             aria-disabled={isRemovedPost ? true : undefined}
           >
             <div className="listRowLeft">
-              <div className="avatar tiny" style={avatarStyle} aria-hidden="true" />
-              <div className={`notificationActionIcon ${kindClass}`} aria-hidden="true">
-                {kindIcon.icon}
+              <div className="notificationAvatarWrap" aria-hidden="true">
+                <div className="avatar" style={avatarStyle} />
               </div>
               <div style={{ minWidth: 0 }}>
                 <div className="profileName" title={displayName}>
@@ -176,25 +183,16 @@ export function NotificationsList({ items, lastSeenTs, chainId, onSelect }: Prop
                   )}{" "}
                   {actionText}
                 </div>
-                <div className="profileMeta notificationMeta">
-                  {metaPills.length > 0 ? (
-                    <div className="notificationPills">
-                      {metaPills.map((pill) => (
-                        <span key={pill.label} className="pill notificationPill">
-                          {pill.icon ? <span className="pillIcon">{pill.icon}</span> : null}
-                          {pill.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {detailText ? <div className="notificationDetailText">{detailText}</div> : null}
-                </div>
               </div>
             </div>
-            {rowChainId != null ? (
+            {showThumb ? (
               <div className="listRowRight" aria-hidden="true">
-                <span className="chainBrandMark" style={brandStyle}>
-                  <ChainLogo chainId={rowChainId} size={18} />
+                <div
+                  className={`notificationPostThumb ${postThumbUrl ? "" : "isPlaceholder"}`}
+                  style={postThumbUrl ? { backgroundImage: `url(${postThumbUrl})` } : undefined}
+                />
+                <span className={`notificationActionIcon ${kindClass}`} title={kindIcon.label}>
+                  {kindIcon.icon}
                 </span>
               </div>
             ) : null}

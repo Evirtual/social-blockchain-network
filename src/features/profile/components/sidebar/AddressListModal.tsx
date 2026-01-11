@@ -25,7 +25,7 @@ export function AddressListModal(props: AddressListModalProps) {
     ? Array.from({ length: 1 }).map((_, idx) => (
         <div key={`addr-skeleton-${idx}`} className="listRow" aria-hidden="true">
           <span className="listRowLeft">
-            <div className="avatar tiny skeleton" />
+            <div className="avatar skeleton" />
             <span className="value" style={{ display: "inline-flex", alignItems: "center" }}>
               <span className="skeletonLine" style={{ width: "7rem" }} />
             </span>
@@ -58,7 +58,7 @@ export function AddressListModal(props: AddressListModalProps) {
         }).map((row) => (
           <Link key={row.addr} className="listRow" to={`/profile/${row.addr}`} onClick={props.onClose}>
             <span className="listRowLeft">
-              <div className="avatar tiny" style={row.avatarStyle} />
+              <div className="avatar" style={row.avatarStyle} />
               <span className="value">{row.label}</span>
             </span>
           </Link>
