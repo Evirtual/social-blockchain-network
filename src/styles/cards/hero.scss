@@ -9,6 +9,20 @@
   margin-bottom: 1rem;
 }
 
+.hero.isCompact {
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+  padding: 0.875rem;
+}
+
+.hero.isCompact::before {
+  opacity: 0.8;
+}
+
+.hero.isCompact .heroTitle {
+  font-size: 1.05rem;
+}
+
 .heroClose {
   position: absolute;
   top: var(--pad-sm);

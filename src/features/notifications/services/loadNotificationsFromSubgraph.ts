@@ -6,7 +6,7 @@ import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
 import { isPostBurned } from "@shared/lib/burnedPostsCache";
 import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
-const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean }> = {};
+const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean }> = {};
 const CACHE_TTL_MS = 20 * 1000;
 const BURNED_CHECK_LIMIT = 200;
 
@@ -93,30 +93,39 @@ export async function loadNotificationsFromSubgraph(args: {
   first?: number;
   bypassCache?: boolean;
   chainIdStr?: string | null;
-}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean }> {
+}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean }> {
   const first = Math.max(1, Math.min(200, Number(args.first ?? 50)));
   const recipient = String(args.recipient ?? "").trim().toLowerCase();
   const url = String(args.url ?? "").trim();
   const bypassCache = Boolean(args.bypassCache);
   const chainIdStr = typeof args.chainIdStr === "string" ? args.chainIdStr.trim() : "";
 
-  if (!url || !recipient) return { items: [], schemaMismatch: false };
+  if (!url || !recipient) return { items: [], schemaMismatch: false, amountWeiUnsupported: false };
 
   const cacheKey = `socialBlockchainNetwork.notifications.${recipient}.${first}.${url}`;
   if (!bypassCache) {
-    const cached = readLocalCache<{ items?: NotificationItem[]; schemaMismatch?: boolean; ts?: number }>(cacheKey);
+    const cached = readLocalCache<{
+      items?: NotificationItem[];
+      schemaMismatch?: boolean;
+      amountWeiUnsupported?: boolean;
+      ts?: number;
+    }>(cacheKey);
     if (
       Array.isArray(cached?.items) &&
       typeof cached?.ts === "number" &&
       Date.now() - cached.ts < CACHE_TTL_MS
     ) {
-      return { items: filterDeleted(cached.items, chainIdStr), schemaMismatch: Boolean(cached?.schemaMismatch) };
+      return {
+        items: filterDeleted(cached.items, chainIdStr),
+        schemaMismatch: Boolean(cached?.schemaMismatch),
+        amountWeiUnsupported: Boolean(cached?.amountWeiUnsupported)
+      };
     }
   }
 
   const inFlightKey = bypassCache ? `${cacheKey}.fresh` : cacheKey;
   return await runInFlight(inFlight, inFlightKey, async () => {
-    const query = `
+    const queryWithAmountWei = `
       query Notifications($first: Int!, $recipient: ID!) {
         notifications(
           first: $first,
@@ -139,21 +148,57 @@ export async function loadNotificationsFromSubgraph(args: {
       }
     `;
 
-    let data: { notifications: SubgraphNotificationRow[] };
-    try {
-      data = await querySubgraph<{ notifications: SubgraphNotificationRow[] }>({
+    // Legacy subgraphs may not have Notification.amountWei yet.
+    // Retain compatibility by retrying with a query that omits the field.
+    const queryWithoutAmountWei = `
+      query Notifications($first: Int!, $recipient: ID!) {
+        notifications(
+          first: $first,
+          orderBy: timestamp,
+          orderDirection: desc,
+          where: { recipient: $recipient }
+        ) {
+          id
+          kind
+          tokenId
+          commentId
+          timestamp
+          actor {
+            id
+            name
+            avatar
+          }
+        }
+      }
+    `;
+
+    const runQuery = async (query: string) =>
+      await querySubgraph<{ notifications: SubgraphNotificationRow[] }>({
         url,
         query,
         variables: { first, recipient } satisfies SubgraphVariables,
         timeoutMs: 8_000
       });
+
+    let data: { notifications: SubgraphNotificationRow[] };
+    let schemaMismatch = false;
+    let amountWeiUnsupported = false;
+    try {
+      data = await runQuery(queryWithAmountWei);
     } catch (err) {
-      if (isLikelySubgraphSchemaMismatch(err)) {
-        const res = { items: [], schemaMismatch: true };
-        writeLocalCache(cacheKey, { ...res, ts: Date.now() });
-        return res;
+      if (!isLikelySubgraphSchemaMismatch(err)) throw err;
+      // Likely older subgraph: Notification.amountWei doesn't exist yet.
+      amountWeiUnsupported = true;
+      try {
+        data = await runQuery(queryWithoutAmountWei);
+      } catch (err2) {
+        if (isLikelySubgraphSchemaMismatch(err2)) {
+          const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true };
+          writeLocalCache(cacheKey, { ...res, ts: Date.now() });
+          return res;
+        }
+        throw err2;
       }
-      throw err;
     }
 
     const rows = Array.isArray(data?.notifications) ? data.notifications : [];
@@ -187,7 +232,7 @@ export async function loadNotificationsFromSubgraph(args: {
       filtered = filtered.filter((n) => n.kind === "POST_REMOVED_BY_ADMIN" || !burnedFromSubgraph.has(n.tokenId));
     }
 
-    const res = { items: filtered, schemaMismatch: false };
+    const res = { items: filtered, schemaMismatch, amountWeiUnsupported };
     writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });

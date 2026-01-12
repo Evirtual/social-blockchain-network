@@ -45,7 +45,7 @@ export function NotificationsHistoryPage() {
 
   useTopbarCenter(topbarCenter);
 
-  const { items, loading, schemaMismatch, error, subgraphUrl } = useNotifications({
+  const { items, loading, schemaMismatch, amountWeiUnsupported, error, subgraphUrl } = useNotifications({
     open: true,
     walletAddress: wallet.walletAddress,
     chainId: wallet.chainId,
@@ -59,6 +59,20 @@ export function NotificationsHistoryPage() {
   }, [wallet.chainId, wallet.walletAddress]);
 
   const body = useMemo(() => {
+    const compatNote = amountWeiUnsupported ? (
+      <section className="card hero isCompact notificationsCompatHero">
+        <div className="heroSub muted">You're using an older subgraph version. Some notifications may be incomplete.</div>
+        <div className="heroBullets" role="list">
+          <div className="pill" role="listitem">
+            Tip amounts
+          </div>
+          <div className="pill" role="listitem">
+            Newer notification types
+          </div>
+        </div>
+      </section>
+    ) : null;
+
     if (!wallet.walletAddress) return <div className="muted">Connect your wallet to view notifications.</div>;
 
     if (!subgraphUrl) return <div className="muted">No subgraph is configured for this network.</div>;
@@ -68,44 +82,61 @@ export function NotificationsHistoryPage() {
     }
 
     if (error) {
-      return <div className="muted">Failed to load notifications: {error}</div>;
+      return (
+        <>
+          {compatNote}
+          <div className="muted">Failed to load notifications: {error}</div>
+        </>
+      );
     }
 
     if (loading) {
       return (
-        <div className="list" aria-busy="true">
-          <div className="listRow" aria-hidden="true">
-            <span className="listRowLeft">
-              <div className="avatar skeleton" />
-              <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                <span className="skeletonLine" style={{ width: "13rem", height: "1rem" }} />
-                <span className="skeletonLine" style={{ width: "10rem", height: "0.9rem" }} />
+        <>
+          {compatNote}
+          <div className="list" aria-busy="true">
+            <div className="listRow" aria-hidden="true">
+              <span className="listRowLeft">
+                <div className="avatar skeleton" />
+                <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                  <span className="skeletonLine" style={{ width: "13rem", height: "1rem" }} />
+                  <span className="skeletonLine" style={{ width: "10rem", height: "0.9rem" }} />
+                </span>
               </span>
-            </span>
+            </div>
           </div>
-        </div>
+        </>
       );
     }
 
     if (!items.length) {
-      return <div className="muted">No notifications yet.</div>;
+      return (
+        <>
+          {compatNote}
+          <div className="muted">No notifications yet.</div>
+        </>
+      );
     }
 
     return (
-      <NotificationsList
-        items={items}
-        lastSeenTs={lastSeenTs}
-        chainId={wallet.chainId}
-        onSelect={(_notification, to) => {
-          navigate(to, { state: { chainId: wallet.chainId } });
-        }}
-      />
+      <>
+        {compatNote}
+        <NotificationsList
+          items={items}
+          lastSeenTs={lastSeenTs}
+          chainId={wallet.chainId}
+          onSelect={(_notification, to) => {
+            navigate(to, { state: { chainId: wallet.chainId } });
+          }}
+        />
+      </>
     );
   }, [
     wallet.walletAddress,
     wallet.chainId,
     subgraphUrl,
     schemaMismatch,
+    amountWeiUnsupported,
     error,
     loading,
     items,
