@@ -6,6 +6,7 @@ import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { parseChainIdNumber } from "@shared/lib/chainId";
+import { compressAvatarForIpfs } from "@shared/lib/avatarCompression";
 import { parseProfileTuple } from "./profilesState/parseProfileTuple";
 import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
 import { resetProfileUiState } from "./profilesState/resetProfileUiState";
@@ -323,6 +324,24 @@ export function useProfilesState({
         try {
           const res = await fetch(avatar);
           const blob = await res.blob();
+          if (blob.type.startsWith("image/")) {
+            const fallbackName = "avatar";
+            const synthetic = new File([blob], fallbackName, { type: blob.type });
+            const compressed = await compressAvatarForIpfs({ file: synthetic, maxDim: 512, quality: 0.9 });
+            if (compressed.ok) {
+              avatar = await resolveAvatarForSave({
+                ipfsConfigured,
+                account: walletAddress,
+                chainId,
+                uploadedAvatarBlob: compressed.blob,
+                uploadedAvatarFilename: compressed.filename,
+                draftAvatarDataUrl: avatar
+              });
+              newAvatarCid = extractIpfsCid(avatar);
+              return;
+            }
+          }
+
           avatar = await resolveAvatarForSave({
             ipfsConfigured,
             account: walletAddress,

@@ -368,7 +368,7 @@ export function handlePosterAllowedBy(event: PosterAllowedBy): void {
     createAccountNotification(
       "POSTER_APPROVED",
       event.params.account,
-      event.params.account,
+      event.params.actor,
       event.transaction.hash,
       event.logIndex,
       event.block.number,
@@ -380,7 +380,7 @@ export function handlePosterAllowedBy(event: PosterAllowedBy): void {
   createAccountNotification(
     "POSTER_DISAPPROVED",
     event.params.account,
-    event.params.account,
+    event.params.actor,
     event.transaction.hash,
     event.logIndex,
     event.block.number,

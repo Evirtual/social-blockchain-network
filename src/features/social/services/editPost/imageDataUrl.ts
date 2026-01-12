@@ -2,7 +2,9 @@ import type { Draft } from "@types";
 import { createMetadataUri } from "@features/metadata";
 import {
   IMAGE_COMPRESSION_CANDIDATES,
+  IMAGE_COMPRESSION_CANDIDATES_IPFS,
   MAX_IMAGE_DATA_URL_CHARS,
+  MAX_IMAGE_DATA_URL_CHARS_IPFS,
   MAX_ONCHAIN_TOKEN_URI_CHARS
 } from "@features/post/services/draftConstants";
 
@@ -35,6 +37,8 @@ export async function compressToJpegDataUrl(blob: Blob, quality: number, maxDim:
 
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas not supported");
+    ctx.imageSmoothingEnabled = true;
+    (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, width, height);
 
     return canvas.toDataURL("image/jpeg", quality);
@@ -50,10 +54,13 @@ export async function buildBestImageDataUrl(args: {
 }): Promise<{ ok: true; dataUrl: string } | { ok: false; error: string }> {
   let best: string | null = null;
 
-  for (const c of IMAGE_COMPRESSION_CANDIDATES) {
+  const candidates = args.ipfsConfigured ? IMAGE_COMPRESSION_CANDIDATES_IPFS : IMAGE_COMPRESSION_CANDIDATES;
+  const maxChars = args.ipfsConfigured ? MAX_IMAGE_DATA_URL_CHARS_IPFS : MAX_IMAGE_DATA_URL_CHARS;
+
+  for (const c of candidates) {
     const attempt = await compressToJpegDataUrl(args.file, c.q, c.dim);
 
-    if (attempt.length > MAX_IMAGE_DATA_URL_CHARS) {
+    if (attempt.length > maxChars) {
       best = attempt;
       continue;
     }
@@ -75,7 +82,7 @@ export async function buildBestImageDataUrl(args: {
     break;
   }
 
-  if (!best || best.length > MAX_IMAGE_DATA_URL_CHARS) {
+  if (!best || best.length > maxChars) {
     return { ok: false, error: "Uploaded image is too large. Try a smaller image." };
   }
 

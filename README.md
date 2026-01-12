@@ -122,7 +122,7 @@ The frontend will automatically select the correct address based on the user's c
 To avoid exposing a Pinata JWT in the browser, run the included Cloudflare Worker:
 
 1. Deploy the worker
-   - `cd worker/pinata`
+   - `cd workers/pinata`
    - `wrangler deploy`
 2. Set the secret
    - `wrangler secret put PINATA_JWT`

@@ -123,13 +123,13 @@ export function NotificationsList({ items, lastSeenTs, onSelect }: Props) {
     <div className="list">
       {items.map((n) => {
         const actorId = String(n.actor?.id ?? "");
-        const isSelfApproval = n.kind === "POSTER_APPROVED";
-        const displayName = isSelfApproval
+        const isSelfPosterStatus = n.kind === "POSTER_APPROVED" || n.kind === "POSTER_DISAPPROVED";
+        const displayName = isSelfPosterStatus
           ? "You"
           : String(n.actor?.name ?? "").trim() || (actorId ? shortAddress(actorId) : "Unknown");
         const avatarStyle = getAvatarStyle({
-          avatarUrl: isSelfApproval ? undefined : n.actor?.avatar ?? undefined,
-          hue: stableHueFromSeed(isSelfApproval ? "" : actorId)
+          avatarUrl: isSelfPosterStatus ? undefined : n.actor?.avatar ?? undefined,
+          hue: stableHueFromSeed(isSelfPosterStatus ? "" : actorId)
         });
 
         const commentId = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
@@ -139,8 +139,12 @@ export function NotificationsList({ items, lastSeenTs, onSelect }: Props) {
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
-        const profileLink = !isSelfApproval && actorId ? `/profile/${actorId}` : "";
-        const actionText = isSelfApproval ? "were approved to post" : notificationActionText(n.kind);
+        const profileLink = !isSelfPosterStatus && actorId ? `/profile/${actorId}` : "";
+        const actionText = isSelfPosterStatus
+          ? n.kind === "POSTER_DISAPPROVED"
+            ? "were disapproved to post"
+            : "were approved to post"
+          : notificationActionText(n.kind);
 
         const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;

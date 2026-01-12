@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Draft } from "@types";
+import {
+  IMAGE_COMPRESSION_CANDIDATES,
+  IMAGE_COMPRESSION_CANDIDATES_IPFS,
+  MAX_IMAGE_DATA_URL_CHARS,
+  MAX_IMAGE_DATA_URL_CHARS_IPFS
+} from "@features/post/services/draftConstants";
 
 export function useComposerMedia(params: {
   ipfsConfigured: boolean;
@@ -97,6 +103,8 @@ export function useComposerMedia(params: {
             canvas.height = height;
             const ctx = canvas.getContext("2d");
             if (!ctx) throw new Error("Canvas not supported");
+            ctx.imageSmoothingEnabled = true;
+            (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = "high";
             ctx.drawImage(img, 0, 0, width, height);
 
             return canvas.toDataURL("image/jpeg", quality);
@@ -105,13 +113,8 @@ export function useComposerMedia(params: {
           }
         };
 
-        const maxDataUrlChars = 90_000;
-        const candidates = [
-          { q: 0.78, dim: 640 },
-          { q: 0.7, dim: 512 },
-          { q: 0.62, dim: 512 },
-          { q: 0.55, dim: 420 }
-        ];
+        const maxDataUrlChars = ipfsConfigured ? MAX_IMAGE_DATA_URL_CHARS_IPFS : MAX_IMAGE_DATA_URL_CHARS;
+        const candidates = ipfsConfigured ? IMAGE_COMPRESSION_CANDIDATES_IPFS : IMAGE_COMPRESSION_CANDIDATES;
         let best: string | null = null;
         for (const c of candidates) {
           const attempt = await compressToJpegDataUrl(file, c.q, c.dim);
@@ -120,9 +123,7 @@ export function useComposerMedia(params: {
         }
 
         if (!best || best.length > maxDataUrlChars) {
-          setStatus(
-            "Uploaded image is too large to embed on-chain. Use a smaller image, or paste an image URL (recommended: IPFS/http)."
-          );
+          setStatus(ipfsConfigured ? "Uploaded image is too large. Try a smaller image." : "Uploaded image is too large to embed on-chain. Use a smaller image, or paste an image URL (recommended: IPFS/http)." );
           return;
         }
 

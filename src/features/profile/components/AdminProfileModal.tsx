@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
 import { IconPlus, IconX } from "@shared/components/icons";
+import { compressAvatarForIpfs } from "@shared/lib/avatarCompression";
 
 type InitialDraft = {
   name: string;
@@ -84,24 +85,30 @@ export function AdminProfileModal(props: Props) {
 
     setIsAdminAvatarLoading(true);
     try {
+      // Admin edits always pin to IPFS (Pinata) when available. Compress the avatar upload
+      // to keep it small while maintaining high visual quality.
+      if (file.type.startsWith("image/")) {
+        const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9 });
+        if (compressed.ok) {
+          setAdminAvatarFile(new File([compressed.blob], compressed.filename, { type: compressed.blob.type }));
+          setAdminAvatarFilename(compressed.filename);
+          setAdminAvatarUrl("");
+          setAdminAvatarDataUrl(compressed.dataUrl);
+          return;
+        }
+      }
+
+      // Fallback: keep original bytes.
       setAdminAvatarFile(file);
       setAdminAvatarFilename(file.name || "avatar.png");
-
       const reader = new FileReader();
-      try {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(new Error("Failed to read file."));
-          reader.readAsDataURL(file);
-        });
-
-        setAdminAvatarUrl("");
-        setAdminAvatarDataUrl(dataUrl);
-      } catch {
-        setAdminAvatarFile(null);
-        setAdminAvatarFilename("");
-        setAdminAvatarDataUrl("");
-      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Failed to read file."));
+        reader.readAsDataURL(file);
+      });
+      setAdminAvatarUrl("");
+      setAdminAvatarDataUrl(dataUrl);
     } finally {
       setIsAdminAvatarLoading(false);
     }
