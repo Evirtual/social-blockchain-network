@@ -23,6 +23,8 @@ export function useApprovalActions(args: {
 
   setPosterAllowedByAddress: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setPosterDisapprovedEverByAddress: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  moderatorsByAddress: Record<string, boolean>;
+  setModeratorsByAddress: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 
   runContractTx: RunContractTxLike;
   getReadContract: ReadContractFactory;
@@ -146,11 +148,40 @@ export function useApprovalActions(args: {
     }
   }
 
+  async function toggleModerator(addr: string) {
+    const normalized = addr.trim();
+    if (!isAddress(normalized)) {
+      args.setApprovalsError("Invalid address");
+      return;
+    }
+
+    args.setApprovalsError(null);
+
+    // Resolve current status from contract (preferred), local cache as fallback.
+    let current = !!args.moderatorsByAddress[normalized.toLowerCase()];
+    try {
+      // Try contract read for correctness.
+      const readContract = await args.getReadContract();
+      current = !!((await (readContract as any).isModerator(normalized)) as boolean);
+    } catch {
+      // ignore
+    }
+
+    const nextEnabled = !current;
+    await args.runContractTx(nextEnabled ? "Assign moderator" : "Unassign moderator", async () => {
+      const writeContract = await args.getWriteContract();
+      return (writeContract as any).setModerator(normalized, nextEnabled);
+    });
+
+    args.setModeratorsByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: nextEnabled }));
+  }
+
   return {
     addPendingApproval,
     removePending,
     approvePending,
     disapprovePending,
-    resetAllAndBlock
+    resetAllAndBlock,
+    toggleModerator
   };
 }

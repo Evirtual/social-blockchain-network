@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isAddress } from "ethers";
 
-import { fetchPosterStatuses } from "@shared/lib/posterStatus";
+import { fetchModeratorStatuses, fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
@@ -34,6 +34,7 @@ export function usePosterStatusMaps(args: {
 
   const [posterAllowedByAddress, setPosterAllowedByAddress] = useState<Record<string, boolean>>({});
   const [posterDisapprovedEverByAddress, setPosterDisapprovedEverByAddress] = useState<Record<string, boolean>>({});
+  const [moderatorsByAddress, setModeratorsByAddress] = useState<Record<string, boolean>>({});
   const [isLoadingPosterStatuses, setIsLoadingPosterStatuses] = useState(false);
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export function usePosterStatusMaps(args: {
 
         const readContract = await getReadContractRef.current();
         const checks = await fetchPosterStatuses(readContract, missing);
+        const modChecks = await fetchModeratorStatuses(readContract, missing);
 
         if (cancelled) return;
         setPosterAllowedByAddress((prev) => {
@@ -117,6 +119,12 @@ export function usePosterStatusMaps(args: {
         setPosterDisapprovedEverByAddress((prev) => {
           const next = { ...prev };
           for (const c of checks) next[c.address.toLowerCase()] = c.disapprovedEver;
+          return next;
+        });
+
+        setModeratorsByAddress((prev) => {
+          const next = { ...prev };
+          for (const c of modChecks) next[c.address.toLowerCase()] = c.moderator;
           return next;
         });
       } catch {
@@ -135,8 +143,10 @@ export function usePosterStatusMaps(args: {
   return {
     posterAllowedByAddress,
     posterDisapprovedEverByAddress,
+    moderatorsByAddress,
     setPosterAllowedByAddress,
     setPosterDisapprovedEverByAddress,
+    setModeratorsByAddress,
     isLoadingPosterStatuses
   };
 }

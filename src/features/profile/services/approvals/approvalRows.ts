@@ -5,12 +5,14 @@ export type ApprovalRowData = {
   key: string;
   isFlagged: boolean;
   isAllowed: boolean;
+  isModerator: boolean;
 };
 
 export function buildApprovalRows(args: {
   addresses: string[];
   posterAllowedByAddress: Record<string, boolean | undefined>;
   posterDisapprovedEverByAddress: Record<string, boolean | undefined>;
+  moderatorsByAddress?: Record<string, boolean | undefined>;
   excludeAddress?: string | null;
 }): ApprovalRowData[] {
   const exclude = normalizeAddress(args.excludeAddress);
@@ -22,7 +24,8 @@ export function buildApprovalRows(args: {
         addr,
         key,
         isFlagged: !!args.posterDisapprovedEverByAddress[key],
-        isAllowed: !!args.posterAllowedByAddress[key]
+        isAllowed: !!args.posterAllowedByAddress[key],
+        isModerator: !!args.moderatorsByAddress?.[key]
       };
     });
 }

@@ -30,9 +30,10 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const [pendingApprovals, setPendingApprovals] = useState<string[]>([]);
   const [pendingInput, setPendingInput] = useState("");
   const [approvalsError, setApprovalsError] = useState<string | null>(null);
-  const [actionInFlight, setActionInFlight] = useState<{ addr: string; action: "approve" | "disapprove" | "reset" } | null>(
-    null
-  );
+  const [actionInFlight, setActionInFlight] = useState<{
+    addr: string;
+    action: "approve" | "disapprove" | "reset" | "moderator";
+  } | null>(null);
 
   useEffect(() => {
     if (!props.open) return;
@@ -52,8 +53,10 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
   const {
     posterAllowedByAddress,
     posterDisapprovedEverByAddress,
+    moderatorsByAddress,
     setPosterAllowedByAddress,
     setPosterDisapprovedEverByAddress,
+    setModeratorsByAddress,
     isLoadingPosterStatuses
   } = usePosterStatusMaps({
     open: props.open,
@@ -64,13 +67,15 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     chainId: wallet.chainId
   });
 
-  const { addPendingApproval, removePending, approvePending, disapprovePending, resetAllAndBlock } = useApprovalActions({
+  const { addPendingApproval, removePending, approvePending, disapprovePending, resetAllAndBlock, toggleModerator } = useApprovalActions({
     pendingApprovals,
     setPendingApprovals,
     setApprovalsError,
     setPendingInput,
     setPosterAllowedByAddress,
     setPosterDisapprovedEverByAddress,
+    moderatorsByAddress,
+    setModeratorsByAddress,
     runContractTx,
     getReadContract: contractActions.getReadContract,
     getWriteContract: contractActions.getWriteContract,
@@ -81,18 +86,20 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     return buildApprovalRows({
       addresses: pendingApprovals,
       posterAllowedByAddress,
-      posterDisapprovedEverByAddress
+      posterDisapprovedEverByAddress,
+      moderatorsByAddress
     });
-  }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress]);
+  }, [pendingApprovals, posterDisapprovedEverByAddress, posterAllowedByAddress, moderatorsByAddress]);
 
   const chainRows = useMemo<ApprovalRow[]>(() => {
     return buildApprovalRows({
       addresses: onChainRequests,
       posterAllowedByAddress,
       posterDisapprovedEverByAddress,
+      moderatorsByAddress,
       excludeAddress: ownerAddress
     });
-  }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress, ownerAddress]);
+  }, [onChainRequests, posterDisapprovedEverByAddress, posterAllowedByAddress, moderatorsByAddress, ownerAddress]);
 
   const handleRemove = useCallback(
     (addr: string) => {
@@ -140,6 +147,19 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     [resetAllAndBlock, actionInFlight]
   );
 
+  const handleToggleModerator = useCallback(
+    async (addr: string) => {
+      if (actionInFlight) return;
+      setActionInFlight({ addr, action: "moderator" });
+      try {
+        await toggleModerator(addr);
+      } finally {
+        setActionInFlight(null);
+      }
+    },
+    [toggleModerator, actionInFlight]
+  );
+
   return (
     <Modal open={props.open} title="Approvals" headerLeading={props.headerLeading} onClose={props.onClose}>
       <div className="composer approvalsModal">
@@ -158,6 +178,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
           onApprove={handleApprove}
           onDisapprove={handleDisapprove}
           onReset={handleReset}
+          onToggleModerator={handleToggleModerator}
         />
 
         <ChainRequestsSection
@@ -171,6 +192,7 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
           onApprove={handleApprove}
           onDisapprove={handleDisapprove}
           onReset={handleReset}
+          onToggleModerator={handleToggleModerator}
         />
       </div>
     </Modal>

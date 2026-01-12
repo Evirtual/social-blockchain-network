@@ -8,10 +8,11 @@ type Props = {
   chainRows: ApprovalRow[];
   shortAddress: (address: string) => string;
   isLoadingPosterStatuses: boolean;
-  actionInFlight: { addr: string; action: "approve" | "disapprove" | "reset" } | null;
+  actionInFlight: { addr: string; action: "approve" | "disapprove" | "reset" | "moderator" } | null;
   onApprove: (addr: string) => void;
   onDisapprove: (addr: string) => void;
   onReset: (addr: string) => void;
+  onToggleModerator: (addr: string) => void;
 };
 
 export function ChainRequestsSection(props: Props) {
@@ -53,11 +54,13 @@ export function ChainRequestsSection(props: Props) {
               shortAddress={props.shortAddress}
               isFlagged={row.isFlagged}
               isAllowed={row.isAllowed}
+              isModerator={row.isModerator}
               isLoading={props.isLoadingPosterStatuses}
               actionInFlight={props.actionInFlight?.addr === row.addr ? props.actionInFlight.action : null}
               onApprove={() => props.onApprove(row.addr)}
               onDisapprove={() => props.onDisapprove(row.addr)}
               onReset={() => props.onReset(row.addr)}
+              onToggleModerator={() => props.onToggleModerator(row.addr)}
             />
           ))}
         </div>

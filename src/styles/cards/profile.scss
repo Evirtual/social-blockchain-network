@@ -264,3 +264,32 @@
   letter-spacing: 0.02rem;
   text-transform: uppercase;
 }
+
+.approvalsModal .approvalRowActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.approvalsModal .approvalRowActionsInline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 40.625rem) {
+  .approvalsModal .approvalRowActions {
+    gap: 0.375rem;
+  }
+
+  .approvalsModal .approvalRowActionsInline {
+    gap: 0.375rem;
+  }
+
+  .approvalsModal .approvalRowActionsInline .iconButton {
+    width: 2.125rem;
+    height: 2.125rem;
+  }
+}

@@ -38,8 +38,12 @@ dataSources:
       eventHandlers:
         - event: PosterAllowed(indexed address,bool)
           handler: handlePosterAllowed
+        - event: PosterAllowedBy(indexed address,indexed address,bool)
+          handler: handlePosterAllowedBy
         - event: PosterApprovalRequested(indexed address)
           handler: handlePosterApprovalRequested
+        - event: PosterApprovalRequestedTo(indexed address,indexed address)
+          handler: handlePosterApprovalRequestedTo
         - event: ProfileUpdated(indexed address,string,string,string)
           handler: handleProfileUpdated
         - event: ProfileModerated(indexed address,indexed address,string,string,string)

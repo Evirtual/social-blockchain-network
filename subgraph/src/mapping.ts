@@ -15,7 +15,9 @@ import {
   PostEditedStatus,
   PostTipped,
   PosterAllowed,
+  PosterAllowedBy,
   PosterApprovalRequested,
+  PosterApprovalRequestedTo,
   ProfileClearedByAdmin,
   ProfileModerated,
   ProfileUpdated,
@@ -53,6 +55,7 @@ import {
 
 const GLOBAL_STATS_ID = "global";
 const DATA_URI_PREFIX = "data:application/json;base64,";
+const ACCOUNT_LEVEL_TOKEN_ID = "0";
 
 function getOrCreateGlobalStats(): GlobalStats {
   let s = GlobalStats.load(GLOBAL_STATS_ID);
@@ -151,6 +154,39 @@ function getFollowEdgeId(follower: Address, followee: Address): string {
 
 function getLogId(txHashHex: string, logIndex: BigInt): string {
   return txHashHex + "-" + logIndex.toString();
+}
+
+function createAccountNotification(
+  kind: string,
+  recipientAddress: Address,
+  actorAddress: Address,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (recipientAddress.equals(Address.zero())) return;
+  if (actorAddress.equals(Address.zero())) return;
+  if (recipientAddress.equals(actorAddress)) return;
+
+  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  const id = getLogId(txHash.toHexString(), logIndex);
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = ACCOUNT_LEVEL_TOKEN_ID;
+  n.commentId = null;
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
 }
 
 function maybeCreatePostNotification(
@@ -326,10 +362,48 @@ export function handlePosterAllowed(event: PosterAllowed): void {
   a.save();
 }
 
+export function handlePosterAllowedBy(event: PosterAllowedBy): void {
+  // Notifications for the affected account. Do not show who approved; treat it as self-notification.
+  if (event.params.allowed) {
+    createAccountNotification(
+      "POSTER_APPROVED",
+      event.params.account,
+      event.params.account,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
+    return;
+  }
+
+  createAccountNotification(
+    "POSTER_DISAPPROVED",
+    event.params.account,
+    event.params.account,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
+}
+
 export function handlePosterApprovalRequested(event: PosterApprovalRequested): void {
   const a = getOrCreateAccount(event.params.account, event.block.number, event.block.timestamp);
   a.posterRequested = true;
   a.save();
+}
+
+export function handlePosterApprovalRequestedTo(event: PosterApprovalRequestedTo): void {
+  createAccountNotification(
+    "POSTER_APPROVAL_REQUESTED",
+    event.params.recipient,
+    event.params.account,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleProfileUpdated(event: ProfileUpdated): void {
@@ -382,6 +456,16 @@ export function handleFollowed(event: Followed): void {
   follower.save();
   followee.save();
   edge.save();
+
+  createAccountNotification(
+    "FOLLOWED",
+    event.params.followee,
+    event.params.follower,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleUnfollowed(event: Unfollowed): void {
@@ -414,6 +498,16 @@ export function handleUnfollowed(event: Unfollowed): void {
   follower.save();
   followee.save();
   edge.save();
+
+  createAccountNotification(
+    "UNFOLLOWED",
+    event.params.followee,
+    event.params.follower,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostMinted(event: PostMinted): void {

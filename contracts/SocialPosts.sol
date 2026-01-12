@@ -59,13 +59,21 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(address => bool) private _posterAllowed;
 
+    mapping(address => bool) private _moderators;
+
+    address[] private _moderatorList;
+    mapping(address => uint256) private _moderatorIndexPlusOne;
+
     mapping(address => bool) private _posterRequested;
 
     mapping(address => bool) private _posterDisapprovedEver;
 
     event PostMinted(address indexed author, uint256 indexed tokenId, string title, string body, string tokenURI);
     event PosterAllowed(address indexed account, bool allowed);
+    event PosterAllowedBy(address indexed actor, address indexed account, bool allowed);
+    event ModeratorSet(address indexed admin, address indexed account, bool enabled);
     event PosterApprovalRequested(address indexed account);
+    event PosterApprovalRequestedTo(address indexed recipient, address indexed account);
     event ProfileUpdated(address indexed account, string name, string bio, string avatar);
     event ProfileModerated(address indexed admin, address indexed account, string name, string bio, string avatar);
     event ProfileClearedByAdmin(address indexed admin, address indexed account);
@@ -121,13 +129,70 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit PosterAllowed(msg.sender, true);
     }
 
+    modifier onlyAdminOrModerator() {
+        require(msg.sender == owner() || _moderators[msg.sender], "Only admin or moderator");
+        _;
+    }
+
+    function _requireModeratorCanActOnAccount(address account) internal view {
+        if (msg.sender == owner()) return;
+        // Moderators must never be able to take admin actions against the owner/admin.
+        require(account != owner(), "Cannot moderate owner");
+    }
+
+    function _requireModeratorCanActOnToken(uint256 tokenId) internal view {
+        if (msg.sender == owner()) return;
+        address author = _author[tokenId];
+        require(author != owner(), "Cannot moderate owner");
+    }
+
     modifier onlyAllowedPoster() {
         require(msg.sender == owner() || _posterAllowed[msg.sender], "Poster not allowed");
         _;
     }
 
-    function setPosterAllowed(address account, bool allowed) external onlyOwner {
+    function setModerator(address account, bool enabled) external onlyOwner {
         require(account != address(0), "Invalid account");
+        require(account != owner(), "Owner cannot be moderator");
+
+        bool current = _moderators[account];
+        if (enabled) {
+            if (!current) {
+                _moderators[account] = true;
+                _moderatorList.push(account);
+                _moderatorIndexPlusOne[account] = _moderatorList.length;
+            }
+        } else {
+            if (current) {
+                _moderators[account] = false;
+                uint256 idxPlusOne = _moderatorIndexPlusOne[account];
+                if (idxPlusOne != 0) {
+                    uint256 idx = idxPlusOne - 1;
+                    uint256 lastIdx = _moderatorList.length - 1;
+                    if (idx != lastIdx) {
+                        address moved = _moderatorList[lastIdx];
+                        _moderatorList[idx] = moved;
+                        _moderatorIndexPlusOne[moved] = idx + 1;
+                    }
+                    _moderatorList.pop();
+                    _moderatorIndexPlusOne[account] = 0;
+                }
+            }
+        }
+        emit ModeratorSet(msg.sender, account, enabled);
+    }
+
+    function isModerator(address account) external view returns (bool) {
+        return _moderators[account];
+    }
+
+    function getModerators() external view returns (address[] memory) {
+        return _moderatorList;
+    }
+
+    function setPosterAllowed(address account, bool allowed) external onlyAdminOrModerator {
+        require(account != address(0), "Invalid account");
+        _requireModeratorCanActOnAccount(account);
         _posterAllowed[account] = allowed;
         if (allowed) {
             _posterRequested[account] = false;
@@ -135,6 +200,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
             _posterDisapprovedEver[account] = true;
         }
         emit PosterAllowed(account, allowed);
+        emit PosterAllowedBy(msg.sender, account, allowed);
     }
 
     function isPosterAllowed(address account) external view returns (bool) {
@@ -157,6 +223,14 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
         _posterRequested[msg.sender] = true;
         emit PosterApprovalRequested(msg.sender);
+
+        // Emit a per-recipient event so indexers can create notifications without any contract calls.
+        emit PosterApprovalRequestedTo(owner(), msg.sender);
+        for (uint256 i = 0; i < _moderatorList.length; i++) {
+            address recipient = _moderatorList[i];
+            if (recipient == msg.sender) continue;
+            emit PosterApprovalRequestedTo(recipient, msg.sender);
+        }
     }
 
     function setProfile(string calldata name, string calldata bio, string calldata avatar) external onlyAllowedPoster {
@@ -168,8 +242,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit ProfileUpdated(msg.sender, name, bio, avatar);
     }
 
-    function adminSetProfile(address account, string calldata name, string calldata bio, string calldata avatar) external onlyOwner {
+    function adminSetProfile(address account, string calldata name, string calldata bio, string calldata avatar) external onlyAdminOrModerator {
         require(account != address(0), "Invalid account");
+        _requireModeratorCanActOnAccount(account);
         require(bytes(name).length <= MAX_NAME_LENGTH, "Name too long");
         require(bytes(bio).length <= MAX_BIO_LENGTH, "Bio too long");
         require(bytes(avatar).length <= MAX_AVATAR_LENGTH, "Avatar too long");
@@ -179,8 +254,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit ProfileModerated(msg.sender, account, name, bio, avatar);
     }
 
-    function adminClearProfile(address account) external onlyOwner {
+    function adminClearProfile(address account) external onlyAdminOrModerator {
         require(account != address(0), "Invalid account");
+        _requireModeratorCanActOnAccount(account);
 
         delete _profiles[account];
         emit ProfileUpdated(account, "", "", "");
@@ -189,14 +265,16 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     // Admin multicall: block poster, clear profile, and burn selected posts.
     // This is intended to reduce moderation/reset flows to a single transaction.
-    function adminResetAccount(address account, uint256[] calldata tokenIds) external onlyOwner {
+    function adminResetAccount(address account, uint256[] calldata tokenIds) external onlyAdminOrModerator {
         require(account != address(0), "Invalid account");
+        _requireModeratorCanActOnAccount(account);
 
         // Block poster (mirrors setPosterAllowed(account, false) side effects).
         _posterAllowed[account] = false;
         _posterRequested[account] = false;
         _posterDisapprovedEver[account] = true;
         emit PosterAllowed(account, false);
+        emit PosterAllowedBy(msg.sender, account, false);
 
         // Clear profile.
         delete _profiles[account];
@@ -277,8 +355,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         string calldata tokenUri,
         string calldata title,
         string calldata body
-    ) external onlyOwner {
+    ) external onlyAdminOrModerator {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        _requireModeratorCanActOnToken(tokenId);
         address author = _author[tokenId];
         require(bytes(title).length <= MAX_POST_TITLE_LENGTH, "Title too long");
         require(bytes(body).length <= MAX_POST_BODY_LENGTH, "Body too long");
@@ -325,8 +404,9 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit PostBurned(msg.sender, tokenId);
     }
 
-    function adminBurnPost(uint256 tokenId) external onlyOwner {
+    function adminBurnPost(uint256 tokenId) external onlyAdminOrModerator {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        _requireModeratorCanActOnToken(tokenId);
         address author = _author[tokenId];
 
         _burn(tokenId);
