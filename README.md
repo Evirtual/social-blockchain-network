@@ -2,10 +2,20 @@
 
 A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
 
+Repo structure:
+
+- Repo root: frontend (Vite)
+- [contracts/](contracts/): Hardhat project (contract, tests, deploy scripts)
+- [subgraph/](subgraph/): The Graph subgraph
+
 ## Local development
 
 1. Install deps
    - `npm install`
+
+   Install contract deps:
+
+   - `npm run install:contracts`
 
 2. Start a local chain
    - `npm run chain`
@@ -61,10 +71,10 @@ GitHub Pages (or any static host) can host the frontend, but the contract must b
 
 ### 1) Configure deploy environment
 
-- Copy `.env.hardhat.example` to `.env.hardhat` (for Hardhat)
+- Copy `contracts/.env.example` to `contracts/.env` (for Hardhat)
 - Copy `.env.example` to `.env.local` (for Vite) if you want to run the frontend locally
 
-Set at minimum (in `.env.hardhat`):
+Set at minimum (in `contracts/.env`):
 
 - `DEPLOYER_PRIVATE_KEY` (no `0x` prefix)
 - RPC URLs:
@@ -143,7 +153,7 @@ See `.env.example` for the full list. Common ones:
    - `VITE_SUBGRAPH_LOG=true`
    - `VITE_SUBGRAPH_LOG_SUMMARY_EVERY` (default 25)
 
-Tip: use `.env.subgraph.example` as a starter for the per-network subgraph endpoints.
+Tip: use `subgraph/.env.example` as a starter for the per-network subgraph endpoints.
 - Optional IPFS gateway override:
    - `VITE_IPFS_GATEWAY` (e.g. `https://gateway.pinata.cloud/ipfs/`)
 - Optional Pinata worker (recommended for production uploads):

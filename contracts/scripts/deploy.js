@@ -3,6 +3,8 @@ const { ethers } = hre;
 const fs = require("node:fs");
 const path = require("node:path");
 
+const repoRoot = path.resolve(__dirname, "..", "..");
+
 function upsertEnvVar(existing, key, value) {
   const lines = (existing ?? "").split(/\r?\n/);
   const out = [];
@@ -64,7 +66,7 @@ async function main() {
   // Vite variables (VITE_*) are frontend configuration.
   // Keep them in .env.local for local dev regardless of which chain we deploy to.
   const envFilename = ".env.local";
-  const envPath = path.join(process.cwd(), envFilename);
+  const envPath = path.join(repoRoot, envFilename);
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);
   fs.writeFileSync(envPath, next, { encoding: "utf8" });

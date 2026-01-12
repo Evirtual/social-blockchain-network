@@ -12,11 +12,25 @@ node_modules/
 hardhat-node.pid
 hardhat-node.log
 
+# Hardhat (contracts package)
+/contracts/node_modules/
+/contracts/artifacts/
+/contracts/cache/
+/contracts/typechain-types/
+contracts/.hardhat-node.pid
+contracts/hardhat-node.pid
+contracts/hardhat-node.log
+
 # Env
 .env
 .env.local
 .env.hardhat
 .env.*.local
+
+# Env (contracts package)
+contracts/.env
+contracts/.env.local
+contracts/.env.*.local
 
 # Coverage
 /coverage/

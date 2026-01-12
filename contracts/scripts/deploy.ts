@@ -2,6 +2,8 @@ import hre, { ethers } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+const repoRoot = path.resolve(__dirname, "..", "..");
+
 function upsertEnvVar(existing: string, key: string, value: string) {
   const lines = (existing ?? "").split(/\r?\n/);
   const out: string[] = [];
@@ -46,7 +48,7 @@ async function main() {
   };
 
   const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS_LOCAL";
-  const envPath = path.join(process.cwd(), ".env.local");
+  const envPath = path.join(repoRoot, ".env.local");
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);
   fs.writeFileSync(envPath, next, { encoding: "utf8" });

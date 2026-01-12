@@ -1,5 +1,5 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../tsconfig.json",
   "compilerOptions": {
     "types": ["node", "hardhat", "@nomicfoundation/hardhat-chai-matchers"],
     "module": "NodeNext",
