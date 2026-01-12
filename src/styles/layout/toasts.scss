@@ -4,8 +4,8 @@
 
 .txToasts {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: var(--app-pad);
+  bottom: var(--app-pad);
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -89,6 +89,7 @@ html[data-theme="light"] .txToast {
   grid-template-columns: auto 1fr auto;
   gap: 0.5rem;
   align-items: center;
+  min-height: 2.5rem;
 }
 
 .txToastLabel {
@@ -135,6 +136,7 @@ html[data-theme="light"] .txToast {
 
 /* Tx state pill inside toast should match toast palette (not app palette) */
 .txToast .tx-state {
+  padding: 0.25rem 0.5rem;
   color: var(--toast-text);
   background: color-mix(in srgb, var(--toast-bg) 86%, var(--toast-surface));
   border-color: color-mix(in srgb, var(--toast-border) 75%, var(--toast-text) 10%);

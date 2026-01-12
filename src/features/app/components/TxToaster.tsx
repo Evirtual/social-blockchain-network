@@ -1,5 +1,5 @@
 import { formatTxState, useTxNotifications } from "@features/tx";
-import { IconX } from "@shared/components/icons";
+import { IconExternalLink, IconX } from "@shared/components/icons";
 
 export function TxToaster() {
   const { txNotices, dismiss } = useTxNotifications();
@@ -18,8 +18,15 @@ export function TxToaster() {
               <span className="txToastLabel">{tx.label}</span>
               <span className="txToastRight">
                 {tx.explorerUrl && displayHash ? (
-                  <a className="tx-link" href={tx.explorerUrl} target="_blank" rel="noreferrer">
-                    {tx.hash.slice(0, 6)}…{tx.hash.slice(-4)}
+                  <a
+                    className="tx-link"
+                    href={tx.explorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="View transaction in block explorer"
+                    title="View in explorer"
+                  >
+                    <IconExternalLink size={16} />
                   </a>
                 ) : null}
                 {tx.state === "pending" ? (
