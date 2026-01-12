@@ -37,6 +37,7 @@ export type NotificationItem = {
   tokenId: string;
   chainId?: string | null;
   commentId?: string | null;
+  amountWei?: bigint | null;
   timestamp: number;
   actor: NotificationActor;
 };

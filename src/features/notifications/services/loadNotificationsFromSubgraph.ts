@@ -17,6 +17,18 @@ function toInt(v: string | number | bigint | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function toBigIntSafe(v: string | number | bigint | null | undefined): bigint | null {
+  if (typeof v === "bigint") return v;
+  if (typeof v === "number" && Number.isFinite(v)) return BigInt(Math.trunc(v));
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  try {
+    return BigInt(s);
+  } catch {
+    return null;
+  }
+}
+
 function filterDeleted(items: NotificationItem[], chainIdStr: string): NotificationItem[] {
   if (!chainIdStr) return items;
   return items.filter((n) => {
@@ -66,6 +78,7 @@ type SubgraphNotificationRow = {
   kind?: string;
   tokenId?: string;
   commentId?: string | null;
+  amountWei?: string | null;
   timestamp?: string;
   actor?: {
     id?: string;
@@ -115,6 +128,7 @@ export async function loadNotificationsFromSubgraph(args: {
           kind
           tokenId
           commentId
+          amountWei
           timestamp
           actor {
             id
@@ -152,6 +166,7 @@ export async function loadNotificationsFromSubgraph(args: {
           kind: String(n?.kind ?? ""),
           tokenId: String(n?.tokenId ?? ""),
           commentId: n?.commentId ?? null,
+          amountWei: toBigIntSafe(n?.amountWei),
           chainId: chainIdStr || undefined,
           timestamp: toInt(n?.timestamp),
           actor: {

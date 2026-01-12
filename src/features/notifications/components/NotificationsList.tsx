@@ -1,11 +1,13 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { formatEther } from "ethers";
 import { getAvatarStyle } from "@shared/lib/avatar";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { postKeyFromParts } from "@shared/lib/post";
 import type { Post } from "@types";
 import { useFeedActions, useFeedState } from "@features/feed";
 import { ipfsToHttp } from "@features/ipfs";
+import { getNativeSymbol } from "@shared/lib/network";
 import {
   IconBookmark,
   IconCheck,
@@ -29,6 +31,13 @@ type Props = {
   chainId: string | null;
   onSelect: (notification: NotificationItem, to: string) => void;
 };
+
+function formatAmountWei(amountWei: bigint, nativeSymbol: string): string {
+  if (!amountWei || amountWei === 0n) return `0.00 ${nativeSymbol}`;
+  const raw = formatEther(amountWei);
+  const trimmed = raw.includes(".") ? raw.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1") : raw;
+  return `${trimmed} ${nativeSymbol}`;
+}
 
 function getKindClass(kind: string): string {
   if (kind === "FOLLOWED" || kind === "UNFOLLOWED") return "isFollow";
@@ -91,9 +100,11 @@ function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
   }
 }
 
-export function NotificationsList({ items, lastSeenTs, onSelect }: Props) {
+export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Props) {
   const feedState = useFeedState();
   const feedActions = useFeedActions();
+
+  const nativeSymbol = useMemo(() => getNativeSymbol(chainId), [chainId]);
 
   const tokenIdsForThumbs = useMemo(() => {
     const ids = (items ?? [])
@@ -144,7 +155,13 @@ export function NotificationsList({ items, lastSeenTs, onSelect }: Props) {
           ? n.kind === "POSTER_DISAPPROVED"
             ? "were disapproved to post"
             : "were approved to post"
-          : notificationActionText(n.kind);
+          : (() => {
+              const base = notificationActionText(n.kind);
+              const isTip = n.kind === "POST_TIPPED" || n.kind === "COMMENT_TIPPED";
+              const amountWei = typeof n.amountWei === "bigint" ? n.amountWei : null;
+              if (!isTip || !amountWei) return base;
+              return `${base} (${formatAmountWei(amountWei, nativeSymbol)})`;
+            })();
 
         const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;

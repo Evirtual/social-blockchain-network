@@ -115,6 +115,7 @@ function createModerationNotification(
   n.actor = actor.id;
   n.tokenId = tokenId;
   n.commentId = commentId;
+  n.amountWei = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -131,6 +132,7 @@ function createPostScopedNotification(
   actorAddress: Address,
   tokenId: string,
   commentId: string | null,
+  amountWei: BigInt | null,
   txHash: Bytes,
   logIndex: BigInt,
   blockNumber: BigInt,
@@ -150,6 +152,7 @@ function createPostScopedNotification(
   n.actor = actor.id;
   n.tokenId = tokenId;
   n.commentId = commentId;
+  n.amountWei = amountWei;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -329,6 +332,7 @@ function createAccountNotification(
   n.actor = actor.id;
   n.tokenId = ACCOUNT_LEVEL_TOKEN_ID;
   n.commentId = null;
+  n.amountWei = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -368,6 +372,7 @@ function maybeCreatePostNotification(
   } else {
     n.commentId = null;
   }
+  n.amountWei = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -404,6 +409,7 @@ function maybeCreateCommentNotification(
   n.actor = actor.id;
   n.tokenId = tokenId.toString();
   n.commentId = commentId.toString();
+  n.amountWei = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -1392,6 +1398,7 @@ export function handleCommentTipped(event: CommentTipped): void {
       event.params.tipper,
       tokenId.toString(),
       commentId.toString(),
+      event.params.amountWei,
       event.transaction.hash,
       event.logIndex,
       event.block.number,
@@ -1512,6 +1519,7 @@ export function handlePostTipped(event: PostTipped): void {
       event.params.tipper,
       tokenId.toString(),
       null,
+      event.params.amountWei,
       event.transaction.hash,
       event.logIndex,
       event.block.number,
