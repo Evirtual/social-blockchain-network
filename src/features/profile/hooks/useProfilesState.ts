@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
-import { hasPinata } from "@features/ipfs";
+import { bestEffortUnpinCids, extractIpfsCid, hasPinata } from "@features/ipfs";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -283,6 +283,9 @@ export function useProfilesState({
     try {
       if (!walletAddress) return;
 
+      const prevAvatarUrl = profileAvatarUrl;
+      const prevAvatarCid = extractIpfsCid(prevAvatarUrl);
+
       const name = profileDraftName.trim();
       const bio = profileDraftBio.trim();
       let avatar = profileDraftAvatarUrl.trim();
@@ -335,6 +338,17 @@ export function useProfilesState({
       const writeContract = await getWriteContract();
       await runContractTx("Save profile", () => writeContract.setProfile(name, bio, avatar));
 
+      // Best-effort cleanup: if the user replaced/removed an IPFS avatar, unpin the previous CID.
+      // We only do this after the tx succeeds so we don't delete content that is still referenced.
+      if (ipfsConfigured && prevAvatarCid) {
+        const nextCid = extractIpfsCid(avatar);
+        if (!nextCid || nextCid !== prevAvatarCid) {
+          const protect = new Set<string>();
+          if (nextCid) protect.add(nextCid);
+          await bestEffortUnpinCids([prevAvatarCid], { protectReferencedIn: protect });
+        }
+      }
+
       const key = walletAddress.toLowerCase();
       setProfilesByAddress((prev) => ({ ...prev, [key]: { name, bio, avatarUrl: avatar } }));
       setProfileName(name);
@@ -351,6 +365,7 @@ export function useProfilesState({
     }
   }, [
     walletAddress,
+    profileAvatarUrl,
     profileDraftName,
     profileDraftBio,
     profileDraftAvatarUrl,

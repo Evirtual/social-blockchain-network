@@ -71,6 +71,25 @@ export function ProfileEditModal(props: Props) {
     >
       <div className="composer">
         <input
+          className="file-input file-input-hidden"
+          type="file"
+          name="profileAvatarUpload"
+          id="profileAvatarUpload"
+          accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif"
+          data-has-file="false"
+          ref={fileInputRef}
+          onChange={(event) => {
+            const input = event.currentTarget;
+            const hasFile = (input.files?.length ?? 0) > 0;
+            input.dataset.hasFile = hasFile ? "true" : "false";
+            setHasFileSelected(hasFile);
+            const selected = input.files?.[0] ?? null;
+            void props.onSelectProfileAvatarFile(selected);
+          }}
+          disabled={isBusy}
+        />
+
+        <input
           className="input"
           name="profileDisplayName"
           value={props.profileDraftName}
@@ -87,35 +106,6 @@ export function ProfileEditModal(props: Props) {
           placeholder="Bio"
           disabled={isBusy}
         />
-
-        <div className="row fileRow">
-          <div className="fileInputWrap">
-            <input
-              className="file-input file-input-hidden"
-              type="file"
-              name="profileAvatarUpload"
-              id="profileAvatarUpload"
-              accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif"
-              data-has-file="false"
-              ref={fileInputRef}
-              onChange={(event) => {
-                const input = event.currentTarget;
-                const hasFile = (input.files?.length ?? 0) > 0;
-                input.dataset.hasFile = hasFile ? "true" : "false";
-                setHasFileSelected(hasFile);
-                const selected = input.files?.[0] ?? null;
-                void props.onSelectProfileAvatarFile(selected);
-              }}
-              disabled={isBusy}
-            />
-            {showUpload ? (
-              <label className="btn secondary fileInputButton" htmlFor="profileAvatarUpload">
-                <IconPlus size={16} />
-                Upload avatar
-              </label>
-            ) : null}
-          </div>
-        </div>
 
         {hasAvatarPreview ? (
           <div className="mediaPreview">
@@ -147,7 +137,15 @@ export function ProfileEditModal(props: Props) {
           </div>
         ) : null}
 
-        <div className="rowActions">
+        <div className="rowActions modalFooterInline">
+          {showUpload ? (
+            <label className="btn secondary fileInputButton" htmlFor="profileAvatarUpload">
+              <IconPlus size={16} />
+              Upload avatar
+            </label>
+          ) : (
+            <span />
+          )}
           <button
             className={`primary buttonWithSpinner${!hasChanges ? " notAllowed" : ""}`}
             type="button"

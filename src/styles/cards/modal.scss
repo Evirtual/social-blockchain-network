@@ -48,6 +48,12 @@
   gap: 0.625rem;
 }
 
+.modalBody .rowActions.modalFooterInline {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .notificationsModalFooter {
   padding-top: 1rem;
 }
@@ -131,6 +137,15 @@
   .modalBody .rowActions > * {
     width: 100%;
     justify-content: center;
+  }
+
+  .modalBody .rowActions.modalFooterInline {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .modalBody .rowActions.modalFooterInline > * {
+    width: auto;
   }
 }
 

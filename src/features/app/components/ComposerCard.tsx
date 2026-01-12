@@ -37,6 +37,23 @@ export function ComposerCard({
 
   return (
     <div className="composer">
+      <input
+        className="file-input file-input-hidden"
+        type="file"
+        name="postMediaUpload"
+        id="postMediaUpload"
+        accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg"
+        data-has-file="false"
+        ref={fileInputRef}
+        onChange={(event) => {
+          const input = event.currentTarget;
+          const hasFile = (input.files?.length ?? 0) > 0;
+          input.dataset.hasFile = hasFile ? "true" : "false";
+          setHasFileSelected(hasFile);
+          onSelectFile(input.files?.[0] ?? null);
+        }}
+      />
+
       <textarea
         className="textarea"
         name="postBody"
@@ -48,33 +65,6 @@ export function ComposerCard({
       />
 
       <div className="muted">{draft.body.length}/{MAX_POST_BODY_LENGTH}</div>
-
-      {!hasMedia ? (
-        <div className="row fileRow">
-          <div className="fileInputWrap">
-            <input
-              className="file-input file-input-hidden"
-              type="file"
-              name="postMediaUpload"
-              id="postMediaUpload"
-              accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg"
-              data-has-file="false"
-              ref={fileInputRef}
-              onChange={(event) => {
-                const input = event.currentTarget;
-                const hasFile = (input.files?.length ?? 0) > 0;
-                input.dataset.hasFile = hasFile ? "true" : "false";
-                setHasFileSelected(hasFile);
-                onSelectFile(input.files?.[0] ?? null);
-              }}
-            />
-            <label className="btn secondary fileInputButton" htmlFor="postMediaUpload">
-              <IconPlus size={16} />
-              Add image/video
-            </label>
-          </div>
-        </div>
-      ) : null}
 
       {draft.imageDataUrl.startsWith("data:image/") ? (
         <div className="mediaPreview">
@@ -106,7 +96,15 @@ export function ComposerCard({
         </div>
       ) : null}
 
-      <div className="rowActions">
+      <div className="rowActions modalFooterInline">
+        {!hasMedia ? (
+          <label className="btn secondary fileInputButton" htmlFor="postMediaUpload">
+            <IconPlus size={16} />
+            Add image/video
+          </label>
+        ) : (
+          <span />
+        )}
         <button
           className="primary buttonWithSpinner"
           onClick={onPost}

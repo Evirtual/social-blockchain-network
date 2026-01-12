@@ -70,6 +70,23 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
 
   return (
     <div className="composer">
+      <input
+        className="file-input file-input-hidden"
+        type="file"
+        name="editPostMediaUpload"
+        id={`editPostMediaUpload-${props.tokenId}`}
+        accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg"
+        data-has-file="false"
+        ref={fileInputRef}
+        onChange={(e) => {
+          const input = e.currentTarget;
+          const hasFile = (input.files?.length ?? 0) > 0;
+          input.dataset.hasFile = hasFile ? "true" : "false";
+          setHasFileSelected(hasFile);
+          props.onEditSelectFile(input.files?.[0] ?? null);
+        }}
+      />
+
       <textarea
         className="textarea"
         name="editPostBody"
@@ -86,32 +103,6 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
       <div className="muted">
         {(props.editDraft?.body ?? "").length}/{MAX_POST_BODY_LENGTH}
       </div>
-      {!hasMedia ? (
-        <div className="row fileRow">
-          <div className="fileInputWrap">
-            <input
-              className="file-input file-input-hidden"
-              type="file"
-              name="editPostMediaUpload"
-              id={`editPostMediaUpload-${props.tokenId}`}
-              accept="image/heic,image/heif,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg"
-              data-has-file="false"
-              ref={fileInputRef}
-              onChange={(e) => {
-                const input = e.currentTarget;
-                const hasFile = (input.files?.length ?? 0) > 0;
-                input.dataset.hasFile = hasFile ? "true" : "false";
-                setHasFileSelected(hasFile);
-                props.onEditSelectFile(input.files?.[0] ?? null);
-              }}
-            />
-            <label className="btn secondary fileInputButton" htmlFor={`editPostMediaUpload-${props.tokenId}`}>
-              <IconPlus size={16} />
-              Add image/video
-            </label>
-          </div>
-        </div>
-      ) : null}
 
       {props.editDraft?.imageDataUrl?.startsWith("data:image/") ? (
         <div className="mediaPreview">
@@ -158,7 +149,15 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         </div>
       ) : null}
 
-      <div className="rowActions editPostActions">
+      <div className="rowActions editPostActions modalFooterInline">
+        {!hasMedia ? (
+          <label className="btn secondary fileInputButton" htmlFor={`editPostMediaUpload-${props.tokenId}`}>
+            <IconPlus size={16} />
+            Add image/video
+          </label>
+        ) : (
+          <span />
+        )}
         <button
           className="primary buttonWithSpinner"
           type="button"
