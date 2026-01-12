@@ -20,6 +20,7 @@ dataSources:
         - Post
         - Account
         - GlobalStats
+        - ProtocolConfig
         - FollowEdge
         - LikeEdge
         - SaveEdge
@@ -36,6 +37,10 @@ dataSources:
         - name: SocialPosts
           file: ./abis/SocialPosts.json
       eventHandlers:
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: ModeratorSet(indexed address,indexed address,bool)
+          handler: handleModeratorSet
         - event: PosterAllowed(indexed address,bool)
           handler: handlePosterAllowed
         - event: PosterAllowedBy(indexed address,indexed address,bool)

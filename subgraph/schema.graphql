@@ -73,6 +73,18 @@ type GlobalStats @entity(immutable: false) {
   totalCommentReports: BigInt!
 }
 
+# Stores the current moderation recipients as indexed on-chain.
+# Used by mapping handlers to fan out moderation notifications.
+type ProtocolConfig @entity(immutable: false) {
+  id: ID!
+
+  # Ownable.owner() (tracked via OwnershipTransferred)
+  admin: Bytes!
+
+  # Accounts flagged via ModeratorSet events
+  moderators: [Bytes!]!
+}
+
 type FollowEdge @entity(immutable: false) {
   id: ID!
 

@@ -32,7 +32,9 @@ import {
   CommentUnsaved,
   CommentTipped,
   PostReported,
-  CommentReported
+  CommentReported,
+  ModeratorSet,
+  OwnershipTransferred
 } from "../generated/SocialPosts/SocialPosts";
 
 import {
@@ -50,12 +52,125 @@ import {
   SaveEdge,
   Tip,
   Withdrawal,
-  GlobalStats
+  GlobalStats,
+  ProtocolConfig
 } from "../generated/schema";
 
 const GLOBAL_STATS_ID = "global";
+const PROTOCOL_CONFIG_ID = "protocol";
 const DATA_URI_PREFIX = "data:application/json;base64,";
 const ACCOUNT_LEVEL_TOKEN_ID = "0";
+
+function getOrCreateProtocolConfig(): ProtocolConfig {
+  let c = ProtocolConfig.load(PROTOCOL_CONFIG_ID);
+  if (c == null) {
+    c = new ProtocolConfig(PROTOCOL_CONFIG_ID);
+    c.admin = Address.zero();
+    c.moderators = [];
+  }
+  return c as ProtocolConfig;
+}
+
+function addModerator(config: ProtocolConfig, account: Address): void {
+  const list = config.moderators;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].equals(account)) return;
+  }
+  list.push(account);
+  config.moderators = list;
+}
+
+function removeModerator(config: ProtocolConfig, account: Address): void {
+  const list = config.moderators;
+  const next: Bytes[] = [];
+  for (let i = 0; i < list.length; i++) {
+    if (!list[i].equals(account)) next.push(list[i]);
+  }
+  config.moderators = next;
+}
+
+function createModerationNotification(
+  kind: string,
+  recipientAddress: Address,
+  actorAddress: Address,
+  tokenId: string,
+  commentId: string | null,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (recipientAddress.equals(Address.zero())) return;
+  if (actorAddress.equals(Address.zero())) return;
+  if (recipientAddress.equals(actorAddress)) return;
+
+  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  // Multiple recipients can be notified from the same log; include recipient in the ID.
+  const id = getLogId(txHash.toHexString(), logIndex) + "-" + recipientAddress.toHexString();
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = tokenId;
+  n.commentId = commentId;
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
+}
+
+function notifyModeratorsAndAdmin(
+  kind: string,
+  reporter: Address,
+  tokenId: string,
+  commentId: string | null,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  const config = getOrCreateProtocolConfig();
+
+  const admin = Address.fromBytes(config.admin);
+  if (!admin.equals(Address.zero())) {
+    createModerationNotification(
+      kind,
+      admin,
+      reporter,
+      tokenId,
+      commentId,
+      txHash,
+      logIndex,
+      blockNumber,
+      timestamp
+    );
+  }
+
+  const moderators = config.moderators;
+  for (let i = 0; i < moderators.length; i++) {
+    const mod = Address.fromBytes(moderators[i]);
+    if (mod.equals(Address.zero())) continue;
+    if (mod.equals(admin)) continue;
+
+    createModerationNotification(
+      kind,
+      mod,
+      reporter,
+      tokenId,
+      commentId,
+      txHash,
+      logIndex,
+      blockNumber,
+      timestamp
+    );
+  }
+}
 
 function getOrCreateGlobalStats(): GlobalStats {
   let s = GlobalStats.load(GLOBAL_STATS_ID);
@@ -360,6 +475,24 @@ export function handlePosterAllowed(event: PosterAllowed): void {
   }
 
   a.save();
+}
+
+export function handleOwnershipTransferred(event: OwnershipTransferred): void {
+  const config = getOrCreateProtocolConfig();
+  config.admin = event.params.newOwner;
+  config.save();
+}
+
+export function handleModeratorSet(event: ModeratorSet): void {
+  const config = getOrCreateProtocolConfig();
+
+  if (event.params.enabled) {
+    addModerator(config, event.params.account);
+  } else {
+    removeModerator(config, event.params.account);
+  }
+
+  config.save();
 }
 
 export function handlePosterAllowedBy(event: PosterAllowedBy): void {
@@ -1174,6 +1307,17 @@ export function handlePostReported(event: PostReported): void {
 
   reporter.save();
   r.save();
+
+  notifyModeratorsAndAdmin(
+    "POST_REPORTED",
+    event.params.reporter,
+    tokenId.toString(),
+    null,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleCommentReported(event: CommentReported): void {
@@ -1201,6 +1345,17 @@ export function handleCommentReported(event: CommentReported): void {
 
   reporter.save();
   r.save();
+
+  notifyModeratorsAndAdmin(
+    "COMMENT_REPORTED",
+    event.params.reporter,
+    tokenId.toString(),
+    commentId.toString(),
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostTipped(event: PostTipped): void {
