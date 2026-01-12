@@ -125,6 +125,41 @@ function createModerationNotification(
   actor.save();
 }
 
+function createPostScopedNotification(
+  kind: string,
+  recipientAddress: Address,
+  actorAddress: Address,
+  tokenId: string,
+  commentId: string | null,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (recipientAddress.equals(Address.zero())) return;
+  if (actorAddress.equals(Address.zero())) return;
+  if (recipientAddress.equals(actorAddress)) return;
+
+  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  const id = getLogId(txHash.toHexString(), logIndex);
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = tokenId;
+  n.commentId = commentId;
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
+}
+
 function notifyModeratorsAndAdmin(
   kind: string,
   reporter: Address,
@@ -1274,6 +1309,18 @@ export function handleCommentTipped(event: CommentTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalCommentTipsWei = stats.totalCommentTipsWei.plus(event.params.amountWei);
     stats.save();
+
+    createPostScopedNotification(
+      "COMMENT_TIPPED",
+      event.params.author,
+      event.params.tipper,
+      tokenId.toString(),
+      commentId.toString(),
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   p.updatedAtBlock = event.block.number;
@@ -1382,6 +1429,18 @@ export function handlePostTipped(event: PostTipped): void {
     const stats = getOrCreateGlobalStats();
     stats.totalTipsWei = stats.totalTipsWei.plus(event.params.amountWei);
     stats.save();
+
+    createPostScopedNotification(
+      "POST_TIPPED",
+      event.params.author,
+      event.params.tipper,
+      tokenId.toString(),
+      null,
+      event.transaction.hash,
+      event.logIndex,
+      event.block.number,
+      event.block.timestamp
+    );
   }
 
   p.updatedAtBlock = event.block.number;
