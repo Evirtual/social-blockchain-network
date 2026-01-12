@@ -7,6 +7,10 @@
 
 const dotenv = require("dotenv");
 
+// Mirror Hardhat config env loading:
+// - .env.hardhat for deploy secrets (override in case the shell has empty vars)
+// - fallback to .env for non-secret defaults
+dotenv.config({ path: ".env.hardhat", override: true });
 dotenv.config();
 
 function parseTarget(argv) {

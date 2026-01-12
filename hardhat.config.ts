@@ -5,7 +5,7 @@ import "@nomicfoundation/hardhat-verify";
 import "solidity-coverage";
 import * as dotenv from "dotenv";
 
-dotenv.config({ path: ".env.hardhat" });
+dotenv.config({ path: ".env.hardhat", override: true });
 dotenv.config();
 
 function normalizePrivateKey(maybePk: string | undefined) {

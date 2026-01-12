@@ -31,8 +31,22 @@ async function main() {
   const contract = await SocialPosts.deploy();
   await contract.waitForDeployment();
 
+  const deployTx = contract.deploymentTransaction();
+  const deployTxHash = deployTx?.hash;
+  let deployBlockNumber = undefined;
+  try {
+    if (deployTxHash) {
+      const receipt = await hre.ethers.provider.getTransactionReceipt(deployTxHash);
+      deployBlockNumber = receipt?.blockNumber;
+    }
+  } catch {
+    // ignore
+  }
+
   const address = await contract.getAddress();
   console.log("SocialPosts deployed to:", address);
+  if (deployTxHash) console.log("Deploy tx:", deployTxHash);
+  if (typeof deployBlockNumber === "number") console.log("Deploy block:", deployBlockNumber);
 
   const keyByNetwork = {
     localhost: "VITE_CONTRACT_ADDRESS_LOCAL",
@@ -47,10 +61,9 @@ async function main() {
 
   const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS_LOCAL";
 
-  // Local dev should not overwrite deployment config.
-  // - localhost/hardhat: write to .env.local (dev-only overrides)
-  // - everything else: write to .env (deploy + build-time config)
-  const envFilename = networkName === "localhost" || networkName === "hardhat" ? ".env.local" : ".env";
+  // Vite variables (VITE_*) are frontend configuration.
+  // Keep them in .env.local for local dev regardless of which chain we deploy to.
+  const envFilename = ".env.local";
   const envPath = path.join(process.cwd(), envFilename);
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);
