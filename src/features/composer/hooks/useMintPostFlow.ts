@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
-import { ipfsToHttp } from "@features/ipfs";
+import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, extractIpfsCid, ipfsToHttp } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
 import { parseMintPostReceipt, waitForMetadataReady, waitForUrlReachable } from "../services/mintPost";
@@ -51,6 +51,7 @@ export function useMintPostFlow(params: {
   closeComposer: () => void;
   contract: ContractLike;
   feed: FeedLike;
+  feedPosts: Post[];
   runContractTx: RunContractTxLike;
   txNotifications: TxNotificationsLike;
   setStatus: (s: string) => void;
@@ -69,6 +70,7 @@ export function useMintPostFlow(params: {
     closeComposer,
     contract,
     feed,
+    feedPosts,
     runContractTx,
     txNotifications,
     setStatus,
@@ -82,6 +84,9 @@ export function useMintPostFlow(params: {
     if (postingInFlightRef.current) return;
     postingInFlightRef.current = true;
     setIsPosting(true);
+
+    let pinnedCidsToCleanup: Set<string> | null = null;
+    let protectReferencedIn: Set<string> | null = null;
 
     try {
       if (!walletAddress) {
@@ -130,7 +135,12 @@ export function useMintPostFlow(params: {
         hasMedia: validation.hasMedia,
         ipfsConfigured,
         uploadedImageBlob,
-        uploadedImageFilename
+        uploadedImageFilename,
+        pinNameContext: {
+          kind: "post",
+          chainId: chainId ?? undefined,
+          author: walletAddress
+        }
       });
       const willUseIpfs = prepared.willUseIpfs;
 
@@ -157,6 +167,19 @@ export function useMintPostFlow(params: {
         return;
       }
 
+      if (willUseIpfs) {
+        pinnedCidsToCleanup = new Set<string>();
+
+        const metaCid = extractIpfsCid(prepared.tokenUri);
+        if (metaCid) pinnedCidsToCleanup.add(metaCid);
+        const imageCid = prepared.imageRef ? extractIpfsCid(prepared.imageRef) : null;
+        if (imageCid) pinnedCidsToCleanup.add(imageCid);
+        const animCid = prepared.animationRef ? extractIpfsCid(prepared.animationRef) : null;
+        if (animCid) pinnedCidsToCleanup.add(animCid);
+
+        protectReferencedIn = collectReferencedIpfsCidsFromPosts(feedPosts);
+      }
+
       metadataURI = prepared.tokenUri;
       imageRefForUi = prepared.imageRef || (prepared.animationRef ? "" : imageRefForUi);
       animationUrlForUi = prepared.animationRef || undefined;
@@ -165,6 +188,9 @@ export function useMintPostFlow(params: {
         () => writeContract.mintPost(metadataURI, titleTrimmed, bodyTrimmed),
         async (receipt) => parseMintPostReceipt(receipt)
       );
+
+      pinnedCidsToCleanup = null;
+      protectReferencedIn = null;
 
       if (!minted?.mintedTokenId) {
         setStatus("Mint confirmed, but tokenId could not be parsed. Reloading feed...");
@@ -223,6 +249,11 @@ export function useMintPostFlow(params: {
         txNotifications.notifyConfirmed(processingToastId);
       }
     } catch (error) {
+      if (pinnedCidsToCleanup && pinnedCidsToCleanup.size > 0) {
+        await bestEffortUnpinCids(pinnedCidsToCleanup, {
+          protectReferencedIn: protectReferencedIn ?? undefined
+        });
+      }
       setStatusFromError(setStatus, error as ErrorInput);
     } finally {
       postingInFlightRef.current = false;
@@ -243,6 +274,7 @@ export function useMintPostFlow(params: {
     setDraft,
     resetMedia,
     feed,
+    feedPosts,
     txNotifications,
     chainId
   ]);

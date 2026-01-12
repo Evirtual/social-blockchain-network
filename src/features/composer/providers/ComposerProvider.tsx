@@ -5,7 +5,7 @@ import { useComposerMedia } from "../hooks/useComposerMedia";
 import { useMintPostFlow } from "../hooks/useMintPostFlow";
 import { usePosterApproval } from "../hooks/usePosterApproval";
 import { useContractActionsFacade } from "@features/contract";
-import { useFeedActions } from "@features/feed";
+import { useFeedActions, useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useTxNotifications } from "@features/tx";
 import { useWalletState } from "@features/wallet";
@@ -17,6 +17,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const { setStatus } = useStatusActions();
   const { walletAddress, chainId } = useWalletState();
   const contract = useContractActionsFacade();
+  const feedState = useFeedState();
   const feed = useFeedActions();
   const { runContractTx } = contract;
 
@@ -51,6 +52,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     closeComposer,
     contract,
     feed,
+    feedPosts: feedState.posts,
     runContractTx,
     txNotifications,
     setStatus,

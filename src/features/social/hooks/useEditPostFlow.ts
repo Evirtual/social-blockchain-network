@@ -182,6 +182,11 @@ export function useEditPostFlow(args: {
 
   const saveEditedPost = useCallback(async () => {
     let processingToastId: string | null = null;
+    let willUseIpfs = false;
+    let txSucceeded = false;
+    let oldPinnedCids: Set<string> | null = null;
+    let newPinnedCids: Set<string> | null = null;
+    let tokenUri = "";
     try {
       if (!walletAddress) {
         requestConnectNudge();
@@ -212,7 +217,6 @@ export function useEditPostFlow(args: {
 
       // Capture current tokenURI + related IPFS CIDs before we update it.
       // We only unpin after the tx succeeds.
-      let oldPinnedCids: Set<string> | null = null;
       try {
         if (ipfsConfigured) {
           const readContract = await getReadContract();
@@ -230,9 +234,6 @@ export function useEditPostFlow(args: {
 
       // Existing post (used for media-type hints and permissioning).
       const post = feed.posts.find((p) => postKey(p) === editingTokenId);
-
-      let tokenUri = "";
-      let newPinnedCids: Set<string> | null = null;
 
       // Used for immediate UI update (avoid relying solely on metadata fetch timing).
       let nextUiImage = "";
@@ -252,10 +253,16 @@ export function useEditPostFlow(args: {
         ipfsConfigured,
         uploadedImageBlob: editUploadedImageBlob,
         uploadedImageFilename: editUploadedImageFilename,
-        mediaTypeHint
+        mediaTypeHint,
+        pinNameContext: {
+          kind: "post",
+          chainId: editingPostChainId ?? chainId ?? undefined,
+          author: walletAddress,
+          tokenId: editingTokenValue
+        }
       });
 
-      const willUseIpfs = prepared.willUseIpfs;
+      willUseIpfs = prepared.willUseIpfs;
       if (willUseIpfs) {
         setStatus("Uploading update to IPFS (Pinata)...");
         txNotifications.notifyPending({ hash: processingToastId, label: "Uploading update to IPFS...", explorerUrl: null });
@@ -297,6 +304,7 @@ export function useEditPostFlow(args: {
           : () => writeContract.updatePostURI(tokenIdBig, tokenUri, titleTrimmed, bodyTrimmed);
 
       await runContractTx("Edit post", send);
+      txSucceeded = true;
 
       if (willUseIpfs && tokenUri.startsWith("ipfs://")) {
         const finalizingToastId = makeLocalNoticeId();
@@ -350,6 +358,19 @@ export function useEditPostFlow(args: {
         void feed.refreshFeed();
       }, 15_000);
     } catch (error) {
+      // If we uploaded new metadata/media but the tx failed, unpin the newly uploaded CIDs
+      // so we don't leak unused pins. Never unpin any CID that was already referenced by
+      // the current on-chain tokenURI.
+      if (!txSucceeded && ipfsConfigured && willUseIpfs && newPinnedCids && newPinnedCids.size > 0) {
+        const safeToRemove: string[] = [];
+        for (const cid of newPinnedCids) {
+          if (!oldPinnedCids || !oldPinnedCids.has(cid)) safeToRemove.push(cid);
+        }
+        if (safeToRemove.length) {
+          void bestEffortUnpinCidsSafe(safeToRemove);
+        }
+      }
+
       const message = getErrorMessage(error as ErrorInput);
       if (processingToastId) {
         txNotifications.notifyFailed({ hash: processingToastId, label: "Updating post", error: message });

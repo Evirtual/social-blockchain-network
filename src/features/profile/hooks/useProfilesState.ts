@@ -280,11 +280,14 @@ export function useProfilesState({
   const saveProfile = useCallback(async () => {
     if (isProfileSaving || isProfileAvatarLoading) return;
     setIsProfileSaving(true);
+    let txSucceeded = false;
+    let prevAvatarCid: string | null = null;
+    let newAvatarCid: string | null = null;
     try {
       if (!walletAddress) return;
 
       const prevAvatarUrl = profileAvatarUrl;
-      const prevAvatarCid = extractIpfsCid(prevAvatarUrl);
+      prevAvatarCid = extractIpfsCid(prevAvatarUrl);
 
       const name = profileDraftName.trim();
       const bio = profileDraftBio.trim();
@@ -295,10 +298,13 @@ export function useProfilesState({
         try {
           avatar = await resolveAvatarForSave({
             ipfsConfigured,
+            account: walletAddress,
+            chainId,
             uploadedAvatarBlob: profileUploadedAvatarBlob,
             uploadedAvatarFilename: profileUploadedAvatarFilename,
             draftAvatarDataUrl: profileDraftAvatarDataUrl
           });
+          newAvatarCid = extractIpfsCid(avatar);
         } finally {
           setIsProfileAvatarLoading(false);
         }
@@ -319,10 +325,13 @@ export function useProfilesState({
           const blob = await res.blob();
           avatar = await resolveAvatarForSave({
             ipfsConfigured,
+            account: walletAddress,
+            chainId,
             uploadedAvatarBlob: blob,
             uploadedAvatarFilename: "avatar",
             draftAvatarDataUrl: avatar
           });
+          newAvatarCid = extractIpfsCid(avatar);
         } finally {
           setIsProfileAvatarLoading(false);
         }
@@ -337,6 +346,7 @@ export function useProfilesState({
 
       const writeContract = await getWriteContract();
       await runContractTx("Save profile", () => writeContract.setProfile(name, bio, avatar));
+      txSucceeded = true;
 
       // Best-effort cleanup: if the user replaced/removed an IPFS avatar, unpin the previous CID.
       // We only do this after the tx succeeds so we don't delete content that is still referenced.
@@ -359,6 +369,20 @@ export function useProfilesState({
       setProfileUploadedAvatarFilename("");
       setProfileDraftAvatarDataUrl("");
     } catch (error) {
+      // If we pinned a new avatar but the tx failed, unpin it so we don't leak unused pins.
+      // Only do this when the new CID differs from the previous avatar CID.
+      try {
+        if (!txSucceeded && ipfsConfigured) {
+          const nextAvatarCid = newAvatarCid;
+          if (nextAvatarCid && (!prevAvatarCid || nextAvatarCid !== prevAvatarCid)) {
+            const protect = new Set<string>();
+            if (prevAvatarCid) protect.add(prevAvatarCid);
+            await bestEffortUnpinCids([nextAvatarCid], { protectReferencedIn: protect });
+          }
+        }
+      } catch {
+        // ignore
+      }
       setStatusFromError(setStatus, error as ErrorInput);
     } finally {
       setIsProfileSaving(false);

@@ -9,13 +9,23 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 function uniqueSuffix(): string {
   // Ensure uniqueness even for identical files uploaded repeatedly.
   try {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-      return (crypto as Crypto).randomUUID();
+    if (typeof crypto !== "undefined") {
+      if ("randomUUID" in crypto) {
+        // Keep suffix compact; Pinata table truncates long names.
+        return (crypto as Crypto).randomUUID().slice(0, 8);
+      }
+      if ("getRandomValues" in crypto) {
+        const buf = new Uint32Array(1);
+        (crypto as Crypto).getRandomValues(buf);
+        return buf[0].toString(16).padStart(8, "0");
+      }
     }
   } catch {
     // ignore
   }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  // Fallback: short base36 timestamp + random chars.
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
 function sanitizeName(raw: string): string {
@@ -23,6 +33,60 @@ function sanitizeName(raw: string): string {
     .replace(/[\r\n\t]+/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+function shortHex(addr: string, lead = 6, tail = 4): string {
+  const a = String(addr ?? "").trim();
+  if (!a) return "";
+  const lower = a.toLowerCase();
+  if (!lower.startsWith("0x") || lower.length < 2 + lead + tail) return a;
+  return `${lower.slice(0, 2 + lead)}…${lower.slice(-tail)}`;
+}
+
+export type PinataNameContext =
+  | {
+      kind: "post";
+      purpose: "media" | "metadata";
+      chainId?: string | number | null;
+      author?: string | null;
+      tokenId?: string | number | bigint | null;
+      title?: string | null;
+    }
+  | {
+      kind: "profile";
+      purpose: "avatar";
+      chainId?: string | number | null;
+      account?: string | null;
+    };
+
+export function makePinataBaseName(ctx: PinataNameContext): string {
+  const parts: string[] = [];
+  const truncate = (raw: string, max = 28) => {
+    const s = sanitizeName(raw);
+    if (!s) return "";
+    return s.length > max ? s.slice(0, max).trimEnd() : s;
+  };
+
+  if (ctx.kind === "post") {
+    const tokenId = ctx.tokenId != null && String(ctx.tokenId).trim() ? String(ctx.tokenId).trim() : "pending";
+    // Put the most important bits first so truncated UIs still show them.
+    parts.push(`post-${tokenId}`);
+    parts.push(ctx.purpose);
+    if (ctx.chainId != null && String(ctx.chainId).trim()) parts.push(`chain-${String(ctx.chainId).trim()}`);
+    if (ctx.author) parts.push(`by-${shortHex(ctx.author)}`);
+    if (ctx.title) {
+      const t = truncate(ctx.title);
+      if (t) parts.push(t);
+    }
+  } else {
+    parts.push("profile-avatar");
+    if (ctx.chainId != null && String(ctx.chainId).trim()) parts.push(`chain-${String(ctx.chainId).trim()}`);
+    if (ctx.account) parts.push(shortHex(ctx.account));
+  }
+
+  // Pinata names are shown in UI; keep them readable and compact.
+  const base = sanitizeName(parts.filter(Boolean).join(" "));
+  return base || "upload";
 }
 
 export function makeUniquePinName(base: string, maxLen = 120): string {
@@ -53,8 +117,24 @@ export function makeUniqueFilename(filename: string, mime?: string): string {
 
   const base = hasExt ? raw.slice(0, lastDot) : raw;
   const ext = hasExt ? raw.slice(lastDot + 1) : guessExtensionFromMime(mime);
+
   const uniqueBase = makeUniquePinName(base, 180);
-  return ext ? `${uniqueBase}.${ext}` : uniqueBase;
+  const safeBase = sanitizeName(uniqueBase)
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .trim();
+
+  const safeExt = sanitizeName(ext)
+    .replace(/[^a-zA-Z0-9]+/g, "")
+    .trim();
+
+  const finalBase = safeBase || "upload";
+  return safeExt ? `${finalBase}.${safeExt.toLowerCase()}` : finalBase;
+}
+
+export function makeUploadNonce(): string {
+  return uniqueSuffix();
 }
 
 const DEFAULT_IPFS_GATEWAY_BASES = [
@@ -197,13 +277,19 @@ export const pinataUnpinCid = async (cid: string) => {
   }
 };
 
-export const pinataPinFile = async (file: Blob, filename: string, name?: string) => {
+export const pinataPinFile = async (
+  file: Blob,
+  filename: string,
+  name?: string,
+  options?: { wrapWithDirectory?: boolean }
+) => {
   const workerUrl = getPinataWorkerUrl();
   if (workerUrl) {
     const form = new FormData();
     form.append("file", file, filename);
     const trimmedName = String(name ?? "").trim();
     if (trimmedName) form.append("pinataMetadata", JSON.stringify({ name: trimmedName }));
+    if (options?.wrapWithDirectory) form.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
     const res = await fetch(`${workerUrl}/pin/file`, { method: "POST", body: form });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -223,6 +309,7 @@ export const pinataPinFile = async (file: Blob, filename: string, name?: string)
   form.append("file", file, filename);
   const trimmedName = String(name ?? "").trim();
   if (trimmedName) form.append("pinataMetadata", JSON.stringify({ name: trimmedName }));
+  if (options?.wrapWithDirectory) form.append("pinataOptions", JSON.stringify({ wrapWithDirectory: true }));
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",

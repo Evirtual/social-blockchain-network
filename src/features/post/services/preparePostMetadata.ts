@@ -2,6 +2,7 @@ import type { Draft } from "@types";
 import { createMetadataUri } from "@features/metadata";
 import { buildIpfsTokenUri } from "@features/ipfs";
 import { MAX_ONCHAIN_TOKEN_URI_CHARS } from "./draftConstants";
+import type { PinataNameContext } from "@features/ipfs";
 
 type PreparePostMetadataArgs = {
   draft: Draft;
@@ -11,6 +12,7 @@ type PreparePostMetadataArgs = {
   uploadedImageFilename: string;
   mediaTypeHint?: "image" | "video";
   maxOnchainChars?: number;
+  pinNameContext?: Omit<Extract<PinataNameContext, { kind: "post" }>, "purpose" | "title">;
 };
 
 type PreparePostMetadataResult =
@@ -35,7 +37,8 @@ export async function preparePostMetadata(args: PreparePostMetadataArgs): Promis
       draft: args.draft,
       imageBlob: args.uploadedImageBlob,
       imageFilename: args.uploadedImageFilename,
-      mediaTypeHint: args.mediaTypeHint
+      mediaTypeHint: args.mediaTypeHint,
+      pinNameContext: args.pinNameContext
     });
 
     return {

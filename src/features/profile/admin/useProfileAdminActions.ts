@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { isAddress } from "ethers";
 import type { Post } from "@types";
 
-import { hasPinata, makeUniqueFilename, makeUniquePinName, pinataPinFile } from "@features/ipfs";
+import { extractIpfsCid, hasPinata, makePinataBaseName, makeUniqueFilename, makeUniquePinName, pinataPinFile } from "@features/ipfs";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscovery";
 import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
@@ -131,25 +131,60 @@ export function useProfileAdminActions(args: {
       if (!args.contract.isOwner) return;
       if (!isAddress(args.address)) return;
 
+      let txSucceeded = false;
+      let prevAvatarCid: string | null = null;
+      let newAvatarCid: string | null = null;
+
       const name = next.name.trim();
       const bio = next.bio.trim();
       let avatar = next.avatarUrl.trim();
 
+      try {
+        const readContract = await args.contract.getReadContract();
+        const profile = (await readContract.profileOf(args.address)) as unknown;
+        const prevAvatarUrl = String((profile as any)?.[2] ?? (profile as any)?.avatar ?? "");
+        prevAvatarCid = extractIpfsCid(prevAvatarUrl);
+      } catch {
+        prevAvatarCid = null;
+      }
+
       if (next.avatarFile) {
         if (hasPinata()) {
-          const uniqueName = makeUniquePinName("profile-avatar");
-          const uniqueFilename = makeUniqueFilename(next.avatarFilename || "avatar", next.avatarFile.type);
-          const pinned = await pinataPinFile(next.avatarFile, uniqueFilename, uniqueName);
-          avatar = `ipfs://${pinned.IpfsHash}`;
+          const base = makePinataBaseName({ kind: "profile", purpose: "avatar", account: args.address });
+          const uniqueName = makeUniquePinName(base);
+          const uniqueFilename = makeUniqueFilename(base, next.avatarFile.type);
+          const pinned = await pinataPinFile(next.avatarFile, uniqueFilename, uniqueName, { wrapWithDirectory: true });
+          avatar = `ipfs://${pinned.IpfsHash}/${uniqueFilename}`;
+          newAvatarCid = extractIpfsCid(avatar);
         } else {
           avatar = next.avatarDataUrl || "";
         }
       }
 
-      await args.runContractTx("Admin set profile", async () => {
-        const writeContract = await args.contract.getWriteContract();
-        return writeContract.adminSetProfile(args.address, name, bio, avatar);
-      });
+      try {
+        await args.runContractTx("Admin set profile", async () => {
+          const writeContract = await args.contract.getWriteContract();
+          return writeContract.adminSetProfile(args.address, name, bio, avatar);
+        });
+        txSucceeded = true;
+      } finally {
+        // If we pinned a new avatar but the tx failed, unpin it to avoid leaking unused pins.
+        if (!txSucceeded && hasPinata() && newAvatarCid && (!prevAvatarCid || newAvatarCid !== prevAvatarCid)) {
+          const protect = new Set<string>();
+          if (prevAvatarCid) protect.add(prevAvatarCid);
+          void bestEffortUnpinCids([newAvatarCid], { protectReferencedIn: protect });
+        }
+      }
+
+      // If the tx succeeded and the avatar changed, unpin the old CID.
+      if (txSucceeded && hasPinata() && prevAvatarCid) {
+        const nextCid = extractIpfsCid(avatar);
+        if (!nextCid || nextCid !== prevAvatarCid) {
+          const protect = new Set<string>();
+          if (nextCid) protect.add(nextCid);
+          void bestEffortUnpinCids([prevAvatarCid], { protectReferencedIn: protect });
+        }
+      }
 
       await args.loadProfile(args.address);
     },
