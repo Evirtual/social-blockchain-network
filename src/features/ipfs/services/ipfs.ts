@@ -6,6 +6,57 @@ export type PinataPinResponse = {
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+function uniqueSuffix(): string {
+  // Ensure uniqueness even for identical files uploaded repeatedly.
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return (crypto as Crypto).randomUUID();
+    }
+  } catch {
+    // ignore
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function sanitizeName(raw: string): string {
+  return String(raw ?? "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function makeUniquePinName(base: string, maxLen = 120): string {
+  const cleaned = sanitizeName(base) || "upload";
+  const suffix = uniqueSuffix();
+  const candidate = `${cleaned}-${suffix}`;
+  return candidate.length > maxLen ? candidate.slice(0, maxLen) : candidate;
+}
+
+function guessExtensionFromMime(mime?: string): string {
+  const m = String(mime ?? "").toLowerCase().trim();
+  if (!m) return "";
+  if (m === "image/jpeg") return "jpg";
+  if (m === "image/png") return "png";
+  if (m === "image/gif") return "gif";
+  if (m === "image/webp") return "webp";
+  if (m === "image/avif") return "avif";
+  if (m === "video/mp4") return "mp4";
+  if (m === "video/webm") return "webm";
+  if (m === "video/quicktime") return "mov";
+  return "";
+}
+
+export function makeUniqueFilename(filename: string, mime?: string): string {
+  const raw = String(filename ?? "").trim() || "upload";
+  const lastDot = raw.lastIndexOf(".");
+  const hasExt = lastDot > 0 && lastDot < raw.length - 1;
+
+  const base = hasExt ? raw.slice(0, lastDot) : raw;
+  const ext = hasExt ? raw.slice(lastDot + 1) : guessExtensionFromMime(mime);
+  const uniqueBase = makeUniquePinName(base, 180);
+  return ext ? `${uniqueBase}.${ext}` : uniqueBase;
+}
+
 const DEFAULT_IPFS_GATEWAY_BASES = [
   "https://gateway.pinata.cloud/ipfs/",
   "https://cloudflare-ipfs.com/ipfs/",
@@ -146,11 +197,13 @@ export const pinataUnpinCid = async (cid: string) => {
   }
 };
 
-export const pinataPinFile = async (file: Blob, filename: string) => {
+export const pinataPinFile = async (file: Blob, filename: string, name?: string) => {
   const workerUrl = getPinataWorkerUrl();
   if (workerUrl) {
     const form = new FormData();
     form.append("file", file, filename);
+    const trimmedName = String(name ?? "").trim();
+    if (trimmedName) form.append("pinataMetadata", JSON.stringify({ name: trimmedName }));
     const res = await fetch(`${workerUrl}/pin/file`, { method: "POST", body: form });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -168,6 +221,8 @@ export const pinataPinFile = async (file: Blob, filename: string) => {
 
   const form = new FormData();
   form.append("file", file, filename);
+  const trimmedName = String(name ?? "").trim();
+  if (trimmedName) form.append("pinataMetadata", JSON.stringify({ name: trimmedName }));
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
@@ -185,15 +240,22 @@ export const pinataPinFile = async (file: Blob, filename: string) => {
   return (await res.json()) as PinataPinResponse;
 };
 
-export const pinataPinJson = async (json: JsonValue) => {
+export const pinataPinJson = async (json: JsonValue, name?: string) => {
   const workerUrl = getPinataWorkerUrl();
+  const trimmedName = String(name ?? "").trim();
+  const payload = trimmedName
+    ? {
+        pinataMetadata: { name: trimmedName },
+        pinataContent: json
+      }
+    : json;
   if (workerUrl) {
     const res = await fetch(`${workerUrl}/pin/json`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(json)
+      body: JSON.stringify(payload)
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -215,7 +277,7 @@ export const pinataPinJson = async (json: JsonValue) => {
       Authorization: `Bearer ${jwt}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(json)
+    body: JSON.stringify(payload)
   });
 
   if (!res.ok) {

@@ -1,4 +1,4 @@
-import { pinataPinFile } from "@features/ipfs";
+import { makeUniqueFilename, makeUniquePinName, pinataPinFile } from "@features/ipfs";
 
 export async function resolveAvatarForSave(params: {
   ipfsConfigured: boolean;
@@ -9,7 +9,9 @@ export async function resolveAvatarForSave(params: {
   const { ipfsConfigured, uploadedAvatarBlob, uploadedAvatarFilename, draftAvatarDataUrl } = params;
 
   if (ipfsConfigured) {
-    const pinned = await pinataPinFile(uploadedAvatarBlob, uploadedAvatarFilename);
+    const uniqueName = makeUniquePinName("profile-avatar");
+    const uniqueFilename = makeUniqueFilename(uploadedAvatarFilename || "avatar", uploadedAvatarBlob.type);
+    const pinned = await pinataPinFile(uploadedAvatarBlob, uniqueFilename, uniqueName);
     return `ipfs://${pinned.IpfsHash}`;
   }
 

@@ -1,5 +1,14 @@
 import type { Draft } from "@types";
-import { ipfsToHttp, pinataPinFile, pinataPinJson } from "./ipfs";
+import { ipfsToHttp, makeUniqueFilename, makeUniquePinName, pinataPinFile, pinataPinJson } from "./ipfs";
+
+function toPinataName(input: string, fallback: string) {
+  const cleaned = String(input ?? "")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  const name = cleaned || fallback;
+  return name.length > 120 ? name.slice(0, 120) : name;
+}
 
 export async function buildIpfsTokenUri(input: {
   draft: Draft;
@@ -18,7 +27,10 @@ export async function buildIpfsTokenUri(input: {
   let animationRef = "";
 
   if (input.imageBlob) {
-    const fileRes = await pinataPinFile(input.imageBlob, input.imageFilename || "post-media");
+    const base = toPinataName(input.imageFilename || "post-media", "post-media");
+    const uniqueName = makeUniquePinName(base);
+    const uniqueFilename = makeUniqueFilename(input.imageFilename || "post-media", input.imageBlob.type);
+    const fileRes = await pinataPinFile(input.imageBlob, uniqueFilename, uniqueName);
     const mediaRef = `ipfs://${fileRes.IpfsHash}`;
     const isVideo = input.imageBlob.type?.startsWith("video/") ?? false;
     if (isVideo) animationRef = mediaRef;
@@ -40,7 +52,9 @@ export async function buildIpfsTokenUri(input: {
         const res = await fetch(ipfsToHttp(url));
         if (res.ok) {
           const blob = await res.blob();
-          const fileRes = await pinataPinFile(blob, "post-media");
+          const uniqueName = makeUniquePinName("post-media");
+          const uniqueFilename = makeUniqueFilename("post-media", blob.type);
+          const fileRes = await pinataPinFile(blob, uniqueFilename, uniqueName);
           const mediaRef = `ipfs://${fileRes.IpfsHash}`;
           if (blob.type.startsWith("video/")) animationRef = mediaRef;
           else if (blob.type.startsWith("image/")) imageRef = mediaRef;
@@ -74,7 +88,10 @@ export async function buildIpfsTokenUri(input: {
     if (!metadata.image) metadata.image = "";
   }
 
-  const metaRes = await pinataPinJson(metadata);
+  const metaRes = await pinataPinJson(
+    metadata,
+    makeUniquePinName(toPinataName(metadata.name ?? "", "post-metadata"))
+  );
   return {
     tokenUri: `ipfs://${metaRes.IpfsHash}`,
     imageRef,

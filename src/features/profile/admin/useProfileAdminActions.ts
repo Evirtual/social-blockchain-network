@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { isAddress } from "ethers";
 import type { Post } from "@types";
 
-import { hasPinata, pinataPinFile } from "@features/ipfs";
+import { hasPinata, makeUniqueFilename, makeUniquePinName, pinataPinFile } from "@features/ipfs";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscovery";
 import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
@@ -137,7 +137,9 @@ export function useProfileAdminActions(args: {
 
       if (next.avatarFile) {
         if (hasPinata()) {
-          const pinned = await pinataPinFile(next.avatarFile, next.avatarFilename || "avatar.png");
+          const uniqueName = makeUniquePinName("profile-avatar");
+          const uniqueFilename = makeUniqueFilename(next.avatarFilename || "avatar", next.avatarFile.type);
+          const pinned = await pinataPinFile(next.avatarFile, uniqueFilename, uniqueName);
           avatar = `ipfs://${pinned.IpfsHash}`;
         } else {
           avatar = next.avatarDataUrl || "";
