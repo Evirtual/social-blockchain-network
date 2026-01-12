@@ -33,7 +33,7 @@
   border: 0.0625rem solid color-mix(in srgb, var(--toast-border) 75%, var(--toast-text) 10%);
   background: color-mix(in srgb, var(--toast-bg) 92%, var(--toast-surface));
   border-radius: var(--radius-lg);
-  padding: 0.625rem;
+  padding: 0.3125rem 0.625rem;
   box-shadow: var(--toast-shadow);
   position: relative;
   overflow: hidden;

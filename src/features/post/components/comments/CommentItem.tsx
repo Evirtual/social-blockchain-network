@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { PostComment } from "@types";
 import { Link } from "react-router-dom";
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@shared/components/icons";
-import { getStatButtonClass } from "../postCard/footer";
+import { formatTipsWei, getStatButtonClass } from "../postCard/footer";
 import type { ActionInFlight, ActiveComposer } from "./types";
 import { CommentComposerPanels } from "./CommentComposerPanels";
 import { CommentHeader } from "./CommentHeader";
@@ -199,7 +199,9 @@ export function CommentItem(props: Props) {
             disabled={props.requiresNetworkSwitch || isBusy || comment.deleted}
           >
             <IconCoin size={14} />
-            <span className="postActionCount">{props.nativeSymbol}</span>
+            <span className="postActionCount">
+              {formatTipsWei({ tipsWei: comment.tipWei ?? 0n, nativeSymbol: props.nativeSymbol })}
+            </span>
           </button>
         </div>
 
