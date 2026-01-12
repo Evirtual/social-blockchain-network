@@ -3,7 +3,12 @@ import { isAddress } from "ethers";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { hasPinata } from "@features/ipfs";
 import { discoverMintedTokenIdsForAuthor } from "@features/profile";
-import { bestEffortUnpinCids, collectPinnedCidsForTokenIds, collectReferencedIpfsCidsFromPosts } from "@features/ipfs";
+import {
+  bestEffortUnpinCids,
+  collectPinnedCidsForTokenIds,
+  collectReferencedIpfsCidsFromPosts,
+  extractIpfsCid
+} from "@features/ipfs";
 import type { Post } from "@types";
 import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 import type { TransactionResponse } from "ethers";
@@ -31,6 +36,7 @@ export function useApprovalActions(args: {
   getWriteContract: WriteContractFactory;
 
   feedPosts: Post[];
+  walletChainId: string | null;
 }) {
   function addPendingApproval(raw: string) {
     const addr = raw.trim();
@@ -106,9 +112,25 @@ export function useApprovalActions(args: {
     try {
       await args.runContractTx("Reset account", async () => {
         try {
-          if (hasPinata() && tokenIds.length) {
+          if (hasPinata()) {
             const readContract = await args.getReadContract();
-            pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+
+            if (tokenIds.length) {
+              pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+            }
+
+            // Also collect current avatar pin so reset clears it too.
+            try {
+              const profile = (await (readContract as any).profileOf(normalized)) as unknown;
+              const prevAvatarUrl = String((profile as any)?.[2] ?? (profile as any)?.avatar ?? "");
+              const avatarCid = extractIpfsCid(prevAvatarUrl);
+              if (avatarCid) {
+                if (!pinnedCids) pinnedCids = new Set<string>();
+                pinnedCids.add(avatarCid);
+              }
+            } catch {
+              // ignore
+            }
           }
         } catch {
           pinnedCids = null;
@@ -123,7 +145,10 @@ export function useApprovalActions(args: {
 
     try {
       if (pinnedCids) {
-        const referenced = collectReferencedIpfsCidsFromPosts(args.feedPosts);
+        const excludeTokenIds = tokenIds.map((x) => x.toString());
+        const referenced = collectReferencedIpfsCidsFromPosts(args.feedPosts, {
+          exclude: { chainId: args.walletChainId, tokenIds: excludeTokenIds }
+        });
         void bestEffortUnpinCids(pinnedCids, { protectReferencedIn: referenced });
       }
     } catch {

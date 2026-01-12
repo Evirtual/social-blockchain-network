@@ -79,7 +79,8 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
     runContractTx,
     getReadContract: contractActions.getReadContract,
     getWriteContract: contractActions.getWriteContract,
-    feedPosts: feed.posts
+    feedPosts: feed.posts,
+    walletChainId: wallet.chainId
   });
 
   const pendingRows = useMemo<ApprovalRow[]>(() => {

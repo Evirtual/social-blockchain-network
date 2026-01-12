@@ -73,9 +73,26 @@ export function useProfileAdminActions(args: {
       await args.runContractTx("Reset account", async () => {
         // Best-effort: collect pinned CIDs before burn so we can unpin after.
         try {
-          if (hasPinata() && tokenIds.length) {
+          if (hasPinata()) {
             const readContract = await args.contract.getReadContract();
-            pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+
+            // Collect post-related pins.
+            if (tokenIds.length) {
+              pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+            }
+
+            // Also collect current avatar pin so reset clears it too.
+            try {
+              const profile = (await (readContract as any).profileOf(normalized)) as unknown;
+              const prevAvatarUrl = String((profile as any)?.[2] ?? (profile as any)?.avatar ?? "");
+              const avatarCid = extractIpfsCid(prevAvatarUrl);
+              if (avatarCid) {
+                if (!pinnedCids) pinnedCids = new Set<string>();
+                pinnedCids.add(avatarCid);
+              }
+            } catch {
+              // ignore
+            }
           }
         } catch {
           pinnedCids = null;
