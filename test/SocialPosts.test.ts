@@ -197,6 +197,27 @@ describe("SocialPosts", () => {
     expect(await contract.exists(1n)).to.equal(false);
   });
 
+  it("adminResetAccount burns all posts when tokenIds is empty", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    await contract.connect(other).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    await contract.connect(other).mintPost("ipfs://post-2", "Post 2", "Body 2");
+    await contract.connect(other).mintPost("ipfs://post-3", "Post 3", "Body 3");
+
+    expect(await contract.exists(1n)).to.equal(true);
+    expect(await contract.exists(2n)).to.equal(true);
+    expect(await contract.exists(3n)).to.equal(true);
+
+    await expect(contract.connect(author).adminResetAccount(other.address, []))
+      .to.emit(contract, "PosterAllowed")
+      .withArgs(other.address, false);
+
+    expect(await contract.exists(1n)).to.equal(false);
+    expect(await contract.exists(2n)).to.equal(false);
+    expect(await contract.exists(3n)).to.equal(false);
+  });
+
   it("blocks profile edits for non-approved wallets", async () => {
     const { contract, author, other } = await deploy();
 

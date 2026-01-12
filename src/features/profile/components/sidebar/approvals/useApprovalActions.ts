@@ -88,7 +88,6 @@ export function useApprovalActions(args: {
     args.setApprovalsError(null);
 
     let tokenIds: bigint[] = [];
-    let tokenDiscoveryFailed = false;
     try {
       const readContract = await args.getReadContract();
       const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
@@ -104,9 +103,7 @@ export function useApprovalActions(args: {
         )
       ]);
       tokenIds = discovered.tokenIds;
-      tokenDiscoveryFailed = discovered.failed;
     } catch {
-      tokenDiscoveryFailed = true;
       tokenIds = [];
     }
 
@@ -142,10 +139,6 @@ export function useApprovalActions(args: {
     args.setPosterAllowedByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: false }));
     args.setPosterDisapprovedEverByAddress((prev) => ({ ...prev, [normalized.toLowerCase()]: true }));
     emitPosterAllowedChanged({ address: normalized, allowed: false, disapprovedEver: true });
-
-    if (tokenDiscoveryFailed) {
-      args.setApprovalsError("Blocked user, but failed to load their posts for deletion.");
-    }
   }
 
   async function toggleModerator(addr: string) {

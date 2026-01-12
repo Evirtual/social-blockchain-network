@@ -15,6 +15,7 @@ hardhat-node.log
 # Env
 .env
 .env.local
+.env.hardhat
 .env.*.local
 
 # Coverage

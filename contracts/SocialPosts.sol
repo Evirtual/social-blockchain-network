@@ -37,6 +37,11 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(uint256 => address) private _author;
 
+    // Author -> list of all tokenIds they minted (includes still-existing posts only).
+    // This enables admin reset flows to burn all posts without requiring off-chain token discovery.
+    mapping(address => uint256[]) private _tokenIdsByAuthor;
+    mapping(uint256 => uint256) private _tokenIdAuthorIndexPlusOne;
+
     mapping(uint256 => uint256) private _likes;
     mapping(uint256 => uint256) private _comments;
     mapping(uint256 => uint256) private _saves;
@@ -130,20 +135,20 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     }
 
     modifier onlyAdminOrModerator() {
-        require(msg.sender == owner() || _moderators[msg.sender], "Only admin or moderator");
+        require(msg.sender == owner() || _moderators[msg.sender], "Only admin/mod");
         _;
     }
 
     function _requireModeratorCanActOnAccount(address account) internal view {
         if (msg.sender == owner()) return;
         // Moderators must never be able to take admin actions against the owner/admin.
-        require(account != owner(), "Cannot moderate owner");
+        require(account != owner(), "No owner");
     }
 
     function _requireModeratorCanActOnToken(uint256 tokenId) internal view {
         if (msg.sender == owner()) return;
         address author = _author[tokenId];
-        require(author != owner(), "Cannot moderate owner");
+        require(author != owner(), "No owner");
     }
 
     modifier onlyAllowedPoster() {
@@ -153,7 +158,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     function setModerator(address account, bool enabled) external onlyOwner {
         require(account != address(0), "Invalid account");
-        require(account != owner(), "Owner cannot be moderator");
+        require(account != owner(), "Owner no mod");
 
         bool current = _moderators[account];
         if (enabled) {
@@ -281,25 +286,75 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit ProfileUpdated(account, "", "", "");
         emit ProfileClearedByAdmin(msg.sender, account);
 
-        // Burn all posts that currently exist and belong to the account.
-        // Unknown / already-burned / non-matching tokenIds are ignored.
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            if (_ownerOf(tokenId) == address(0)) continue;
-            if (_author[tokenId] != account) continue;
+        // Burn posts for the account.
+        // - If tokenIds is provided, burn only those (best-effort; ignores unknown/already-burned/non-matching).
+        // - If tokenIds is empty, burn ALL posts minted by the account (tracked on-chain).
+        if (tokenIds.length == 0) {
+            // Burn from the end so swap-and-pop index updates are simple.
+            while (_tokenIdsByAuthor[account].length > 0) {
+                uint256 tokenId = _tokenIdsByAuthor[account][_tokenIdsByAuthor[account].length - 1];
 
-            _burn(tokenId);
+                // If something went out of sync, just untrack it.
+                if (_ownerOf(tokenId) == address(0) || _author[tokenId] != account) {
+                    _untrackAuthorToken(account, tokenId);
+                    continue;
+                }
 
-            delete _author[tokenId];
-            delete _likes[tokenId];
-            delete _comments[tokenId];
-            delete _saves[tokenId];
-            delete _tipsWei[tokenId];
-            delete _postFrozen[tokenId];
-            delete _postEdited[tokenId];
+                _burn(tokenId);
+                _untrackAuthorToken(account, tokenId);
 
-            emit PostBurnedByAdmin(msg.sender, account, tokenId);
+                delete _author[tokenId];
+                delete _likes[tokenId];
+                delete _comments[tokenId];
+                delete _saves[tokenId];
+                delete _tipsWei[tokenId];
+                delete _postFrozen[tokenId];
+                delete _postEdited[tokenId];
+
+                emit PostBurnedByAdmin(msg.sender, account, tokenId);
+            }
+        } else {
+            for (uint256 i = 0; i < tokenIds.length; i++) {
+                uint256 tokenId = tokenIds[i];
+                if (_ownerOf(tokenId) == address(0)) continue;
+                if (_author[tokenId] != account) continue;
+
+                _burn(tokenId);
+                _untrackAuthorToken(account, tokenId);
+
+                delete _author[tokenId];
+                delete _likes[tokenId];
+                delete _comments[tokenId];
+                delete _saves[tokenId];
+                delete _tipsWei[tokenId];
+                delete _postFrozen[tokenId];
+                delete _postEdited[tokenId];
+
+                emit PostBurnedByAdmin(msg.sender, account, tokenId);
+            }
         }
+    }
+
+    function _trackAuthorToken(address author, uint256 tokenId) internal {
+        if (_tokenIdAuthorIndexPlusOne[tokenId] != 0) return;
+        _tokenIdsByAuthor[author].push(tokenId);
+        _tokenIdAuthorIndexPlusOne[tokenId] = _tokenIdsByAuthor[author].length;
+    }
+
+    function _untrackAuthorToken(address author, uint256 tokenId) internal {
+        uint256 idxPlusOne = _tokenIdAuthorIndexPlusOne[tokenId];
+        if (idxPlusOne == 0) return;
+
+        uint256 idx = idxPlusOne - 1;
+        uint256 lastIdx = _tokenIdsByAuthor[author].length - 1;
+        if (idx != lastIdx) {
+            uint256 moved = _tokenIdsByAuthor[author][lastIdx];
+            _tokenIdsByAuthor[author][idx] = moved;
+            _tokenIdAuthorIndexPlusOne[moved] = idx + 1;
+        }
+
+        _tokenIdsByAuthor[author].pop();
+        _tokenIdAuthorIndexPlusOne[tokenId] = 0;
     }
 
     function profileOf(
@@ -324,6 +379,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         _setTokenURI(tokenId, tokenUri);
 
         _author[tokenId] = msg.sender;
+        _trackAuthorToken(msg.sender, tokenId);
 
         emit PostMinted(msg.sender, tokenId, title, body, tokenUri);
     }
@@ -391,7 +447,11 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(_author[tokenId] == msg.sender, "Only author");
 
+        address author = _author[tokenId];
+
         _burn(tokenId);
+
+        _untrackAuthorToken(author, tokenId);
 
         delete _author[tokenId];
         delete _likes[tokenId];
@@ -401,7 +461,7 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         delete _postFrozen[tokenId];
         delete _postEdited[tokenId];
 
-        emit PostBurned(msg.sender, tokenId);
+        emit PostBurned(author, tokenId);
     }
 
     function adminBurnPost(uint256 tokenId) external onlyAdminOrModerator {
@@ -410,6 +470,8 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         address author = _author[tokenId];
 
         _burn(tokenId);
+
+        _untrackAuthorToken(author, tokenId);
 
         delete _author[tokenId];
         delete _likes[tokenId];
