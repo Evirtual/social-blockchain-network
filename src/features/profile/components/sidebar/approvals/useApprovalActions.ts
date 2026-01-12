@@ -91,17 +91,11 @@ export function useApprovalActions(args: {
     try {
       const readContract = await args.getReadContract();
       const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
-      const discovery = discoverMintedTokenIdsForAuthor({
+      const discovered = await discoverMintedTokenIdsForAuthor({
         readContract,
         scanProvider: provider,
         author: normalized
       });
-      const discovered = await Promise.race([
-        discovery,
-        new Promise<{ tokenIds: bigint[]; failed: boolean }>((resolve) =>
-          setTimeout(() => resolve({ tokenIds: [], failed: true }), 5000)
-        )
-      ]);
       tokenIds = discovered.tokenIds;
     } catch {
       tokenIds = [];
