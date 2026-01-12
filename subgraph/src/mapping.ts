@@ -588,6 +588,16 @@ export function handleProfileModerated(event: ProfileModerated): void {
   a.bio = event.params.bio;
   a.avatar = event.params.avatar;
   a.save();
+
+  createAccountNotification(
+    "PROFILE_MODERATED",
+    event.params.account,
+    event.params.admin,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void {
@@ -596,6 +606,16 @@ export function handleProfileClearedByAdmin(event: ProfileClearedByAdmin): void 
   a.bio = null;
   a.avatar = null;
   a.save();
+
+  createAccountNotification(
+    "PROFILE_CLEARED_BY_ADMIN",
+    event.params.account,
+    event.params.admin,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handleFollowed(event: Followed): void {
@@ -742,6 +762,18 @@ export function handlePostUpdatedByAdmin(event: PostUpdatedByAdmin): void {
   p.updatedAtBlock = event.block.number;
 
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_UPDATED_BY_ADMIN",
+    p,
+    event.params.admin,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostEditedStatus(event: PostEditedStatus): void {
@@ -759,10 +791,26 @@ export function handlePostFrozen(event: PostFrozen): void {
   const tokenId = event.params.tokenId;
   const p = getOrCreatePost(tokenId);
 
+  if (p.author.equals(Address.zero())) {
+    p.author = event.params.author;
+  }
+
   p.frozenAtBlock = event.block.number;
   p.updatedAtBlock = event.block.number;
 
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_FROZEN",
+    p,
+    event.transaction.from,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostBurned(event: PostBurned): void {
@@ -791,6 +839,10 @@ export function handlePostBurnedByAdmin(event: PostBurnedByAdmin): void {
   const p = getOrCreatePost(tokenId);
   const author = getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp);
 
+  if (p.author.equals(Address.zero())) {
+    p.author = event.params.author;
+  }
+
   p.burnedAtBlock = event.block.number;
   p.updatedAtBlock = event.block.number;
 
@@ -805,6 +857,18 @@ export function handlePostBurnedByAdmin(event: PostBurnedByAdmin): void {
 
   author.save();
   p.save();
+
+  maybeCreatePostNotification(
+    "POST_REMOVED_BY_ADMIN",
+    p,
+    event.params.admin,
+    tokenId,
+    "",
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }
 
 export function handlePostLiked(event: PostLiked): void {
@@ -1069,6 +1133,18 @@ export function handleCommentDeleted(event: CommentDeleted): void {
   const commentId = event.params.commentId.toString();
   let c = Comment.load(commentId);
   if (c == null) return;
+
+  maybeCreateCommentNotification(
+    "COMMENT_REMOVED",
+    c.author,
+    event.params.deleter,
+    tokenId,
+    event.params.commentId,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 
   if (!c.deleted) {
     c.deleted = true;
