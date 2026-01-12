@@ -28,8 +28,8 @@
 
 .brandMarkSwap {
   position: relative;
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -46,7 +46,7 @@
 .brand-mark {
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   display: block;
   object-fit: cover;
 }
