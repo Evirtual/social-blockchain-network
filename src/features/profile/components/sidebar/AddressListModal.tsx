@@ -5,6 +5,8 @@ import { getAddressListRows } from "@features/profile/viewModel";
 
 import { Modal } from "@shared/components/Modal";
 import { useProfileActions, useProfileState } from "@features/profile";
+import { useWalletState } from "@features/wallet";
+import { getProfileUrl } from "@shared/lib/profile";
 
 export type AddressListModalProps = {
   open: boolean;
@@ -20,6 +22,7 @@ export type AddressListModalProps = {
 export function AddressListModal(props: AddressListModalProps) {
   const profileState = useProfileState();
   const profileActions = useProfileActions();
+  const wallet = useWalletState();
 
   const loadingSkeletonRows = props.isLoading
     ? Array.from({ length: 1 }).map((_, idx) => (
@@ -56,7 +59,7 @@ export function AddressListModal(props: AddressListModalProps) {
           profilesByAddress: profileState.profilesByAddress,
           shortAddress: props.shortAddress
         }).map((row) => (
-          <Link key={row.addr} className="listRow" to={`/profile/${row.addr}`} onClick={props.onClose}>
+          <Link key={row.addr} className="listRow" to={getProfileUrl(wallet.chainId, row.addr)} onClick={props.onClose}>
             <span className="listRowLeft">
               <div className="avatar" style={row.avatarStyle} />
               <span className="value">{row.label}</span>

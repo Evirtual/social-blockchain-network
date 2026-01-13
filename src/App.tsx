@@ -130,6 +130,7 @@ function AppInner() {
         <Route path="/notifications" element={<NotificationsRoute />} />
         <Route path="/post/:chainId/:tokenId" element={<PostRoute />} />
         <Route path="/post/:tokenId" element={<PostRoute />} />
+        <Route path="/profile/:chainId/:address" element={<ProfileRoute />} />
         <Route path="/profile/:address" element={<ProfileRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

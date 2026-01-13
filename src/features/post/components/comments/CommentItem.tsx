@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { PostComment } from "@types";
 import { Link } from "react-router-dom";
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@shared/components/icons";
+import { getProfileUrl } from "@shared/lib/profile";
 import { formatTipsWei, getStatButtonClass } from "../postCard/footer";
 import type { ActionInFlight, ActiveComposer } from "./types";
 import { CommentComposerPanels } from "./CommentComposerPanels";
@@ -88,6 +89,7 @@ export function CommentItem(props: Props) {
         label={props.authorLabel}
         hue={hue}
         avatarUrl={props.authorAvatarUrl}
+        postChainId={props.postChainId}
         explorer={explorer}
         canEdit={canEdit}
         canDelete={canDelete}
@@ -108,7 +110,7 @@ export function CommentItem(props: Props) {
             ) : (
               <>
                 {props.replyToAddress ? (
-                  <Link className="commentReplyTo" to={`/profile/${props.replyToAddress}`}>
+                  <Link className="commentReplyTo" to={getProfileUrl(props.postChainId, props.replyToAddress)}>
                     @{props.replyToLabel?.trim() ? props.replyToLabel : props.shortAddress(props.replyToAddress)}
                   </Link>
                 ) : null}

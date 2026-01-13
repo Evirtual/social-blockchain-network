@@ -65,6 +65,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const { selfAvatarHue, displayName, myPostsCount, profileLink } = useProfileDerived({
     walletAddress,
+    chainId,
     profileName,
     posts
   });

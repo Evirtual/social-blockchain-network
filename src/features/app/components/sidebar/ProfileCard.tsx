@@ -9,6 +9,7 @@ import { useContractActionsFacade, useContractState } from "@features/contract";
 import { useWalletState } from "@features/wallet";
 import { useOnChainApprovalRequests } from "@features/profile/components/sidebar/approvals";
 import { normalizeAddress } from "@shared/lib/address";
+import { getProfileUrl } from "@shared/lib/profile";
 import { ProfileEditModal } from "./profileCard/ProfileEditModal";
 import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
 import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
@@ -54,7 +55,6 @@ export function ProfileCard(props: ProfileCardProps) {
     setIsOpen(true);
   }, [isMobile]);
 
-  const profileLink = props.walletAddress ? `/profile/${props.walletAddress}` : null;
   const avatarDisplayUrl = props.profileAvatarUrl;
 
   const followers = props.followers ?? [];
@@ -69,6 +69,7 @@ export function ProfileCard(props: ProfileCardProps) {
   const contractState = useContractState();
   const contractActions = useContractActionsFacade();
   const wallet = useWalletState();
+  const profileLink = props.walletAddress ? getProfileUrl(wallet.chainId, props.walletAddress) : null;
   const { onChainRequests, isLoadingOnChainRequests } = useOnChainApprovalRequests({
     open: !!props.walletAddress,
     isOwner,

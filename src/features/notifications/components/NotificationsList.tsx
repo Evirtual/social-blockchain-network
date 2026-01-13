@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { formatEther } from "ethers";
 import { getAvatarStyle } from "@shared/lib/avatar";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
+import { getProfileUrl } from "@shared/lib/profile";
 import { postKeyFromParts } from "@shared/lib/post";
 import type { Post } from "@types";
 import { useFeedActions, useFeedState } from "@features/feed";
@@ -150,7 +151,6 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
-        const profileLink = !isSelfPosterStatus && actorId ? `/profile/${actorId}` : "";
         const actionText = isSelfPosterStatus
           ? n.kind === "POSTER_DISAPPROVED"
             ? "were disapproved to post"
@@ -165,6 +165,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
 
         const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;
+        const profileLink = !isSelfPosterStatus && actorId ? getProfileUrl(postChainId, actorId) : "";
         const post = showThumb
           ? postByKey.get(postKeyFromParts(postChainId, String(n.tokenId))) ??
             postByKey.get(postKeyFromParts(null, String(n.tokenId))) ??

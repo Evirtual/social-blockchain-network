@@ -2,9 +2,11 @@ import { Link } from "react-router-dom";
 import { useEffect } from "react";
 
 import { useProfileActions, useProfileState } from "@features/profile";
+import { useWalletState } from "@features/wallet";
 import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getAvatarStyle } from "@shared/lib/avatar";
 import { IconCheck, IconPower, IconRepeat, IconTrash, IconX } from "@shared/components/icons";
+import { getProfileUrl } from "@shared/lib/profile";
 
 export function ApprovalListRow(props: {
   addr: string;
@@ -25,6 +27,7 @@ export function ApprovalListRow(props: {
 }) {
   const profileState = useProfileState();
   const profileActions = useProfileActions();
+  const wallet = useWalletState();
 
   const addrKey = props.addr.toLowerCase();
   const avatarUrl = profileState.profilesByAddress[addrKey]?.avatarUrl?.trim();
@@ -49,7 +52,7 @@ export function ApprovalListRow(props: {
     <div key={props.addr} className="listRow" role="listitem">
       <span className="listRowLeft">
         <div className="avatar" style={avatarStyle} aria-hidden="true" />
-        <Link className="value" to={`/profile/${props.addr}`}>
+        <Link className="value" to={getProfileUrl(wallet.chainId, props.addr)}>
           {props.shortAddress(props.addr)}
         </Link>
         {props.isFlagged ? <span className="pill">Flagged</span> : null}

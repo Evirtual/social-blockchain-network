@@ -2,12 +2,14 @@ import { Link } from "react-router-dom";
 import type { PostComment } from "@types";
 import { IconEdit, IconFlag, IconRepeat, IconTrash } from "@shared/components/icons";
 import { ipfsToHttp } from "@features/ipfs";
+import { getProfileUrl } from "@shared/lib/profile";
 
 type Props = {
   comment: PostComment;
   label: string;
   hue: number;
   avatarUrl?: string;
+  postChainId?: string | null;
   explorer: string | null;
   canEdit: boolean;
   canDelete: boolean;
@@ -31,7 +33,7 @@ export function CommentHeader(props: Props) {
       <div className="postHeadMain">
         <div className="postHeadTop">
           <div className="postAuthor">
-            <Link to={`/profile/${props.comment.author}`}>{props.label}</Link>
+            <Link to={getProfileUrl(props.postChainId ?? null, props.comment.author)}>{props.label}</Link>
             {props.comment.edited ? <span className="badge">Edited</span> : null}
             {props.comment.deleted ? <span className="badge">Deleted</span> : null}
           </div>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { CSSProperties, MouseEvent } from "react";
 import { IconEdit, IconFlame, IconFlag } from "@shared/components/icons";
 import { ChainLogo } from "@shared/components/ChainLogos";
+import { getProfileUrl } from "@shared/lib/profile";
 
 type Props = {
   author?: string | null;
@@ -35,7 +36,11 @@ export function PostCardHeader(props: Props) {
       <div className="postHeadMain">
         <div className="postHeadTop">
           <div className="postAuthor">
-            {props.author ? <Link to={`/profile/${props.author}`}>{props.authorLabel}</Link> : props.authorLabel}
+            {props.author ? (
+              <Link to={getProfileUrl(String(props.postNetworkChainIdNum), props.author)}>{props.authorLabel}</Link>
+            ) : (
+              props.authorLabel
+            )}
             {props.isMine ? <span className="badge">You</span> : null}
           </div>
           <div className="postTokenArea">
