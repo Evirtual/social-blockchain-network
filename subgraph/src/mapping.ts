@@ -2,6 +2,7 @@ import { Address, BigInt, ByteArray, Bytes, JSONValueKind, json, ipfs } from "@g
 
 import {
   Followed,
+  Transfer,
   PostFrozen,
   PostMinted,
   PostUpdated,
@@ -34,7 +35,8 @@ import {
   PostReported,
   CommentReported,
   ModeratorSet,
-  OwnershipTransferred
+  OwnershipTransferred,
+  SocialPosts
 } from "../generated/SocialPosts/SocialPosts";
 
 import {
@@ -702,6 +704,83 @@ export function handleUnfollowed(event: Unfollowed): void {
     event.block.number,
     event.block.timestamp
   );
+}
+
+export function handleTransfer(event: Transfer): void {
+  const from = event.params.from;
+  const to = event.params.to;
+  const tokenId = event.params.tokenId;
+  const zero = Address.zero();
+
+  // Mint fallback: ERC721 mint always emits Transfer(from=0x0, to=recipient, tokenId)
+  if (from.equals(zero)) {
+    const p = getOrCreatePost(tokenId);
+
+    // If we already indexed the mint via PostMinted, don't double-count.
+    if (!p.mintBlockNumber.equals(BigInt.zero())) return;
+
+    const author = getOrCreateAccount(to, event.block.number, event.block.timestamp);
+
+    p.author = to;
+    p.mintTxHash = event.transaction.hash;
+    p.mintBlockNumber = event.block.number;
+    p.mintTimestamp = event.block.timestamp;
+    p.burnedAtBlock = null;
+    p.edited = false;
+    p.editedAtBlock = null;
+    p.updatedAtBlock = event.block.number;
+
+    // Pull tokenURI from contract if we missed PostMinted.
+    if (p.tokenURI.length == 0) {
+      const contract = SocialPosts.bind(event.address);
+      const tokenURIResult = contract.try_tokenURI(tokenId);
+      if (!tokenURIResult.reverted) {
+        p.tokenURI = tokenURIResult.value;
+        if (p.title.length == 0 || p.body.length == 0) {
+          applyMetadataFromTokenURI(p, p.tokenURI);
+        }
+      }
+    }
+
+    author.postedCount = author.postedCount.plus(BigInt.fromI32(1));
+    const stats = getOrCreateGlobalStats();
+    stats.totalPosts = stats.totalPosts.plus(BigInt.fromI32(1));
+    stats.save();
+
+    author.save();
+    p.save();
+    return;
+  }
+
+  // Burn fallback: ERC721 burn emits Transfer(from=owner, to=0x0, tokenId)
+  if (to.equals(zero)) {
+    const p = getOrCreatePost(tokenId);
+
+    // If we already indexed the burn via PostBurned/PostBurnedByAdmin, don't double-count.
+    if (p.burnedAtBlock !== null) return;
+
+    if (p.author.equals(zero)) {
+      p.author = from;
+    }
+
+    p.burnedAtBlock = event.block.number;
+    p.updatedAtBlock = event.block.number;
+    p.save();
+
+    const authorAddress = Address.fromBytes(p.author);
+    const author = getOrCreateAccount(authorAddress, event.block.number, event.block.timestamp);
+    if (author.postedCount.gt(BigInt.zero())) {
+      author.postedCount = author.postedCount.minus(BigInt.fromI32(1));
+    }
+    const stats = getOrCreateGlobalStats();
+    if (stats.totalPosts.gt(BigInt.zero())) {
+      stats.totalPosts = stats.totalPosts.minus(BigInt.fromI32(1));
+    }
+    stats.save();
+
+    author.save();
+    return;
+  }
 }
 
 export function handlePostMinted(event: PostMinted): void {
