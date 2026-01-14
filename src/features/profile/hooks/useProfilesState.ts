@@ -239,11 +239,24 @@ export function useProfilesState({
 
     setIsProfileAvatarLoading(true);
     try {
+      // Match post-media behavior: resize/compress avatars before pinning.
+      // This keeps uploads small while maintaining crisp visual quality.
+      if (file.type.startsWith("image/")) {
+        const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9 });
+        if (compressed.ok) {
+          setProfileUploadedAvatarBlob(compressed.blob);
+          setProfileUploadedAvatarFilename(compressed.filename);
+          setProfileDraftAvatarUrl("");
+          setProfileDraftAvatarDataUrl(compressed.dataUrl);
+          return;
+        }
+      }
+
+      // Fallback: keep original bytes.
       setProfileUploadedAvatarBlob(file);
       setProfileUploadedAvatarFilename(file.name || "avatar.png");
 
       const dataUrl = await readFileAsDataUrl(file);
-
       setProfileDraftAvatarUrl("");
       setProfileDraftAvatarDataUrl(dataUrl);
     } finally {
