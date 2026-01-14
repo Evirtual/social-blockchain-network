@@ -14,6 +14,7 @@ import { ProfileEditModal } from "./profileCard/ProfileEditModal";
 import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
 import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
 import { IconChevronDown } from "@shared/components/icons";
+import { ProfileHeader } from "@shared/components/ProfileHeader";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -122,21 +123,18 @@ export function ProfileCard(props: ProfileCardProps) {
           />
         </div>
 
-        <div className="profileHeader">
-          <div className="avatar" style={avatarStyle} />
-          <div className="profileMain">
-            <div className="profileName">{profileLink ? <Link to={profileLink}>{props.displayName}</Link> : props.displayName}</div>
-            <div className="profileMeta">
-              {props.walletAddress ? (
-                <Link to={profileLink!}>{props.shortAddress(props.walletAddress)}</Link>
-              ) : (
-                "Connect wallet to edit profile"
-              )}
-            </div>
-          </div>
-
-          {props.walletAddress ? (
-            <div className="profileActions">
+        <ProfileHeader
+          avatarStyle={avatarStyle}
+          name={profileLink ? <Link to={profileLink}>{props.displayName}</Link> : props.displayName}
+          meta={
+            props.walletAddress ? (
+              <Link to={profileLink!}>{props.shortAddress(props.walletAddress)}</Link>
+            ) : (
+              "Connect wallet to edit profile"
+            )
+          }
+          actions={
+            props.walletAddress ? (
               <ProfileSidebarActions
                 walletAddress={props.walletAddress}
                 isEditingProfile={props.isEditingProfile}
@@ -148,9 +146,9 @@ export function ProfileCard(props: ProfileCardProps) {
                 onOpenApprovals={() => setIsApprovalsOpen(true)}
                 onDisconnectWallet={props.onDisconnectWallet}
               />
-            </div>
-          ) : null}
-        </div>
+            ) : null
+          }
+        />
 
         <ApprovalsModal
           open={isApprovalsOpen}

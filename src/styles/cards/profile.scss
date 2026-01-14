@@ -151,7 +151,7 @@
 .avatar {
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: 1.375rem;
+  border-radius: 2.75rem;
   background-size: cover;
   background-position: center;
 }
@@ -164,6 +164,11 @@
 .avatar.tiny {
   width: 1.75rem;
   height: 1.75rem;
+}
+
+.avatar.medium {
+  width: 5rem;
+  height: 5rem;
 }
 
 .profileMain {

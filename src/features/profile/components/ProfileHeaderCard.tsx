@@ -1,4 +1,5 @@
 import { IconCheck, IconEdit, IconRepeat, IconX } from "@shared/components/icons";
+import { ProfileHeader } from "@shared/components/ProfileHeader";
 import { buildProfileHeaderCardState } from "@features/profile/viewModel";
 
 type Props = {
@@ -142,19 +143,12 @@ export function ProfileHeaderCard(props: Props) {
         </div>
       </div>
 
-      <div className="profileHeader">
-        <div className="avatar" style={avatarStyle} />
-        <div className="profileMain">
-          <div className="profileName">{props.name || props.addressLabel}</div>
-          <div className="profileMeta">{props.addressLabel}</div>
-        </div>
-
-        {props.canAdminEdit ? (
-          <div className="profileActions">
-            {renderAdminButtons()}
-          </div>
-        ) : null}
-      </div>
+      <ProfileHeader
+        avatarStyle={avatarStyle}
+        name={props.name || props.addressLabel}
+        meta={props.addressLabel}
+        actions={props.canAdminEdit ? renderAdminButtons() : null}
+      />
 
       <div className="profileBio">
         <div className="muted">{props.bio || "No bio yet."}</div>
