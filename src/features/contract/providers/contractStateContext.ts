@@ -7,6 +7,10 @@ export type ContractState = {
   contractDeployed: boolean | null;
   withdrawableTipsWei: bigint;
 
+  protocolTreasuryAddress: string | null;
+  treasuryWithdrawableTipsWei: bigint;
+  treasuryNativeBalanceWei: bigint;
+
   withdrawFeeBps: number;
 
   tipSupportPreferenceBps: number;

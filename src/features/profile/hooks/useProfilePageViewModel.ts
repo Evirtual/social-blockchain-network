@@ -12,6 +12,9 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     contract: {
       withdrawableTipsWei: args.contractState.withdrawableTipsWei,
       withdrawFeeBps: args.contractState.withdrawFeeBps,
+      protocolTreasuryAddress: args.contractState.protocolTreasuryAddress,
+      treasuryWithdrawableTipsWei: args.contractState.treasuryWithdrawableTipsWei,
+      treasuryNativeBalanceWei: args.contractState.treasuryNativeBalanceWei,
       contractAddress: args.contractState.contractAddress,
       contractDeployed: args.contractState.contractDeployed
     },

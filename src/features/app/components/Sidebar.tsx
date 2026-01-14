@@ -39,6 +39,10 @@ export function Sidebar({
   nativeBalance,
   withdrawableTipsWei,
   withdrawFeeBps,
+  isOwner,
+  protocolTreasuryAddress,
+  treasuryWithdrawableTipsWei,
+  treasuryNativeBalanceWei,
   contractAddress,
   contractDeployed,
   status,
@@ -87,6 +91,10 @@ export function Sidebar({
         nativeBalance={nativeBalance}
         withdrawableTipsWei={withdrawableTipsWei}
         withdrawFeeBps={withdrawFeeBps}
+        isOwner={isOwner}
+        protocolTreasuryAddress={protocolTreasuryAddress}
+        treasuryWithdrawableTipsWei={treasuryWithdrawableTipsWei}
+        treasuryNativeBalanceWei={treasuryNativeBalanceWei}
         contractAddress={contractAddress}
         contractDeployed={contractDeployed}
         status={status}

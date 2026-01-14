@@ -19,6 +19,9 @@ export type ProfilePageViewModelInput = {
     isOwner: boolean;
     withdrawableTipsWei: bigint;
     withdrawFeeBps: number;
+    protocolTreasuryAddress: string | null;
+    treasuryWithdrawableTipsWei: bigint;
+    treasuryNativeBalanceWei: bigint;
     contractAddress: string | undefined;
     contractDeployed: boolean | null;
   };

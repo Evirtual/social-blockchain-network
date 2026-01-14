@@ -27,6 +27,9 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
   const [withdrawableTipsWei, setWithdrawableTipsWei] = useState<bigint>(0n);
   const [withdrawFeeBps, setWithdrawFeeBps] = useState<number>(0);
   const [tipSupportPreferenceBps, setTipSupportPreferenceBps] = useState<number>(0);
+  const [protocolTreasuryAddress, setProtocolTreasuryAddress] = useState<string | null>(null);
+  const [treasuryWithdrawableTipsWei, setTreasuryWithdrawableTipsWei] = useState<bigint>(0n);
+  const [treasuryNativeBalanceWei, setTreasuryNativeBalanceWei] = useState<bigint>(0n);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
 
   const chainIdNumberRef = useRef<number | null>(null);
@@ -57,7 +60,10 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
     setContractDeployed,
     setWithdrawableTipsWei,
     setWithdrawFeeBps,
-    setTipSupportPreferenceBps
+    setTipSupportPreferenceBps,
+    setProtocolTreasuryAddress,
+    setTreasuryWithdrawableTipsWei,
+    setTreasuryNativeBalanceWei
   });
 
   // Keep contract state in sync with wallet/provider changes.
@@ -86,10 +92,24 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       withdrawableTipsWei,
       withdrawFeeBps,
       tipSupportPreferenceBps,
+      protocolTreasuryAddress,
+      treasuryWithdrawableTipsWei,
+      treasuryNativeBalanceWei,
       ownerAddress,
       isOwner
     }),
-    [contractAddress, contractDeployed, withdrawableTipsWei, withdrawFeeBps, tipSupportPreferenceBps, ownerAddress, isOwner]
+    [
+      contractAddress,
+      contractDeployed,
+      withdrawableTipsWei,
+      withdrawFeeBps,
+      tipSupportPreferenceBps,
+      protocolTreasuryAddress,
+      treasuryWithdrawableTipsWei,
+      treasuryNativeBalanceWei,
+      ownerAddress,
+      isOwner
+    ]
   );
 
   const actionsValue = useMemo<ContractActions>(

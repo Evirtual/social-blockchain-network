@@ -106,6 +106,9 @@ export function ProfilePageContainer({ address }: Props) {
       isOwner: contractState.isOwner,
       withdrawableTipsWei: contractState.withdrawableTipsWei,
       withdrawFeeBps: contractState.withdrawFeeBps,
+      protocolTreasuryAddress: contractState.protocolTreasuryAddress,
+      treasuryWithdrawableTipsWei: contractState.treasuryWithdrawableTipsWei,
+      treasuryNativeBalanceWei: contractState.treasuryNativeBalanceWei,
       contractAddress: contractState.contractAddress,
       contractDeployed: contractState.contractDeployed
     },

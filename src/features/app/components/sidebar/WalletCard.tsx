@@ -12,6 +12,12 @@ export type WalletCardProps = {
   nativeBalance: string;
   withdrawableTipsWei: bigint;
   withdrawFeeBps: number;
+
+  isOwner: boolean;
+  protocolTreasuryAddress: string | null;
+  treasuryWithdrawableTipsWei: bigint;
+  treasuryNativeBalanceWei: bigint;
+
   contractAddress: string | undefined;
   contractDeployed: boolean | null;
   status: string;
@@ -25,9 +31,16 @@ export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
   const [isWithdrawInfoOpen, setIsWithdrawInfoOpen] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<"wallet" | "contract" | null>(null);
+  const [copiedKey, setCopiedKey] = useState<"wallet" | "contract" | "treasury" | null>(null);
   const isBalanceLoading = props.nativeBalance === "?";
   const isTipsLoading = props.contractDeployed === null && !!props.walletAddress;
+
+  const isConnectedAsTreasury =
+    !!props.walletAddress &&
+    !!props.protocolTreasuryAddress &&
+    props.walletAddress.toLowerCase() === props.protocolTreasuryAddress.toLowerCase();
+
+  const withdrawLabel = isConnectedAsTreasury ? "Withdraw treasury" : "Withdraw tips";
 
   const withdrawFeeWei = (props.withdrawableTipsWei * BigInt(props.withdrawFeeBps)) / 10_000n;
   const withdrawNetWei = props.withdrawableTipsWei - withdrawFeeWei;
@@ -61,7 +74,7 @@ export function WalletCard(props: WalletCardProps) {
     setIsOpen(!isMobile);
   }, [isMobile]);
 
-  const copyText = async (text: string, which: "wallet" | "contract") => {
+  const copyText = async (text: string, which: "wallet" | "contract" | "treasury") => {
     const value = String(text ?? "").trim();
     if (!value) return;
 
@@ -177,7 +190,7 @@ export function WalletCard(props: WalletCardProps) {
               <button
                 type="button"
                 className="ghost iconButton"
-                aria-label="Withdraw fee details"
+                aria-label="Withdraw details"
                 onClick={() => setIsWithdrawInfoOpen(true)}
               >
                 <IconQuestion size={20} />
@@ -191,61 +204,133 @@ export function WalletCard(props: WalletCardProps) {
                 aria-busy={props.isWithdrawSubmitting}
               >
                 {props.isWithdrawSubmitting ? <span className="spinner" aria-hidden="true" /> : <IconCoin size={16} />}
-                Withdraw
+                {withdrawLabel}
               </button>
             </div>
           </div>
         </div>
 
-        <Modal open={isWithdrawInfoOpen} title="Withdraw tips" onClose={() => setIsWithdrawInfoOpen(false)}>
+        <Modal open={isWithdrawInfoOpen} title={withdrawLabel} onClose={() => setIsWithdrawInfoOpen(false)}>
           <div className="list">
-            <div className="muted">
-              A protocol fee is charged when you withdraw. The fee goes to the protocol treasury, and the rest is sent to
-              your wallet.
-            </div>
+            {isConnectedAsTreasury ? (
+              <>
+                <div className="muted">
+                  Withdraws the treasury’s withdrawable tips (protocol support). Withdraw fees from other users are already
+                  in the treasury wallet balance.
+                </div>
 
-            <div className="listRow" role="group" aria-label="Withdrawal estimate">
-              <div className="listRowLeft">
-                <div>
-                  <div className="label">Available tips</div>
-                  <div className="value">
-                    {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {props.getNativeSymbol(props.chainId)}
+                <div className="listRow" role="group" aria-label="Treasury address">
+                  <div className="listRowLeft">
+                    <div>
+                      <div className="label">Treasury</div>
+                      <div className="walletValueWithAction">
+                        <span className="walletValueText">
+                          {props.protocolTreasuryAddress ? props.shortAddress(props.protocolTreasuryAddress) : "?"}
+                        </span>
+                        {props.protocolTreasuryAddress ? (
+                          <button
+                            type="button"
+                            className="ghost iconButton walletCopyButton"
+                            aria-label="Copy treasury address"
+                            title="Copy treasury address"
+                            onClick={() => void copyText(props.protocolTreasuryAddress ?? "", "treasury")}
+                          >
+                            {copiedKey === "treasury" ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
+                  <div className="listRowRight" />
                 </div>
-              </div>
-              <div className="listRowRight">
-                <div style={{ textAlign: "right" }}>
-                  <div className="label">Fee ({formatBpsPercent(props.withdrawFeeBps)})</div>
-                  <div className="value">
-                    {isTipsLoading ? "…" : formatEtherTrim(withdrawFeeWei, 6)} {props.getNativeSymbol(props.chainId)}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="listRow" role="group" aria-label="Net to wallet">
-              <div className="listRowLeft">
-                <div>
-                  <div className="label">You receive</div>
-                  <div className="value">
-                    {isTipsLoading ? "…" : formatEtherTrim(withdrawNetWei, 6)} {props.getNativeSymbol(props.chainId)}
+                <div className="listRow" role="group" aria-label="Treasury wallet balance">
+                  <div className="listRowLeft">
+                    <div>
+                      <div className="label">Treasury wallet balance</div>
+                      <div className="value">
+                        {isTipsLoading ? "…" : formatEtherTrim(props.treasuryNativeBalanceWei, 6)} {props.getNativeSymbol(props.chainId)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="listRowRight" />
+                </div>
+
+                <div className="listRow" role="group" aria-label="Treasury withdraw estimate">
+                  <div className="listRowLeft">
+                    <div>
+                      <div className="label">Treasury withdrawable</div>
+                      <div className="value">
+                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {props.getNativeSymbol(props.chainId)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="listRowRight">
+                    <button
+                      className="btn primary"
+                      type="button"
+                      onClick={() => {
+                        setIsWithdrawInfoOpen(false);
+                        props.onWithdrawTips();
+                      }}
+                      disabled={!props.walletAddress || props.withdrawableTipsWei === 0n || props.isWithdrawSubmitting}
+                    >
+                      {withdrawLabel}
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="listRowRight">
-                <button
-                  className="btn primary"
-                  type="button"
-                  onClick={() => {
-                    setIsWithdrawInfoOpen(false);
-                    props.onWithdrawTips();
-                  }}
-                  disabled={!props.walletAddress || props.withdrawableTipsWei === 0n || props.isWithdrawSubmitting}
-                >
-                  Withdraw
-                </button>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="muted">
+                  A protocol fee is charged when you withdraw. The fee goes to the protocol treasury, and the rest is sent
+                  to your wallet.
+                </div>
+
+                <div className="listRow" role="group" aria-label="Withdrawal estimate">
+                  <div className="listRowLeft">
+                    <div>
+                      <div className="label">Available tips</div>
+                      <div className="value">
+                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {props.getNativeSymbol(props.chainId)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="listRowRight">
+                    <div style={{ textAlign: "right" }}>
+                      <div className="label">Fee ({formatBpsPercent(props.withdrawFeeBps)})</div>
+                      <div className="value">
+                        {isTipsLoading ? "…" : formatEtherTrim(withdrawFeeWei, 6)} {props.getNativeSymbol(props.chainId)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="listRow" role="group" aria-label="Net to wallet">
+                  <div className="listRowLeft">
+                    <div>
+                      <div className="label">You receive</div>
+                      <div className="value">
+                        {isTipsLoading ? "…" : formatEtherTrim(withdrawNetWei, 6)} {props.getNativeSymbol(props.chainId)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="listRowRight">
+                    <button
+                      className="btn primary"
+                      type="button"
+                      onClick={() => {
+                        setIsWithdrawInfoOpen(false);
+                        props.onWithdrawTips();
+                      }}
+                      disabled={!props.walletAddress || props.withdrawableTipsWei === 0n || props.isWithdrawSubmitting}
+                    >
+                      {withdrawLabel}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       </div>

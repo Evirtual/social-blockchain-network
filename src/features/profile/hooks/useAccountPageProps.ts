@@ -14,6 +14,9 @@ export function useAccountPageProps(args: {
   contract: {
     withdrawableTipsWei: bigint;
     withdrawFeeBps: number;
+    protocolTreasuryAddress: string | null;
+    treasuryWithdrawableTipsWei: bigint;
+    treasuryNativeBalanceWei: bigint;
     contractAddress: string | undefined;
     contractDeployed: boolean | null;
   };
@@ -143,6 +146,10 @@ export function useAccountPageProps(args: {
         nativeBalance: wallet.nativeBalance,
         withdrawableTipsWei: contract.withdrawableTipsWei,
         withdrawFeeBps: contract.withdrawFeeBps,
+        isOwner,
+        protocolTreasuryAddress: contract.protocolTreasuryAddress,
+        treasuryWithdrawableTipsWei: contract.treasuryWithdrawableTipsWei,
+        treasuryNativeBalanceWei: contract.treasuryNativeBalanceWei,
         contractAddress: contract.contractAddress,
         contractDeployed: contract.contractDeployed,
         status,
@@ -176,6 +183,9 @@ export function useAccountPageProps(args: {
     status,
     contract.withdrawableTipsWei,
     contract.withdrawFeeBps,
+    contract.protocolTreasuryAddress,
+    contract.treasuryWithdrawableTipsWei,
+    contract.treasuryNativeBalanceWei,
     contract.contractAddress,
     contract.contractDeployed,
     wallet.chainId,
