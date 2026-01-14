@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 import { ProfileAdminPanel } from "../components/ProfileAdminPanel";
 import { ProfileFeedSection } from "../components/ProfileFeedSection";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
-import { ipfsToHttp } from "@features/ipfs";
 import type { PostActionsController } from "@features/post";
+import { getAvatarStyle } from "@shared/lib/avatar";
 
 type Props = {
   isOwner: boolean;
@@ -74,12 +74,10 @@ export function ProfilePage(props: Props) {
     () => ({ name: props.name ?? "", bio: props.bio ?? "", avatarUrl: props.avatarUrl ?? "" }),
     [props.name, props.bio, props.avatarUrl]
   );
-  const avatarStyle = useMemo(() => {
-    if (props.avatarUrl?.trim()) {
-      return { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` };
-    }
-    return { background: `hsl(${props.avatarHue} 75% 55%)` };
-  }, [props.avatarUrl, props.avatarHue]);
+  const avatarStyle = useMemo(
+    () => getAvatarStyle({ avatarUrl: props.avatarUrl, hue: props.avatarHue }),
+    [props.avatarUrl, props.avatarHue]
+  );
 
   return (
     <main className="profileLayout">

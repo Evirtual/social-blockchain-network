@@ -1,8 +1,5 @@
-import { ipfsToHttp } from "@features/ipfs";
+import { getAvatarStyle as getBaseAvatarStyle } from "@shared/lib/avatar";
 
 export function getAvatarStyle(params: { authorAvatarUrl?: string; authorHue: number }) {
-  const { authorAvatarUrl, authorHue } = params;
-  return authorAvatarUrl?.trim()
-    ? { backgroundImage: `url(${ipfsToHttp(authorAvatarUrl)})` }
-    : { background: `hsl(${authorHue} 75% 55%)` };
+  return getBaseAvatarStyle({ avatarUrl: params.authorAvatarUrl, hue: params.authorHue });
 }

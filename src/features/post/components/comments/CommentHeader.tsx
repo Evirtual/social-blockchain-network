@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { PostComment } from "@types";
 import { IconEdit, IconFlag, IconRepeat, IconTrash } from "@shared/components/icons";
-import { ipfsToHttp } from "@features/ipfs";
+import { getAvatarStyle } from "@shared/lib/avatar";
 import { getProfileUrl } from "@shared/lib/profile";
 
 type Props = {
@@ -23,9 +23,7 @@ type Props = {
 };
 
 export function CommentHeader(props: Props) {
-  const avatarStyle = props.avatarUrl?.trim()
-    ? { backgroundImage: `url(${ipfsToHttp(props.avatarUrl)})` }
-    : { background: `hsl(${props.hue} 75% 55%)` };
+  const avatarStyle = getAvatarStyle({ avatarUrl: props.avatarUrl, hue: props.hue });
 
   return (
     <div className="postHead">

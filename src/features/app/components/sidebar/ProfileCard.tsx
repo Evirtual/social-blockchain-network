@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { ipfsToHttp } from "@features/ipfs";
-
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { ApprovalsModal, FollowersModal, FollowingModal, useOwnerAddress } from "@features/profile";
 import { useContractActionsFacade, useContractState } from "@features/contract";
@@ -15,6 +13,7 @@ import { ProfileHeaderStats } from "./profileCard/ProfileHeaderStats";
 import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
 import { IconChevronDown } from "@shared/components/icons";
 import { ProfileHeader } from "@shared/components/ProfileHeader";
+import { getAvatarStyle } from "@shared/lib/avatar";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -81,9 +80,7 @@ export function ProfileCard(props: ProfileCardProps) {
 
   const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
 
-  const avatarStyle = avatarDisplayUrl?.trim()
-    ? { backgroundImage: `url(${ipfsToHttp(avatarDisplayUrl)})` }
-    : { background: `hsl(${props.selfAvatarHue} 75% 55%)` };
+  const avatarStyle = getAvatarStyle({ avatarUrl: avatarDisplayUrl, hue: props.selfAvatarHue });
 
   const showHeaderStats = !!props.walletAddress;
   const showHeaderStatsRow = showHeaderStats;
