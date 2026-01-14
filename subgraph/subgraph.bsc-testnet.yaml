@@ -10,8 +10,8 @@ dataSources:
     network: chapel
     source:
       abi: SocialPosts
-      address: "0x4432814B9502D8ED5FDfAE8977599f4ef45D10aE" # BSC Testnet: SocialPosts
-      startBlock: 83923855 # set to contract deployment block for faster indexing
+      address: "0xBeC3338AA04574C739594Ecc2Bd201d0fCc1A4e2" # BSC Testnet: SocialPosts
+      startBlock: 84313978 # set to contract deployment block for faster indexing
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

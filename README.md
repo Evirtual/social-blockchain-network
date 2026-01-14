@@ -23,10 +23,10 @@ Repo structure:
 3. Deploy the contract to localhost
    - `npm run deploy:local`
 
-   This writes the deployed address into `.env.local` as `VITE_CONTRACT_ADDRESS_LOCAL`.
+   This writes the deployed address into the repo root `.env` as `VITE_CONTRACT_ADDRESS_LOCAL`.
 
-4. Create `.env.local`
-   - If you didn't run `npm run deploy:local`, copy `.env.example` to `.env.local`
+4. Create `.env` (frontend)
+   - If you didn't run `npm run deploy:local`, copy `.env.example` to `.env`
    - Set the per-network vars (recommended)
 
 5. Start the frontend
@@ -72,7 +72,7 @@ GitHub Pages (or any static host) can host the frontend, but the contract must b
 ### 1) Configure deploy environment
 
 - Copy `contracts/.env.example` to `contracts/.env` (for Hardhat)
-- Copy `.env.example` to `.env.local` (for Vite) if you want to run the frontend locally
+- Copy `.env.example` to `.env` (for Vite frontend config)
 
 Set at minimum (in `contracts/.env`):
 

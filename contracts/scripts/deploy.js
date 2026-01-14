@@ -64,8 +64,9 @@ async function main() {
   const envKey = keyByNetwork[networkName] || "VITE_CONTRACT_ADDRESS_LOCAL";
 
   // Vite variables (VITE_*) are frontend configuration.
-  // Keep them in .env.local for local dev regardless of which chain we deploy to.
-  const envFilename = ".env.local";
+  // This repo keeps frontend env in the repo root `.env`.
+  // You can override the target file (rare) via FRONTEND_ENV_FILE.
+  const envFilename = process.env.FRONTEND_ENV_FILE || ".env";
   const envPath = path.join(repoRoot, envFilename);
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
   const next = upsertEnvVar(existing, envKey, address);

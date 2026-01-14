@@ -10,8 +10,8 @@ dataSources:
     network: sepolia
     source:
       abi: SocialPosts
-      address: "0x52F4408c29a0ffa052f12c72F4Ac5D763f2DeFeb" # Ethereum Sepolia: SocialPosts
-      startBlock: 10025574 # set to contract deployment block for faster indexing
+      address: "0xc2341d66BCD007bAc523cD0D216D42dD44364912" # Ethereum Sepolia: SocialPosts
+      startBlock: 10039318 # set to contract deployment block for faster indexing
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
