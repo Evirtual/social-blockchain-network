@@ -30,7 +30,12 @@ export function collectReferencedIpfsCidsFromPosts(
 
   for (const p of posts) {
     if (excludeTokenIds.size > 0 && excludeChain) {
-      if (String(p.chainId ?? "").trim() === excludeChain && excludeTokenIds.has(String(p.tokenId ?? "").trim())) {
+      const pChain = String(p.chainId ?? "").trim();
+      const pTokenId = String(p.tokenId ?? "").trim();
+
+      // If a post doesn't have a chainId (older cached feed entries), treat it as matching
+      // the excluded chain so cleanup isn't blocked during burn/reset.
+      if ((pChain === "" || pChain === excludeChain) && excludeTokenIds.has(pTokenId)) {
         continue;
       }
     }

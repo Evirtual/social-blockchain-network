@@ -226,6 +226,16 @@ export const extractIpfsCid = (uri: string): string | null => {
   // Common gateway form: https://.../ipfs/<CID>/...
   try {
     const u = new URL(raw);
+
+    // Subdomain gateway form: https://<CID>.ipfs.<domain>/<path>
+    // Examples: <cid>.ipfs.dweb.link, <cid>.ipfs.nftstorage.link
+    const hostParts = u.hostname.split(".").filter(Boolean);
+    const ipfsHostIndex = hostParts.findIndex((p) => p === "ipfs");
+    if (ipfsHostIndex > 0 && hostParts[ipfsHostIndex - 1]) {
+      const cid = String(hostParts[ipfsHostIndex - 1]).trim();
+      if (cid) return cid;
+    }
+
     const parts = u.pathname.split("/").filter(Boolean);
     const ipfsIndex = parts.findIndex((p) => p === "ipfs");
     if (ipfsIndex >= 0 && parts[ipfsIndex + 1]) {

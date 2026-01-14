@@ -127,6 +127,45 @@ describe("SocialPosts", () => {
     await expect(contract.connect(author).withdrawTips()).to.be.revertedWith("Nothing to withdraw");
   });
 
+  it("withdrawTips charges withdraw fee and sends it to treasury", async () => {
+    const { contract, author, other, tipper } = await deploy();
+
+    await contract.connect(author).mintPost("ipfs://post-1", "Post 1", "Body 1");
+
+    // Ensure protocol treasury is not the same as the withdrawing author.
+    await expect(contract.connect(author).setProtocolTreasury(other.address))
+      .to.emit(contract, "ProtocolTreasuryUpdated")
+      .withArgs(author.address, other.address);
+
+    const tipAmount = 1234n;
+    await contract.connect(tipper).tipPost(1n, { value: tipAmount });
+    expect(await contract.withdrawableOf(author.address)).to.equal(tipAmount);
+
+    const feeBps = await contract.withdrawFeeBps();
+    const feeWei = (tipAmount * BigInt(feeBps)) / 10_000n;
+    const netWei = tipAmount - feeWei;
+
+    const beforeAuthor = await ethers.provider.getBalance(author.address);
+    const beforeTreasury = await ethers.provider.getBalance(other.address);
+
+    const tx = await contract.connect(author).withdrawTips();
+    const receipt = await tx.wait();
+
+    await expect(tx).to.emit(contract, "WithdrawFeePaid").withArgs(author.address, other.address, feeWei, feeBps);
+    await expect(tx).to.emit(contract, "TipsWithdrawn").withArgs(author.address, tipAmount);
+
+    const afterAuthor = await ethers.provider.getBalance(author.address);
+    const afterTreasury = await ethers.provider.getBalance(other.address);
+
+    expect(afterTreasury - beforeTreasury).to.equal(feeWei);
+
+    const gasPrice = (receipt as any).gasPrice ?? (receipt as any).effectiveGasPrice ?? 0n;
+    const gasCost = (receipt?.gasUsed ?? 0n) * gasPrice;
+    expect(afterAuthor - beforeAuthor + gasCost).to.equal(netWei);
+
+    expect(await contract.withdrawableOf(author.address)).to.equal(0n);
+  });
+
   it("burn removes post existence", async () => {
     const { contract, author, other } = await deploy();
 
@@ -216,6 +255,36 @@ describe("SocialPosts", () => {
     expect(await contract.exists(1n)).to.equal(false);
     expect(await contract.exists(2n)).to.equal(false);
     expect(await contract.exists(3n)).to.equal(false);
+  });
+
+  it("exposes author tokenIds (count/at/slice) and updates after burns", async () => {
+    const { contract, author, other } = await deploy();
+
+    await contract.connect(author).setPosterAllowed(other.address, true);
+    await contract.connect(other).mintPost("ipfs://post-1", "Post 1", "Body 1");
+    await contract.connect(other).mintPost("ipfs://post-2", "Post 2", "Body 2");
+    await contract.connect(other).mintPost("ipfs://post-3", "Post 3", "Body 3");
+
+    expect(await contract.authorTokenIdsCount(other.address)).to.equal(3n);
+    expect(await contract.authorTokenIdAt(other.address, 0n)).to.equal(1n);
+    expect(await contract.authorTokenIdAt(other.address, 1n)).to.equal(2n);
+    expect(await contract.authorTokenIdAt(other.address, 2n)).to.equal(3n);
+
+    expect(await contract.authorTokenIdsSlice(other.address, 0n, 2n)).to.deep.equal([1n, 2n]);
+    expect(await contract.authorTokenIdsSlice(other.address, 2n, 10n)).to.deep.equal([3n]);
+    expect(await contract.authorTokenIdsSlice(other.address, 3n, 10n)).to.deep.equal([]);
+
+    await expect(contract.connect(other).burnPost(2n)).to.emit(contract, "PostBurned").withArgs(other.address, 2n);
+    expect(await contract.authorTokenIdsCount(other.address)).to.equal(2n);
+
+    const remaining = await contract.authorTokenIdsSlice(other.address, 0n, 10n);
+    const sortBigints = (xs: bigint[]) =>
+      [...xs].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    expect(sortBigints(remaining)).to.deep.equal([1n, 3n]);
+
+    await contract.connect(author).adminResetAccount(other.address, []);
+    expect(await contract.authorTokenIdsCount(other.address)).to.equal(0n);
+    expect(await contract.authorTokenIdsSlice(other.address, 0n, 10n)).to.deep.equal([]);
   });
 
   it("blocks profile edits for non-approved wallets", async () => {

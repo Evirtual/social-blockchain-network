@@ -9,6 +9,7 @@ import { IconCheck, IconPower, IconRepeat, IconTrash, IconX } from "@shared/comp
 import { getProfileUrl } from "@shared/lib/profile";
 
 export function ApprovalListRow(props: {
+  rowNumber?: number;
   addr: string;
   shortAddress: (address: string) => string;
 
@@ -30,6 +31,7 @@ export function ApprovalListRow(props: {
   const wallet = useWalletState();
 
   const addrKey = props.addr.toLowerCase();
+  const profileName = profileState.profilesByAddress[addrKey]?.name?.trim();
   const avatarUrl = profileState.profilesByAddress[addrKey]?.avatarUrl?.trim();
   const avatarStyle = getAvatarStyle({ avatarUrl, hue: stableHueFromSeed(props.addr) });
 
@@ -52,8 +54,13 @@ export function ApprovalListRow(props: {
     <div key={props.addr} className="listRow" role="listitem">
       <span className="listRowLeft">
         <div className="avatar" style={avatarStyle} aria-hidden="true" />
-        <Link className="value" to={getProfileUrl(wallet.chainId, props.addr)}>
-          {props.shortAddress(props.addr)}
+        <Link className="approvalIdentity" to={getProfileUrl(wallet.chainId, props.addr)} title={props.addr}>
+          <span className="approvalIdentityTop">
+            <span className="approvalName">{profileName || props.shortAddress(props.addr)}</span>
+          </span>
+          <span className="approvalAddress">
+            <code>{props.addr}</code>
+          </span>
         </Link>
         {props.isFlagged ? <span className="pill">Flagged</span> : null}
         {props.isModerator ? <span className="pill">Mod</span> : null}

@@ -93,49 +93,131 @@ export function useApprovalActions(args: {
 
     args.setApprovalsError(null);
 
+    const tryGetTokenIdsOnChain = async (): Promise<bigint[] | null> => {
+      try {
+        const readContract = await args.getReadContract();
+        const c = readContract as any;
+        if (typeof c.authorTokenIdsCount !== "function") return null;
+
+        const count = (await c.authorTokenIdsCount(normalized)) as bigint;
+        if (typeof count !== "bigint") return null;
+        if (count === 0n) return [];
+
+        const pageSize = 50n;
+
+        const out: bigint[] = [];
+        if (typeof c.authorTokenIdsSlice === "function") {
+          for (let start = 0n; start < count; start += pageSize) {
+            const page = (await c.authorTokenIdsSlice(normalized, start, pageSize)) as bigint[];
+            if (!Array.isArray(page)) return null;
+            for (const id of page) {
+              if (typeof id !== "bigint") return null;
+              out.push(id);
+            }
+          }
+          return out;
+        }
+
+        if (typeof c.authorTokenIdAt === "function") {
+          for (let i = 0n; i < count; i++) {
+            const id = (await c.authorTokenIdAt(normalized, i)) as bigint;
+            if (typeof id !== "bigint") return null;
+            out.push(id);
+          }
+          return out;
+        }
+
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
     let tokenIds: bigint[] = [];
-    try {
-      const readContract = await args.getReadContract();
-      const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
-      const discovered = await discoverMintedTokenIdsForAuthor({
-        readContract,
-        scanProvider: provider,
-        author: normalized
-      });
-      tokenIds = discovered.tokenIds;
-    } catch {
-      tokenIds = [];
+    const onChain = await tryGetTokenIdsOnChain();
+    if (onChain !== null) {
+      tokenIds = onChain;
+    } else {
+      try {
+        const readContract = await args.getReadContract();
+        const provider: ChainProvider | null = getScanProviderFromReadContract(readContract);
+        const discovered = await discoverMintedTokenIdsForAuthor({
+          readContract,
+          scanProvider: provider,
+          author: normalized
+        });
+        tokenIds = discovered.tokenIds;
+      } catch {
+        tokenIds = [];
+      }
     }
 
-    let pinnedCids: Set<string> | null = null;
+    const fallbackTokenIdsFromFeed = () => {
+      const out: string[] = [];
+      const normalizedKey = normalized.toLowerCase();
+      const chainKey = String(args.walletChainId ?? "").trim();
+      for (const p of args.feedPosts) {
+        if (!p?.tokenId) continue;
+        if (String(p.author ?? "").toLowerCase() !== normalizedKey) continue;
+        const pChain = String(p.chainId ?? "").trim();
+        if (chainKey && pChain && pChain !== chainKey) continue;
+        out.push(String(p.tokenId));
+      }
+      return Array.from(new Set(out));
+    };
+
+    // CID collection can be slow (tokenURI reads + IPFS gateway fetches).
+    // Start it concurrently so the wallet tx prompt isn't blocked.
+    const collectPinnedCidsAsync = async (): Promise<Set<string> | null> => {
+      if (!hasPinata()) return null;
+
+      const out = new Set<string>();
+      const normalizedKey = normalized.toLowerCase();
+      const chainKey = String(args.walletChainId ?? "").trim();
+
+      // Best-effort: also collect from already-loaded feed.
+      for (const p of args.feedPosts) {
+        if (String(p.author ?? "").toLowerCase() !== normalizedKey) continue;
+        const pChain = String(p.chainId ?? "").trim();
+        if (chainKey && pChain && pChain !== chainKey) continue;
+
+        const refs = [p.metadataURI, p.image, p.animationUrl].filter(
+          (x): x is string => typeof x === "string" && x.trim().length > 0
+        );
+        for (const ref of refs) {
+          const cid = extractIpfsCid(ref);
+          if (cid) out.add(cid);
+        }
+      }
+
+      try {
+        const readContract = await args.getReadContract();
+
+        if (tokenIds.length) {
+          const cids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
+          for (const cid of cids) out.add(cid);
+        }
+
+        // Also collect current avatar pin so reset clears it too.
+        try {
+          const profile = (await (readContract as any).profileOf(normalized)) as unknown;
+          const prevAvatarUrl = String((profile as any)?.[2] ?? (profile as any)?.avatar ?? "");
+          const avatarCid = extractIpfsCid(prevAvatarUrl);
+          if (avatarCid) out.add(avatarCid);
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
+
+      return out.size ? out : null;
+    };
+
+    const pinnedCidsPromise = collectPinnedCidsAsync();
 
     try {
       await args.runContractTx("Reset account", async () => {
-        try {
-          if (hasPinata()) {
-            const readContract = await args.getReadContract();
-
-            if (tokenIds.length) {
-              pinnedCids = await collectPinnedCidsForTokenIds({ readContract, tokenIds, concurrency: 4 });
-            }
-
-            // Also collect current avatar pin so reset clears it too.
-            try {
-              const profile = (await (readContract as any).profileOf(normalized)) as unknown;
-              const prevAvatarUrl = String((profile as any)?.[2] ?? (profile as any)?.avatar ?? "");
-              const avatarCid = extractIpfsCid(prevAvatarUrl);
-              if (avatarCid) {
-                if (!pinnedCids) pinnedCids = new Set<string>();
-                pinnedCids.add(avatarCid);
-              }
-            } catch {
-              // ignore
-            }
-          }
-        } catch {
-          pinnedCids = null;
-        }
-
         const writeContract = await args.getWriteContract();
         return writeContract.adminResetAccount(normalized, tokenIds);
       });
@@ -144,13 +226,20 @@ export function useApprovalActions(args: {
     }
 
     try {
-      if (pinnedCids) {
-        const excludeTokenIds = tokenIds.map((x) => x.toString());
-        const referenced = collectReferencedIpfsCidsFromPosts(args.feedPosts, {
-          exclude: { chainId: args.walletChainId, tokenIds: excludeTokenIds }
+      const excludeTokenIds = tokenIds.length ? tokenIds.map((x) => x.toString()) : fallbackTokenIdsFromFeed();
+      const referenced = collectReferencedIpfsCidsFromPosts(args.feedPosts, {
+        exclude: { chainId: args.walletChainId, tokenIds: excludeTokenIds }
+      });
+
+      // Unpin in the background when CID collection completes.
+      void pinnedCidsPromise
+        .then((cids) => {
+          if (!cids || cids.size === 0) return;
+          return bestEffortUnpinCids(cids, { protectReferencedIn: referenced });
+        })
+        .catch(() => {
+          // ignore
         });
-        void bestEffortUnpinCids(pinnedCids, { protectReferencedIn: referenced });
-      }
     } catch {
       // ignore
     }

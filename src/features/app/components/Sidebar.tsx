@@ -38,6 +38,7 @@ export function Sidebar({
   networkName,
   nativeBalance,
   withdrawableTipsWei,
+  withdrawFeeBps,
   contractAddress,
   contractDeployed,
   status,
@@ -85,6 +86,7 @@ export function Sidebar({
         networkName={networkName}
         nativeBalance={nativeBalance}
         withdrawableTipsWei={withdrawableTipsWei}
+        withdrawFeeBps={withdrawFeeBps}
         contractAddress={contractAddress}
         contractDeployed={contractDeployed}
         status={status}

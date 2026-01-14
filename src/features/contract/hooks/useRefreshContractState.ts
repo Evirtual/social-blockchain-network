@@ -12,6 +12,8 @@ export function useRefreshContractState(params: {
   getReadContract: ReadContractFactory;
   setContractDeployed: (v: boolean | null) => void;
   setWithdrawableTipsWei: (v: bigint) => void;
+  setWithdrawFeeBps: (v: number) => void;
+  setTipSupportPreferenceBps: (v: number) => void;
 }) {
   return useCallback(async () => {
     if (!params.provider) return;
@@ -27,6 +29,8 @@ export function useRefreshContractState(params: {
     if (!addr) {
       params.setContractDeployed(null);
       params.setWithdrawableTipsWei(0n);
+      params.setWithdrawFeeBps(0);
+      params.setTipSupportPreferenceBps(0);
       return;
     }
 
@@ -40,11 +44,29 @@ export function useRefreshContractState(params: {
     try {
       if (!params.walletAddress) {
         params.setWithdrawableTipsWei(0n);
+        params.setWithdrawFeeBps(0);
+        params.setTipSupportPreferenceBps(0);
         return;
       }
       const readContract = await params.getReadContract();
       const w = (await readContract.withdrawableOf(params.walletAddress)) as bigint;
       params.setWithdrawableTipsWei(w);
+
+      try {
+        const feeBps = (await readContract.withdrawFeeBps()) as bigint;
+        params.setWithdrawFeeBps(Number(feeBps));
+      } catch {
+        // Old deployments may not have this method.
+        params.setWithdrawFeeBps(0);
+      }
+
+      try {
+        const pref = (await readContract.tipSupportPreferenceOf(params.walletAddress)) as bigint;
+        params.setTipSupportPreferenceBps(Number(pref));
+      } catch {
+        // Old deployments may not have this method.
+        params.setTipSupportPreferenceBps(0);
+      }
     } catch {
       // ignore
     }
@@ -55,6 +77,8 @@ export function useRefreshContractState(params: {
     params.chainIdNumberRef,
     params.getReadContract,
     params.setContractDeployed,
-    params.setWithdrawableTipsWei
+    params.setWithdrawableTipsWei,
+    params.setWithdrawFeeBps,
+    params.setTipSupportPreferenceBps
   ]);
 }

@@ -2,6 +2,7 @@ import type { PostComment } from "@types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getPostNetworkUi } from "@shared/lib/network";
+import { useContractState } from "@features/contract";
 import { useProfileActions, useProfileState } from "@features/profile";
 import { CommentItem } from "./comments/CommentItem";
 import { NewCommentComposer } from "./comments/NewCommentComposer";
@@ -32,7 +33,14 @@ type Props = {
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
 
@@ -44,6 +52,7 @@ type Props = {
 
 export function CommentsCard(props: Props) {
   const location = useLocation();
+  const contractState = useContractState();
   const profileState = useProfileState();
   const profileActions = useProfileActions();
 
@@ -54,6 +63,8 @@ export function CommentsCard(props: Props) {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [editDrafts, setEditDrafts] = useState<Record<string, string>>({});
   const [tipDrafts, setTipDrafts] = useState<Record<string, string>>({});
+  const [tipSupportBpsDrafts, setTipSupportBpsDrafts] = useState<Record<string, number | null>>({});
+  const [tipSavePreferenceDrafts, setTipSavePreferenceDrafts] = useState<Record<string, boolean>>({});
   const [reportDrafts, setReportDrafts] = useState<Record<string, string>>({});
   const [isSigning, setIsSigning] = useState(false);
   const [actionInFlight, setActionInFlight] = useState<ActionInFlight>({
@@ -76,6 +87,7 @@ export function CommentsCard(props: Props) {
   const explorerChainId = props.postChainId ?? props.chainId;
   const nativeSymbol = props.getNativeSymbol(explorerChainId);
   const walletLower = props.walletAddress?.toLowerCase() ?? null;
+  const defaultSupportBps = contractState.tipSupportPreferenceBps || 0;
 
   const visibleComments = useMemo(() => props.comments.filter((comment) => !comment.deleted), [props.comments]);
 
@@ -268,6 +280,7 @@ export function CommentsCard(props: Props) {
               >
                 <CommentItem
                   comment={c}
+                  defaultSupportBps={defaultSupportBps}
                   authorLabel={getDisplayName(c.author)}
                   authorAvatarUrl={getDisplayAvatarUrl(c.author)}
                   tokenId={props.tokenId}
@@ -287,6 +300,10 @@ export function CommentsCard(props: Props) {
                   setEditDrafts={setEditDrafts}
                   tipDrafts={tipDrafts}
                   setTipDrafts={setTipDrafts}
+                  tipSupportBpsDrafts={tipSupportBpsDrafts}
+                  setTipSupportBpsDrafts={setTipSupportBpsDrafts}
+                  tipSavePreferenceDrafts={tipSavePreferenceDrafts}
+                  setTipSavePreferenceDrafts={setTipSavePreferenceDrafts}
                   reportDrafts={reportDrafts}
                   setReportDrafts={setReportDrafts}
                   actionInFlight={actionInFlight}
@@ -312,6 +329,7 @@ export function CommentsCard(props: Props) {
                       >
                         <CommentItem
                           comment={reply}
+                          defaultSupportBps={defaultSupportBps}
                           replyToAddress={reply.parentId ? authorById.get(reply.parentId) ?? reply.parentId : null}
                           replyToLabel={
                             reply.parentId
@@ -337,6 +355,10 @@ export function CommentsCard(props: Props) {
                           setEditDrafts={setEditDrafts}
                           tipDrafts={tipDrafts}
                           setTipDrafts={setTipDrafts}
+                          tipSupportBpsDrafts={tipSupportBpsDrafts}
+                          setTipSupportBpsDrafts={setTipSupportBpsDrafts}
+                          tipSavePreferenceDrafts={tipSavePreferenceDrafts}
+                          setTipSavePreferenceDrafts={setTipSavePreferenceDrafts}
                           reportDrafts={reportDrafts}
                           setReportDrafts={setReportDrafts}
                           actionInFlight={actionInFlight}

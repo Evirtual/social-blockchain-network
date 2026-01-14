@@ -28,7 +28,14 @@ type Props = {
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   shortAddress: (address: string) => string;

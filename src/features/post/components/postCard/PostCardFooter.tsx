@@ -7,6 +7,7 @@ import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { requestComposeNudge } from "@shared/lib/composeNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
 import { useFeedState } from "@features/feed";
+import { useContractState } from "@features/contract";
 
 export type PostCardFooterProps = {
   className?: string;
@@ -28,13 +29,26 @@ export type PostCardFooterProps = {
     postChainId?: string | null,
     comment?: string
   ) => Promise<boolean>;
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTip: (
+    tokenId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
 
@@ -48,6 +62,7 @@ export type PostCardFooterProps = {
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
   const feedState = useFeedState();
+  const contractState = useContractState();
   const isDemoPost = String(props.post.tokenId ?? "").startsWith("demo-");
   const isDemoGated = feedState.isDemoModeEnabled && (!feedState.isLiveFeedEnabled || isDemoPost);
   const isDemoNotApproved = (isDemoGated && feedState.demoStep === "approve") || isDemoPost;
@@ -70,6 +85,10 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     nativeSymbol,
     tipDraft,
     setTipDraft,
+    supportBpsDraft,
+    setSupportBpsDraft,
+    saveSupportPreference,
+    setSaveSupportPreference,
     inFlight,
     setInFlight,
     onSubmitTip,
@@ -82,6 +101,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     openPanel: props.openPanel,
     onTogglePanel: props.onTogglePanel,
     onTip: props.onTip,
+    defaultSupportBps: contractState.tipSupportPreferenceBps,
     getNativeSymbol: props.getNativeSymbol
   });
 
@@ -166,6 +186,13 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         tipDraft={tipDraft}
         onTipDraftChange={setTipDraft}
         nativeSymbol={nativeSymbol}
+        supportBps={supportBpsDraft}
+        onSupportBpsChange={(next) => {
+          setSupportBpsDraft(next);
+          if (!next) setSaveSupportPreference(false);
+        }}
+        savePreference={saveSupportPreference}
+        onSavePreferenceChange={setSaveSupportPreference}
         onSubmitTip={onSubmitTip}
         onClose={onCloseTip}
         requiresNetworkSwitch={props.requiresNetworkSwitch}

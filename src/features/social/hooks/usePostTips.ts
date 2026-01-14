@@ -39,7 +39,13 @@ export function usePostTips(args: {
   } = args;
 
   const handleTip = useCallback(
-    async (tokenId: string, amountRaw: string, postChainId?: string | null) => {
+    async (
+      tokenId: string,
+      amountRaw: string,
+      postChainId?: string | null,
+      supportBps?: number | null,
+      savePreference?: boolean
+    ) => {
       const result = await runSocialAction<boolean>({
         walletAddress,
         setStatus,
@@ -56,17 +62,33 @@ export function usePostTips(args: {
           const writeContract = await getWriteContract();
           const tokenIdBig = BigInt(tokenId);
 
+          const supportBpsInt = Number.isFinite(supportBps as number) ? Number(supportBps) : 0;
+          if (supportBpsInt < 0 || supportBpsInt > 1000) {
+            setStatus("Support percentage must be 0-10%.");
+            return false;
+          }
+
+          const hasSupport = supportBpsInt > 0;
           const ok = await runContractTx<boolean>(
             "Tip",
-            () => writeContract.tipPost(tokenIdBig, { value: valueWei }),
+            () =>
+              hasSupport
+                ? writeContract.tipPostWithSupport(tokenIdBig, supportBpsInt, Boolean(savePreference), {
+                    value: valueWei
+                  })
+                : writeContract.tipPost(tokenIdBig, { value: valueWei }),
             () => true
           );
           if (!ok) return false;
 
+          const authorWei = hasSupport
+            ? valueWei - (valueWei * BigInt(supportBpsInt)) / 10000n
+            : valueWei;
+
           feed.setPosts((prev) =>
             prev.map((p) => {
               if (!isSamePost({ post: p, tokenId, postChainId })) return p;
-              return { ...p, tipsWei: p.tipsWei + valueWei };
+              return { ...p, tipsWei: p.tipsWei + authorWei };
             })
           );
           void refreshWalletPanel();
@@ -75,7 +97,15 @@ export function usePostTips(args: {
       });
       return result.ok ? result.value : false;
     },
-    [walletAddress, ensureMatchingNetwork, getWriteContract, runContractTx, feed, refreshWalletPanel, setStatus]
+    [
+      walletAddress,
+      setStatus,
+      ensureMatchingNetwork,
+      getWriteContract,
+      runContractTx,
+      feed,
+      refreshWalletPanel
+    ]
   );
 
   const withdrawTips = useCallback(

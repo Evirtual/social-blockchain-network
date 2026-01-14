@@ -47,13 +47,26 @@ type Props = {
     postChainId?: string | null,
     comment?: string
   ) => Promise<boolean>;
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTip: (
+    tokenId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;

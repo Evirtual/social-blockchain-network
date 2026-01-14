@@ -7,8 +7,14 @@ export function useTipWithRefresh() {
   const social = useSocialActions();
 
   return useCallback(
-    async (tokenId: string, amountRaw: string, postChainId?: string | null) => {
-      const ok = await social.handleTip(tokenId, amountRaw, postChainId);
+    async (
+      tokenId: string,
+      amountRaw: string,
+      postChainId?: string | null,
+      supportBps?: number | null,
+      savePreference?: boolean
+    ) => {
+      const ok = await social.handleTip(tokenId, amountRaw, postChainId, supportBps, savePreference);
       if (!ok) return false;
       try {
         await contract.refreshContractState();

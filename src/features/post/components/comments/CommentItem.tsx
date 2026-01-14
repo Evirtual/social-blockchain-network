@@ -10,6 +10,7 @@ import { CommentHeader } from "./CommentHeader";
 
 type Props = {
   comment: PostComment;
+  defaultSupportBps: number;
   authorLabel: string;
   authorAvatarUrl?: string;
   replyToAddress?: string | null;
@@ -31,6 +32,10 @@ type Props = {
   setEditDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   tipDrafts: Record<string, string>;
   setTipDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  tipSupportBpsDrafts: Record<string, number | null>;
+  setTipSupportBpsDrafts: Dispatch<SetStateAction<Record<string, number | null>>>;
+  tipSavePreferenceDrafts: Record<string, boolean>;
+  setTipSavePreferenceDrafts: Dispatch<SetStateAction<Record<string, boolean>>>;
   reportDrafts: Record<string, string>;
   setReportDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   actionInFlight: ActionInFlight;
@@ -40,7 +45,14 @@ type Props = {
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   shortAddress: (address: string) => string;
   stableHueFromSeed: (seed: string) => number;
@@ -197,6 +209,16 @@ export function CommentItem(props: Props) {
                 return isSame ? { type: null } : { type: "tip", commentId: comment.commentId };
               });
               props.setTipDrafts((prev) => ({ ...prev, [comment.commentId]: prev[comment.commentId] ?? "" }));
+
+              props.setTipSupportBpsDrafts((prev) => {
+                if (Object.prototype.hasOwnProperty.call(prev, comment.commentId)) return prev;
+                const next = props.defaultSupportBps > 0 ? props.defaultSupportBps : null;
+                return { ...prev, [comment.commentId]: next };
+              });
+              props.setTipSavePreferenceDrafts((prev) => {
+                if (Object.prototype.hasOwnProperty.call(prev, comment.commentId)) return prev;
+                return { ...prev, [comment.commentId]: false };
+              });
             }}
             disabled={props.requiresNetworkSwitch || isBusy || comment.deleted}
           >
@@ -220,6 +242,14 @@ export function CommentItem(props: Props) {
           replyDraft={props.replyDrafts[comment.commentId] ?? ""}
           editDraft={props.editDrafts[comment.commentId] ?? ""}
           tipDraft={props.tipDrafts[comment.commentId] ?? ""}
+          tipSupportBps={props.tipSupportBpsDrafts[comment.commentId] ?? null}
+          onTipSupportBpsChange={(next) =>
+            props.setTipSupportBpsDrafts((prev) => ({ ...prev, [comment.commentId]: next }))
+          }
+          tipSavePreference={props.tipSavePreferenceDrafts[comment.commentId] ?? false}
+          onTipSavePreferenceChange={(next) =>
+            props.setTipSavePreferenceDrafts((prev) => ({ ...prev, [comment.commentId]: next }))
+          }
           reportDraft={props.reportDrafts[comment.commentId] ?? ""}
           setReplyDraft={(next) => props.setReplyDrafts((prev) => ({ ...prev, [comment.commentId]: next }))}
           setEditDraft={(next) => props.setEditDrafts((prev) => ({ ...prev, [comment.commentId]: next }))}

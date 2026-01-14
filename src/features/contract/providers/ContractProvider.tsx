@@ -25,6 +25,8 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
 
   const [contractDeployed, setContractDeployed] = useState<boolean | null>(null);
   const [withdrawableTipsWei, setWithdrawableTipsWei] = useState<bigint>(0n);
+  const [withdrawFeeBps, setWithdrawFeeBps] = useState<number>(0);
+  const [tipSupportPreferenceBps, setTipSupportPreferenceBps] = useState<number>(0);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
 
   const chainIdNumberRef = useRef<number | null>(null);
@@ -53,7 +55,9 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
     chainIdNumberRef,
     getReadContract,
     setContractDeployed,
-    setWithdrawableTipsWei
+    setWithdrawableTipsWei,
+    setWithdrawFeeBps,
+    setTipSupportPreferenceBps
   });
 
   // Keep contract state in sync with wallet/provider changes.
@@ -80,10 +84,12 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       contractAddress,
       contractDeployed,
       withdrawableTipsWei,
+      withdrawFeeBps,
+      tipSupportPreferenceBps,
       ownerAddress,
       isOwner
     }),
-    [contractAddress, contractDeployed, withdrawableTipsWei, ownerAddress, isOwner]
+    [contractAddress, contractDeployed, withdrawableTipsWei, withdrawFeeBps, tipSupportPreferenceBps, ownerAddress, isOwner]
   );
 
   const actionsValue = useMemo<ContractActions>(

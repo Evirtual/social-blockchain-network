@@ -11,6 +11,7 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     status: args.status,
     contract: {
       withdrawableTipsWei: args.contractState.withdrawableTipsWei,
+      withdrawFeeBps: args.contractState.withdrawFeeBps,
       contractAddress: args.contractState.contractAddress,
       contractDeployed: args.contractState.contractDeployed
     },

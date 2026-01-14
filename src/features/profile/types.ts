@@ -18,6 +18,7 @@ export type ProfilePageViewModelInput = {
   contractState: {
     isOwner: boolean;
     withdrawableTipsWei: bigint;
+    withdrawFeeBps: number;
     contractAddress: string | undefined;
     contractDeployed: boolean | null;
   };

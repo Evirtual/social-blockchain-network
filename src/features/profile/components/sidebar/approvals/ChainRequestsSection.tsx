@@ -47,9 +47,10 @@ export function ChainRequestsSection(props: Props) {
 
       {props.chainRows.length ? (
         <div className="list">
-          {props.chainRows.map((row) => (
+          {props.chainRows.map((row, idx) => (
             <ApprovalListRow
               key={row.addr}
+              rowNumber={idx + 1}
               addr={row.addr}
               shortAddress={props.shortAddress}
               isFlagged={row.isFlagged}

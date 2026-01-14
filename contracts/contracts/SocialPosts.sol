@@ -8,6 +8,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract SocialPosts is ERC721URIStorage, Ownable {
     uint256 private _nextTokenId;
 
+    uint16 public constant MAX_TIP_SUPPORT_BPS = 1000; // 10%
+    uint16 public constant MAX_WITHDRAW_FEE_BPS = 500; // 5%
+    uint16 public withdrawFeeBps;
+
     uint256 public constant MAX_NAME_LENGTH = 64;
     uint256 public constant MAX_BIO_LENGTH = 280;
     uint256 public constant MAX_AVATAR_LENGTH = 512;
@@ -48,6 +52,10 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
     mapping(uint256 => uint256) private _tipsWei;
     mapping(address => uint256) private _withdrawableWei;
+
+    address private _protocolTreasury;
+    mapping(uint256 => uint256) private _protocolSupportWei;
+    mapping(address => uint16) private _tipSupportBpsOf;
 
     mapping(uint256 => mapping(address => bool)) private _hasLiked;
     mapping(uint256 => mapping(address => bool)) private _hasSaved;
@@ -90,7 +98,18 @@ contract SocialPosts is ERC721URIStorage, Ownable {
     event Followed(address indexed follower, address indexed followee);
     event Unfollowed(address indexed follower, address indexed followee);
     event PostTipped(address indexed tipper, address indexed author, uint256 indexed tokenId, uint256 amountWei);
+    event ProtocolTreasuryUpdated(address indexed admin, address indexed treasury);
+    event ProtocolSupported(
+        address indexed supporter,
+        address indexed treasury,
+        uint256 indexed tokenId,
+        uint256 amountWei,
+        uint16 supportBps
+    );
+    event TipSupportPreferenceUpdated(address indexed account, uint16 supportBps);
     event TipsWithdrawn(address indexed author, uint256 amountWei);
+    event WithdrawFeeUpdated(address indexed admin, uint16 feeBps);
+    event WithdrawFeePaid(address indexed author, address indexed treasury, uint256 feeWei, uint16 feeBps);
     event PostUpdated(address indexed author, uint256 indexed tokenId, string title, string body, string tokenURI);
     event PostEditedStatus(address indexed author, uint256 indexed tokenId, bool edited);
     event PostUpdatedByAdmin(
@@ -131,7 +150,37 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         _nextTokenId = 1;
         _nextCommentId = 1;
         _posterAllowed[msg.sender] = true;
+        _protocolTreasury = msg.sender;
+        withdrawFeeBps = 500;
         emit PosterAllowed(msg.sender, true);
+        emit ProtocolTreasuryUpdated(msg.sender, msg.sender);
+        emit WithdrawFeeUpdated(msg.sender, withdrawFeeBps);
+    }
+
+    function protocolTreasury() external view returns (address) {
+        return _protocolTreasury;
+    }
+
+    function setProtocolTreasury(address treasury) external onlyOwner {
+        require(treasury != address(0), "Invalid treasury");
+        _protocolTreasury = treasury;
+        emit ProtocolTreasuryUpdated(msg.sender, treasury);
+    }
+
+    function setWithdrawFeeBps(uint16 feeBps) external onlyOwner {
+        require(feeBps <= MAX_WITHDRAW_FEE_BPS, "Fee too high");
+        withdrawFeeBps = feeBps;
+        emit WithdrawFeeUpdated(msg.sender, feeBps);
+    }
+
+    function tipSupportPreferenceOf(address account) external view returns (uint16) {
+        return _tipSupportBpsOf[account];
+    }
+
+    function setTipSupportPreference(uint16 supportBps) external {
+        require(supportBps <= MAX_TIP_SUPPORT_BPS, "Support too high");
+        _tipSupportBpsOf[msg.sender] = supportBps;
+        emit TipSupportPreferenceUpdated(msg.sender, supportBps);
     }
 
     modifier onlyAdminOrModerator() {
@@ -333,6 +382,36 @@ contract SocialPosts is ERC721URIStorage, Ownable {
                 emit PostBurnedByAdmin(msg.sender, account, tokenId);
             }
         }
+    }
+
+    function authorTokenIdsCount(address author) external view returns (uint256) {
+        return _tokenIdsByAuthor[author].length;
+    }
+
+    function authorTokenIdAt(address author, uint256 index) external view returns (uint256) {
+        require(index < _tokenIdsByAuthor[author].length, "Index out of range");
+        return _tokenIdsByAuthor[author][index];
+    }
+
+    function authorTokenIdsSlice(
+        address author,
+        uint256 start,
+        uint256 limit
+    ) external view returns (uint256[] memory) {
+        uint256 len = _tokenIdsByAuthor[author].length;
+        if (start >= len || limit == 0) {
+            return new uint256[](0);
+        }
+
+        uint256 end = start + limit;
+        if (end > len) end = len;
+
+        uint256 outLen = end - start;
+        uint256[] memory out = new uint256[](outLen);
+        for (uint256 i = 0; i < outLen; i++) {
+            out[i] = _tokenIdsByAuthor[author][start + i];
+        }
+        return out;
     }
 
     function _trackAuthorToken(address author, uint256 tokenId) internal {
@@ -594,6 +673,44 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit CommentTipped(msg.sender, author, tokenId, commentId, msg.value);
     }
 
+    // msg.value is the TOTAL a tipper wants to spend.
+    // supportBps is the portion of msg.value routed to the protocol treasury.
+    // The remaining amount is credited to the comment author.
+    // If savePreference is true, the supportBps is persisted as the caller's default.
+    function tipCommentWithSupport(
+        uint256 tokenId,
+        uint256 commentId,
+        uint16 supportBps,
+        bool savePreference
+    ) external payable {
+        _requireCommentActive(tokenId, commentId);
+        require(msg.value > 0, "No tip sent");
+        require(supportBps <= MAX_TIP_SUPPORT_BPS, "Support too high");
+
+        if (savePreference) {
+            _tipSupportBpsOf[msg.sender] = supportBps;
+            emit TipSupportPreferenceUpdated(msg.sender, supportBps);
+        }
+
+        uint256 protocolWei = (msg.value * supportBps) / 10_000;
+        uint256 authorWei = msg.value - protocolWei;
+
+        address author = _commentById[commentId].author;
+
+        _commentById[commentId].tipWei += authorWei;
+        _withdrawableWei[author] += authorWei;
+
+        emit CommentTipped(msg.sender, author, tokenId, commentId, authorWei);
+
+        if (protocolWei > 0) {
+            address treasury = _protocolTreasury;
+            require(treasury != address(0), "Treasury not set");
+            _protocolSupportWei[tokenId] += protocolWei;
+            _withdrawableWei[treasury] += protocolWei;
+            emit ProtocolSupported(msg.sender, treasury, tokenId, protocolWei, supportBps);
+        }
+    }
+
     function savePost(uint256 tokenId) external {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         require(!_hasSaved[tokenId][msg.sender], "Already saved");
@@ -647,9 +764,46 @@ contract SocialPosts is ERC721URIStorage, Ownable {
         emit PostTipped(msg.sender, author, tokenId, msg.value);
     }
 
+    // msg.value is the TOTAL a tipper wants to spend.
+    // supportBps is the portion of msg.value routed to the protocol treasury.
+    // The remaining amount is credited to the post author.
+    // If savePreference is true, the supportBps is persisted as the caller's default.
+    function tipPostWithSupport(uint256 tokenId, uint16 supportBps, bool savePreference) external payable {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        require(msg.value > 0, "No tip sent");
+        require(supportBps <= MAX_TIP_SUPPORT_BPS, "Support too high");
+
+        if (savePreference) {
+            _tipSupportBpsOf[msg.sender] = supportBps;
+            emit TipSupportPreferenceUpdated(msg.sender, supportBps);
+        }
+
+        uint256 protocolWei = (msg.value * supportBps) / 10_000;
+        uint256 authorWei = msg.value - protocolWei;
+
+        address author = _author[tokenId];
+
+        _tipsWei[tokenId] += authorWei;
+        _withdrawableWei[author] += authorWei;
+        emit PostTipped(msg.sender, author, tokenId, authorWei);
+
+        if (protocolWei > 0) {
+            address treasury = _protocolTreasury;
+            require(treasury != address(0), "Treasury not set");
+            _protocolSupportWei[tokenId] += protocolWei;
+            _withdrawableWei[treasury] += protocolWei;
+            emit ProtocolSupported(msg.sender, treasury, tokenId, protocolWei, supportBps);
+        }
+    }
+
     function tipsOf(uint256 tokenId) external view returns (uint256) {
         require(_ownerOf(tokenId) != address(0), "Post does not exist");
         return _tipsWei[tokenId];
+    }
+
+    function protocolSupportOf(uint256 tokenId) external view returns (uint256) {
+        require(_ownerOf(tokenId) != address(0), "Post does not exist");
+        return _protocolSupportWei[tokenId];
     }
 
     function withdrawableOf(address account) external view returns (uint256) {
@@ -662,8 +816,19 @@ contract SocialPosts is ERC721URIStorage, Ownable {
 
         _withdrawableWei[msg.sender] = 0;
 
-        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        uint256 feeWei = (amount * withdrawFeeBps) / 10_000;
+        uint256 netWei = amount - feeWei;
+
+        (bool ok, ) = payable(msg.sender).call{value: netWei}("");
         require(ok, "Withdraw failed");
+
+        if (feeWei > 0) {
+            address treasury = _protocolTreasury;
+            require(treasury != address(0), "Treasury not set");
+            (bool ok2, ) = payable(treasury).call{value: feeWei}("");
+            require(ok2, "Fee transfer failed");
+            emit WithdrawFeePaid(msg.sender, treasury, feeWei, withdrawFeeBps);
+        }
 
         emit TipsWithdrawn(msg.sender, amount);
     }

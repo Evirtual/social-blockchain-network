@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
 import { IconPlus, IconX } from "@shared/components/icons";
 import { compressAvatarForIpfs } from "@shared/lib/avatarCompression";
+import { ipfsToHttp } from "@features/ipfs";
 
 type InitialDraft = {
   name: string;
@@ -36,6 +37,7 @@ export function AdminProfileModal(props: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [hasFileSelected, setHasFileSelected] = useState(false);
   const hasAvatarPreview = adminAvatarDataUrl.startsWith("data:image/");
+  const hasAvatarUrlPreview = !hasAvatarPreview && adminAvatarUrl.trim().length > 0;
   const nameTrimmed = adminName.trim();
   const bioTrimmed = adminBio.trim();
   const avatarUrlTrimmed = adminAvatarUrl.trim();
@@ -172,6 +174,21 @@ export function AdminProfileModal(props: Props) {
         {hasAvatarPreview && (
           <div className="mediaPreview">
             <img className="image-preview" src={adminAvatarDataUrl} alt="Avatar preview" />
+            <button
+              type="button"
+              className="ghost iconButton mediaPreviewClear"
+              onClick={onClearAdminAvatar}
+              aria-label="Remove avatar"
+              title="Remove avatar"
+            >
+              <IconX size={16} />
+            </button>
+          </div>
+        )}
+
+        {hasAvatarUrlPreview && (
+          <div className="mediaPreview">
+            <img className="image-preview" src={ipfsToHttp(adminAvatarUrl)} alt="Current avatar" />
             <button
               type="button"
               className="ghost iconButton mediaPreviewClear"

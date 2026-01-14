@@ -37,9 +37,10 @@ export function PendingApprovalsSection(props: Props) {
 
       {props.pendingRows.length === 0 ? null : (
         <div className="list">
-          {props.pendingRows.map((row) => (
+          {props.pendingRows.map((row, idx) => (
             <ApprovalListRow
               key={row.addr}
+              rowNumber={idx + 1}
               addr={row.addr}
               shortAddress={props.shortAddress}
               isFlagged={row.isFlagged}

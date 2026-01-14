@@ -254,7 +254,14 @@ export function useCommentActions(args: {
   );
 
   const tipComment = useCallback(
-    async (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => {
+    async (
+      tokenId: string,
+      commentId: string,
+      amountRaw: string,
+      postChainId?: string | null,
+      supportBps?: number | null,
+      savePreference?: boolean
+    ) => {
       const result = await runGuarded<boolean>(postChainId, async () => {
         const parsed = parseTipAmountRaw(amountRaw);
         if (!parsed.ok) {
@@ -262,18 +269,32 @@ export function useCommentActions(args: {
           return false;
         }
 
+        const support = supportBps ?? 0;
+        if (!Number.isFinite(support) || support < 0 || support > 1000) {
+          setStatus("Support % must be between 0% and 10%.");
+          return false;
+        }
+
         const valueWei = parseEther(parsed.raw);
         const writeContract = await getWriteContract();
 
+        const protocolWei = support > 0 ? (valueWei * BigInt(support)) / 10000n : 0n;
+        const authorWei = valueWei - protocolWei;
+
         const ok = await runContractTx<boolean>(
           "Tip comment",
-          () => writeContract.tipComment(BigInt(tokenId), BigInt(commentId), { value: valueWei }),
+          () =>
+            support > 0
+              ? writeContract.tipCommentWithSupport(BigInt(tokenId), BigInt(commentId), support, !!savePreference, {
+                  value: valueWei
+                })
+              : writeContract.tipComment(BigInt(tokenId), BigInt(commentId), { value: valueWei }),
           () => true
         );
         if (!ok) return false;
 
         updateCommentsForPost(tokenId, postChainId, (prev) =>
-          prev.map((c) => (c.commentId === commentId ? { ...c, tipWei: (c.tipWei ?? 0n) + valueWei } : c))
+          prev.map((c) => (c.commentId === commentId ? { ...c, tipWei: (c.tipWei ?? 0n) + authorWei } : c))
         );
         void refreshWalletPanel();
         return true;

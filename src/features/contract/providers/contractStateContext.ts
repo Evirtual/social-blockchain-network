@@ -7,6 +7,10 @@ export type ContractState = {
   contractDeployed: boolean | null;
   withdrawableTipsWei: bigint;
 
+  withdrawFeeBps: number;
+
+  tipSupportPreferenceBps: number;
+
   ownerAddress: string | null;
   isOwner: boolean;
 };

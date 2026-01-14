@@ -21,10 +21,23 @@ export type PostActionsController = {
   deleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   toggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
   toggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  tipComment: (tokenId: string, commentId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  tipComment: (
+    tokenId: string,
+    commentId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   reportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   reportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onTip: (tokenId: string, amountRaw: string, postChainId?: string | null) => Promise<boolean>;
+  onTip: (
+    tokenId: string,
+    amountRaw: string,
+    postChainId?: string | null,
+    supportBps?: number | null,
+    savePreference?: boolean
+  ) => Promise<boolean>;
   onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
 };
