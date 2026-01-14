@@ -63,6 +63,11 @@ Deployment depends on your hosting/indexing provider:
 
 ### Deploy to Graph Studio
 
+IMPORTANT: Always pass the manifest file (e.g. `subgraph.bsc-testnet.yaml`).
+
+If you run `npx graph deploy <slug>` without a file, Graph CLI will default to `subgraph.yaml`.
+In this repo `subgraph.yaml` is Base Sepolia, so you can accidentally deploy Base Sepolia indexing to every slug.
+
 1) Create one subgraph per chain in https://thegraph.com/studio/ (same code, different network/address).
 
 2) Get the deploy key from each subgraph page.
@@ -76,11 +81,12 @@ Deployment depends on your hosting/indexing provider:
 Run these from this repo's `subgraph/` directory (do NOT `graph init` into a new folder; the subgraph is already scaffolded here):
 
 - Base Sepolia:
-  - `npx graph deploy social-posts-base-sepolia subgraph.yaml --node https://api.studio.thegraph.com/deploy/`
+- Base Sepolia:
+  - `npx graph deploy social-posts-base-sepolia-v-2 subgraph.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
 - Ethereum Sepolia:
-  - `npx graph deploy social-posts-eth-sepolia subgraph.sepolia.yaml --node https://api.studio.thegraph.com/deploy/`
+  - `npx graph deploy social-posts-eth-sepolia subgraph.sepolia.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
 - BSC Testnet:
-  - `npx graph deploy social-posts-bsc-testnet subgraph.bsc-testnet.yaml --node https://api.studio.thegraph.com/deploy/`
+  - `npx graph deploy social-posts-bsc-testnet subgraph.bsc-testnet.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
 
 If your Studio page shows a different slug, use that exact slug.
 
