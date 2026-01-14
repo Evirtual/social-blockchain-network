@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { Modal } from "@shared/components/Modal";
-import { IconChevronDown, IconCoin, IconQuestion } from "@shared/components/icons";
+import { IconCheck, IconChevronDown, IconCoin, IconCopy, IconQuestion } from "@shared/components/icons";
 
 export type WalletCardProps = {
   walletAddress: string | null;
@@ -25,6 +25,7 @@ export function WalletCard(props: WalletCardProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState<boolean>(() => !isMobile);
   const [isWithdrawInfoOpen, setIsWithdrawInfoOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<"wallet" | "contract" | null>(null);
   const isBalanceLoading = props.nativeBalance === "?";
   const isTipsLoading = props.contractDeployed === null && !!props.walletAddress;
 
@@ -60,6 +61,32 @@ export function WalletCard(props: WalletCardProps) {
     setIsOpen(!isMobile);
   }, [isMobile]);
 
+  const copyText = async (text: string, which: "wallet" | "contract") => {
+    const value = String(text ?? "").trim();
+    if (!value) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else if (typeof document !== "undefined") {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        ta.style.pointerEvents = "none";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+
+      setCopiedKey(which);
+      window.setTimeout(() => setCopiedKey((prev) => (prev === which ? null : prev)), 1_200);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <details
       className="card cardDropdown walletDropdown"
@@ -83,7 +110,22 @@ export function WalletCard(props: WalletCardProps) {
           <div className="walletRow">
             <div className="walletField">
               <div className="label">Address</div>
-              <div className="value">{props.walletAddress ? props.shortAddress(props.walletAddress) : "?"}</div>
+              <div className="walletValueWithAction">
+                <span className="walletValueText">
+                  {props.walletAddress ? props.shortAddress(props.walletAddress) : "?"}
+                </span>
+                {props.walletAddress ? (
+                  <button
+                    type="button"
+                    className="ghost iconButton walletCopyButton"
+                    aria-label="Copy wallet address"
+                    title="Copy wallet address"
+                    onClick={() => void copyText(props.walletAddress ?? "", "wallet")}
+                  >
+                    {copiedKey === "wallet" ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="walletField">
               <div className="label">Network</div>
@@ -111,9 +153,23 @@ export function WalletCard(props: WalletCardProps) {
           <div className="walletRow walletContractRow">
             <div className="walletField">
               <div className="label">Contract</div>
-              <div className="value">
-                {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "?"}
-                {props.contractDeployed === false ? " (not on this chain)" : ""}
+              <div className="walletValueWithAction">
+                <span className="walletValueText">
+                  {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "?"}
+                  {props.contractDeployed === false ? " (not on this chain)" : ""}
+                </span>
+
+                {props.contractAddress ? (
+                  <button
+                    type="button"
+                    className="ghost iconButton walletCopyButton"
+                    aria-label="Copy contract address"
+                    title="Copy contract address"
+                    onClick={() => void copyText(String(props.contractAddress ?? ""), "contract")}
+                  >
+                    {copiedKey === "contract" ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  </button>
+                ) : null}
               </div>
             </div>
 
