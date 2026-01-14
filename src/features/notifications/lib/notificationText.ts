@@ -36,6 +36,10 @@ export function notificationActionText(kind: string): string {
       return "replied to your comment";
     case "COMMENT_TIPPED":
       return "tipped your comment";
+    case "PROTOCOL_SUPPORTED":
+      return "supported the protocol";
+    case "WITHDRAW_FEE_PAID":
+      return "paid a withdrawal fee";
     case "COMMENT_REPORTED":
       return "reported a comment";
     case "POSTER_APPROVAL_REQUESTED":

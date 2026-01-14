@@ -40,12 +40,30 @@ function formatAmountWei(amountWei: bigint, nativeSymbol: string): string {
   return `${trimmed} ${nativeSymbol}`;
 }
 
+function formatBps(supportBps: number): string {
+  if (!Number.isFinite(supportBps) || supportBps <= 0) return "0%";
+  const pct = supportBps / 100;
+  // Keep it short: 250 bps => 2.5%
+  const s = String(pct);
+  return s.includes(".") ? `${s.replace(/0+$/, "").replace(/\.$/, "")} %`.replace(" %", "%") : `${s}%`;
+}
+
+function isAmountKind(kind: string): boolean {
+  return (
+    kind === "POST_TIPPED" ||
+    kind === "COMMENT_TIPPED" ||
+    kind === "PROTOCOL_SUPPORTED" ||
+    kind === "WITHDRAW_FEE_PAID"
+  );
+}
+
 function getKindClass(kind: string): string {
   if (kind === "FOLLOWED" || kind === "UNFOLLOWED") return "isFollow";
   if (kind.includes("LIKED") || kind.includes("UNLIKED")) return "isLike";
   if (kind.includes("SAVED") || kind.includes("UNSAVED")) return "isSave";
   if (kind.includes("COMMENT")) return "isComment";
   if (kind.includes("TIPPED")) return "isTip";
+  if (kind.includes("PROTOCOL") || kind.includes("FEE")) return "isTip";
   if (kind.includes("APPROVAL") || kind.includes("APPROVED") || kind.includes("DISAPPROVED")) return "isApproval";
   if (kind.includes("REPORTED")) return "isReport";
   if (kind.includes("REMOVED")) return "isRemove";
@@ -78,6 +96,10 @@ function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
     case "POST_TIPPED":
     case "COMMENT_TIPPED":
       return { icon: <IconCoin size={14} filled />, label: "Tipped" };
+    case "PROTOCOL_SUPPORTED":
+      return { icon: <IconCoin size={14} filled />, label: "Treasury" };
+    case "WITHDRAW_FEE_PAID":
+      return { icon: <IconCoin size={14} filled />, label: "Fee" };
     case "POST_UPDATED_BY_ADMIN":
       return { icon: <IconEdit size={14} filled />, label: "Updated by admin" };
     case "POST_FROZEN":
@@ -147,7 +169,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const commentId = typeof n.commentId === "string" && n.commentId.trim() ? n.commentId.trim() : "";
         const hash = commentId ? `#comment-${commentId}` : "";
         const isRemovedPost = n.kind === "POST_REMOVED_BY_ADMIN";
-        const to = `/post/${n.tokenId}${hash}`;
+        const isAccountLevel = String(n.tokenId) === "0";
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
@@ -157,15 +179,20 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
             : "were approved to post"
           : (() => {
               const base = notificationActionText(n.kind);
-              const isTip = n.kind === "POST_TIPPED" || n.kind === "COMMENT_TIPPED";
+              const isTip = isAmountKind(n.kind);
               const amountWei = typeof n.amountWei === "bigint" ? n.amountWei : null;
               if (!isTip || !amountWei) return base;
-              return `${base} (${formatAmountWei(amountWei, nativeSymbol)})`;
+
+              const bps = typeof n.supportBps === "number" ? n.supportBps : 0;
+              const showPct = bps > 0 && (n.kind === "PROTOCOL_SUPPORTED" || n.kind === "WITHDRAW_FEE_PAID");
+              const pctText = showPct ? ` • ${formatBps(bps)}` : "";
+              return `${base} (${formatAmountWei(amountWei, nativeSymbol)}${pctText})`;
             })();
 
         const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;
         const profileLink = !isSelfPosterStatus && actorId ? getProfileUrl(postChainId, actorId) : "";
+        const to = isAccountLevel ? profileLink : `/post/${n.tokenId}${hash}`;
         const post = showThumb
           ? postByKey.get(postKeyFromParts(postChainId, String(n.tokenId))) ??
             postByKey.get(postKeyFromParts(null, String(n.tokenId))) ??
@@ -179,12 +206,17 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
             key={n.id}
             type="button"
             className={`listRow notificationRow ${isUnread ? "isUnread" : ""}`}
-            style={{ width: "100%", textAlign: "left", cursor: isRemovedPost ? "default" : "pointer" }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              cursor: isRemovedPost || (!to && isAccountLevel) ? "default" : "pointer"
+            }}
             onClick={() => {
               if (isRemovedPost) return;
+              if (!to && isAccountLevel) return;
               onSelect(n, to);
             }}
-            aria-disabled={isRemovedPost ? true : undefined}
+            aria-disabled={isRemovedPost || (!to && isAccountLevel) ? true : undefined}
           >
             <div className="listRowLeft">
               <div className="notificationAvatarWrap" aria-hidden="true">

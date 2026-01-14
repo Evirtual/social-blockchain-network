@@ -97,12 +97,16 @@ dataSources:
           handler: handleCommentTipped
         - event: PostTipped(indexed address,indexed address,indexed uint256,uint256)
           handler: handlePostTipped
+        - event: ProtocolSupported(indexed address,indexed address,indexed uint256,uint256,uint16)
+          handler: handleProtocolSupported
         - event: PostReported(indexed address,indexed uint256,string)
           handler: handlePostReported
         - event: CommentReported(indexed address,indexed uint256,indexed uint256,string)
           handler: handleCommentReported
         - event: TipsWithdrawn(indexed address,uint256)
           handler: handleTipsWithdrawn
+        - event: WithdrawFeePaid(indexed address,indexed address,uint256,uint16)
+          handler: handleWithdrawFeePaid
         - event: Followed(indexed address,indexed address)
           handler: handleFollowed
         - event: Unfollowed(indexed address,indexed address)

@@ -6,7 +6,12 @@ import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
 import { isPostBurned } from "@shared/lib/burnedPostsCache";
 import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
-const inFlight: InFlightMap<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean }> = {};
+const inFlight: InFlightMap<{
+  items: NotificationItem[];
+  schemaMismatch: boolean;
+  amountWeiUnsupported: boolean;
+  supportBpsUnsupported: boolean;
+}> = {};
 const CACHE_TTL_MS = 20 * 1000;
 const BURNED_CHECK_LIMIT = 200;
 
@@ -79,6 +84,7 @@ type SubgraphNotificationRow = {
   tokenId?: string;
   commentId?: string | null;
   amountWei?: string | null;
+  supportBps?: string | number | null;
   timestamp?: string;
   actor?: {
     id?: string;
@@ -93,14 +99,14 @@ export async function loadNotificationsFromSubgraph(args: {
   first?: number;
   bypassCache?: boolean;
   chainIdStr?: string | null;
-}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean }> {
+}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean; supportBpsUnsupported: boolean }> {
   const first = Math.max(1, Math.min(200, Number(args.first ?? 50)));
   const recipient = String(args.recipient ?? "").trim().toLowerCase();
   const url = String(args.url ?? "").trim();
   const bypassCache = Boolean(args.bypassCache);
   const chainIdStr = typeof args.chainIdStr === "string" ? args.chainIdStr.trim() : "";
 
-  if (!url || !recipient) return { items: [], schemaMismatch: false, amountWeiUnsupported: false };
+  if (!url || !recipient) return { items: [], schemaMismatch: false, amountWeiUnsupported: false, supportBpsUnsupported: false };
 
   const cacheKey = `socialBlockchainNetwork.notifications.${recipient}.${first}.${url}`;
   if (!bypassCache) {
@@ -108,6 +114,7 @@ export async function loadNotificationsFromSubgraph(args: {
       items?: NotificationItem[];
       schemaMismatch?: boolean;
       amountWeiUnsupported?: boolean;
+      supportBpsUnsupported?: boolean;
       ts?: number;
     }>(cacheKey);
     if (
@@ -118,14 +125,43 @@ export async function loadNotificationsFromSubgraph(args: {
       return {
         items: filterDeleted(cached.items, chainIdStr),
         schemaMismatch: Boolean(cached?.schemaMismatch),
-        amountWeiUnsupported: Boolean(cached?.amountWeiUnsupported)
+        amountWeiUnsupported: Boolean(cached?.amountWeiUnsupported),
+        supportBpsUnsupported: Boolean(cached?.supportBpsUnsupported)
       };
     }
   }
 
   const inFlightKey = bypassCache ? `${cacheKey}.fresh` : cacheKey;
   return await runInFlight(inFlight, inFlightKey, async () => {
-    const queryWithAmountWei = `
+    const queryWithAmountAndSupport = `
+      query Notifications($first: Int!, $recipient: ID!) {
+        notifications(
+          first: $first,
+          orderBy: timestamp,
+          orderDirection: desc,
+          where: { recipient: $recipient }
+        ) {
+          id
+          kind
+          tokenId
+          commentId
+          amountWei
+          supportBps
+          timestamp
+          actor {
+            id
+            name
+            avatar
+          }
+        }
+      }
+    `;
+
+    // Backwards compatibility:
+    // - Older subgraphs may not have Notification.amountWei
+    // - Even newer notifications add supportBps (basis points)
+    // Retry with progressively older queries.
+    const queryWithAmountOnly = `
       query Notifications($first: Int!, $recipient: ID!) {
         notifications(
           first: $first,
@@ -148,8 +184,6 @@ export async function loadNotificationsFromSubgraph(args: {
       }
     `;
 
-    // Legacy subgraphs may not have Notification.amountWei yet.
-    // Retain compatibility by retrying with a query that omits the field.
     const queryWithoutAmountWei = `
       query Notifications($first: Int!, $recipient: ID!) {
         notifications(
@@ -183,21 +217,31 @@ export async function loadNotificationsFromSubgraph(args: {
     let data: { notifications: SubgraphNotificationRow[] };
     let schemaMismatch = false;
     let amountWeiUnsupported = false;
+    let supportBpsUnsupported = false;
     try {
-      data = await runQuery(queryWithAmountWei);
+      data = await runQuery(queryWithAmountAndSupport);
     } catch (err) {
       if (!isLikelySubgraphSchemaMismatch(err)) throw err;
-      // Likely older subgraph: Notification.amountWei doesn't exist yet.
-      amountWeiUnsupported = true;
+
       try {
-        data = await runQuery(queryWithoutAmountWei);
+        // Try dropping supportBps first.
+        supportBpsUnsupported = true;
+        data = await runQuery(queryWithAmountOnly);
       } catch (err2) {
-        if (isLikelySubgraphSchemaMismatch(err2)) {
-          const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true };
-          writeLocalCache(cacheKey, { ...res, ts: Date.now() });
-          return res;
+        if (!isLikelySubgraphSchemaMismatch(err2)) throw err2;
+
+        // Likely even older subgraph: no amountWei.
+        amountWeiUnsupported = true;
+        try {
+          data = await runQuery(queryWithoutAmountWei);
+        } catch (err3) {
+          if (isLikelySubgraphSchemaMismatch(err3)) {
+            const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true, supportBpsUnsupported: true };
+            writeLocalCache(cacheKey, { ...res, ts: Date.now() });
+            return res;
+          }
+          throw err3;
         }
-        throw err2;
       }
     }
 
@@ -212,6 +256,7 @@ export async function loadNotificationsFromSubgraph(args: {
           tokenId: String(n?.tokenId ?? ""),
           commentId: n?.commentId ?? null,
           amountWei: toBigIntSafe(n?.amountWei),
+          supportBps: typeof n?.supportBps === "number" ? n.supportBps : toInt(n?.supportBps),
           chainId: chainIdStr || undefined,
           timestamp: toInt(n?.timestamp),
           actor: {
@@ -232,7 +277,7 @@ export async function loadNotificationsFromSubgraph(args: {
       filtered = filtered.filter((n) => n.kind === "POST_REMOVED_BY_ADMIN" || !burnedFromSubgraph.has(n.tokenId));
     }
 
-    const res = { items: filtered, schemaMismatch, amountWeiUnsupported };
+    const res = { items: filtered, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported };
     writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });

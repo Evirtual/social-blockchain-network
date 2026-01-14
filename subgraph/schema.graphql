@@ -237,6 +237,10 @@ type Notification @entity(immutable: true) {
   # Only set for tip notifications (POST_TIPPED / COMMENT_TIPPED)
   amountWei: BigInt
 
+  # Only set for protocol support (treasury cut) notifications.
+  # Basis points (BPS) out of 10_000.
+  supportBps: Int
+
   txHash: Bytes!
   logIndex: BigInt!
   blockNumber: BigInt!

@@ -25,6 +25,12 @@ export type NotificationKind =
   | "POST_REMOVED_BY_ADMIN"
   | "COMMENT_REMOVED";
 
+// Newer versions of the subgraph can emit these.
+// - PROTOCOL_SUPPORTED: a portion of a tip was routed to the protocol treasury
+// - WITHDRAW_FEE_PAID: a withdrawal fee was routed to the protocol treasury
+// Kept out of the union above to avoid breaking older cached items that may have unknown kinds.
+export type ProtocolNotificationKind = "PROTOCOL_SUPPORTED" | "WITHDRAW_FEE_PAID";
+
 export type NotificationActor = {
   id: string;
   name?: string | null;
@@ -38,6 +44,7 @@ export type NotificationItem = {
   chainId?: string | null;
   commentId?: string | null;
   amountWei?: bigint | null;
+  supportBps?: number | null;
   timestamp: number;
   actor: NotificationActor;
 };

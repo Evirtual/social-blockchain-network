@@ -23,6 +23,7 @@ import {
   ProfileModerated,
   ProfileUpdated,
   TipsWithdrawn,
+  WithdrawFeePaid,
   Unfollowed,
   CommentAdded,
   CommentEdited,
@@ -36,6 +37,7 @@ import {
   CommentReported,
   ModeratorSet,
   OwnershipTransferred,
+  ProtocolSupported,
   SocialPosts
 } from "../generated/SocialPosts/SocialPosts";
 
@@ -118,6 +120,7 @@ function createModerationNotification(
   n.tokenId = tokenId;
   n.commentId = commentId;
   n.amountWei = null;
+  n.unset("supportBps");
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -155,6 +158,7 @@ function createPostScopedNotification(
   n.tokenId = tokenId;
   n.commentId = commentId;
   n.amountWei = amountWei;
+  n.unset("supportBps");
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -179,12 +183,82 @@ function notifyModeratorsAndAdmin(
 
   const admin = Address.fromBytes(config.admin);
   if (!admin.equals(Address.zero())) {
-    createModerationNotification(
+    createModerationNotification(kind, admin, reporter, tokenId, commentId, txHash, logIndex, blockNumber, timestamp);
+  }
+
+  const moderators = config.moderators;
+  for (let i = 0; i < moderators.length; i++) {
+    const mod = Address.fromBytes(moderators[i]);
+    if (mod.equals(Address.zero())) continue;
+    if (mod.equals(admin)) continue;
+
+    createModerationNotification(kind, mod, reporter, tokenId, commentId, txHash, logIndex, blockNumber, timestamp);
+  }
+}
+
+function createModerationNotificationWithAmount(
+  kind: string,
+  recipientAddress: Address,
+  actorAddress: Address,
+  tokenId: string,
+  amountWei: BigInt,
+  supportBps: i32,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (recipientAddress.equals(Address.zero())) return;
+  if (actorAddress.equals(Address.zero())) return;
+  if (recipientAddress.equals(actorAddress)) return;
+
+  const recipient = getOrCreateAccount(recipientAddress, blockNumber, timestamp);
+  const actor = getOrCreateAccount(actorAddress, blockNumber, timestamp);
+
+  // Multiple recipients can be notified from the same log; include recipient in the ID.
+  const id = getLogId(txHash.toHexString(), logIndex) + "-" + recipientAddress.toHexString();
+  const n = new Notification(id);
+  n.kind = kind;
+  n.recipient = recipient.id;
+  n.actor = actor.id;
+  n.tokenId = tokenId;
+  n.commentId = null;
+  n.amountWei = amountWei;
+  n.supportBps = supportBps;
+  n.txHash = txHash;
+  n.logIndex = logIndex;
+  n.blockNumber = blockNumber;
+  n.timestamp = timestamp;
+  n.save();
+
+  recipient.save();
+  actor.save();
+}
+
+function notifyModeratorsAndAdminWithAmount(
+  kind: string,
+  actor: Address,
+  tokenId: string,
+  amountWei: BigInt,
+  supportBps: i32,
+  txHash: Bytes,
+  logIndex: BigInt,
+  blockNumber: BigInt,
+  timestamp: BigInt
+): void {
+  if (amountWei.le(BigInt.zero())) return;
+
+  const config = getOrCreateProtocolConfig();
+  const admin = Address.fromBytes(config.admin);
+
+  if (!admin.equals(Address.zero())) {
+    createModerationNotificationWithAmount(
       kind,
       admin,
-      reporter,
+      actor,
       tokenId,
-      commentId,
+      amountWei,
+      supportBps,
       txHash,
       logIndex,
       blockNumber,
@@ -198,12 +272,13 @@ function notifyModeratorsAndAdmin(
     if (mod.equals(Address.zero())) continue;
     if (mod.equals(admin)) continue;
 
-    createModerationNotification(
+    createModerationNotificationWithAmount(
       kind,
       mod,
-      reporter,
+      actor,
       tokenId,
-      commentId,
+      amountWei,
+      supportBps,
       txHash,
       logIndex,
       blockNumber,
@@ -1614,6 +1689,28 @@ export function handlePostTipped(event: PostTipped): void {
   p.save();
 }
 
+// Emitted when a portion of a tip is routed to the protocol treasury.
+// We fan out a notification to owner/admin + moderators so they can see the cut.
+export function handleProtocolSupported(event: ProtocolSupported): void {
+  const tokenId = event.params.tokenId;
+  getOrCreatePost(tokenId);
+
+  const amountWei = event.params.amountWei;
+  if (amountWei.le(BigInt.zero())) return;
+
+  notifyModeratorsAndAdminWithAmount(
+    "PROTOCOL_SUPPORTED",
+    event.params.supporter,
+    tokenId.toString(),
+    amountWei,
+    event.params.supportBps as i32,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
+}
+
 export function handleTipsWithdrawn(event: TipsWithdrawn): void {
   const author = getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp);
 
@@ -1636,4 +1733,42 @@ export function handleTipsWithdrawn(event: TipsWithdrawn): void {
 
   author.save();
   w.save();
+}
+
+// Emitted when the protocol withdraw fee is paid to the treasury during a tip withdrawal.
+// Notify treasury + owner/admin + moderators so they can see the collected tax.
+export function handleWithdrawFeePaid(event: WithdrawFeePaid): void {
+  const feeWei = event.params.feeWei;
+  if (feeWei.le(BigInt.zero())) return;
+
+  // Ensure accounts exist.
+  getOrCreateAccount(event.params.author, event.block.number, event.block.timestamp);
+  getOrCreateAccount(event.params.treasury, event.block.number, event.block.timestamp);
+
+  // Notify the treasury address directly (in case it's not admin/mod).
+  createModerationNotificationWithAmount(
+    "WITHDRAW_FEE_PAID",
+    event.params.treasury,
+    event.params.author,
+    ACCOUNT_LEVEL_TOKEN_ID,
+    feeWei,
+    event.params.feeBps as i32,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
+
+  // Notify admin + moderators too.
+  notifyModeratorsAndAdminWithAmount(
+    "WITHDRAW_FEE_PAID",
+    event.params.author,
+    ACCOUNT_LEVEL_TOKEN_ID,
+    feeWei,
+    event.params.feeBps as i32,
+    event.transaction.hash,
+    event.logIndex,
+    event.block.number,
+    event.block.timestamp
+  );
 }

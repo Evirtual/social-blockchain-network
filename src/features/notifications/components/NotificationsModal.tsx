@@ -18,7 +18,7 @@ export type NotificationsModalProps = {
 
 export function NotificationsModal(props: NotificationsModalProps) {
   const navigate = useNavigate();
-  const { items, loading, schemaMismatch, amountWeiUnsupported, error, subgraphUrl } = useNotifications({
+  const { items, loading, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported, error, subgraphUrl } = useNotifications({
     open: props.open,
     walletAddress: props.walletAddress,
     chainId: props.chainId,
@@ -49,13 +49,20 @@ export function NotificationsModal(props: NotificationsModalProps) {
   );
 
   const body = useMemo(() => {
-    const compatNote = amountWeiUnsupported ? (
+    const compatNote = amountWeiUnsupported || supportBpsUnsupported ? (
       <section className="card hero isCompact notificationsCompatHero">
         <div className="heroSub muted">You're using an older subgraph version. Some notifications may be incomplete.</div>
         <div className="heroBullets" role="list">
-          <div className="pill" role="listitem">
-            Tip amounts
-          </div>
+          {amountWeiUnsupported ? (
+            <div className="pill" role="listitem">
+              Tip amounts
+            </div>
+          ) : null}
+          {supportBpsUnsupported ? (
+            <div className="pill" role="listitem">
+              Tip/fee percentages
+            </div>
+          ) : null}
           <div className="pill" role="listitem">
             Newer notification types
           </div>
@@ -139,6 +146,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
     subgraphUrl,
     schemaMismatch,
     amountWeiUnsupported,
+    supportBpsUnsupported,
     error,
     loading,
     items,

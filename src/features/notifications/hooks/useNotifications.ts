@@ -14,6 +14,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
   const [loading, setLoading] = useState(false);
   const [schemaMismatch, setSchemaMismatch] = useState(false);
   const [amountWeiUnsupported, setAmountWeiUnsupported] = useState(false);
+  const [supportBpsUnsupported, setSupportBpsUnsupported] = useState(false);
   const [error, setError] = useState<string>("");
   const refreshTimeoutRef = useRef<number | null>(null);
   const { isOwner } = useContractState();
@@ -67,6 +68,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
         if (cancelled) return;
         setSchemaMismatch(res.schemaMismatch);
         setAmountWeiUnsupported(res.amountWeiUnsupported);
+        setSupportBpsUnsupported(res.supportBpsUnsupported);
         const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
 
         // If we're approved (live), always show the real subgraph result (even if empty).
@@ -83,6 +85,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
         setItems((prev) => (canUseDemoFallback && prev.length ? prev : []));
         setSchemaMismatch(false);
         setAmountWeiUnsupported(false);
+        setSupportBpsUnsupported(false);
         setError(err instanceof Error ? err.message : String(err ?? ""));
       })
       .finally(() => {
@@ -120,6 +123,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
             if (cancelled) return;
             setSchemaMismatch(res.schemaMismatch);
             setAmountWeiUnsupported(res.amountWeiUnsupported);
+            setSupportBpsUnsupported(res.supportBpsUnsupported);
             if (res.items.length > 0) {
               setItems(filterNotificationsForViewer(res.items, isOwner));
             }
@@ -172,5 +176,5 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     isOwner
   ]);
 
-  return { items, loading, schemaMismatch, amountWeiUnsupported, error, subgraphUrl };
+  return { items, loading, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported, error, subgraphUrl };
 }
