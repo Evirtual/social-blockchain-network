@@ -140,12 +140,9 @@
   margin-top: 0.125rem;
   color: var(--muted);
   font-size: 0.9rem;
-  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-weight: normal;
 }
 
 .notificationAvatarWrap {

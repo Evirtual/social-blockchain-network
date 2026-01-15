@@ -241,8 +241,8 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                     displayName
                   )}{" "}
                   {actionText}
+                  {reportMessage ? <span className="notificationMessage">: “{reportMessage}”</span> : null}
                 </div>
-                {reportMessage ? <div className="notificationMessage">“{reportMessage}”</div> : null}
               </div>
             </div>
             {showThumb ? (
