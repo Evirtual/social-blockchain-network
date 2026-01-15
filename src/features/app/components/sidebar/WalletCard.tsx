@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { Modal } from "@shared/components/Modal";
-import { IconCheck, IconChevronDown, IconCoin, IconCopy, IconQuestion } from "@shared/components/icons";
+import { IconCheck, IconChevronDown, IconCoin, IconCopy } from "@shared/components/icons";
 
 export type WalletCardProps = {
   walletAddress: string | null;
@@ -40,7 +40,7 @@ export function WalletCard(props: WalletCardProps) {
     !!props.protocolTreasuryAddress &&
     props.walletAddress.toLowerCase() === props.protocolTreasuryAddress.toLowerCase();
 
-  const withdrawLabel = isConnectedAsTreasury ? "Withdraw treasury" : "Withdraw tips";
+  const withdrawLabel = isConnectedAsTreasury ? "Withdraw" : "Withdraw";
 
   const withdrawFeeWei = (props.withdrawableTipsWei * BigInt(props.withdrawFeeBps)) / 10_000n;
   const withdrawNetWei = props.withdrawableTipsWei - withdrawFeeWei;
@@ -188,18 +188,9 @@ export function WalletCard(props: WalletCardProps) {
 
             <div className="walletContractActions">
               <button
-                type="button"
-                className="ghost iconButton"
-                aria-label="Withdraw details"
-                onClick={() => setIsWithdrawInfoOpen(true)}
-              >
-                <IconQuestion size={20} />
-              </button>
-
-              <button
                 className="btn primary buttonWithSpinner"
                 type="button"
-                onClick={props.onWithdrawTips}
+                onClick={() => setIsWithdrawInfoOpen(true)}
                 disabled={!props.walletAddress || props.withdrawableTipsWei === 0n || props.isWithdrawSubmitting}
                 aria-busy={props.isWithdrawSubmitting}
               >

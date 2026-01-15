@@ -20,7 +20,6 @@
 
 
 .walletContractRow {
-  grid-template-columns: 1fr auto;
   align-items: center;
 }
 
@@ -28,7 +27,6 @@
   display: flex;
   gap: 0.625rem;
   align-items: center;
-  justify-content: flex-end;
   flex-wrap: wrap;
 }
 

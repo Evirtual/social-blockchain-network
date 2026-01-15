@@ -19,21 +19,6 @@
     justify-content: center;
   }
 
-  .walletRow {
-    grid-template-columns: 1fr;
-    row-gap: 0.5rem;
-  }
-
-  .walletContractRow {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .walletContractActions {
-    justify-content: center;
-    margin-top: 0.375rem;
-  }
-
   /* When using dropdown cards on mobile, avoid repeated titles */
   .profileDropdown .cardHeader .cardTitle {
     display: none;
