@@ -136,7 +136,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
 
     const supportsEvents = isSocialEventsAvailable(chainIdNum, env);
     if (!supportsEvents) {
-      const intervalMs = 12_000;
+      const intervalMs = 60_000;
       const id = window.setInterval(() => {
         scheduleRefresh();
       }, intervalMs);
