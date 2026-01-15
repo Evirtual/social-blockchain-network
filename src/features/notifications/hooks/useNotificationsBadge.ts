@@ -45,6 +45,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
     let cancelled = false;
 
     const compute = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       // Demo mode: show demo notifications + unread dot until marked seen.
       if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) {
         seedDemoUnreadOncePerLoad(args.chainId, wallet);
@@ -82,6 +83,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
 
     const scheduleCompute = () => {
       if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       if (refreshTimeoutRef.current != null) return;
       refreshTimeoutRef.current = window.setTimeout(() => {
         refreshTimeoutRef.current = null;
@@ -89,11 +91,22 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       }, 300);
     };
 
+    const onVisibilityChange = () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        scheduleCompute();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+
     const supportsEvents = isSocialEventsAvailable(chainIdNum, env);
     const offSeen = onNotificationsLastSeenChanged(() => scheduleCompute());
 
     if (!supportsEvents) {
-      const interval = window.setInterval(() => scheduleCompute(), 60_000);
+      const interval = window.setInterval(() => scheduleCompute(), 120_000);
       return () => {
         cancelled = true;
         if (refreshTimeoutRef.current != null) {
@@ -102,6 +115,9 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
         }
         window.clearInterval(interval);
         offSeen();
+        if (typeof document !== "undefined") {
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+        }
       };
     }
 
@@ -119,6 +135,9 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       }
       offSeen();
       offEvents();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
     };
   }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch, chainIdNum, isOwner]);
 
