@@ -119,6 +119,27 @@
   position:relative
 }
 
+.notificationsShowBurnedToggle {
+  gap: 0.5rem;
+}
+
+.notificationsCheckbox {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 0.25rem;
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+
+.notificationsCheckbox svg {
+  display: block;
+}
+
 .listRow:hover {
   background: var(--surface-2);
 }
@@ -136,6 +157,21 @@
   position:relative
 }
 
+.notificationRow.isDisabled {
+  opacity: 0.78;
+}
+
+.notificationRow.isDisabled:hover {
+  background: transparent;
+}
+
+.notificationsShowBurnedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+
 .notificationMessage {
   margin-top: 0.125rem;
   color: var(--muted);
@@ -143,6 +179,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: normal;
+}
+
+.notificationBurnedNote {
+  color: color-mix(in srgb, var(--danger) 40%, var(--muted));
+  font-size: 0.82rem;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 .notificationAvatarWrap {

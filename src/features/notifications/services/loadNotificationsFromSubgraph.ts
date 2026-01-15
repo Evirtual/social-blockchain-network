@@ -3,7 +3,7 @@ import { querySubgraph, type SubgraphVariables } from "@shared/lib/subgraphQuery
 import { isLikelySubgraphSchemaMismatch } from "@shared/lib/subgraphSchemaMismatch";
 import { runInFlight, type InFlightMap } from "@shared/lib/inFlight";
 import { readLocalCache, writeLocalCache } from "@shared/lib/localCache";
-import { isPostBurned } from "@shared/lib/burnedPostsCache";
+import { markPostBurned } from "@shared/lib/burnedPostsCache";
 import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 
 const inFlight: InFlightMap<{
@@ -37,9 +37,7 @@ function toBigIntSafe(v: string | number | bigint | null | undefined): bigint | 
 function filterDeleted(items: NotificationItem[], chainIdStr: string): NotificationItem[] {
   if (!chainIdStr) return items;
   return items.filter((n) => {
-    const keepPostRemoval = n.kind === "POST_REMOVED_BY_ADMIN";
     const keepCommentRemoval = n.kind === "COMMENT_REMOVED";
-    if (!keepPostRemoval && isPostBurned(chainIdStr, n.tokenId)) return false;
     if (!keepCommentRemoval && n.commentId && isCommentDeleted(chainIdStr, n.tokenId, n.commentId)) return false;
     return true;
   });
@@ -303,13 +301,18 @@ export async function loadNotificationsFromSubgraph(args: {
       })
       .filter((n) => Boolean(n.id) && Boolean(n.actor.id) && Boolean(n.tokenId));
 
-    let filtered = filterDeleted(items, chainIdStr);
+    const filtered = filterDeleted(items, chainIdStr);
+
+    // Keep notifications even if the related post was burned, but mark them in the session cache
+    // so the UI can show them without allowing navigation.
     const burnedFromSubgraph = await fetchBurnedTokenIds(
       url,
       filtered.filter((n) => n.kind !== "POST_REMOVED_BY_ADMIN").map((n) => n.tokenId)
     );
     if (burnedFromSubgraph && burnedFromSubgraph.size > 0) {
-      filtered = filtered.filter((n) => n.kind === "POST_REMOVED_BY_ADMIN" || !burnedFromSubgraph.has(n.tokenId));
+      for (const tokenId of burnedFromSubgraph) {
+        markPostBurned(chainIdStr || null, tokenId);
+      }
     }
 
     const res = { items: filtered, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported };

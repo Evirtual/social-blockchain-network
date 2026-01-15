@@ -30,13 +30,6 @@
   color: var(--text);
 }
 
-@include bp.breakpoint($max: bp.bp(sm)) {
-  .pageHeader {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-}
-
 .postSplit {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

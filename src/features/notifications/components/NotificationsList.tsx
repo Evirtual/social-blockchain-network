@@ -25,6 +25,7 @@ import {
 } from "@shared/components/icons";
 import type { NotificationItem } from "../types";
 import { notificationActionText } from "../lib/notificationText";
+import { isBurnedNotification } from "../lib/isBurnedNotification";
 
 type Props = {
   items: NotificationItem[];
@@ -207,6 +208,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;
         const profileLink = !isSelfPosterStatus && actorId ? getProfileUrl(postChainId, actorId) : "";
         const to = isAccountLevel ? profileLink : `/post/${n.tokenId}${hash}`;
+        const isBurnedPost = !isAccountLevel && !isRemovedPost && isBurnedNotification(n, chainId);
         const post = showThumb
           ? postByKey.get(postKeyFromParts(postChainId, String(n.tokenId))) ??
             postByKey.get(postKeyFromParts(null, String(n.tokenId))) ??
@@ -215,22 +217,29 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const postImage = typeof post?.image === "string" ? post.image.trim() : "";
         const postThumbUrl = postImage ? ipfsToHttp(postImage) : "";
 
+        const burnedNote: ReactNode = isBurnedPost ? (
+          <span className="notificationBurnedNote" title="This post was burned and is no longer available">
+            <IconTrash size={14} />
+          </span>
+        ) : null;
+
         return (
           <button
             key={n.id}
             type="button"
-            className={`listRow notificationRow ${isUnread ? "isUnread" : ""}`}
+            className={`listRow notificationRow ${isUnread ? "isUnread" : ""} ${isBurnedPost ? "isDisabled" : ""}`}
             style={{
               width: "100%",
               textAlign: "left",
-              cursor: isRemovedPost || (!to && isAccountLevel) ? "default" : "pointer"
+              cursor: isRemovedPost || isBurnedPost || (!to && isAccountLevel) ? "default" : "pointer"
             }}
             onClick={() => {
               if (isRemovedPost) return;
+              if (isBurnedPost) return;
               if (!to && isAccountLevel) return;
               onSelect(n, to);
             }}
-            aria-disabled={isRemovedPost || (!to && isAccountLevel) ? true : undefined}
+            aria-disabled={isRemovedPost || isBurnedPost || (!to && isAccountLevel) ? true : undefined}
           >
             <div className="listRowLeft">
               <div className="notificationAvatarWrap" aria-hidden="true">
@@ -255,6 +264,8 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
               </div>
             </div>
             {showThumb ? (
+             <div className="listRowRight" aria-hidden="true">
+              {burnedNote}
               <div className="listRowRight" aria-hidden="true">
                 <div
                   className={`notificationPostThumb ${postThumbUrl ? "" : "isPlaceholder"}`}
@@ -264,6 +275,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                   {kindIcon.icon}
                 </span>
               </div>
+            </div>
             ) : null}
           </button>
         );
