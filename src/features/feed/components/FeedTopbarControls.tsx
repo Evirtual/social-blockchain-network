@@ -40,7 +40,7 @@ export function FeedTopbarControls(props: Props) {
 
   const pillText = (props.pillText ?? "").trim();
   const isSearchLoading = Boolean(props.isSearchLoading);
-  const isSearchDirty = Boolean(props.isSearchDirty);
+  const hasSearchValue = (props.searchQuery ?? "").trim().length > 0;
 
   const selectedNetworks = useMemo(() => {
     if (!props.selectedNetworkChainIds.length) return [];
@@ -76,7 +76,7 @@ export function FeedTopbarControls(props: Props) {
         id: "feed-search",
         label: "Search",
         icon: overflowSearchIcon,
-        className: isSearchDirty ? "primary" : "ghost",
+        className: hasSearchValue ? "primary" : "ghost",
         onClick: () => setIsSearchOpen(true)
       });
     }
@@ -87,7 +87,7 @@ export function FeedTopbarControls(props: Props) {
       onClick: () => setIsNetworksOpen(true)
     });
     return actions;
-  }, [isSearchDirty, overflowNetworksIcon, overflowSearchIcon, showSearch]);
+  }, [hasSearchValue, overflowNetworksIcon, overflowSearchIcon, showSearch]);
 
   const isConnected = Boolean(props.walletAddress);
 
@@ -128,7 +128,7 @@ export function FeedTopbarControls(props: Props) {
           {showSearch ? (
             <button
               type="button"
-              className={`${isSearchDirty ? "primary" : "ghost"} iconButton topbarFeedIcon`}
+              className={`${hasSearchValue ? "primary" : "ghost"} iconButton topbarFeedIcon`}
               onClick={() => setIsSearchOpen(true)}
               aria-label="Search"
               title="Search"
@@ -198,7 +198,7 @@ export function FeedTopbarControls(props: Props) {
                 <span className="feedSearchEnd" aria-hidden="true">
                   <button
                     type="button"
-                    className="ghost iconButton feedSearchSubmit feedTopbarSearchSubmit"
+                    className={`${hasSearchValue ? "primary" : "ghost"} iconButton feedSearchSubmit feedTopbarSearchSubmit`}
                     onClick={() => {
                       props.onSearchSubmit();
                       setIsSearchOpen(false);

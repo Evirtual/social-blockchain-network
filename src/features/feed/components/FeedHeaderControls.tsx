@@ -29,7 +29,7 @@ export function FeedHeaderControls(props: Props) {
 
   const pillText = (props.pillText ?? "").trim();
   const isSearchLoading = Boolean(props.isSearchLoading);
-  const isSearchDirty = Boolean(props.isSearchDirty);
+  const hasSearchValue = (props.searchQuery ?? "").trim().length > 0;
   useLayoutEffect(() => {
     const el = metaRef.current;
     if (!el) {
@@ -92,7 +92,7 @@ export function FeedHeaderControls(props: Props) {
 
             <button
               type="button"
-              className={isSearchDirty ? "feedSearchSubmit primary" : "feedSearchSubmit"}
+              className={hasSearchValue ? "feedSearchSubmit primary" : "feedSearchSubmit"}
               onClick={() => {
                 if (isMobileViewport()) {
                   setIsSearchModalOpen(true);
