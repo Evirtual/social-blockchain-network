@@ -85,6 +85,7 @@ type SubgraphNotificationRow = {
   commentId?: string | null;
   amountWei?: string | null;
   supportBps?: string | number | null;
+  message?: string | null;
   timestamp?: string;
   actor?: {
     id?: string;
@@ -133,6 +134,31 @@ export async function loadNotificationsFromSubgraph(args: {
 
   const inFlightKey = bypassCache ? `${cacheKey}.fresh` : cacheKey;
   return await runInFlight(inFlight, inFlightKey, async () => {
+    const queryWithMessageAmountAndSupport = `
+      query Notifications($first: Int!, $recipient: ID!) {
+        notifications(
+          first: $first,
+          orderBy: timestamp,
+          orderDirection: desc,
+          where: { recipient: $recipient }
+        ) {
+          id
+          kind
+          tokenId
+          commentId
+          amountWei
+          supportBps
+          message
+          timestamp
+          actor {
+            id
+            name
+            avatar
+          }
+        }
+      }
+    `;
+
     const queryWithAmountAndSupport = `
       query Notifications($first: Int!, $recipient: ID!) {
         notifications(
@@ -216,31 +242,39 @@ export async function loadNotificationsFromSubgraph(args: {
 
     let data: { notifications: SubgraphNotificationRow[] };
     let schemaMismatch = false;
+
     let amountWeiUnsupported = false;
     let supportBpsUnsupported = false;
     try {
-      data = await runQuery(queryWithAmountAndSupport);
+      data = await runQuery(queryWithMessageAmountAndSupport);
     } catch (err) {
       if (!isLikelySubgraphSchemaMismatch(err)) throw err;
 
       try {
-        // Try dropping supportBps first.
-        supportBpsUnsupported = true;
-        data = await runQuery(queryWithAmountOnly);
+        // Try dropping message first.
+        data = await runQuery(queryWithAmountAndSupport);
       } catch (err2) {
         if (!isLikelySubgraphSchemaMismatch(err2)) throw err2;
 
-        // Likely even older subgraph: no amountWei.
-        amountWeiUnsupported = true;
         try {
-          data = await runQuery(queryWithoutAmountWei);
+          // Try dropping supportBps next.
+          supportBpsUnsupported = true;
+          data = await runQuery(queryWithAmountOnly);
         } catch (err3) {
-          if (isLikelySubgraphSchemaMismatch(err3)) {
-            const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true, supportBpsUnsupported: true };
-            writeLocalCache(cacheKey, { ...res, ts: Date.now() });
-            return res;
+          if (!isLikelySubgraphSchemaMismatch(err3)) throw err3;
+
+          // Likely even older subgraph: no amountWei.
+          amountWeiUnsupported = true;
+          try {
+            data = await runQuery(queryWithoutAmountWei);
+          } catch (err4) {
+            if (isLikelySubgraphSchemaMismatch(err4)) {
+              const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true, supportBpsUnsupported: true };
+              writeLocalCache(cacheKey, { ...res, ts: Date.now() });
+              return res;
+            }
+            throw err4;
           }
-          throw err3;
         }
       }
     }
@@ -257,6 +291,7 @@ export async function loadNotificationsFromSubgraph(args: {
           commentId: n?.commentId ?? null,
           amountWei: toBigIntSafe(n?.amountWei),
           supportBps: typeof n?.supportBps === "number" ? n.supportBps : toInt(n?.supportBps),
+          message: typeof n?.message === "string" ? n.message : n?.message ?? null,
           chainId: chainIdStr || undefined,
           timestamp: toInt(n?.timestamp),
           actor: {

@@ -241,6 +241,9 @@ type Notification @entity(immutable: true) {
   # Basis points (BPS) out of 10_000.
   supportBps: Int
 
+  # Optional human-readable message (e.g. report reason).
+  message: String
+
   txHash: Bytes!
   logIndex: BigInt!
   blockNumber: BigInt!

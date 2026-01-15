@@ -82,11 +82,11 @@ Run these from this repo's `subgraph/` directory (do NOT `graph init` into a new
 
 - Base Sepolia:
 - Base Sepolia:
-  - `npx graph deploy social-posts-base-sepolia-v-2 subgraph.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
+  - `npx graph deploy social-posts-base-sepolia-v-2 subgraph.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
 - Ethereum Sepolia:
-  - `npx graph deploy social-posts-eth-sepolia subgraph.sepolia.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
+  - `npx graph deploy social-posts-eth-sepolia subgraph.sepolia.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
 - BSC Testnet:
-  - `npx graph deploy social-posts-bsc-testnet subgraph.bsc-testnet.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.0-testnet`
+  - `npx graph deploy social-posts-bsc-testnet subgraph.bsc-testnet.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
 
 If your Studio page shows a different slug, use that exact slug.
 

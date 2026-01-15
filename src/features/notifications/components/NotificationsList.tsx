@@ -189,6 +189,11 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
               return `${base} (${formatAmountWei(amountWei, nativeSymbol)}${pctText})`;
             })();
 
+        const reportMessage =
+          (n.kind === "POST_REPORTED" || n.kind === "COMMENT_REPORTED") && typeof n.message === "string"
+            ? n.message.trim()
+            : "";
+
         const showThumb = String(n.tokenId ?? "").trim() && String(n.tokenId) !== "0";
         const postChainId = typeof n.chainId === "string" && n.chainId.trim() ? n.chainId.trim() : null;
         const profileLink = !isSelfPosterStatus && actorId ? getProfileUrl(postChainId, actorId) : "";
@@ -237,6 +242,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                   )}{" "}
                   {actionText}
                 </div>
+                {reportMessage ? <div className="notificationMessage">“{reportMessage}”</div> : null}
               </div>
             </div>
             {showThumb ? (

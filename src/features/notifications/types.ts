@@ -45,6 +45,7 @@ export type NotificationItem = {
   commentId?: string | null;
   amountWei?: bigint | null;
   supportBps?: number | null;
+  message?: string | null;
   timestamp: number;
   actor: NotificationActor;
 };

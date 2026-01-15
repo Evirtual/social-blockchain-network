@@ -99,6 +99,7 @@ function createModerationNotification(
   actorAddress: Address,
   tokenId: string,
   commentId: string | null,
+  message: string | null,
   txHash: Bytes,
   logIndex: BigInt,
   blockNumber: BigInt,
@@ -121,6 +122,7 @@ function createModerationNotification(
   n.commentId = commentId;
   n.amountWei = null;
   n.unset("supportBps");
+  n.message = message;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -159,6 +161,7 @@ function createPostScopedNotification(
   n.commentId = commentId;
   n.amountWei = amountWei;
   n.unset("supportBps");
+  n.message = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -174,6 +177,7 @@ function notifyModeratorsAndAdmin(
   reporter: Address,
   tokenId: string,
   commentId: string | null,
+  message: string | null,
   txHash: Bytes,
   logIndex: BigInt,
   blockNumber: BigInt,
@@ -183,7 +187,7 @@ function notifyModeratorsAndAdmin(
 
   const admin = Address.fromBytes(config.admin);
   if (!admin.equals(Address.zero())) {
-    createModerationNotification(kind, admin, reporter, tokenId, commentId, txHash, logIndex, blockNumber, timestamp);
+    createModerationNotification(kind, admin, reporter, tokenId, commentId, message, txHash, logIndex, blockNumber, timestamp);
   }
 
   const moderators = config.moderators;
@@ -192,7 +196,7 @@ function notifyModeratorsAndAdmin(
     if (mod.equals(Address.zero())) continue;
     if (mod.equals(admin)) continue;
 
-    createModerationNotification(kind, mod, reporter, tokenId, commentId, txHash, logIndex, blockNumber, timestamp);
+    createModerationNotification(kind, mod, reporter, tokenId, commentId, message, txHash, logIndex, blockNumber, timestamp);
   }
 }
 
@@ -225,6 +229,7 @@ function createModerationNotificationWithAmount(
   n.commentId = null;
   n.amountWei = amountWei;
   n.supportBps = supportBps;
+  n.message = null;
   n.txHash = txHash;
   n.logIndex = logIndex;
   n.blockNumber = blockNumber;
@@ -1597,6 +1602,7 @@ export function handlePostReported(event: PostReported): void {
     event.params.reporter,
     tokenId.toString(),
     null,
+    event.params.reason,
     event.transaction.hash,
     event.logIndex,
     event.block.number,
@@ -1635,6 +1641,7 @@ export function handleCommentReported(event: CommentReported): void {
     event.params.reporter,
     tokenId.toString(),
     commentId.toString(),
+    event.params.reason,
     event.transaction.hash,
     event.logIndex,
     event.block.number,
