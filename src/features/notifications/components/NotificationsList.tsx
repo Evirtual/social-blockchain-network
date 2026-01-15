@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { formatEther } from "ethers";
 import { getAvatarStyle } from "@shared/lib/avatar";
@@ -173,7 +173,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
-        const actionText = isSelfPosterStatus
+        const actionNode: ReactNode = isSelfPosterStatus
           ? n.kind === "POSTER_DISAPPROVED"
             ? "were disapproved to post"
             : "were approved to post"
@@ -181,12 +181,21 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
               const base = notificationActionText(n.kind);
               const isTip = isAmountKind(n.kind);
               const amountWei = typeof n.amountWei === "bigint" ? n.amountWei : null;
-              if (!isTip || !amountWei) return base;
+              if (!isTip || amountWei === null) return base;
 
               const bps = typeof n.supportBps === "number" ? n.supportBps : 0;
               const showPct = bps > 0 && (n.kind === "PROTOCOL_SUPPORTED" || n.kind === "WITHDRAW_FEE_PAID");
               const pctText = showPct ? ` • ${formatBps(bps)}` : "";
-              return `${base} (${formatAmountWei(amountWei, nativeSymbol)}${pctText})`;
+
+              return (
+                <>
+                  {base}{" "}
+                  <span className="notificationMessage">
+                    ({formatAmountWei(amountWei, nativeSymbol)}
+                    {pctText})
+                  </span>
+                </>
+              );
             })();
 
         const reportMessage =
@@ -240,8 +249,8 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                   ) : (
                     displayName
                   )}{" "}
-                  {actionText}
-                  {reportMessage ? <span className="notificationMessage">: “{reportMessage}”</span> : null}
+                  {actionNode}
+                  {reportMessage ? <span className="notificationMessage">:{" "}“{reportMessage}”</span> : null}
                 </div>
               </div>
             </div>
