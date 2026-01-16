@@ -72,55 +72,55 @@ function getKindClass(kind: string): string {
   return "isDefault";
 }
 
-function getKindIcon(kind: string): { icon: JSX.Element; label: string } {
+function getKindIcon(kind: string): { icon: JSX.Element; label: string; isFilled: boolean } {
   switch (kind) {
     case "FOLLOWED":
-      return { icon: <IconRepeat size={14} />, label: "Followed" };
+      return { icon: <IconRepeat size={14} />, label: "Followed", isFilled: false };
     case "UNFOLLOWED":
-      return { icon: <IconRepeat size={14} />, label: "Unfollowed" };
+      return { icon: <IconRepeat size={14} />, label: "Unfollowed", isFilled: false };
     case "POST_LIKED":
     case "COMMENT_LIKED":
-      return { icon: <IconHeart size={14} />, label: "Liked" };
+      return { icon: <IconHeart size={14} filled />, label: "Liked", isFilled: true };
     case "POST_UNLIKED":
     case "COMMENT_UNLIKED":
-      return { icon: <IconHeart size={14} />, label: "Unliked" };
+      return { icon: <IconHeart size={14} filled />, label: "Unliked", isFilled: true };
     case "POST_SAVED":
     case "COMMENT_SAVED":
-      return { icon: <IconBookmark size={14} />, label: "Saved" };
+      return { icon: <IconBookmark size={14} filled />, label: "Saved", isFilled: true };
     case "POST_UNSAVED":
     case "COMMENT_UNSAVED":
-      return { icon: <IconBookmark size={14} />, label: "Unsaved" };
+      return { icon: <IconBookmark size={14} filled />, label: "Unsaved", isFilled: true };
     case "POST_COMMENTED":
     case "COMMENT_REPLIED":
     case "COMMENT_REMOVED":
-      return { icon: <IconMessage size={14} />, label: "Comment" };
+      return { icon: <IconMessage size={14} filled />, label: "Comment", isFilled: true };
     case "POST_TIPPED":
     case "COMMENT_TIPPED":
-      return { icon: <IconCoin size={14} />, label: "Tipped" };
+      return { icon: <IconCoin size={14} filled />, label: "Tipped", isFilled: true };
     case "PROTOCOL_SUPPORTED":
-      return { icon: <IconCoin size={14} />, label: "Treasury" };
+      return { icon: <IconCoin size={14} filled />, label: "Treasury", isFilled: true };
     case "WITHDRAW_FEE_PAID":
-      return { icon: <IconCoin size={14} />, label: "Fee" };
+      return { icon: <IconCoin size={14} filled />, label: "Fee", isFilled: true };
     case "POST_UPDATED_BY_ADMIN":
-      return { icon: <IconEdit size={14} />, label: "Updated by admin" };
+      return { icon: <IconEdit size={14} filled />, label: "Updated by admin", isFilled: true };
     case "POST_FROZEN":
-      return { icon: <IconEye size={14} />, label: "Post frozen" };
+      return { icon: <IconEye size={14} filled />, label: "Post frozen", isFilled: true };
     case "POST_REMOVED_BY_ADMIN":
-      return { icon: <IconTrash size={14} />, label: "Post removed" };
+      return { icon: <IconTrash size={14} filled />, label: "Post removed", isFilled: true };
     case "POST_REPORTED":
     case "COMMENT_REPORTED":
-      return { icon: <IconFlag size={14} />, label: "Reported" };
+      return { icon: <IconFlag size={14} filled />, label: "Reported", isFilled: true };
     case "POSTER_APPROVAL_REQUESTED":
-      return { icon: <IconQuestion size={14} />, label: "Approval requested" };
+      return { icon: <IconQuestion size={14} />, label: "Approval requested", isFilled: false };
     case "POSTER_APPROVED":
-      return { icon: <IconCheck size={14} />, label: "Approved" };
+      return { icon: <IconCheck size={14} />, label: "Approved", isFilled: false };
     case "POSTER_DISAPPROVED":
-      return { icon: <IconX size={14} />, label: "Disapproved" };
+      return { icon: <IconX size={14} />, label: "Disapproved", isFilled: false };
     case "PROFILE_MODERATED":
     case "PROFILE_CLEARED_BY_ADMIN":
-      return { icon: <IconEdit size={14} />, label: "Profile action" };
+      return { icon: <IconEdit size={14} filled />, label: "Profile action", isFilled: true };
     default:
-      return { icon: <IconMessage size={14} />, label: "Notification" };
+      return { icon: <IconMessage size={14} filled />, label: "Notification", isFilled: true };
   }
 }
 
@@ -219,7 +219,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
 
         const burnedNote: ReactNode = isBurnedPost ? (
           <span className="notificationBurnedNote" title="This post was burned and is no longer available">
-            <IconTrash size={14} />
+            <IconTrash size={14} filled />
           </span>
         ) : null;
 
@@ -274,7 +274,10 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                 ) : (
                   <div className="notificationPostThumb isPlaceholder" />
                 )}
-                <span className={`notificationActionIcon ${kindClass}`} title={kindIcon.label}>
+                <span
+                  className={`notificationActionIcon ${kindClass} ${kindIcon.isFilled ? "isFilled" : ""}`}
+                  title={kindIcon.label}
+                >
                   {kindIcon.icon}
                 </span>
               </div>
