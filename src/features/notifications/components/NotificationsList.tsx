@@ -174,6 +174,10 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const isUnread = typeof n.timestamp === "number" ? n.timestamp > lastSeenTs : false;
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
+
+        const isFollowOrApproval = kindClass === "isFollow" || kindClass === "isApproval";
+        const showRightOverlayIcon = isFollowOrApproval;
+        const showLeftKindBadge = !showRightOverlayIcon && kindClass !== "isDefault";
         const actionNode: ReactNode = isSelfPosterStatus
           ? n.kind === "POSTER_DISAPPROVED"
             ? "were disapproved to post"
@@ -217,11 +221,11 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const postImage = typeof post?.image === "string" ? post.image.trim() : "";
         const postThumbUrl = postImage ? ipfsToHttp(postImage) : "";
 
-        const burnedNote: ReactNode = isBurnedPost ? (
-          <span className="notificationBurnedNote" title="This post was burned and is no longer available">
-            <IconTrash size={14} filled />
-          </span>
-        ) : null;
+        const showRemovedThumb = isRemovedPost || isBurnedPost;
+        const removedThumbTitle = isBurnedPost ? "Post burned" : "Post removed";
+        const thumbKindClass = showRemovedThumb ? "isRemove" : kindClass;
+
+        const showRightThumbBlock = showThumb || showRightOverlayIcon || showRemovedThumb;
 
         return (
           <button
@@ -244,6 +248,14 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
             <div className="listRowLeft">
               <div className="notificationAvatarWrap" aria-hidden="true">
                 <div className="avatar" style={avatarStyle} />
+                {showLeftKindBadge ? (
+                  <span
+                    className={`notificationKindBadge ${kindClass} ${kindIcon.isFilled ? "isFilled" : ""}`}
+                    title={kindIcon.label}
+                  >
+                    {kindIcon.icon}
+                  </span>
+                ) : null}
               </div>
               <div style={{ minWidth: 0 }}>
                 <div className="profileName" title={displayName}>
@@ -263,25 +275,33 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                 </div>
               </div>
             </div>
-            <div className="listRowRight" aria-hidden="true">
-              {burnedNote}
-              <div className={`notificationThumbWrap ${kindClass}`} aria-hidden="true">
-                {showThumb ? (
-                  <div
-                    className={`notificationPostThumb ${postThumbUrl ? "" : "isPlaceholder"}`}
-                    style={postThumbUrl ? { backgroundImage: `url(${postThumbUrl})` } : undefined}
-                  />
-                ) : (
-                  <div className="notificationPostThumb isPlaceholder" />
-                )}
-                <span
-                  className={`notificationActionIcon ${kindClass} ${kindIcon.isFilled ? "isFilled" : ""}`}
-                  title={kindIcon.label}
-                >
-                  {kindIcon.icon}
-                </span>
+            {showRightThumbBlock ? (
+              <div className="listRowRight" aria-hidden="true">
+                <div className={`notificationThumbWrap ${thumbKindClass}`} aria-hidden="true">
+                  {showRemovedThumb ? (
+                    <div className="notificationPostThumb isPlaceholder isRemoved" title={removedThumbTitle}>
+                      <IconTrash size={18} filled />
+                    </div>
+                  ) : showThumb ? (
+                    <div
+                      className={`notificationPostThumb ${postThumbUrl ? "" : "isPlaceholder"}`}
+                      style={postThumbUrl ? { backgroundImage: `url(${postThumbUrl})` } : undefined}
+                    />
+                  ) : (
+                    <div className="notificationPostThumb isPlaceholder" />
+                  )}
+
+                  {showRightOverlayIcon ? (
+                    <span
+                      className={`notificationActionIcon ${kindClass} ${kindIcon.isFilled ? "isFilled" : ""}`}
+                      title={kindIcon.label}
+                    >
+                      {kindIcon.icon}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
           </button>
         );
       })}

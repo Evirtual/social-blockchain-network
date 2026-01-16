@@ -193,6 +193,58 @@
   flex: 0 0 auto;
 }
 
+.notificationKindBadge {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 0.0625rem solid color-mix(in srgb, currentColor 45%, var(--border));
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  z-index: 3;
+}
+
+.notificationKindBadge svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
+.notificationKindBadge.isFilled svg {
+  fill-opacity: 0.5;
+  stroke-opacity: 0.85;
+}
+
+.notificationKindBadge.isLike {
+  color: var(--danger);
+}
+
+.notificationKindBadge.isSave {
+  color: var(--link);
+}
+
+.notificationKindBadge.isComment {
+  color: var(--accent);
+}
+
+.notificationKindBadge.isTip {
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+}
+
+.notificationKindBadge.isAdmin {
+  color: var(--accent);
+}
+
+.notificationKindBadge.isRemove,
+.notificationKindBadge.isReport {
+  color: var(--danger);
+}
+
 .notificationPostThumb {
   width: 2.75rem;
   height: 2.75rem;
@@ -200,7 +252,7 @@
   background-size: cover;
   background-position: center;
   background-color: var(--surface-2);
-  border: 0.125rem solid color-mix(in srgb, var(--border) 70%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -255,6 +307,18 @@
     color-mix(in srgb, var(--surface-2) 85%, transparent),
     color-mix(in srgb, var(--surface) 85%, transparent)
   );
+}
+
+.notificationPostThumb.isRemoved {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--notification-thumb-accent);
+}
+
+.notificationPostThumb.isRemoved svg {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .notificationActionIcon {
