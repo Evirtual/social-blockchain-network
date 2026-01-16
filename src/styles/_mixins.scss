@@ -1,7 +1,7 @@
 @use "tokens" as t;
 
 @mixin button-base {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 0.0625rem solid var(--border);
   background: var(--surface);
   color: var(--text);
