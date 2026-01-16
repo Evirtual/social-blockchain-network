@@ -200,7 +200,48 @@
   background-size: cover;
   background-position: center;
   background-color: var(--surface-2);
-  border: 0.0625rem solid color-mix(in srgb, var(--border) 70%, transparent);
+  border: 0.125rem solid color-mix(in srgb, var(--border) 70%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+.notificationThumbWrap {
+  position: relative;
+  flex: 0 0 auto;
+  --notification-thumb-accent: var(--muted);
+}
+
+.notificationThumbWrap .notificationPostThumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.notificationThumbWrap .notificationPostThumb {
+  border-color: color-mix(in srgb, var(--notification-thumb-accent) 100%, var(--border));
+}
+
+.notificationThumbWrap.isLike,
+.notificationThumbWrap.isRemove,
+.notificationThumbWrap.isReport {
+  --notification-thumb-accent: var(--danger);
+}
+
+.notificationThumbWrap.isSave,
+.notificationThumbWrap.isFollow,
+.notificationThumbWrap.isApproval {
+  --notification-thumb-accent: var(--link);
+}
+
+.notificationThumbWrap.isComment,
+.notificationThumbWrap.isAdmin {
+  --notification-thumb-accent: var(--accent);
+}
+
+.notificationThumbWrap.isTip {
+  --notification-thumb-accent: color-mix(in srgb, var(--accent) 80%, var(--text));
 }
 
 .notificationPostThumb.isPlaceholder {
@@ -224,6 +265,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  z-index: 2;
 }
 
 .notificationActionIcon svg {
