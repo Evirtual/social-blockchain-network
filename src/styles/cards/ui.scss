@@ -263,19 +263,6 @@
   --notification-thumb-accent: var(--muted);
 }
 
-.notificationThumbWrap .notificationPostThumb::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--notification-thumb-accent) 18%, transparent),
-    color-mix(in srgb, var(--notification-thumb-accent) 0%, transparent)
-  );
-  opacity: 0.8;
-}
-
 .notificationThumbWrap .notificationPostThumb {
   border-color: color-mix(in srgb, var(--notification-thumb-accent) 100%, var(--border));
 }
