@@ -24,12 +24,6 @@
   justify-content: flex-end;
 }
 
-.profileAdminActionsInline {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 @media (max-width: 40.625rem) {
   .profileHeader {
     grid-template-columns: auto 1fr;
@@ -251,11 +245,6 @@
   align-items: baseline;
   gap: 0.5rem;
   min-width: 0;
-}
-
-.approvalsModal .approvalRowNumber {
-  margin-left: 0;
-  font-size: 0.75rem;
 }
 
 .approvalsModal .approvalName {

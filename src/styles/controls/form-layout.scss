@@ -1,35 +1,9 @@
 /* Split from src/styles/controls.css (form rows + previews) */
 
-.fileRow {
-  align-items: center;
-}
-
-.fileInputWrap {
-  position: relative;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .fileInputButton {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.fileInputName {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.9rem;
-  color: color-mix(in srgb, var(--muted) 45%, transparent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.fileInputName.hasFile {
-  color: var(--text);
 }
 
 .file-input-hidden {
@@ -41,11 +15,6 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
-}
-
-.fileInputAction {
-  width: 2.25rem;
-  height: 2.25rem;
 }
 
 .rowActions {

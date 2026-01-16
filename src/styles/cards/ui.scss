@@ -181,13 +181,6 @@
   font-weight: normal;
 }
 
-.notificationBurnedNote {
-  color: color-mix(in srgb, var(--danger) 40%, var(--muted));
-  font-size: 0.82rem;
-  font-weight: 500;
-  opacity: 0.9;
-}
-
 .notificationAvatarWrap {
   position: relative;
   flex: 0 0 auto;
@@ -367,28 +360,6 @@
 .notificationActionIcon.isRemove,
 .notificationActionIcon.isReport {
   color: var(--danger);
-}
-
-.notificationMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.25rem;
-}
-
-.notificationPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.notificationPill {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.01em;
-  border-color: color-mix(in srgb, var(--border) 70%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  color: var(--text);
 }
 
 .notificationDetailText {

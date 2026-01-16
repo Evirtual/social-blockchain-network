@@ -30,14 +30,6 @@
   flex-wrap: wrap;
 }
 
-.walletContractActions .cardActionButton:hover:not(:disabled) {
-  filter: brightness(1.06);
-}
-
-.walletContractActions .cardActionButton:active:not(:disabled) {
-  filter: brightness(0.98);
-}
-
 .walletField {
   min-width: 0;
   display: flex;
