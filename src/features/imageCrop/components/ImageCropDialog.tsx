@@ -68,6 +68,10 @@ export function ImageCropDialog({ session, onClose }: Props) {
     dragRef.current = null;
   }, [session.existingCrop, session.originalFile]);
 
+  useEffect(() => {
+    if (previewUrl) setErrorMessage(null);
+  }, [previewUrl]);
+
   const existingUrl = session.existingImageUrl ? ipfsToHttp(session.existingImageUrl) : "";
 
   const toNormalizedPoint = useCallback((event: PointerEvent | React.PointerEvent) => {
@@ -198,65 +202,77 @@ export function ImageCropDialog({ session, onClose }: Props) {
         <div className="imageCropDialogPreview">
           <div className="imageCropDialogImageStage">
             <div className="imageCropDialogImageBox">
-              <img
-                className="imageCropDialogImage"
-                src={previewUrl}
-                alt="Crop preview"
-                draggable={false}
-                onLoad={() => setIsReady(true)}
-                onError={() => setErrorMessage("Failed to load image preview.")}
-              />
-              <div ref={overlayRef} className="imageCropDialogOverlay" aria-hidden="true">
-                <div className="imageCropDialogShade imageCropDialogShadeTop" style={{ height: cropStyles.shadeTopHeight }} />
-                <div
-                  className="imageCropDialogShade imageCropDialogShadeBottom"
-                  style={{ top: cropStyles.shadeBottomTop, height: cropStyles.shadeBottomHeight }}
-                />
-                <div
-                  className="imageCropDialogShade imageCropDialogShadeLeft"
-                  style={{ top: cropStyles.shadeSideTop, width: cropStyles.shadeLeftWidth, height: cropStyles.shadeSideHeight }}
-                />
-                <div
-                  className="imageCropDialogShade imageCropDialogShadeRight"
-                  style={{ top: cropStyles.shadeSideTop, left: cropStyles.shadeRightLeft, width: cropStyles.shadeRightWidth, height: cropStyles.shadeSideHeight }}
-                />
+              {previewUrl ? (
+                <>
+                  <img
+                    key={previewUrl}
+                    className="imageCropDialogImage"
+                    src={previewUrl}
+                    alt="Crop preview"
+                    draggable={false}
+                    onLoad={() => setIsReady(true)}
+                    onError={() => setErrorMessage("Failed to load image preview.")}
+                  />
+                  <div ref={overlayRef} className="imageCropDialogOverlay" aria-hidden="true">
+                    <div className="imageCropDialogShade imageCropDialogShadeTop" style={{ height: cropStyles.shadeTopHeight }} />
+                    <div
+                      className="imageCropDialogShade imageCropDialogShadeBottom"
+                      style={{ top: cropStyles.shadeBottomTop, height: cropStyles.shadeBottomHeight }}
+                    />
+                    <div
+                      className="imageCropDialogShade imageCropDialogShadeLeft"
+                      style={{ top: cropStyles.shadeSideTop, width: cropStyles.shadeLeftWidth, height: cropStyles.shadeSideHeight }}
+                    />
+                    <div
+                      className="imageCropDialogShade imageCropDialogShadeRight"
+                      style={{
+                        top: cropStyles.shadeSideTop,
+                        left: cropStyles.shadeRightLeft,
+                        width: cropStyles.shadeRightWidth,
+                        height: cropStyles.shadeSideHeight
+                      }}
+                    />
 
-                <div
-                  className="imageCropDialogRect"
-                  style={{ left: cropStyles.leftPct, top: cropStyles.topPct, width: cropStyles.widthPct, height: cropStyles.heightPct }}
-                  onPointerDown={(e) => beginDrag(e, "move")}
-                  role="presentation"
-                />
-              </div>
+                    <div
+                      className="imageCropDialogRect"
+                      style={{ left: cropStyles.leftPct, top: cropStyles.topPct, width: cropStyles.widthPct, height: cropStyles.heightPct }}
+                      onPointerDown={(e) => beginDrag(e, "move")}
+                      role="presentation"
+                    />
+                  </div>
 
-              <button
-                className="imageCropDialogHandle imageCropDialogHandleNW"
-                type="button"
-                onPointerDown={(e) => beginDrag(e, "nw")}
-                aria-label="Resize crop from top left"
-                style={{ left: cropStyles.leftPct, top: cropStyles.topPct }}
-              />
-              <button
-                className="imageCropDialogHandle imageCropDialogHandleNE"
-                type="button"
-                onPointerDown={(e) => beginDrag(e, "ne")}
-                aria-label="Resize crop from top right"
-                style={{ left: cropStyles.rightPct, top: cropStyles.topPct }}
-              />
-              <button
-                className="imageCropDialogHandle imageCropDialogHandleSW"
-                type="button"
-                onPointerDown={(e) => beginDrag(e, "sw")}
-                aria-label="Resize crop from bottom left"
-                style={{ left: cropStyles.leftPct, top: cropStyles.bottomPct }}
-              />
-              <button
-                className="imageCropDialogHandle imageCropDialogHandleSE"
-                type="button"
-                onPointerDown={(e) => beginDrag(e, "se")}
-                aria-label="Resize crop from bottom right"
-                style={{ left: cropStyles.rightPct, top: cropStyles.bottomPct }}
-              />
+                  <button
+                    className="imageCropDialogHandle imageCropDialogHandleNW"
+                    type="button"
+                    onPointerDown={(e) => beginDrag(e, "nw")}
+                    aria-label="Resize crop from top left"
+                    style={{ left: cropStyles.leftPct, top: cropStyles.topPct }}
+                  />
+                  <button
+                    className="imageCropDialogHandle imageCropDialogHandleNE"
+                    type="button"
+                    onPointerDown={(e) => beginDrag(e, "ne")}
+                    aria-label="Resize crop from top right"
+                    style={{ left: cropStyles.rightPct, top: cropStyles.topPct }}
+                  />
+                  <button
+                    className="imageCropDialogHandle imageCropDialogHandleSW"
+                    type="button"
+                    onPointerDown={(e) => beginDrag(e, "sw")}
+                    aria-label="Resize crop from bottom left"
+                    style={{ left: cropStyles.leftPct, top: cropStyles.bottomPct }}
+                  />
+                  <button
+                    className="imageCropDialogHandle imageCropDialogHandleSE"
+                    type="button"
+                    onPointerDown={(e) => beginDrag(e, "se")}
+                    aria-label="Resize crop from bottom right"
+                    style={{ left: cropStyles.rightPct, top: cropStyles.bottomPct }}
+                  />
+                </>
+              ) : (
+                <div className="imageCropDialogPlaceholder">Loading preview...</div>
+              )}
             </div>
           </div>
         </div>

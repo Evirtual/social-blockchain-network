@@ -87,17 +87,20 @@
 
 .imageCropDialogHandle {
   position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 20px;
   height: 20px;
-  transform: translate(-50%, -50%);
-  border-radius: 4px;
-  border: 2px solid rgba(0, 0, 0, 0.6);
-  background: rgb(255, 171, 62);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
   padding: 0;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  background: rgb(255, 171, 62);
   cursor: pointer;
   touch-action: none;
+  z-index: 2;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  outline: none;
+  &:hover:not(:disabled) {
+    background: rgb(255, 171, 62);
+  }
   &:active:not(:disabled) {
     transform: translate(-50%, -50%) scale(1.25);
   }
@@ -124,4 +127,17 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.imageCropDialogPlaceholder {
+  width: min(100%, 720px);
+  height: min(55vh, 420px);
+  border-radius: 0.75rem;
+  border: 0.0625rem solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
 }
