@@ -8,6 +8,7 @@ import {
 } from "@features/post/services/draftConstants";
 import { useVideoTrim } from "@features/videoTrim";
 import type { VideoTrimResult } from "@features/videoTrim/types";
+import { clearObjectUrlRef, replaceObjectUrlRef } from "@shared/lib/objectUrl";
 
 export function useComposerMedia(params: {
   ipfsConfigured: boolean;
@@ -23,28 +24,10 @@ export function useComposerMedia(params: {
   const composerPreviewObjectUrlRef = useRef<string | null>(null);
   const composerPosterObjectUrlRef = useRef<string | null>(null);
 
-  const revokePreviewObjectUrl = useCallback(() => {
-    if (composerPreviewObjectUrlRef.current) {
-      URL.revokeObjectURL(composerPreviewObjectUrlRef.current);
-      composerPreviewObjectUrlRef.current = null;
-    }
-  }, []);
-
-  const revokePosterObjectUrl = useCallback(() => {
-    if (composerPosterObjectUrlRef.current) {
-      URL.revokeObjectURL(composerPosterObjectUrlRef.current);
-      composerPosterObjectUrlRef.current = null;
-    }
-  }, []);
-
   const handleTrimSuccess = useCallback(
     (result: VideoTrimResult) => {
-      revokePreviewObjectUrl();
-      revokePosterObjectUrl();
-      const objectUrl = URL.createObjectURL(result.trimmedFile);
-      const posterUrl = URL.createObjectURL(result.thumbnailBlob);
-      composerPreviewObjectUrlRef.current = objectUrl;
-      composerPosterObjectUrlRef.current = posterUrl;
+      const objectUrl = replaceObjectUrlRef(composerPreviewObjectUrlRef, result.trimmedFile);
+      const posterUrl = replaceObjectUrlRef(composerPosterObjectUrlRef, result.thumbnailBlob);
       setDraft((prev) => ({
         ...prev,
         imageDataUrl: objectUrl,
@@ -61,7 +44,7 @@ export function useComposerMedia(params: {
       setIsImageLoading(false);
       setStatus("Trimmed video ready.");
     },
-    [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft, setIsImageLoading, setStatus]
+    [setDraft, setIsImageLoading, setStatus]
   );
 
   const handleTrimCancel = useCallback(() => {
@@ -71,32 +54,32 @@ export function useComposerMedia(params: {
 
   const onComposerImageUrlChange = useCallback(
     (value: string) => {
-      revokePreviewObjectUrl();
-      revokePosterObjectUrl();
+      clearObjectUrlRef(composerPreviewObjectUrlRef);
+      clearObjectUrlRef(composerPosterObjectUrlRef);
       setDraft((prev) => ({ ...prev, imageUrl: value, imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
       if (value) {
         setUploadedImageBlob(null);
         setUploadedImageFilename("");
       }
     },
-    [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]
+    [setDraft]
   );
 
   const onComposerClearImage = useCallback(() => {
     setDraft((prev) => ({ ...prev, imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
-    revokePreviewObjectUrl();
-    revokePosterObjectUrl();
-  }, [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]);
+    clearObjectUrlRef(composerPreviewObjectUrlRef);
+    clearObjectUrlRef(composerPosterObjectUrlRef);
+  }, [setDraft]);
 
   const resetMedia = useCallback(() => {
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
-    revokePreviewObjectUrl();
-    revokePosterObjectUrl();
+    clearObjectUrlRef(composerPreviewObjectUrlRef);
+    clearObjectUrlRef(composerPosterObjectUrlRef);
     setDraft((prev) => ({ ...prev, videoTrim: undefined, videoPosterUrl: undefined }));
-  }, [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]);
+  }, [setDraft]);
 
   const onSelectComposerFile = useCallback(
     async (file: File | null) => {
@@ -117,8 +100,8 @@ export function useComposerMedia(params: {
         setIsImageLoading(true);
         setStatus(isVideo ? "Preparing uploaded video..." : "Processing uploaded image...");
 
-        revokePreviewObjectUrl();
-        revokePosterObjectUrl();
+        clearObjectUrlRef(composerPreviewObjectUrlRef);
+        clearObjectUrlRef(composerPosterObjectUrlRef);
 
         if (isVideo) {
           setIsImageLoading(true);
@@ -189,15 +172,15 @@ export function useComposerMedia(params: {
         setIsImageLoading(false);
       }
     },
-    [ipfsConfigured, revokePreviewObjectUrl, setDraft, setStatus, videoTrim, handleTrimSuccess, handleTrimCancel]
+    [ipfsConfigured, setDraft, setStatus, videoTrim, handleTrimSuccess, handleTrimCancel]
   );
 
   useEffect(() => {
     return () => {
-      revokePreviewObjectUrl();
-      revokePosterObjectUrl();
+      clearObjectUrlRef(composerPreviewObjectUrlRef);
+      clearObjectUrlRef(composerPosterObjectUrlRef);
     };
-  }, [revokePreviewObjectUrl, revokePosterObjectUrl]);
+  }, []);
 
   return useMemo(
     () => ({

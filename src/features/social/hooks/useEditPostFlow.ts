@@ -16,6 +16,7 @@ import type { TransactionResponse } from "ethers";
 import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 import { useVideoTrim } from "@features/videoTrim";
 import type { VideoTrimResult } from "@features/videoTrim/types";
+import { clearObjectUrlRef, replaceObjectUrlRef } from "@shared/lib/objectUrl";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -84,28 +85,14 @@ export function useEditPostFlow(args: {
     setEditUploadedImageFilename("");
     setIsEditImageLoading(false);
 
-    if (editPreviewObjectUrlRef.current) {
-      URL.revokeObjectURL(editPreviewObjectUrlRef.current);
-      editPreviewObjectUrlRef.current = null;
-    }
-    if (editPosterObjectUrlRef.current) {
-      URL.revokeObjectURL(editPosterObjectUrlRef.current);
-      editPosterObjectUrlRef.current = null;
-    }
+    clearObjectUrlRef(editPreviewObjectUrlRef);
+    clearObjectUrlRef(editPosterObjectUrlRef);
   }, []);
 
   const handleTrimSuccess = useCallback(
     (result: VideoTrimResult) => {
-      if (editPreviewObjectUrlRef.current) {
-        URL.revokeObjectURL(editPreviewObjectUrlRef.current);
-      }
-      if (editPosterObjectUrlRef.current) {
-        URL.revokeObjectURL(editPosterObjectUrlRef.current);
-      }
-      const objectUrl = URL.createObjectURL(result.trimmedFile);
-      const posterUrl = URL.createObjectURL(result.thumbnailBlob);
-      editPreviewObjectUrlRef.current = objectUrl;
-      editPosterObjectUrlRef.current = posterUrl;
+      const objectUrl = replaceObjectUrlRef(editPreviewObjectUrlRef, result.trimmedFile);
+      const posterUrl = replaceObjectUrlRef(editPosterObjectUrlRef, result.thumbnailBlob);
       setEditDraft((prev) => ({
         ...prev,
         imageDataUrl: objectUrl,
@@ -179,14 +166,8 @@ export function useEditPostFlow(args: {
         setIsEditImageLoading(true);
         setStatus(isVideo ? "Preparing uploaded video..." : "Processing uploaded image...");
 
-        if (editPreviewObjectUrlRef.current) {
-          URL.revokeObjectURL(editPreviewObjectUrlRef.current);
-          editPreviewObjectUrlRef.current = null;
-        }
-        if (editPosterObjectUrlRef.current) {
-          URL.revokeObjectURL(editPosterObjectUrlRef.current);
-          editPosterObjectUrlRef.current = null;
-        }
+        clearObjectUrlRef(editPreviewObjectUrlRef);
+        clearObjectUrlRef(editPosterObjectUrlRef);
 
         if (isVideo) {
           setIsEditImageLoading(true);
@@ -225,14 +206,8 @@ export function useEditPostFlow(args: {
     setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
     setEditUploadedImageBlob(null);
     setEditUploadedImageFilename("");
-    if (editPreviewObjectUrlRef.current) {
-      URL.revokeObjectURL(editPreviewObjectUrlRef.current);
-      editPreviewObjectUrlRef.current = null;
-    }
-    if (editPosterObjectUrlRef.current) {
-      URL.revokeObjectURL(editPosterObjectUrlRef.current);
-      editPosterObjectUrlRef.current = null;
-    }
+    clearObjectUrlRef(editPreviewObjectUrlRef);
+    clearObjectUrlRef(editPosterObjectUrlRef);
   }, []);
 
   const saveEditedPost = useCallback(async () => {

@@ -30,7 +30,6 @@ export type PostCardEditBoxProps = {
 export function PostCardEditBox(props: PostCardEditBoxProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [hasFileSelected, setHasFileSelected] = useState(false);
 
   const onSave = useCallback(async () => {
     if (isSaving) return;
@@ -45,9 +44,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
   const handleClearUpload = useCallback(() => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
-      fileInputRef.current.dataset.hasFile = "false";
     }
-    setHasFileSelected(false);
     props.onEditClearImage();
   }, [props]);
 
@@ -59,7 +56,7 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
   const isExistingVideo =
     props.existingIsVideo ??
     (existingLower.endsWith(".mp4") || existingLower.endsWith(".webm") || existingLower.endsWith(".ogg"));
-  const hasMedia = Boolean(props.editDraft?.imageDataUrl) || Boolean(existingHttpUrl) || hasFileSelected;
+  const hasMedia = Boolean(props.editDraft?.imageDataUrl) || Boolean(existingHttpUrl) || props.isEditImageLoading;
   const bodyTrimmed = (props.editDraft?.body ?? "").trim();
   const hasContent = bodyTrimmed.length > 0 || Boolean(existingUrl) || Boolean(props.editDraft?.imageDataUrl);
   const hasChanges =
@@ -81,9 +78,6 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         onChange={(e) => {
           const input = e.currentTarget;
           const selected = input.files?.[0] ?? null;
-          const hasFile = Boolean(selected);
-          input.dataset.hasFile = hasFile ? "true" : "false";
-          setHasFileSelected(hasFile);
           input.value = "";
           props.onEditSelectFile(selected);
         }}
@@ -121,7 +115,14 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         </div>
       ) : props.editDraft?.imageDataUrl?.startsWith("blob:") ? (
         <div className="mediaPreview">
-          <video className="image-preview" src={props.editDraft.imageDataUrl} controls playsInline preload="metadata" />
+          <video
+            className="image-preview"
+            src={props.editDraft.imageDataUrl}
+            poster={props.editDraft.videoPosterUrl}
+            controls
+            playsInline
+            preload="metadata"
+          />
           <button
             className="ghost iconButton mediaPreviewClear"
             type="button"
