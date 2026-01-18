@@ -42,6 +42,7 @@ export type Draft = {
   imageUrl: string;
   imageDataUrl: string;
   videoTrim?: TrimInfo;
+  videoPosterUrl?: string;
 };
 
 export type TokenMetadata = {

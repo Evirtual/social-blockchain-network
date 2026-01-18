@@ -77,7 +77,14 @@ export function ComposerCard({
 
       {draft.imageDataUrl.startsWith("blob:") ? (
         <div className="mediaPreview">
-          <video className="image-preview" src={draft.imageDataUrl} controls playsInline preload="metadata" />
+          <video
+            className="image-preview"
+            src={draft.imageDataUrl}
+            poster={draft.videoPosterUrl}
+            controls
+            playsInline
+            preload="metadata"
+          />
           <button
             type="button"
             className="ghost iconButton mediaPreviewClear"

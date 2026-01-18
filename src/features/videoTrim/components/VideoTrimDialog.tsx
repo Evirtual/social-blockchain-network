@@ -39,6 +39,7 @@ type Props = {
 export function VideoTrimDialog({ session, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState(() => URL.createObjectURL(session.originalFile));
+  const [posterUrl, setPosterUrl] = useState<string>("");
   const [durationMs, setDurationMs] = useState(0);
   const [startMs, setStartMs] = useState(0);
   const [endMs, setEndMs] = useState(0);
@@ -51,6 +52,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const rangeInitializedRef = useRef(false);
   const lastProgressUpdateRef = useRef(0);
+  const posterObjectUrlRef = useRef<string | null>(null);
   const fileInfoText = useMemo(() => {
     const name = session.originalFile.name || "Selected video";
     const durationText = durationMs ? formatTime(durationMs) : "Loading duration";
@@ -65,6 +67,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   useEffect(() => {
     const url = URL.createObjectURL(session.originalFile);
     setPreviewUrl(url);
+    setPosterUrl("");
     setDurationMs(0);
     setStartMs(0);
     setEndMs(0);
@@ -74,6 +77,10 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     rangeInitializedRef.current = false;
     return () => {
       URL.revokeObjectURL(url);
+      if (posterObjectUrlRef.current) {
+        URL.revokeObjectURL(posterObjectUrlRef.current);
+        posterObjectUrlRef.current = null;
+      }
     };
   }, [session.originalFile]);
 
@@ -114,26 +121,24 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       video.src = url;
 
       return await new Promise<boolean>((resolve) => {
+        let timeoutId: number | null = null;
         let settled = false;
+
         const finish = (ok: boolean) => {
           if (settled) return;
           settled = true;
+          if (timeoutId) window.clearTimeout(timeoutId);
           video.removeEventListener("loadedmetadata", onLoaded);
           video.removeEventListener("error", onError);
           resolve(ok);
         };
+
         const onLoaded = () => finish(Number.isFinite(video.duration) && video.duration > 0);
         const onError = () => finish(false);
-        const timeout = window.setTimeout(() => finish(false), 4000);
 
-        video.addEventListener("loadedmetadata", () => {
-          window.clearTimeout(timeout);
-          onLoaded();
-        });
-        video.addEventListener("error", () => {
-          window.clearTimeout(timeout);
-          onError();
-        });
+        timeoutId = window.setTimeout(() => finish(false), 4000);
+        video.addEventListener("loadedmetadata", onLoaded);
+        video.addEventListener("error", onError);
       });
     } finally {
       URL.revokeObjectURL(url);
@@ -242,6 +247,28 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       }
     }
   }, [endMs, seekVideoTo, startMs]);
+
+  useEffect(() => {
+    if (!isReady || isProcessing || posterUrl) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const blob = await captureThumbnail();
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        if (posterObjectUrlRef.current) {
+          URL.revokeObjectURL(posterObjectUrlRef.current);
+        }
+        posterObjectUrlRef.current = url;
+        setPosterUrl(url);
+      } catch {
+        // ignore poster failures; the user can still play the video
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [captureThumbnail, isProcessing, isReady, posterUrl]);
 
   const handleConfirm = useCallback(async () => {
     if (!isReady || isProcessing) return;
@@ -502,6 +529,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
             ref={videoRef}
             className="videoTrimDialogVideo"
             src={previewUrl}
+            poster={posterUrl || undefined}
             controls
             playsInline
             preload="metadata"

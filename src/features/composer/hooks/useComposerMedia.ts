@@ -21,6 +21,7 @@ export function useComposerMedia(params: {
   const [uploadedImageBlob, setUploadedImageBlob] = useState<Blob | null>(null);
   const [uploadedImageFilename, setUploadedImageFilename] = useState<string>("");
   const composerPreviewObjectUrlRef = useRef<string | null>(null);
+  const composerPosterObjectUrlRef = useRef<string | null>(null);
 
   const revokePreviewObjectUrl = useCallback(() => {
     if (composerPreviewObjectUrlRef.current) {
@@ -29,11 +30,21 @@ export function useComposerMedia(params: {
     }
   }, []);
 
+  const revokePosterObjectUrl = useCallback(() => {
+    if (composerPosterObjectUrlRef.current) {
+      URL.revokeObjectURL(composerPosterObjectUrlRef.current);
+      composerPosterObjectUrlRef.current = null;
+    }
+  }, []);
+
   const handleTrimSuccess = useCallback(
     (result: VideoTrimResult) => {
       revokePreviewObjectUrl();
+      revokePosterObjectUrl();
       const objectUrl = URL.createObjectURL(result.trimmedFile);
+      const posterUrl = URL.createObjectURL(result.thumbnailBlob);
       composerPreviewObjectUrlRef.current = objectUrl;
+      composerPosterObjectUrlRef.current = posterUrl;
       setDraft((prev) => ({
         ...prev,
         imageDataUrl: objectUrl,
@@ -42,14 +53,15 @@ export function useComposerMedia(params: {
           startMs: result.startMs,
           endMs: result.endMs,
           durationMs: result.durationMs
-        }
+        },
+        videoPosterUrl: posterUrl
       }));
       setUploadedImageBlob(result.trimmedFile);
       setUploadedImageFilename(result.trimmedFile.name);
       setIsImageLoading(false);
       setStatus("Trimmed video ready.");
     },
-    [revokePreviewObjectUrl, setDraft, setIsImageLoading, setStatus]
+    [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft, setIsImageLoading, setStatus]
   );
 
   const handleTrimCancel = useCallback(() => {
@@ -60,28 +72,31 @@ export function useComposerMedia(params: {
   const onComposerImageUrlChange = useCallback(
     (value: string) => {
       revokePreviewObjectUrl();
-      setDraft((prev) => ({ ...prev, imageUrl: value, imageDataUrl: "", videoTrim: undefined }));
+      revokePosterObjectUrl();
+      setDraft((prev) => ({ ...prev, imageUrl: value, imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
       if (value) {
         setUploadedImageBlob(null);
         setUploadedImageFilename("");
       }
     },
-    [revokePreviewObjectUrl, setDraft]
+    [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]
   );
 
   const onComposerClearImage = useCallback(() => {
-    setDraft((prev) => ({ ...prev, imageDataUrl: "", videoTrim: undefined }));
+    setDraft((prev) => ({ ...prev, imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
     revokePreviewObjectUrl();
-  }, [revokePreviewObjectUrl, setDraft]);
+    revokePosterObjectUrl();
+  }, [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]);
 
   const resetMedia = useCallback(() => {
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
     revokePreviewObjectUrl();
-    setDraft((prev) => ({ ...prev, videoTrim: undefined }));
-  }, [revokePreviewObjectUrl, setDraft]);
+    revokePosterObjectUrl();
+    setDraft((prev) => ({ ...prev, videoTrim: undefined, videoPosterUrl: undefined }));
+  }, [revokePreviewObjectUrl, revokePosterObjectUrl, setDraft]);
 
   const onSelectComposerFile = useCallback(
     async (file: File | null) => {
@@ -103,6 +118,7 @@ export function useComposerMedia(params: {
         setStatus(isVideo ? "Preparing uploaded video..." : "Processing uploaded image...");
 
         revokePreviewObjectUrl();
+        revokePosterObjectUrl();
 
         if (isVideo) {
           setIsImageLoading(true);
@@ -163,7 +179,7 @@ export function useComposerMedia(params: {
         const blobRes = await fetch(best);
         const blob = await blobRes.blob();
 
-        setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "", videoTrim: undefined }));
+        setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
         setUploadedImageBlob(blob);
         setUploadedImageFilename(file.name || "post-image.jpg");
         setStatus("Uploaded image ready.");
@@ -179,8 +195,9 @@ export function useComposerMedia(params: {
   useEffect(() => {
     return () => {
       revokePreviewObjectUrl();
+      revokePosterObjectUrl();
     };
-  }, [revokePreviewObjectUrl]);
+  }, [revokePreviewObjectUrl, revokePosterObjectUrl]);
 
   return useMemo(
     () => ({

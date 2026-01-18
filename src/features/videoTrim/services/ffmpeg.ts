@@ -55,7 +55,7 @@ export async function resetFFmpeg() {
   }
 }
 
-export async function probeVideoFrameRate(inputPath: string) {
+async function probeInputText(inputPath: string, timeoutMs = 2000) {
   const ffmpeg = await ensureFFmpeg();
   const lines: string[] = [];
   const logger = (event: { message: string }) => {
@@ -65,14 +65,18 @@ export async function probeVideoFrameRate(inputPath: string) {
   };
   ffmpeg.on("log", logger);
   try {
-    await ffmpeg.exec(["-hide_banner", "-i", inputPath], 2000);
+    await ffmpeg.exec(["-hide_banner", "-i", inputPath], timeoutMs);
   } catch {
     // ffmpeg will exit with failure because no output is bound, ignore.
   } finally {
     ffmpeg.off("log", logger);
   }
 
-  const text = lines.join("\n");
+  return lines.join("\n");
+}
+
+export async function probeVideoFrameRate(inputPath: string) {
+  const text = await probeInputText(inputPath);
   const match = text.match(/, (\d+(?:\.\d+)?) fps/);
   if (!match) return null;
   const value = Number(match[1]);
@@ -80,23 +84,7 @@ export async function probeVideoFrameRate(inputPath: string) {
 }
 
 export async function probeStreamCodecs(inputPath: string) {
-  const ffmpeg = await ensureFFmpeg();
-  const lines: string[] = [];
-  const logger = (event: { message: string }) => {
-    if (event?.message) {
-      lines.push(event.message);
-    }
-  };
-  ffmpeg.on("log", logger);
-  try {
-    await ffmpeg.exec(["-hide_banner", "-i", inputPath], 2000);
-  } catch {
-    // ffmpeg will exit with failure because no output is bound, ignore.
-  } finally {
-    ffmpeg.off("log", logger);
-  }
-
-  const text = lines.join("\n");
+  const text = await probeInputText(inputPath);
   const videoMatch = text.match(/Video:\s*([^\s,]+)/);
   const audioMatch = text.match(/Audio:\s*([^\s,]+)/);
   const videoCodec = videoMatch?.[1] ?? null;

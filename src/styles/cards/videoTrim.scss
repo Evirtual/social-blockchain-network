@@ -50,25 +50,6 @@
   color: var(--muted);
 }
 
-.videoTrimDialogProgressBar {
-  width: min(320px, 85%);
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-  margin-top: 0.6rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.videoTrimDialogProgressFill {
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), rgba(120, 140, 255, 0.95));
-  background-size: 200% 100%;
-  animation: progressSheen 1.2s linear infinite;
-}
-
 .videoTrimDialogVideo {
   width: 100%;
   height: auto;
@@ -138,26 +119,22 @@
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 18px;
-  height: 36px;
+  width: 12px;
+  height: 32px;
   padding: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(105, 115, 150, 0.75));
-  border-radius: 999px;
-  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  background: rgb(255, 171, 62);
   cursor: pointer;
   touch-action: none;
   z-index: 2;
-  transition: box-shadow 120ms ease, background 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease;
   outline: none;
-}
-
-.videoTrimSliderHandle:active,
-.videoTrimSliderHandle:focus {
-  transform: translate(-50%, -50%);
-}
-
-.videoTrimSliderHandle:focus-visible {
-  box-shadow: 0 0 0 2px rgba(140, 170, 255, 0.7), 0 8px 14px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  &:hover:not(:disabled) {
+    background: rgb(255, 171, 62);
+  }
+  &:active:not(:disabled) {
+    transform: translate(-50%, -50%) scale(1.25);
+    box-shadow: 0 0 8px rgba(100, 120, 255, 0.25);
+  }
 }
 
 .videoTrimSliderHandle:disabled {
@@ -211,24 +188,5 @@
   }
   50% {
     opacity: 1;
-  }
-}
-
-@keyframes progressSheen {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 100% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .videoTrimDialogProcessingOverlay {
-    animation: none;
-  }
-
-  .videoTrimDialogProgressFill {
-    animation: none;
   }
 }

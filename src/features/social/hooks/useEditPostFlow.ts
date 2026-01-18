@@ -74,6 +74,7 @@ export function useEditPostFlow(args: {
   const [editUploadedImageBlob, setEditUploadedImageBlob] = useState<Blob | null>(null);
   const [editUploadedImageFilename, setEditUploadedImageFilename] = useState<string>("");
   const editPreviewObjectUrlRef = useRef<string | null>(null);
+  const editPosterObjectUrlRef = useRef<string | null>(null);
   const [isEditImageLoading, setIsEditImageLoading] = useState(false);
 
   const cancelEditPost = useCallback(() => {
@@ -87,6 +88,10 @@ export function useEditPostFlow(args: {
       URL.revokeObjectURL(editPreviewObjectUrlRef.current);
       editPreviewObjectUrlRef.current = null;
     }
+    if (editPosterObjectUrlRef.current) {
+      URL.revokeObjectURL(editPosterObjectUrlRef.current);
+      editPosterObjectUrlRef.current = null;
+    }
   }, []);
 
   const handleTrimSuccess = useCallback(
@@ -94,8 +99,13 @@ export function useEditPostFlow(args: {
       if (editPreviewObjectUrlRef.current) {
         URL.revokeObjectURL(editPreviewObjectUrlRef.current);
       }
+      if (editPosterObjectUrlRef.current) {
+        URL.revokeObjectURL(editPosterObjectUrlRef.current);
+      }
       const objectUrl = URL.createObjectURL(result.trimmedFile);
+      const posterUrl = URL.createObjectURL(result.thumbnailBlob);
       editPreviewObjectUrlRef.current = objectUrl;
+      editPosterObjectUrlRef.current = posterUrl;
       setEditDraft((prev) => ({
         ...prev,
         imageDataUrl: objectUrl,
@@ -104,7 +114,8 @@ export function useEditPostFlow(args: {
           startMs: result.startMs,
           endMs: result.endMs,
           durationMs: result.durationMs
-        }
+        },
+        videoPosterUrl: posterUrl
       }));
       setEditUploadedImageBlob(result.trimmedFile);
       setEditUploadedImageFilename(result.trimmedFile.name);
@@ -127,7 +138,8 @@ export function useEditPostFlow(args: {
         body: post.body,
         imageUrl: post.animationUrl ?? post.image,
         imageDataUrl: "",
-        videoTrim: undefined
+        videoTrim: undefined,
+        videoPosterUrl: undefined
       });
       setEditUploadedImageBlob(null);
       setEditUploadedImageFilename("");
@@ -171,6 +183,10 @@ export function useEditPostFlow(args: {
           URL.revokeObjectURL(editPreviewObjectUrlRef.current);
           editPreviewObjectUrlRef.current = null;
         }
+        if (editPosterObjectUrlRef.current) {
+          URL.revokeObjectURL(editPosterObjectUrlRef.current);
+          editPosterObjectUrlRef.current = null;
+        }
 
         if (isVideo) {
           setIsEditImageLoading(true);
@@ -192,7 +208,7 @@ export function useEditPostFlow(args: {
         const blobRes = await fetch(best.dataUrl);
         const blob = await blobRes.blob();
 
-        setEditDraft((prev) => ({ ...prev, imageDataUrl: best.dataUrl, imageUrl: "", videoTrim: undefined }));
+        setEditDraft((prev) => ({ ...prev, imageDataUrl: best.dataUrl, imageUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
         setEditUploadedImageBlob(blob);
         setEditUploadedImageFilename(file.name || "post-image.jpg");
         setStatus("Uploaded image ready.");
@@ -206,12 +222,16 @@ export function useEditPostFlow(args: {
   );
 
   const onEditClearImage = useCallback(() => {
-    setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "", videoTrim: undefined }));
+    setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
     setEditUploadedImageBlob(null);
     setEditUploadedImageFilename("");
     if (editPreviewObjectUrlRef.current) {
       URL.revokeObjectURL(editPreviewObjectUrlRef.current);
       editPreviewObjectUrlRef.current = null;
+    }
+    if (editPosterObjectUrlRef.current) {
+      URL.revokeObjectURL(editPosterObjectUrlRef.current);
+      editPosterObjectUrlRef.current = null;
     }
   }, []);
 
