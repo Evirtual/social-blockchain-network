@@ -10,6 +10,7 @@ import { ThemeProvider } from "@features/theme";
 import { TxNotificationsProvider } from "@features/tx";
 import { WalletProvider } from "@features/wallet";
 import { VideoTrimProvider } from "@features/videoTrim";
+import { ImageCropProvider } from "@features/imageCrop";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -22,9 +23,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 <ProfileProvider>
                   <FollowProvider>
                     <VideoTrimProvider>
-                      <ComposerProvider>
-                        <SocialActionsProvider>{children}</SocialActionsProvider>
-                      </ComposerProvider>
+                      <ImageCropProvider>
+                        <ComposerProvider>
+                          <SocialActionsProvider>{children}</SocialActionsProvider>
+                        </ComposerProvider>
+                      </ImageCropProvider>
                     </VideoTrimProvider>
                   </FollowProvider>
                 </ProfileProvider>

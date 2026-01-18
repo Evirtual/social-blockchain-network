@@ -8,7 +8,61 @@ import {
 } from "@features/post/services/draftConstants";
 import { useVideoTrim } from "@features/videoTrim";
 import type { VideoTrimResult } from "@features/videoTrim/types";
+import { useImageCrop } from "@features/imageCrop";
+import type { ImageCropRect } from "@features/imageCrop";
 import { clearObjectUrlRef, replaceObjectUrlRef } from "@shared/lib/objectUrl";
+
+const compressToJpegDataUrl = async (blob: Blob, quality: number, maxDim: number, crop?: ImageCropRect) => {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to decode image"));
+    });
+    img.src = objectUrl;
+    await loaded;
+
+    const naturalWidth = Math.max(1, img.width);
+    const naturalHeight = Math.max(1, img.height);
+    const safeCrop = crop
+      ? {
+          left: Math.min(Math.max(crop.left, 0), 1),
+          top: Math.min(Math.max(crop.top, 0), 1),
+          right: Math.min(Math.max(crop.right, 0), 1),
+          bottom: Math.min(Math.max(crop.bottom, 0), 1)
+        }
+      : null;
+
+    const left = safeCrop ? Math.min(safeCrop.left, safeCrop.right) : 0;
+    const right = safeCrop ? Math.max(safeCrop.left, safeCrop.right) : 1;
+    const top = safeCrop ? Math.min(safeCrop.top, safeCrop.bottom) : 0;
+    const bottom = safeCrop ? Math.max(safeCrop.top, safeCrop.bottom) : 1;
+
+    const sx = Math.round(left * naturalWidth);
+    const sy = Math.round(top * naturalHeight);
+    const sw = Math.max(1, Math.round((right - left) * naturalWidth));
+    const sh = Math.max(1, Math.round((bottom - top) * naturalHeight));
+
+    const scale = Math.min(1, maxDim / Math.max(sw, sh));
+    const width = Math.max(1, Math.round(sw * scale));
+    const height = Math.max(1, Math.round(sh * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas not supported");
+    ctx.imageSmoothingEnabled = true;
+    (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = "high";
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
+
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
 
 export function useComposerMedia(params: {
   ipfsConfigured: boolean;
@@ -17,6 +71,7 @@ export function useComposerMedia(params: {
 }) {
   const { ipfsConfigured, setStatus, setDraft } = params;
   const videoTrim = useVideoTrim();
+  const imageCrop = useImageCrop();
 
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [uploadedImageBlob, setUploadedImageBlob] = useState<Blob | null>(null);
@@ -52,6 +107,11 @@ export function useComposerMedia(params: {
     setStatus("Video trimming cancelled.");
   }, [setStatus]);
 
+  const handleCropCancel = useCallback(() => {
+    setIsImageLoading(false);
+    setStatus("Image cropping cancelled.");
+  }, [setStatus]);
+
   const onComposerImageUrlChange = useCallback(
     (value: string) => {
       clearObjectUrlRef(composerPreviewObjectUrlRef);
@@ -80,6 +140,41 @@ export function useComposerMedia(params: {
     clearObjectUrlRef(composerPosterObjectUrlRef);
     setDraft((prev) => ({ ...prev, videoTrim: undefined, videoPosterUrl: undefined }));
   }, [setDraft]);
+
+  const processImageFile = useCallback(
+    async (file: File, crop?: ImageCropRect) => {
+      setIsImageLoading(true);
+      setStatus("Processing uploaded image...");
+
+      const maxDataUrlChars = ipfsConfigured ? MAX_IMAGE_DATA_URL_CHARS_IPFS : MAX_IMAGE_DATA_URL_CHARS;
+      const candidates = ipfsConfigured ? IMAGE_COMPRESSION_CANDIDATES_IPFS : IMAGE_COMPRESSION_CANDIDATES;
+
+      let best: string | null = null;
+      for (const c of candidates) {
+        const attempt = await compressToJpegDataUrl(file, c.q, c.dim, crop);
+        best = attempt;
+        if (attempt.length <= maxDataUrlChars) break;
+      }
+
+      if (!best || best.length > maxDataUrlChars) {
+        setStatus(
+          ipfsConfigured
+            ? "Uploaded image is too large. Try a smaller image."
+            : "Uploaded image is too large to embed on-chain. Use a smaller image, or paste an image URL (recommended: IPFS/http)."
+        );
+        return;
+      }
+
+      const blobRes = await fetch(best);
+      const blob = await blobRes.blob();
+
+      setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
+      setUploadedImageBlob(blob);
+      setUploadedImageFilename(file.name || "post-image.jpg");
+      setStatus("Uploaded image ready.");
+    },
+    [ipfsConfigured, setDraft, setStatus]
+  );
 
   const onSelectComposerFile = useCallback(
     async (file: File | null) => {
@@ -114,65 +209,27 @@ export function useComposerMedia(params: {
           return;
         }
 
-        const compressToJpegDataUrl = async (blob: Blob, quality: number, maxDim: number) => {
-          const objectUrl = URL.createObjectURL(blob);
-          try {
-            const img = new Image();
-            img.decoding = "async";
-            const loaded = new Promise<void>((resolve, reject) => {
-              img.onload = () => resolve();
-              img.onerror = () => reject(new Error("Failed to decode image"));
-            });
-            img.src = objectUrl;
-            await loaded;
-
-            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-            const width = Math.max(1, Math.round(img.width * scale));
-            const height = Math.max(1, Math.round(img.height * scale));
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) throw new Error("Canvas not supported");
-            ctx.imageSmoothingEnabled = true;
-            (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = "high";
-            ctx.drawImage(img, 0, 0, width, height);
-
-            return canvas.toDataURL("image/jpeg", quality);
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          }
-        };
-
-        const maxDataUrlChars = ipfsConfigured ? MAX_IMAGE_DATA_URL_CHARS_IPFS : MAX_IMAGE_DATA_URL_CHARS;
-        const candidates = ipfsConfigured ? IMAGE_COMPRESSION_CANDIDATES_IPFS : IMAGE_COMPRESSION_CANDIDATES;
-        let best: string | null = null;
-        for (const c of candidates) {
-          const attempt = await compressToJpegDataUrl(file, c.q, c.dim);
-          best = attempt;
-          if (attempt.length <= maxDataUrlChars) break;
-        }
-
-        if (!best || best.length > maxDataUrlChars) {
-          setStatus(ipfsConfigured ? "Uploaded image is too large. Try a smaller image." : "Uploaded image is too large to embed on-chain. Use a smaller image, or paste an image URL (recommended: IPFS/http)." );
-          return;
-        }
-
-        const blobRes = await fetch(best);
-        const blob = await blobRes.blob();
-
-        setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
-        setUploadedImageBlob(blob);
-        setUploadedImageFilename(file.name || "post-image.jpg");
-        setStatus("Uploaded image ready.");
+        setStatus("Crop your image...");
+        imageCrop.openImageCrop({
+          originalFile: file,
+          onConfirm: async (result) => {
+            try {
+              await processImageFile(file, result.crop);
+            } catch {
+              setStatus("Failed to process cropped image.");
+            } finally {
+              setIsImageLoading(false);
+            }
+          },
+          onCancel: handleCropCancel
+        });
       } catch {
         setStatus("Failed to read image.");
       } finally {
         setIsImageLoading(false);
       }
     },
-    [ipfsConfigured, setDraft, setStatus, videoTrim, handleTrimSuccess, handleTrimCancel]
+    [imageCrop, videoTrim, handleTrimSuccess, handleTrimCancel, handleCropCancel, processImageFile, setStatus, ipfsConfigured]
   );
 
   useEffect(() => {

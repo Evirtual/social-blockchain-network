@@ -15,9 +15,6 @@
 
 .videoTrimDialogPreview {
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
   overflow: hidden;
   position: relative;
 }
@@ -136,7 +133,6 @@
   }
   &:active:not(:disabled) {
     transform: translate(-50%, -50%) scale(1.25);
-    box-shadow: 0 0 8px rgba(100, 120, 255, 0.25);
   }
 }
 
