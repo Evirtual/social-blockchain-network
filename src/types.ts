@@ -30,11 +30,18 @@ export type TxNotice = {
   error?: string;
 };
 
+export type TrimInfo = {
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+};
+
 export type Draft = {
   title: string;
   body: string;
   imageUrl: string;
   imageDataUrl: string;
+  videoTrim?: TrimInfo;
 };
 
 export type TokenMetadata = {

@@ -6,6 +6,8 @@ import {
   MAX_IMAGE_DATA_URL_CHARS,
   MAX_IMAGE_DATA_URL_CHARS_IPFS
 } from "@features/post/services/draftConstants";
+import { useVideoTrim } from "@features/videoTrim";
+import type { VideoTrimResult } from "@features/videoTrim/types";
 
 export function useComposerMedia(params: {
   ipfsConfigured: boolean;
@@ -13,6 +15,7 @@ export function useComposerMedia(params: {
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
 }) {
   const { ipfsConfigured, setStatus, setDraft } = params;
+  const videoTrim = useVideoTrim();
 
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [uploadedImageBlob, setUploadedImageBlob] = useState<Blob | null>(null);
@@ -26,10 +29,38 @@ export function useComposerMedia(params: {
     }
   }, []);
 
+  const handleTrimSuccess = useCallback(
+    (result: VideoTrimResult) => {
+      revokePreviewObjectUrl();
+      const objectUrl = URL.createObjectURL(result.trimmedFile);
+      composerPreviewObjectUrlRef.current = objectUrl;
+      setDraft((prev) => ({
+        ...prev,
+        imageDataUrl: objectUrl,
+        imageUrl: "",
+        videoTrim: {
+          startMs: result.startMs,
+          endMs: result.endMs,
+          durationMs: result.durationMs
+        }
+      }));
+      setUploadedImageBlob(result.trimmedFile);
+      setUploadedImageFilename(result.trimmedFile.name);
+      setIsImageLoading(false);
+      setStatus("Trimmed video ready.");
+    },
+    [revokePreviewObjectUrl, setDraft, setIsImageLoading, setStatus]
+  );
+
+  const handleTrimCancel = useCallback(() => {
+    setIsImageLoading(false);
+    setStatus("Video trimming cancelled.");
+  }, [setStatus]);
+
   const onComposerImageUrlChange = useCallback(
     (value: string) => {
       revokePreviewObjectUrl();
-      setDraft((prev) => ({ ...prev, imageUrl: value, imageDataUrl: "" }));
+      setDraft((prev) => ({ ...prev, imageUrl: value, imageDataUrl: "", videoTrim: undefined }));
       if (value) {
         setUploadedImageBlob(null);
         setUploadedImageFilename("");
@@ -39,7 +70,7 @@ export function useComposerMedia(params: {
   );
 
   const onComposerClearImage = useCallback(() => {
-    setDraft((prev) => ({ ...prev, imageDataUrl: "" }));
+    setDraft((prev) => ({ ...prev, imageDataUrl: "", videoTrim: undefined }));
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
     revokePreviewObjectUrl();
@@ -49,7 +80,8 @@ export function useComposerMedia(params: {
     setUploadedImageBlob(null);
     setUploadedImageFilename("");
     revokePreviewObjectUrl();
-  }, [revokePreviewObjectUrl]);
+    setDraft((prev) => ({ ...prev, videoTrim: undefined }));
+  }, [revokePreviewObjectUrl, setDraft]);
 
   const onSelectComposerFile = useCallback(
     async (file: File | null) => {
@@ -73,12 +105,13 @@ export function useComposerMedia(params: {
         revokePreviewObjectUrl();
 
         if (isVideo) {
-          const objectUrl = URL.createObjectURL(file);
-          composerPreviewObjectUrlRef.current = objectUrl;
-          setDraft((prev) => ({ ...prev, imageDataUrl: objectUrl, imageUrl: "" }));
-          setUploadedImageBlob(file);
-          setUploadedImageFilename(file.name || "post-video");
-          setStatus("Uploaded video ready.");
+          setIsImageLoading(true);
+          setStatus("Preparing uploaded video...");
+          videoTrim.openVideoTrim({
+            originalFile: file,
+            onConfirm: handleTrimSuccess,
+            onCancel: handleTrimCancel
+          });
           return;
         }
 
@@ -130,7 +163,7 @@ export function useComposerMedia(params: {
         const blobRes = await fetch(best);
         const blob = await blobRes.blob();
 
-        setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "" }));
+        setDraft((prev) => ({ ...prev, imageDataUrl: best!, imageUrl: "", videoTrim: undefined }));
         setUploadedImageBlob(blob);
         setUploadedImageFilename(file.name || "post-image.jpg");
         setStatus("Uploaded image ready.");
@@ -140,7 +173,7 @@ export function useComposerMedia(params: {
         setIsImageLoading(false);
       }
     },
-    [ipfsConfigured, revokePreviewObjectUrl, setDraft, setStatus]
+    [ipfsConfigured, revokePreviewObjectUrl, setDraft, setStatus, videoTrim, handleTrimSuccess, handleTrimCancel]
   );
 
   useEffect(() => {

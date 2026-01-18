@@ -1,6 +1,6 @@
 import type { Draft } from "@types";
 
-export const EMPTY_DRAFT: Draft = { title: "", body: "", imageUrl: "", imageDataUrl: "" };
+export const EMPTY_DRAFT: Draft = { title: "", body: "", imageUrl: "", imageDataUrl: "", videoTrim: undefined };
 
 export const MAX_IMAGE_DATA_URL_CHARS = 90_000;
 // When IPFS pinning is enabled, the image does not need to fit inside an on-chain tokenURI.

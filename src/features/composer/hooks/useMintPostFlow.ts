@@ -217,7 +217,7 @@ export function useMintPostFlow(params: {
         tipsWei: 0n
       };
 
-      setDraft({ title: "", body: "", imageUrl: "", imageDataUrl: "" });
+      setDraft({ title: "", body: "", imageUrl: "", imageDataUrl: "", videoTrim: undefined });
       resetMedia();
       closeComposer();
 

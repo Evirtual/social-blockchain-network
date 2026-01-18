@@ -1,5 +1,5 @@
 import type { Draft } from "@types";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { MAX_POST_BODY_LENGTH } from "@shared/lib/postLimits";
 import { IconPlus, IconX } from "@shared/components/icons";
 
@@ -23,17 +23,14 @@ export function ComposerCard({
   onPost
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [hasFileSelected, setHasFileSelected] = useState(false);
 
   const handleClearUpload = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
-      fileInputRef.current.dataset.hasFile = "false";
     }
-    setHasFileSelected(false);
     onClearImage();
   };
-  const hasMedia = Boolean(draft.imageDataUrl) || hasFileSelected;
+  const hasPreview = Boolean(draft.imageDataUrl);
 
   return (
     <div className="composer">
@@ -47,9 +44,6 @@ export function ComposerCard({
         ref={fileInputRef}
         onChange={(event) => {
           const input = event.currentTarget;
-          const hasFile = (input.files?.length ?? 0) > 0;
-          input.dataset.hasFile = hasFile ? "true" : "false";
-          setHasFileSelected(hasFile);
           onSelectFile(input.files?.[0] ?? null);
         }}
       />
@@ -97,7 +91,7 @@ export function ComposerCard({
       ) : null}
 
       <div className="rowActions modalFooterInline">
-        {!hasMedia ? (
+        {!hasPreview ? (
           <label className="btn secondary fileInputButton" htmlFor="postMediaUpload">
             <IconPlus size={16} />
             Add image/video

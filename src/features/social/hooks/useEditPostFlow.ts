@@ -14,6 +14,8 @@ import { preparePostMetadata } from "@features/post/services/preparePostMetadata
 import { getDraftMediaState } from "@features/post/services/draftMediaState";
 import type { TransactionResponse } from "ethers";
 import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import { useVideoTrim } from "@features/videoTrim";
+import type { VideoTrimResult } from "@features/videoTrim/types";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
@@ -65,6 +67,7 @@ export function useEditPostFlow(args: {
     txNotifications,
     bestEffortUnpinCidsSafe
   } = args;
+  const videoTrim = useVideoTrim();
 
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -86,6 +89,36 @@ export function useEditPostFlow(args: {
     }
   }, []);
 
+  const handleTrimSuccess = useCallback(
+    (result: VideoTrimResult) => {
+      if (editPreviewObjectUrlRef.current) {
+        URL.revokeObjectURL(editPreviewObjectUrlRef.current);
+      }
+      const objectUrl = URL.createObjectURL(result.trimmedFile);
+      editPreviewObjectUrlRef.current = objectUrl;
+      setEditDraft((prev) => ({
+        ...prev,
+        imageDataUrl: objectUrl,
+        imageUrl: "",
+        videoTrim: {
+          startMs: result.startMs,
+          endMs: result.endMs,
+          durationMs: result.durationMs
+        }
+      }));
+      setEditUploadedImageBlob(result.trimmedFile);
+      setEditUploadedImageFilename(result.trimmedFile.name);
+      setIsEditImageLoading(false);
+      setStatus("Trimmed video ready.");
+    },
+    [setEditDraft, setEditUploadedImageBlob, setEditUploadedImageFilename, setIsEditImageLoading, setStatus]
+  );
+
+  const handleTrimCancel = useCallback(() => {
+    setIsEditImageLoading(false);
+    setStatus("Video trimming cancelled.");
+  }, [setStatus]);
+
   const startEditPost = useCallback(
     (post: Readonly<Post>) => {
       setEditingTokenId(postKey(post));
@@ -93,7 +126,8 @@ export function useEditPostFlow(args: {
         title: post.title,
         body: post.body,
         imageUrl: post.animationUrl ?? post.image,
-        imageDataUrl: ""
+        imageDataUrl: "",
+        videoTrim: undefined
       });
       setEditUploadedImageBlob(null);
       setEditUploadedImageFilename("");
@@ -139,12 +173,13 @@ export function useEditPostFlow(args: {
         }
 
         if (isVideo) {
-          const objectUrl = URL.createObjectURL(file);
-          editPreviewObjectUrlRef.current = objectUrl;
-          setEditDraft((prev) => ({ ...prev, imageDataUrl: objectUrl, imageUrl: "" }));
-          setEditUploadedImageBlob(file);
-          setEditUploadedImageFilename(file.name || "post-video");
-          setStatus("Uploaded video ready.");
+          setIsEditImageLoading(true);
+          setStatus("Preparing uploaded video...");
+          videoTrim.openVideoTrim({
+            originalFile: file,
+            onConfirm: handleTrimSuccess,
+            onCancel: handleTrimCancel
+          });
           return;
         }
 
@@ -157,7 +192,7 @@ export function useEditPostFlow(args: {
         const blobRes = await fetch(best.dataUrl);
         const blob = await blobRes.blob();
 
-        setEditDraft((prev) => ({ ...prev, imageDataUrl: best.dataUrl, imageUrl: "" }));
+        setEditDraft((prev) => ({ ...prev, imageDataUrl: best.dataUrl, imageUrl: "", videoTrim: undefined }));
         setEditUploadedImageBlob(blob);
         setEditUploadedImageFilename(file.name || "post-image.jpg");
         setStatus("Uploaded image ready.");
@@ -167,11 +202,11 @@ export function useEditPostFlow(args: {
         setIsEditImageLoading(false);
       }
     },
-    [ipfsConfigured, editDraft, setStatus]
+    [ipfsConfigured, editDraft, setStatus, setIsEditImageLoading, videoTrim, handleTrimSuccess, handleTrimCancel]
   );
 
   const onEditClearImage = useCallback(() => {
-    setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "" }));
+    setEditDraft((d) => ({ ...d, imageUrl: "", imageDataUrl: "", videoTrim: undefined }));
     setEditUploadedImageBlob(null);
     setEditUploadedImageFilename("");
     if (editPreviewObjectUrlRef.current) {

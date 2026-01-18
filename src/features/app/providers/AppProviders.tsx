@@ -9,6 +9,7 @@ import { StatusProvider } from "@features/status";
 import { ThemeProvider } from "@features/theme";
 import { TxNotificationsProvider } from "@features/tx";
 import { WalletProvider } from "@features/wallet";
+import { VideoTrimProvider } from "@features/videoTrim";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -20,11 +21,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <FeedProvider>
                 <ProfileProvider>
                   <FollowProvider>
-                    <ComposerProvider>
-                      <SocialActionsProvider>
-                        {children}
-                      </SocialActionsProvider>
-                    </ComposerProvider>
+                    <VideoTrimProvider>
+                      <ComposerProvider>
+                        <SocialActionsProvider>{children}</SocialActionsProvider>
+                      </ComposerProvider>
+                    </VideoTrimProvider>
                   </FollowProvider>
                 </ProfileProvider>
               </FeedProvider>

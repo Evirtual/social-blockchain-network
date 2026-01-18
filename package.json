@@ -24,6 +24,7 @@
     "install:contracts": "npm --prefix contracts install"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
     "@tanstack/react-query": "^5.90.16",
     "buffer": "^6.0.3",
     "ethers": "^6.11.1",

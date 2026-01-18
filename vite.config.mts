@@ -17,12 +17,15 @@ export default defineConfig({
     }
   },
   resolve: {
-    alias: {
-      "@assets": path.resolve(__dirname, "src/assets"),
-      "@features": path.resolve(__dirname, "src/features"),
-      "@shared": path.resolve(__dirname, "src/shared"),
-      "@types": path.resolve(__dirname, "src/types.ts")
-    }
+      alias: {
+        "@assets": path.resolve(__dirname, "src/assets"),
+        "@features": path.resolve(__dirname, "src/features"),
+        "@shared": path.resolve(__dirname, "src/shared"),
+        "@types": path.resolve(__dirname, "src/types.ts")
+      }
+    },
+  optimizeDeps: {
+    exclude: ["@ffmpeg/ffmpeg"]
   },
   build: {
     chunkSizeWarningLimit: 4000,
