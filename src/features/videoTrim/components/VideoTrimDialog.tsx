@@ -157,12 +157,26 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     (timeSec: number) => {
       const video = videoRef.current;
       if (!video) return Promise.reject(new Error("Video not ready"));
-      return new Promise<void>((resolve) => {
+      return new Promise<void>((resolve, reject) => {
         const onSeeked = () => {
+          if (timeoutId) window.clearTimeout(timeoutId);
           video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
           resolve();
         };
+        const onError = () => {
+          if (timeoutId) window.clearTimeout(timeoutId);
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
+          reject(new Error("Video seek failed"));
+        };
+        const timeoutId = window.setTimeout(() => {
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("error", onError);
+          reject(new Error("Video seek timed out"));
+        }, 2500);
         video.addEventListener("seeked", onSeeked);
+        video.addEventListener("error", onError);
         video.currentTime = timeSec;
       });
     },
@@ -207,12 +221,16 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     video.pause();
     try {
       for (const time of captureTimes) {
-        await seekVideoTo(time / 1000);
-        ctx.drawImage(video, 0, 0, width, height);
-        const imageData = ctx.getImageData(0, 0, width, height);
-        if (!isMostlyBlack(imageData)) {
-          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-          if (blob) return blob;
+        try {
+          await seekVideoTo(time / 1000);
+          ctx.drawImage(video, 0, 0, width, height);
+          const imageData = ctx.getImageData(0, 0, width, height);
+          if (!isMostlyBlack(imageData)) {
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+            if (blob) return blob;
+          }
+        } catch {
+          // try next timestamp
         }
       }
       await seekVideoTo(startMs / 1000);
@@ -266,6 +284,20 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       const setProgressSafe = (next: number) => {
         const clamped = clamp(next, 0, 1);
         setProcessingProgress((prev) => (clamped > prev ? clamped : prev));
+      };
+
+      const execWithTimeout = async (run: () => Promise<unknown>, timeoutMs: number) => {
+        let timeoutId: number | null = null;
+        try {
+          await Promise.race([
+            run(),
+            new Promise<void>((_, reject) => {
+              timeoutId = window.setTimeout(() => reject(new Error("FFmpeg timed out")), timeoutMs);
+            })
+          ]);
+        } finally {
+          if (timeoutId) window.clearTimeout(timeoutId);
+        }
       };
 
       setProgressSafe(0.02);
@@ -350,7 +382,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         }
         transcodeArgs.push("trim-output.mp4");
         outputFsPath = "trim-output.mp4";
-        await ffmpeg.exec(transcodeArgs, -1, { signal: controller.signal });
+        await execWithTimeout(() => ffmpeg.exec(transcodeArgs, -1, { signal: controller.signal }), 6 * 60_000);
       };
 
       const streamCopyArgs: string[] = [
@@ -406,7 +438,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         if (shouldTranscode) {
           await doTranscodeToMp4(controller);
         } else {
-          await ffmpeg.exec(streamCopyArgs, -1, { signal: controller.signal });
+          await execWithTimeout(() => ffmpeg.exec(streamCopyArgs, -1, { signal: controller.signal }), 60_000);
         }
       } finally {
         ffmpeg.off("progress", progressHandler);
