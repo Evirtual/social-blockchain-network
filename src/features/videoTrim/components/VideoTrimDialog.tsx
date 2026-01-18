@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
 import { ipfsToHttp } from "@features/ipfs";
 import { VideoTrimSlider } from "./VideoTrimSlider";
-import { deleteFsFile, readFileFromFs, resetFFmpeg, writeFileToFs } from "../services/ffmpeg";
+import { deleteFsFile, probeStreamCodecs, readFileFromFs, resetFFmpeg, writeFileToFs } from "../services/ffmpeg";
 import type { VideoTrimSession } from "../types";
 
 const MIN_CLIP_MS = 1_000;
@@ -42,6 +42,8 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const [durationMs, setDurationMs] = useState(0);
   const [startMs, setStartMs] = useState(0);
   const [endMs, setEndMs] = useState(0);
+  const [videoWidth, setVideoWidth] = useState(0);
+  const [videoHeight, setVideoHeight] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -66,6 +68,8 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     setDurationMs(0);
     setStartMs(0);
     setEndMs(0);
+    setVideoWidth(0);
+    setVideoHeight(0);
     setIsReady(false);
     rangeInitializedRef.current = false;
     return () => {
@@ -96,6 +100,44 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       return;
     }
     setDurationMs(Math.round(video.duration * 1_000));
+    setVideoWidth(video.videoWidth);
+    setVideoHeight(video.videoHeight);
+  }, []);
+
+  const validateVideoBlob = useCallback(async (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    try {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+
+      return await new Promise<boolean>((resolve) => {
+        let settled = false;
+        const finish = (ok: boolean) => {
+          if (settled) return;
+          settled = true;
+          video.removeEventListener("loadedmetadata", onLoaded);
+          video.removeEventListener("error", onError);
+          resolve(ok);
+        };
+        const onLoaded = () => finish(Number.isFinite(video.duration) && video.duration > 0);
+        const onError = () => finish(false);
+        const timeout = window.setTimeout(() => finish(false), 4000);
+
+        video.addEventListener("loadedmetadata", () => {
+          window.clearTimeout(timeout);
+          onLoaded();
+        });
+        video.addEventListener("error", () => {
+          window.clearTimeout(timeout);
+          onError();
+        });
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }, []);
 
   useEffect(() => {
@@ -209,7 +251,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     setErrorMessage(null);
     let aborted = false;
     let outputFsPath = "trim-output.mp4";
-    console.info("[video-trim] starting encode", {
+    console.info("[video-trim] starting trim", {
       sessionId: session.id,
       startMs,
       endMs,
@@ -239,9 +281,74 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       const ffmpeg = await writeFileToFs(inputName, session.originalFile);
       setProgressSafe(0.2);
       console.info("[video-trim] source written to FS", { path: inputName, size: session.originalFile.size });
+
+      const { videoCodec } = await probeStreamCodecs(inputName);
+      const normalizedVideoCodec = videoCodec?.toLowerCase() ?? "";
+      const isH264 = normalizedVideoCodec === "h264";
+      const shouldTranscode = outputExt === "mp4" && !isH264;
+
       const startSec = (startMs / 1000).toFixed(3);
       const durationSec = (trimmedDurationMs / 1000).toFixed(3);
-      const videoArgs: string[] = [
+
+      const doTranscodeToMp4 = async (controller: AbortController) => {
+        const width = Math.max(2, videoWidth);
+        const height = Math.max(2, videoHeight);
+        const isPortrait = height >= width;
+        const maxW = isPortrait ? 1080 : 1920;
+        const maxH = isPortrait ? 1920 : 1080;
+        const scaleFactor = Math.min(1, maxW / width, maxH / height);
+        const scaledWidth = Math.max(2, Math.floor((width * scaleFactor) / 2) * 2);
+        const scaledHeight = Math.max(2, Math.floor((height * scaleFactor) / 2) * 2);
+        const useScale = scaledWidth !== width || scaledHeight !== height;
+
+        const transcodeArgs: string[] = [
+          "-hide_banner",
+          "-ss",
+          startSec,
+          "-i",
+          inputName,
+          "-t",
+          durationSec,
+          "-map",
+          "0:v:0",
+          "-map",
+          "0:a:0?",
+          "-sn",
+          "-dn",
+          "-c:v",
+          "libx264",
+          "-profile:v",
+          "high",
+          "-level",
+          "4.1",
+          "-preset",
+          "veryfast",
+          "-crf",
+          "21",
+          "-pix_fmt",
+          "yuv420p",
+          "-metadata:s:v:0",
+          "rotate=0",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
+          "-ar",
+          "48000",
+          "-movflags",
+          "+faststart",
+          "-avoid_negative_ts",
+          "make_zero"
+        ];
+        if (useScale) {
+          transcodeArgs.push("-vf", `scale=${scaledWidth}:${scaledHeight}`);
+        }
+        transcodeArgs.push("trim-output.mp4");
+        outputFsPath = "trim-output.mp4";
+        await ffmpeg.exec(transcodeArgs, -1, { signal: controller.signal });
+      };
+
+      const streamCopyArgs: string[] = [
         "-hide_banner",
         "-ss",
         startSec,
@@ -250,19 +357,23 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         "-t",
         durationSec,
         "-map",
-        "0",
+        "0:v:0",
+        "-map",
+        "0:a:0?",
+        "-sn",
+        "-dn",
         "-c",
         "copy",
         "-avoid_negative_ts",
         "make_zero"
       ];
-      if (isMp4) {
-        videoArgs.push("-movflags", "+faststart");
+      if (outputExt === "mp4") {
+        streamCopyArgs.push("-movflags", "+faststart");
       }
-      videoArgs.push(outputName);
+      streamCopyArgs.push(outputName);
       const controller = new AbortController();
       setAbortController(controller);
-      console.info("[video-trim] executing ffmpeg", { videoArgs });
+      console.info("[video-trim] executing ffmpeg", { args: shouldTranscode ? "transcode" : streamCopyArgs });
 
       const progressHandler = (event: { progress?: number; time?: number }) => {
         const now = Date.now();
@@ -287,23 +398,45 @@ export function VideoTrimDialog({ session, onClose }: Props) {
 
       ffmpeg.on("progress", progressHandler);
       try {
-        await ffmpeg.exec(videoArgs, -1, { signal: controller.signal });
+        if (shouldTranscode) {
+          await doTranscodeToMp4(controller);
+        } else {
+          await ffmpeg.exec(streamCopyArgs, -1, { signal: controller.signal });
+        }
       } finally {
         ffmpeg.off("progress", progressHandler);
       }
 
       setProgressSafe(0.97);
-      const outputData = await readFileFromFs(outputName);
+      let finalOutputName = shouldTranscode ? "trim-output.mp4" : outputName;
+      let finalOutputMime = shouldTranscode ? "video/mp4" : outputMime;
+      let outputData = await readFileFromFs(finalOutputName);
       if (!(outputData instanceof Uint8Array)) {
         throw new Error("Trimmed video output is not binary.");
       }
       const normalized = new Uint8Array(outputData);
-      const outputBlob = new Blob([normalized], { type: outputMime });
+      let outputBlob = new Blob([normalized], { type: finalOutputMime });
       setProgressSafe(0.99);
       console.info("[video-trim] read back output", { size: outputBlob.size, type: outputBlob.type });
+
+      if (!shouldTranscode) {
+        const ok = await validateVideoBlob(outputBlob);
+        if (!ok) {
+          console.warn("[video-trim] output failed validation, transcoding to H.264/AAC mp4");
+          await deleteFsFile(finalOutputName).catch(() => undefined);
+          await doTranscodeToMp4(controller);
+          finalOutputName = "trim-output.mp4";
+          finalOutputMime = "video/mp4";
+          outputData = await readFileFromFs(finalOutputName);
+          if (!(outputData instanceof Uint8Array)) {
+            throw new Error("Trimmed video output is not binary.");
+          }
+          outputBlob = new Blob([new Uint8Array(outputData)], { type: finalOutputMime });
+        }
+      }
       const baseName = session.originalFile.name.replace(/\.[^.]+$/, "") || "trimmed";
-      const safeName = `${baseName}-trimmed.${outputExt}`;
-      const trimmedFile = new File([outputBlob], safeName, { type: outputMime });
+      const safeName = `${baseName}-trimmed.${finalOutputName.endsWith(".mp4") ? "mp4" : outputExt}`;
+      const trimmedFile = new File([outputBlob], safeName, { type: finalOutputMime });
       const result = {
         trimmedFile,
         thumbnailBlob,
@@ -313,10 +446,10 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       };
       session.onConfirm(result);
       setProgressSafe(1);
-      console.info("[video-trim] finished encode", { trimmedName: safeName, duration: trimmedDurationMs });
+      console.info("[video-trim] finished trim", { trimmedName: safeName, duration: trimmedDurationMs });
       onClose("completed");
     } catch (error) {
-      console.error("[video-trim] encode error", error);
+      console.error("[video-trim] trim error", error);
       if ((error as DOMException)?.name === "AbortError") {
         aborted = true;
       } else {
@@ -341,7 +474,10 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     isProcessing,
     onClose,
     session,
-    startMs
+    startMs,
+    validateVideoBlob,
+    videoHeight,
+    videoWidth
   ]);
 
   const handleStop = () => {

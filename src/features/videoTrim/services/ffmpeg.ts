@@ -78,3 +78,28 @@ export async function probeVideoFrameRate(inputPath: string) {
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
 }
+
+export async function probeStreamCodecs(inputPath: string) {
+  const ffmpeg = await ensureFFmpeg();
+  const lines: string[] = [];
+  const logger = (event: { message: string }) => {
+    if (event?.message) {
+      lines.push(event.message);
+    }
+  };
+  ffmpeg.on("log", logger);
+  try {
+    await ffmpeg.exec(["-hide_banner", "-i", inputPath], 2000);
+  } catch {
+    // ffmpeg will exit with failure because no output is bound, ignore.
+  } finally {
+    ffmpeg.off("log", logger);
+  }
+
+  const text = lines.join("\n");
+  const videoMatch = text.match(/Video:\s*([^\s,]+)/);
+  const audioMatch = text.match(/Audio:\s*([^\s,]+)/);
+  const videoCodec = videoMatch?.[1] ?? null;
+  const audioCodec = audioMatch?.[1] ?? null;
+  return { videoCodec, audioCodec };
+}
