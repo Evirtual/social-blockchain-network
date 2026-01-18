@@ -51,6 +51,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const lastProgressUpdateRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const thumbnailPromiseRef = useRef<Promise<Blob> | null>(null);
+  const isMountedRef = useRef(true);
 
   const resetSessionState = useCallback(() => {
     setPosterBlob(null);
@@ -65,7 +66,13 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     resetSessionState();
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+      void resetFFmpeg();
+    };
   }, [resetSessionState, session.originalFile]);
 
   useEffect(() => {
@@ -121,10 +128,32 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const sliderMaxWindow = Math.min(MAX_CLIP_MS, durationMs);
   const clipDurationText = useMemo(() => formatTime(Math.max(endMs - startMs, 0)), [endMs, startMs]);
 
+  const handleStop = useCallback(() => {
+    const controller = abortControllerRef.current ?? abortController;
+    if (controller) {
+      videoTrimLog("[video-trim] abort requested");
+      controller.abort();
+    } else {
+      videoTrimLog("[video-trim] stop requested (no controller yet)");
+    }
+    void resetFFmpeg();
+    if (isMountedRef.current) {
+      setIsProcessing(false);
+      setAbortController(null);
+      abortControllerRef.current = null;
+      setProcessingProgress(0);
+      setErrorMessage("Stopped trimming.");
+    }
+  }, [abortController]);
+
   const handleCancel = useCallback(() => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      handleStop();
+      onClose("cancel");
+      return;
+    }
     onClose("cancel");
-  }, [isProcessing, onClose]);
+  }, [handleStop, isProcessing, onClose]);
 
   const captureThumbnail = useCallback(async () => {
     const video = videoRef.current;
@@ -258,14 +287,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     videoWidth
   ]);
 
-  const handleStop = () => {
-    const controller = abortControllerRef.current ?? abortController;
-    if (!controller) return;
-    videoTrimLog("[video-trim] abort requested");
-    controller.abort();
-    void resetFFmpeg();
-  };
-
   const existingUrl = session.existingVideoUrl ? ipfsToHttp(session.existingVideoUrl) : "";
 
   return (
@@ -330,7 +351,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         </div>
         {errorMessage ? <div className="videoTrimDialogError">{errorMessage}</div> : null}
         <div className="rowActions modalFooterInline videoTrimDialogActions">
-          <button className="secondary" type="button" onClick={handleCancel} disabled={isProcessing}>
+          <button className="secondary" type="button" onClick={handleCancel}>
             Cancel
           </button>
           {isProcessing ? (

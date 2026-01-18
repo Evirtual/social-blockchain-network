@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
-import { ipfsToHttp } from "@features/ipfs";
 import { useObjectUrl } from "@shared/hooks/useObjectUrl";
 import { clamp } from "@shared/lib/math";
 import type { ImageCropRect, ImageCropSession } from "../types";
@@ -71,8 +70,6 @@ export function ImageCropDialog({ session, onClose }: Props) {
   useEffect(() => {
     if (previewUrl) setErrorMessage(null);
   }, [previewUrl]);
-
-  const existingUrl = session.existingImageUrl ? ipfsToHttp(session.existingImageUrl) : "";
 
   const toNormalizedPoint = useCallback((event: PointerEvent | React.PointerEvent) => {
     const el = overlayRef.current;
@@ -194,11 +191,6 @@ export function ImageCropDialog({ session, onClose }: Props) {
   return (
     <Modal title="Crop image" open onClose={handleCancel}>
       <div className="imageCropDialog">
-        {existingUrl ? (
-          <div className="imageCropDialogExisting">
-            Cropping from <a href={existingUrl} target="_blank" rel="noreferrer">{existingUrl}</a>
-          </div>
-        ) : null}
         <div className="imageCropDialogPreview">
           <div className="imageCropDialogImageStage">
             <div className="imageCropDialogImageBox">

@@ -20,17 +20,17 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <WalletProvider>
             <ContractProvider>
               <FeedProvider>
-                <ProfileProvider>
-                  <FollowProvider>
-                    <VideoTrimProvider>
-                      <ImageCropProvider>
+                <ImageCropProvider>
+                  <ProfileProvider>
+                    <FollowProvider>
+                      <VideoTrimProvider>
                         <ComposerProvider>
                           <SocialActionsProvider>{children}</SocialActionsProvider>
                         </ComposerProvider>
-                      </ImageCropProvider>
-                    </VideoTrimProvider>
-                  </FollowProvider>
-                </ProfileProvider>
+                      </VideoTrimProvider>
+                    </FollowProvider>
+                  </ProfileProvider>
+                </ImageCropProvider>
               </FeedProvider>
             </ContractProvider>
           </WalletProvider>

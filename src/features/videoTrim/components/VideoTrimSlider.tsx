@@ -158,43 +158,45 @@ export function VideoTrimSlider(props: Props) {
 
   return (
     <div className="videoTrimSlider" aria-hidden={disabled}>
-      <div className="videoTrimSliderTrack" ref={trackRef}>
-        <div
-          className="videoTrimSliderRange"
-          style={{
-            left: `${startPercent}%`,
-            width: `${Math.max(endPercent - startPercent, 0)}%`
-          }}
-          onPointerDown={handleRangeDown}
-        />
-        <button
-          type="button"
-          className="videoTrimSliderHandle videoTrimSliderHandleStart"
-          aria-label="Trim start"
-          aria-valuemin={minMs}
-          aria-valuemax={maxStart}
-          aria-valuenow={startMs}
-          aria-valuetext={formatValueText(startMs)}
-          onPointerDown={handleDown("start")}
-          onKeyDown={handleKeyDown("start")}
-          disabled={Boolean(disabled)}
-          style={{ left: `${startPercent}%` }}
-          tabIndex={0}
-        />
-        <button
-          type="button"
-          className="videoTrimSliderHandle videoTrimSliderHandleEnd"
-          aria-label="Trim end"
-          aria-valuemin={minEnd}
-          aria-valuemax={maxMs}
-          aria-valuenow={endMs}
-          aria-valuetext={formatValueText(endMs)}
-          onPointerDown={handleDown("end")}
-          onKeyDown={handleKeyDown("end")}
-          disabled={Boolean(disabled)}
-          style={{ left: `${endPercent}%` }}
-          tabIndex={0}
-        />
+      <div className="videoTrimSliderTrackContainer">
+        <div className="videoTrimSliderTrack" ref={trackRef}>
+          <div
+            className="videoTrimSliderRange"
+            style={{
+              left: `${startPercent}%`,
+              width: `${Math.max(endPercent - startPercent, 0)}%`
+            }}
+            onPointerDown={handleRangeDown}
+          />
+          <button
+            type="button"
+            className="videoTrimSliderHandle videoTrimSliderHandleStart"
+            aria-label="Trim start"
+            aria-valuemin={minMs}
+            aria-valuemax={maxStart}
+            aria-valuenow={startMs}
+            aria-valuetext={formatValueText(startMs)}
+            onPointerDown={handleDown("start")}
+            onKeyDown={handleKeyDown("start")}
+            disabled={Boolean(disabled)}
+            style={{ left: `${startPercent}%` }}
+            tabIndex={0}
+          />
+          <button
+            type="button"
+            className="videoTrimSliderHandle videoTrimSliderHandleEnd"
+            aria-label="Trim end"
+            aria-valuemin={minEnd}
+            aria-valuemax={maxMs}
+            aria-valuenow={endMs}
+            aria-valuetext={formatValueText(endMs)}
+            onPointerDown={handleDown("end")}
+            onKeyDown={handleKeyDown("end")}
+            disabled={Boolean(disabled)}
+            style={{ left: `${endPercent}%` }}
+            tabIndex={0}
+          />
+        </div>
       </div>
       <div className="videoTrimSliderTimes">
         <span className="videoTrimSliderTimeLabel">Start: {formatValueText(startMs)}</span>

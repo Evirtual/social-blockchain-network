@@ -3,6 +3,7 @@ import { Modal } from "@shared/components/Modal";
 import { IconPlus, IconX } from "@shared/components/icons";
 import { compressAvatarForIpfs } from "@shared/lib/avatarCompression";
 import { ipfsToHttp } from "@features/ipfs";
+import { useImageCrop } from "@features/imageCrop";
 
 type InitialDraft = {
   name: string;
@@ -27,6 +28,7 @@ type Props = {
 };
 
 export function AdminProfileModal(props: Props) {
+  const imageCrop = useImageCrop();
   const [adminName, setAdminName] = useState("");
   const [adminBio, setAdminBio] = useState("");
   const [adminAvatarUrl, setAdminAvatarUrl] = useState("");
@@ -86,10 +88,51 @@ export function AdminProfileModal(props: Props) {
     }
 
     setIsAdminAvatarLoading(true);
+
+    const isImage = file.type.startsWith("image/");
+    const isGif = String(file.type).toLowerCase() === "image/gif";
+
+    if (isImage && !isGif) {
+      imageCrop.openImageCrop({
+        originalFile: file,
+        existingImageUrl: adminAvatarUrl,
+        onConfirm: async (result) => {
+          try {
+            const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9, crop: result.crop });
+            if (compressed.ok) {
+              setAdminAvatarFile(new File([compressed.blob], compressed.filename, { type: compressed.blob.type }));
+              setAdminAvatarFilename(compressed.filename);
+              setAdminAvatarUrl("");
+              setAdminAvatarDataUrl(compressed.dataUrl);
+              return;
+            }
+
+            // Fallback: keep original bytes.
+            setAdminAvatarFile(file);
+            setAdminAvatarFilename(file.name || "avatar.png");
+            const reader = new FileReader();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              reader.onload = () => resolve(String(reader.result || ""));
+              reader.onerror = () => reject(new Error("Failed to read file."));
+              reader.readAsDataURL(file);
+            });
+            setAdminAvatarUrl("");
+            setAdminAvatarDataUrl(dataUrl);
+          } finally {
+            setIsAdminAvatarLoading(false);
+          }
+        },
+        onCancel: () => {
+          setIsAdminAvatarLoading(false);
+        }
+      });
+      return;
+    }
+
     try {
       // Admin edits always pin to IPFS (Pinata) when available. Compress the avatar upload
       // to keep it small while maintaining high visual quality.
-      if (file.type.startsWith("image/")) {
+      if (isImage) {
         const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9 });
         if (compressed.ok) {
           setAdminAvatarFile(new File([compressed.blob], compressed.filename, { type: compressed.blob.type }));

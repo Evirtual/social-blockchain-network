@@ -223,7 +223,7 @@ export function CommentsCard(props: Props) {
     }
   }, [props, commentDraft, isSigning]);
 
-  const wrapperClassName = props.useCardWrapper === false ? undefined : "card";
+  const wrapperClassName = props.useCardWrapper === false ? undefined : "";
 
   const allowCommenting = props.forceReadOnly ? false : (props.allowCommenting ?? !requiresNetworkSwitch);
 

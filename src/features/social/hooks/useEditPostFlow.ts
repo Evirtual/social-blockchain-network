@@ -16,6 +16,7 @@ import type { TransactionResponse } from "ethers";
 import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
 import { useVideoTrim } from "@features/videoTrim";
 import type { VideoTrimResult } from "@features/videoTrim/types";
+import { useImageCrop } from "@features/imageCrop";
 import { clearObjectUrlRef, replaceObjectUrlRef } from "@shared/lib/objectUrl";
 
 type TxNotificationsLike = {
@@ -69,6 +70,7 @@ export function useEditPostFlow(args: {
     bestEffortUnpinCidsSafe
   } = args;
   const videoTrim = useVideoTrim();
+  const imageCrop = useImageCrop();
 
   const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -117,6 +119,11 @@ export function useEditPostFlow(args: {
     setStatus("Video trimming cancelled.");
   }, [setStatus]);
 
+  const handleCropCancel = useCallback(() => {
+    setIsEditImageLoading(false);
+    setStatus("Image cropping cancelled.");
+  }, [setStatus]);
+
   const startEditPost = useCallback(
     (post: Readonly<Post>) => {
       setEditingTokenId(postKey(post));
@@ -149,6 +156,7 @@ export function useEditPostFlow(args: {
 
   const onEditSelectFile = useCallback(
     async (file: File | null) => {
+      let deferResetLoading = false;
       try {
         if (!file) return;
         const isImage = file.type.startsWith("image/");
@@ -170,8 +178,7 @@ export function useEditPostFlow(args: {
         clearObjectUrlRef(editPosterObjectUrlRef);
 
         if (isVideo) {
-          setIsEditImageLoading(true);
-          setStatus("Preparing uploaded video...");
+          deferResetLoading = true;
           videoTrim.openVideoTrim({
             originalFile: file,
             onConfirm: handleTrimSuccess,
@@ -180,26 +187,58 @@ export function useEditPostFlow(args: {
           return;
         }
 
-        const best = await buildBestImageDataUrl({ file, ipfsConfigured, draft: editDraft });
-        if (!best.ok) {
-          setStatus(best.error);
-          return;
-        }
+        deferResetLoading = true;
+        setStatus("Crop your image...");
+        imageCrop.openImageCrop({
+          originalFile: file,
+          existingImageUrl: editDraft.imageUrl,
+          onConfirm: async (result) => {
+            try {
+              const best = await buildBestImageDataUrl({ file, ipfsConfigured, draft: editDraft, crop: result.crop });
+              if (!best.ok) {
+                setStatus(best.error);
+                return;
+              }
 
-        const blobRes = await fetch(best.dataUrl);
-        const blob = await blobRes.blob();
+              const blobRes = await fetch(best.dataUrl);
+              const blob = await blobRes.blob();
 
-        setEditDraft((prev) => ({ ...prev, imageDataUrl: best.dataUrl, imageUrl: "", videoTrim: undefined, videoPosterUrl: undefined }));
-        setEditUploadedImageBlob(blob);
-        setEditUploadedImageFilename(file.name || "post-image.jpg");
-        setStatus("Uploaded image ready.");
+              setEditDraft((prev) => ({
+                ...prev,
+                imageDataUrl: best.dataUrl,
+                imageUrl: "",
+                videoTrim: undefined,
+                videoPosterUrl: undefined
+              }));
+              setEditUploadedImageBlob(blob);
+              setEditUploadedImageFilename(file.name || "post-image.jpg");
+              setStatus("Uploaded image ready.");
+            } catch {
+              setStatus("Failed to read image.");
+            } finally {
+              setIsEditImageLoading(false);
+            }
+          },
+          onCancel: handleCropCancel
+        });
       } catch {
         setStatus("Failed to read image.");
       } finally {
-        setIsEditImageLoading(false);
+        if (!deferResetLoading) {
+          setIsEditImageLoading(false);
+        }
       }
     },
-    [ipfsConfigured, editDraft, setStatus, setIsEditImageLoading, videoTrim, handleTrimSuccess, handleTrimCancel]
+    [
+      editDraft,
+      handleCropCancel,
+      handleTrimCancel,
+      handleTrimSuccess,
+      imageCrop,
+      ipfsConfigured,
+      setStatus,
+      videoTrim
+    ]
   );
 
   const onEditClearImage = useCallback(() => {

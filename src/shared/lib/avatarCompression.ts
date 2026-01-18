@@ -61,6 +61,7 @@ export async function compressAvatarForIpfs(args: {
   file: File;
   maxDim?: number;
   quality?: number;
+  crop?: { left: number; top: number; right: number; bottom: number };
 }): Promise<CompressAvatarResult> {
   const maxDim = Math.max(64, Math.round(Number(args.maxDim ?? 512)));
   const quality = Math.min(0.98, Math.max(0.5, Number(args.quality ?? 0.9)));
@@ -78,9 +79,31 @@ export async function compressAvatarForIpfs(args: {
   try {
     const img = await decodeImageFromObjectUrl(objectUrl);
 
-    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-    const width = Math.max(1, Math.round(img.width * scale));
-    const height = Math.max(1, Math.round(img.height * scale));
+    const naturalWidth = Math.max(1, img.width);
+    const naturalHeight = Math.max(1, img.height);
+
+    const crop = args.crop
+      ? {
+          left: Math.min(Math.max(args.crop.left, 0), 1),
+          top: Math.min(Math.max(args.crop.top, 0), 1),
+          right: Math.min(Math.max(args.crop.right, 0), 1),
+          bottom: Math.min(Math.max(args.crop.bottom, 0), 1)
+        }
+      : null;
+
+    const left = crop ? Math.min(crop.left, crop.right) : 0;
+    const right = crop ? Math.max(crop.left, crop.right) : 1;
+    const top = crop ? Math.min(crop.top, crop.bottom) : 0;
+    const bottom = crop ? Math.max(crop.top, crop.bottom) : 1;
+
+    const sx = Math.round(left * naturalWidth);
+    const sy = Math.round(top * naturalHeight);
+    const sw = Math.max(1, Math.round((right - left) * naturalWidth));
+    const sh = Math.max(1, Math.round((bottom - top) * naturalHeight));
+
+    const scale = Math.min(1, maxDim / Math.max(sw, sh));
+    const width = Math.max(1, Math.round(sw * scale));
+    const height = Math.max(1, Math.round(sh * scale));
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -95,7 +118,7 @@ export async function compressAvatarForIpfs(args: {
     // Avoid black backgrounds if we end up using JPEG.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
 
     let out: Blob | null = null;
     let outMime = "image/webp";

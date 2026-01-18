@@ -178,7 +178,7 @@ export function NotificationsHistoryPage() {
 
   return (
     <main className="home notificationsHistory">
-      <section className="card">
+      <section>
         <div className="pageHeader">
           <div className="pageHeaderTitle">Notification History</div>
           <div className="row" role="group" aria-label="Notification filters">

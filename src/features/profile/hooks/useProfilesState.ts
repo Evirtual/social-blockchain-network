@@ -14,6 +14,7 @@ import { resolveAvatarForSave } from "./profilesState/resolveAvatarForSave";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { getEnv } from "@shared/lib/env";
 import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
+import { useImageCrop } from "@features/imageCrop";
 
 export type ProfileRecord = { name: string; bio: string; avatarUrl: string };
 
@@ -44,6 +45,7 @@ export function useProfilesState({
 }: UseProfilesStateArgs) {
   const MAX_AVATAR_URL_CHARS = 512;
   const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
+  const imageCrop = useImageCrop();
   const walletAddressRef = useRef<string | null>(null);
   const isEditingProfileRef = useRef(false);
   const profilesByAddressRef = useRef<Record<string, ProfileRecord>>({});
@@ -238,10 +240,48 @@ export function useProfilesState({
     }
 
     setIsProfileAvatarLoading(true);
+
+    const isImage = file.type.startsWith("image/");
+    const isGif = String(file.type).toLowerCase() === "image/gif";
+    if (isImage && !isGif) {
+      setStatus("Crop your avatar...");
+      imageCrop.openImageCrop({
+        originalFile: file,
+        existingImageUrl: profileDraftAvatarUrl || profileAvatarUrl,
+        onConfirm: async (result) => {
+          try {
+            const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9, crop: result.crop });
+            if (compressed.ok) {
+              setProfileUploadedAvatarBlob(compressed.blob);
+              setProfileUploadedAvatarFilename(compressed.filename);
+              setProfileDraftAvatarUrl("");
+              setProfileDraftAvatarDataUrl(compressed.dataUrl);
+              setStatus("Avatar ready.");
+              return;
+            }
+
+            setProfileUploadedAvatarBlob(file);
+            setProfileUploadedAvatarFilename(file.name || "avatar.png");
+            const dataUrl = await readFileAsDataUrl(file);
+            setProfileDraftAvatarUrl("");
+            setProfileDraftAvatarDataUrl(dataUrl);
+            setStatus("Avatar ready.");
+          } finally {
+            setIsProfileAvatarLoading(false);
+          }
+        },
+        onCancel: () => {
+          setIsProfileAvatarLoading(false);
+          setStatus("Image cropping cancelled.");
+        }
+      });
+      return;
+    }
+
     try {
       // Match post-media behavior: resize/compress avatars before pinning.
       // This keeps uploads small while maintaining crisp visual quality.
-      if (file.type.startsWith("image/")) {
+      if (isImage) {
         const compressed = await compressAvatarForIpfs({ file, maxDim: 512, quality: 0.9 });
         if (compressed.ok) {
           setProfileUploadedAvatarBlob(compressed.blob);
@@ -262,7 +302,7 @@ export function useProfilesState({
     } finally {
       setIsProfileAvatarLoading(false);
     }
-  }, []);
+  }, [imageCrop, profileAvatarUrl, profileDraftAvatarUrl, setStatus]);
 
   const onClearProfileAvatar = useCallback(() => {
     setProfileDraftAvatarUrl("");

@@ -18,15 +18,17 @@
 }
 
 .imageCropDialogImageStage {
-  display: flex;
-  justify-content: center;
-  padding: 0.5rem;
+  display: block;
+  text-align: center;
+  padding: 0.75rem;
 }
 
 .imageCropDialogImageBox {
   position: relative;
   display: inline-block;
   max-width: 100%;
+  width: fit-content;
+  text-align: left;
 }
 
 .imageCropDialogImage {
@@ -34,7 +36,7 @@
   max-width: min(100%, 720px);
   width: auto;
   height: auto;
-  max-height: 55vh;
+  max-height: 45vh;
   border-radius: 0.75rem;
   border: 0.0625rem solid var(--border);
   object-fit: contain;
@@ -105,9 +107,11 @@
     transform: translate(-50%, -50%) scale(1.25);
   }
 }
-
-.imageCropDialogHandle:active {
-  transform: translate(-50%, -50%) scale(1.1);
+.imageCropDialogHandle::after {
+  width: 14px;
+  height: 14px;
+  border: 3px solid rgb(255, 171, 62);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
 }
 
 .imageCropDialogMeta {

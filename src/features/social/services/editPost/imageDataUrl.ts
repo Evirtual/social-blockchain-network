@@ -1,5 +1,6 @@
 import type { Draft } from "@types";
 import { createMetadataUri } from "@features/metadata";
+import type { ImageCropRect } from "@features/imageCrop";
 import {
   IMAGE_COMPRESSION_CANDIDATES,
   IMAGE_COMPRESSION_CANDIDATES_IPFS,
@@ -22,14 +23,36 @@ async function decodeImageFromObjectUrl(objectUrl: string) {
   return img;
 }
 
-export async function compressToJpegDataUrl(blob: Blob, quality: number, maxDim: number) {
+export async function compressToJpegDataUrl(blob: Blob, quality: number, maxDim: number, crop?: ImageCropRect) {
   const objectUrl = URL.createObjectURL(blob);
   try {
     const img = await decodeImageFromObjectUrl(objectUrl);
 
-    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-    const width = Math.max(1, Math.round(img.width * scale));
-    const height = Math.max(1, Math.round(img.height * scale));
+    const naturalWidth = Math.max(1, img.width);
+    const naturalHeight = Math.max(1, img.height);
+
+    const safeCrop = crop
+      ? {
+          left: Math.min(Math.max(crop.left, 0), 1),
+          top: Math.min(Math.max(crop.top, 0), 1),
+          right: Math.min(Math.max(crop.right, 0), 1),
+          bottom: Math.min(Math.max(crop.bottom, 0), 1)
+        }
+      : null;
+
+    const left = safeCrop ? Math.min(safeCrop.left, safeCrop.right) : 0;
+    const right = safeCrop ? Math.max(safeCrop.left, safeCrop.right) : 1;
+    const top = safeCrop ? Math.min(safeCrop.top, safeCrop.bottom) : 0;
+    const bottom = safeCrop ? Math.max(safeCrop.top, safeCrop.bottom) : 1;
+
+    const sx = Math.round(left * naturalWidth);
+    const sy = Math.round(top * naturalHeight);
+    const sw = Math.max(1, Math.round((right - left) * naturalWidth));
+    const sh = Math.max(1, Math.round((bottom - top) * naturalHeight));
+
+    const scale = Math.min(1, maxDim / Math.max(sw, sh));
+    const width = Math.max(1, Math.round(sw * scale));
+    const height = Math.max(1, Math.round(sh * scale));
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -39,7 +62,7 @@ export async function compressToJpegDataUrl(blob: Blob, quality: number, maxDim:
     if (!ctx) throw new Error("Canvas not supported");
     ctx.imageSmoothingEnabled = true;
     (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, width, height);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
 
     return canvas.toDataURL("image/jpeg", quality);
   } finally {
@@ -51,6 +74,7 @@ export async function buildBestImageDataUrl(args: {
   file: File;
   ipfsConfigured: boolean;
   draft: Draft;
+  crop?: ImageCropRect;
 }): Promise<{ ok: true; dataUrl: string } | { ok: false; error: string }> {
   let best: string | null = null;
 
@@ -58,7 +82,7 @@ export async function buildBestImageDataUrl(args: {
   const maxChars = args.ipfsConfigured ? MAX_IMAGE_DATA_URL_CHARS_IPFS : MAX_IMAGE_DATA_URL_CHARS;
 
   for (const c of candidates) {
-    const attempt = await compressToJpegDataUrl(args.file, c.q, c.dim);
+    const attempt = await compressToJpegDataUrl(args.file, c.q, c.dim, args.crop);
 
     if (attempt.length > maxChars) {
       best = attempt;

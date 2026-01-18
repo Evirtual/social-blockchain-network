@@ -3,6 +3,8 @@ import type { FFmpeg } from "@ffmpeg/ffmpeg";
 let ffmpegInstance: FFmpeg | null = null;
 let ffmpegLoading: Promise<FFmpeg> | null = null;
 
+const FFmpegLoadTimeoutMs = 45_000;
+
 async function ensureFFmpeg() {
   if (ffmpegInstance?.loaded) {
     return ffmpegInstance;
@@ -12,16 +14,21 @@ async function ensureFFmpeg() {
     const { FFmpeg } = await import("@ffmpeg/ffmpeg");
     const instance = new FFmpeg();
     ffmpegInstance = instance;
-    ffmpegLoading = instance
-      .load()
-      .then(() => {
-        return instance;
+    ffmpegLoading = Promise.race([
+      instance.load().then(() => instance),
+      new Promise<FFmpeg>((_, reject) => {
+        window.setTimeout(() => reject(new Error("FFmpeg load timed out")), FFmpegLoadTimeoutMs);
       })
-      .catch((error) => {
-        ffmpegInstance = null;
-        ffmpegLoading = null;
-        throw error;
-      });
+    ]).catch((error) => {
+      try {
+        instance.terminate();
+      } catch {
+        // ignore
+      }
+      ffmpegInstance = null;
+      ffmpegLoading = null;
+      throw error;
+    });
   }
 
   return ffmpegLoading;

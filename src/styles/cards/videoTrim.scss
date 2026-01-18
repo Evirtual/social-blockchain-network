@@ -91,13 +91,21 @@
   gap: 0.35rem;
 }
 
-.videoTrimSliderTrack {
+.videoTrimSliderTrackContainer {
   position: relative;
+  width: 100%;
   height: 8px;
   border-radius: 999px;
   background: var(--surface);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.videoTrimSliderTrack {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
   touch-action: none;
+  margin: 0 0.5rem;
 }
 
 .videoTrimSliderRange {
