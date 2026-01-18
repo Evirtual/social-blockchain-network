@@ -80,10 +80,11 @@ export function ProfileEditModal(props: Props) {
           ref={fileInputRef}
           onChange={(event) => {
             const input = event.currentTarget;
-            const hasFile = (input.files?.length ?? 0) > 0;
+            const selected = input.files?.[0] ?? null;
+            const hasFile = Boolean(selected);
             input.dataset.hasFile = hasFile ? "true" : "false";
             setHasFileSelected(hasFile);
-            const selected = input.files?.[0] ?? null;
+            input.value = "";
             void props.onSelectProfileAvatarFile(selected);
           }}
           disabled={isBusy}

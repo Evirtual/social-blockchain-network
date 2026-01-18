@@ -80,10 +80,12 @@ export function PostCardEditBox(props: PostCardEditBoxProps) {
         ref={fileInputRef}
         onChange={(e) => {
           const input = e.currentTarget;
-          const hasFile = (input.files?.length ?? 0) > 0;
+          const selected = input.files?.[0] ?? null;
+          const hasFile = Boolean(selected);
           input.dataset.hasFile = hasFile ? "true" : "false";
           setHasFileSelected(hasFile);
-          props.onEditSelectFile(input.files?.[0] ?? null);
+          input.value = "";
+          props.onEditSelectFile(selected);
         }}
       />
 

@@ -44,7 +44,9 @@ export function ComposerCard({
         ref={fileInputRef}
         onChange={(event) => {
           const input = event.currentTarget;
-          onSelectFile(input.files?.[0] ?? null);
+          const selected = input.files?.[0] ?? null;
+          input.value = "";
+          onSelectFile(selected);
         }}
       />
 

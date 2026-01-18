@@ -29,7 +29,7 @@
 .videoTrimDialogProcessingOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -38,23 +38,31 @@
   text-align: center;
   padding: 1rem;
   font-size: 0.85rem;
-  color: var(--accent);
-  animation: pulse 2s ease-in-out infinite;
+  color: var(--accent-contrast);
 }
 
-.videoTrimDialogProcessingOverlay span {
+.videoTrimDialogProcessingOverlay > div {
+  display: flex;
+  align-items: center;
   font-weight: 600;
+  color: var(--text);
+  .spinner {
+    margin: 0.5rem;
+  }
 }
 
-.videoTrimDialogProcessingOverlay small {
-  color: var(--muted);
+.videoTrimDialogProcessingOverlay > small {
+  color: var(--text);
 }
 
 .videoTrimDialogVideo {
-  width: 100%;
-  height: auto;
   display: block;
+  width: 100%;
+  max-height: 45vh;
+  height: auto;
   object-fit: contain;
+  border-radius: 0.75rem;
+  border: 0.0625rem solid var(--border);
 }
 
 .videoTrimDialogInfo {
@@ -119,8 +127,8 @@
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 12px;
-  height: 32px;
+  width: 14px;
+  height: 28px;
   padding: 0;
   background: rgb(255, 171, 62);
   cursor: pointer;
@@ -180,13 +188,4 @@
 .videoTrimDialogPlaceholder {
   font-size: 0.9rem;
   color: var(--muted);
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-  }
 }

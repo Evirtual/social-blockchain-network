@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
 import { ipfsToHttp } from "@features/ipfs";
 import { VideoTrimSlider } from "./VideoTrimSlider";
@@ -17,18 +17,6 @@ const formatTime = (value: number) => {
   const seconds = totalSeconds % 60;
   const millis = Math.floor((value % 1000) / 10);
   return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(2, "0")}`;
-};
-
-const formatBytes = (value: number) => {
-  if (value <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let size = value;
-  let i = 0;
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024;
-    i += 1;
-  }
-  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 };
 
 type Props = {
@@ -53,16 +41,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const rangeInitializedRef = useRef(false);
   const lastProgressUpdateRef = useRef(0);
   const posterObjectUrlRef = useRef<string | null>(null);
-  const fileInfoText = useMemo(() => {
-    const name = session.originalFile.name || "Selected video";
-    const durationText = durationMs ? formatTime(durationMs) : "Loading duration";
-    return `${name} - ${formatBytes(session.originalFile.size)} - ${durationText}`;
-  }, [durationMs, session.originalFile.name, session.originalFile.size]);
-  const infoDescription = useMemo(() => {
-    const clipSeconds = Math.max(endMs - startMs, 0) / 1000;
-    const rounded = clipSeconds.toFixed(2);
-    return `Selected range (${rounded}s) is trimmed locally (no re-encode) before replacing the upload.`;
-  }, [startMs, endMs]);
 
   useEffect(() => {
     const url = URL.createObjectURL(session.originalFile);
@@ -538,7 +516,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
           />
           {isProcessing ? (
             <div className="videoTrimDialogProcessingOverlay">
-              <span>Trimming clip...</span>
+              <div><span className="spinner" aria-hidden="true" /> Trimming clip...</div>
               <small>Trimming only the selected range (no re-encode).</small>
               <div
                 className="videoTrimDialogProgressBar"
@@ -555,10 +533,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
               </div>
             </div>
           ) : null}
-        </div>
-        <div className="videoTrimDialogInfo">
-          <p className="videoTrimDialogInfoMeta">{fileInfoText}</p>
-          <p className="videoTrimDialogInfoDescription">{infoDescription}</p>
         </div>
         <div className="videoTrimDialogSliderWrapper">
           {isReady ? (
