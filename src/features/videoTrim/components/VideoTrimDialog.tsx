@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@shared/components/Modal";
 import { ipfsToHttp } from "@features/ipfs";
 import { VideoTrimSlider } from "./VideoTrimSlider";
-import { deleteFsFile, probeVideoFrameRate, readFileFromFs, resetFFmpeg, writeFileToFs } from "../services/ffmpeg";
+import { deleteFsFile, readFileFromFs, resetFFmpeg, writeFileToFs } from "../services/ffmpeg";
 import type { VideoTrimSession } from "../types";
 
 const MIN_CLIP_MS = 1_000;
@@ -42,8 +42,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const [durationMs, setDurationMs] = useState(0);
   const [startMs, setStartMs] = useState(0);
   const [endMs, setEndMs] = useState(0);
-  const [videoWidth, setVideoWidth] = useState(0);
-  const [videoHeight, setVideoHeight] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -54,12 +52,12 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const fileInfoText = useMemo(() => {
     const name = session.originalFile.name || "Selected video";
     const durationText = durationMs ? formatTime(durationMs) : "Loading duration";
-    return `${name} • ${formatBytes(session.originalFile.size)} • ${durationText}`;
+    return `${name} - ${formatBytes(session.originalFile.size)} - ${durationText}`;
   }, [durationMs, session.originalFile.name, session.originalFile.size]);
   const infoDescription = useMemo(() => {
     const clipSeconds = Math.max(endMs - startMs, 0) / 1000;
     const rounded = clipSeconds.toFixed(2);
-    return `Selected range (${rounded}s) is encoded locally before replacing the upload. Encoding may take a while depending on clip size and quality.`;
+    return `Selected range (${rounded}s) is trimmed locally (no re-encode) before replacing the upload.`;
   }, [startMs, endMs]);
 
   useEffect(() => {
@@ -68,8 +66,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     setDurationMs(0);
     setStartMs(0);
     setEndMs(0);
-    setVideoWidth(0);
-    setVideoHeight(0);
     setIsReady(false);
     rangeInitializedRef.current = false;
     return () => {
@@ -100,8 +96,6 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       return;
     }
     setDurationMs(Math.round(video.duration * 1_000));
-    setVideoWidth(video.videoWidth);
-    setVideoHeight(video.videoHeight);
   }, []);
 
   useEffect(() => {
@@ -214,6 +208,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     lastProgressUpdateRef.current = 0;
     setErrorMessage(null);
     let aborted = false;
+    let outputFsPath = "trim-output.mp4";
     console.info("[video-trim] starting encode", {
       sessionId: session.id,
       startMs,
@@ -233,26 +228,20 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       console.info("[video-trim] thumbnail captured", { size: thumbnailBlob.size, type: thumbnailBlob.type });
       const trimmedDurationMs = Math.max(endMs - startMs, 1);
       const inputName = "trim-input.mp4";
-      const outputName = "trim-output.mp4";
+      const originalType = session.originalFile.type;
+      const isMp4 = originalType === "video/mp4" || /\.mp4$/i.test(session.originalFile.name);
+      const isWebm = originalType === "video/webm" || /\.webm$/i.test(session.originalFile.name);
+      const isOgg = originalType === "video/ogg" || /\.(ogv|ogg)$/i.test(session.originalFile.name);
+      const outputExt = isMp4 ? "mp4" : isWebm ? "webm" : isOgg ? "ogg" : "mp4";
+      const outputMime = isMp4 ? "video/mp4" : isWebm ? "video/webm" : isOgg ? "video/ogg" : "video/mp4";
+      const outputName = `trim-output.${outputExt}`;
+      outputFsPath = outputName;
       const ffmpeg = await writeFileToFs(inputName, session.originalFile);
       setProgressSafe(0.2);
       console.info("[video-trim] source written to FS", { path: inputName, size: session.originalFile.size });
-      const sourceFps = await probeVideoFrameRate(inputName);
-      console.info("[video-trim] probing fps complete", { sourceFps });
       const startSec = (startMs / 1000).toFixed(3);
       const durationSec = (trimmedDurationMs / 1000).toFixed(3);
-      const width = Math.max(2, videoWidth);
-      const height = Math.max(2, videoHeight);
-      const isPortrait = height >= width;
-      const maxW = isPortrait ? 1080 : 1920;
-      const maxH = isPortrait ? 1920 : 1080;
-      const scaleFactor = Math.min(1, maxW / width, maxH / height);
-      const scaledWidth = Math.max(2, Math.floor((width * scaleFactor) / 2) * 2);
-      const scaledHeight = Math.max(2, Math.floor((height * scaleFactor) / 2) * 2);
-      const useScale = scaledWidth !== width || scaledHeight !== height;
-      const maxDimension = Math.max(scaledWidth, scaledHeight);
-      const isHighFps = (sourceFps ?? 30) > 50;
-      const videoArgs = [
+      const videoArgs: string[] = [
         "-hide_banner",
         "-ss",
         startSec,
@@ -260,41 +249,15 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         inputName,
         "-t",
         durationSec,
-        "-c:v",
-        "libx264",
-        "-profile:v",
-        "high",
-        "-level",
-        "4.1",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "21",
-        "-pix_fmt",
-        "yuv420p",
-        "-metadata:s:v:0",
-        "rotate=0",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "160k",
-        "-ar",
-        "48000",
-        "-movflags",
-        "+faststart"
+        "-map",
+        "0",
+        "-c",
+        "copy",
+        "-avoid_negative_ts",
+        "make_zero"
       ];
-      if (useScale) {
-        videoArgs.push("-vf", `scale=${scaledWidth}:${scaledHeight}`);
-      }
-      if (sourceFps && sourceFps > 60) {
-        videoArgs.push("-r", "60");
-      }
-      if (maxDimension <= 720) {
-        videoArgs.push("-maxrate", "4M", "-bufsize", "8M");
-      } else if (isHighFps) {
-        videoArgs.push("-maxrate", "10M", "-bufsize", "20M");
-      } else {
-        videoArgs.push("-maxrate", "8M", "-bufsize", "16M");
+      if (isMp4) {
+        videoArgs.push("-movflags", "+faststart");
       }
       videoArgs.push(outputName);
       const controller = new AbortController();
@@ -335,12 +298,12 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         throw new Error("Trimmed video output is not binary.");
       }
       const normalized = new Uint8Array(outputData);
-      const outputBlob = new Blob([normalized], { type: "video/mp4" });
+      const outputBlob = new Blob([normalized], { type: outputMime });
       setProgressSafe(0.99);
       console.info("[video-trim] read back output", { size: outputBlob.size, type: outputBlob.type });
       const baseName = session.originalFile.name.replace(/\.[^.]+$/, "") || "trimmed";
-      const safeName = `${baseName}-trimmed.mp4`;
-      const trimmedFile = new File([outputBlob], safeName, { type: "video/mp4" });
+      const safeName = `${baseName}-trimmed.${outputExt}`;
+      const trimmedFile = new File([outputBlob], safeName, { type: outputMime });
       const result = {
         trimmedFile,
         thumbnailBlob,
@@ -367,7 +330,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       if (!aborted) {
         void Promise.all([
           deleteFsFile("trim-input.mp4").catch(() => undefined),
-          deleteFsFile("trim-output.mp4").catch(() => undefined)
+          deleteFsFile(outputFsPath).catch(() => undefined)
         ]);
       }
     }
@@ -378,9 +341,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     isProcessing,
     onClose,
     session,
-    startMs,
-    videoHeight,
-    videoWidth
+    startMs
   ]);
 
   const handleStop = () => {
@@ -413,12 +374,12 @@ export function VideoTrimDialog({ session, onClose }: Props) {
           />
           {isProcessing ? (
             <div className="videoTrimDialogProcessingOverlay">
-              <span>Encoding trimmed clip…</span>
-              <small>FFmpeg is re-encoding only the selected range before uploading.</small>
+              <span>Trimming clip...</span>
+              <small>Trimming only the selected range (no re-encode).</small>
               <div
                 className="videoTrimDialogProgressBar"
                 role="progressbar"
-                aria-label="Encoding progress"
+                aria-label="Trimming progress"
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(processingProgress * 100)}
