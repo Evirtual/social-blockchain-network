@@ -50,6 +50,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
   const rangeInitializedRef = useRef(false);
   const lastProgressUpdateRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const thumbnailPromiseRef = useRef<Promise<Blob> | null>(null);
 
   const resetSessionState = useCallback(() => {
     setPosterBlob(null);
@@ -60,6 +61,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     setVideoHeight(0);
     setIsReady(false);
     rangeInitializedRef.current = false;
+    thumbnailPromiseRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -130,14 +132,29 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     return await captureVideoThumbnail({ video, startMs, endMs, maxDim: THUMB_MAX_DIM });
   }, [endMs, startMs]);
 
+  const getThumbnailBlob = useCallback(async () => {
+    if (posterBlob) return posterBlob;
+    if (thumbnailPromiseRef.current) return await thumbnailPromiseRef.current;
+    const promise = captureThumbnail()
+      .then((blob) => {
+        setPosterBlob(blob);
+        return blob;
+      })
+      .finally(() => {
+        thumbnailPromiseRef.current = null;
+      });
+    thumbnailPromiseRef.current = promise;
+    return await promise;
+  }, [captureThumbnail, posterBlob]);
+
   useEffect(() => {
     if (!isReady || isProcessing || posterBlob) return;
     let cancelled = false;
     void (async () => {
       try {
-        const blob = await captureThumbnail();
+        await getThumbnailBlob();
         if (cancelled) return;
-        setPosterBlob(blob);
+        // `getThumbnailBlob` sets posterBlob; nothing else to do.
       } catch {
         // ignore poster failures; the user can still play the video
       }
@@ -145,7 +162,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [captureThumbnail, isProcessing, isReady, posterBlob]);
+  }, [getThumbnailBlob, isProcessing, isReady, posterBlob]);
 
   const handleConfirm = useCallback(async () => {
     if (!isReady || isProcessing) return;
@@ -170,7 +187,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
 
       setProgressSafe(0.02);
       videoTrimLog("[video-trim] capturing thumbnail");
-      const thumbnailBlob = posterBlob ?? (await captureThumbnail());
+      const thumbnailBlob = await getThumbnailBlob();
       setProgressSafe(0.12);
       videoTrimLog("[video-trim] thumbnail captured", { size: thumbnailBlob.size, type: thumbnailBlob.type });
       const controller = new AbortController();
@@ -229,8 +246,8 @@ export function VideoTrimDialog({ session, onClose }: Props) {
       }
     }
   }, [
-    captureThumbnail,
     endMs,
+    getThumbnailBlob,
     isReady,
     isProcessing,
     onClose,
