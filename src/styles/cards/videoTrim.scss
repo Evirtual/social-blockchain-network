@@ -38,21 +38,16 @@
   text-align: center;
   padding: 1rem;
   font-size: 0.85rem;
-  color: var(--accent-contrast);
+  color: white;
 }
 
 .videoTrimDialogProcessingOverlay > div {
   display: flex;
   align-items: center;
   font-weight: 600;
-  color: var(--text);
   .spinner {
     margin: 0.5rem;
   }
-}
-
-.videoTrimDialogProcessingOverlay > small {
-  color: var(--text);
 }
 
 .videoTrimDialogVideo {
