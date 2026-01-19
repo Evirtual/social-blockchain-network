@@ -82,7 +82,7 @@ Run these from this repo's `subgraph/` directory (do NOT `graph init` into a new
 
 - Base Sepolia:
 - Base Sepolia:
-  - `npx graph deploy social-posts-base-sepolia-v-2 subgraph.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
+  - `npx graph deploy social-posts-base-sepolia subgraph.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
 - Ethereum Sepolia:
   - `npx graph deploy social-posts-eth-sepolia subgraph.sepolia.yaml --node https://api.studio.thegraph.com/deploy/ --version-label v0.2.3-testnet`
 - BSC Testnet:
