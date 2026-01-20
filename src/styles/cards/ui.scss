@@ -289,6 +289,19 @@
   );
 }
 
+.notificationPostThumb.isPlaceholder:not(.isRemoved) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.notificationPostThumb.isPlaceholder:not(.isRemoved) svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  opacity: 0.85;
+}
+
 .notificationPostThumb.isRemoved {
   display: flex;
   align-items: center;

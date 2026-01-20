@@ -175,9 +175,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const kindClass = getKindClass(n.kind);
         const kindIcon = getKindIcon(n.kind);
 
-        const isFollowOrApproval = kindClass === "isFollow" || kindClass === "isApproval";
-        const showRightOverlayIcon = isFollowOrApproval;
-        const showLeftKindBadge = !showRightOverlayIcon && kindClass !== "isDefault";
+        const showLeftKindBadge = kindClass !== "isDefault";
         const actionNode: ReactNode = isSelfPosterStatus
           ? n.kind === "POSTER_DISAPPROVED"
             ? "were disapproved to post"
@@ -225,7 +223,7 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
         const removedThumbTitle = isBurnedPost ? "Post burned" : "Post removed";
         const thumbKindClass = showRemovedThumb ? "isRemove" : kindClass;
 
-        const showRightThumbBlock = showThumb || showRightOverlayIcon || showRemovedThumb;
+        const showRightThumbBlock = showThumb || showRemovedThumb;
 
         return (
           <button
@@ -283,22 +281,23 @@ export function NotificationsList({ items, lastSeenTs, onSelect, chainId }: Prop
                       <IconTrash size={18} filled />
                     </div>
                   ) : showThumb ? (
-                    <div
-                      className={`notificationPostThumb ${postThumbUrl ? "" : "isPlaceholder"}`}
-                      style={postThumbUrl ? { backgroundImage: `url(${postThumbUrl})` } : undefined}
-                    />
+                    postThumbUrl ? (
+                      <div
+                        className="notificationPostThumb"
+                        style={{ backgroundImage: `url(${postThumbUrl})` }}
+                        title="Post preview"
+                      />
+                    ) : (
+                      <div className="notificationPostThumb isPlaceholder" title="Post preview unavailable">
+                        <IconMessage size={18} />
+                      </div>
+                    )
                   ) : (
-                    <div className="notificationPostThumb isPlaceholder" />
+                    <div className="notificationPostThumb isPlaceholder" title="No post preview">
+                      <IconMessage size={18} />
+                    </div>
                   )}
 
-                  {showRightOverlayIcon ? (
-                    <span
-                      className={`notificationActionIcon ${kindClass} ${kindIcon.isFilled ? "isFilled" : ""}`}
-                      title={kindIcon.label}
-                    >
-                      {kindIcon.icon}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             ) : null}
