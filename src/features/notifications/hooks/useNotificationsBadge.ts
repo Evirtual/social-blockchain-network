@@ -93,7 +93,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
     const offSeen = onNotificationsLastSeenChanged(() => scheduleCompute());
 
     if (!supportsEvents) {
-      const interval = window.setInterval(() => scheduleCompute(), 120_000);
+      const interval = window.setInterval(() => scheduleCompute(), 60_000);
       return () => {
         cancelled = true;
         if (refreshTimeoutRef.current != null) {
