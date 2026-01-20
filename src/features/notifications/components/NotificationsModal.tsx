@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@shared/components/Modal";
-import { IconCheck } from "@shared/components/icons";
 import { useNotifications } from "../hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,7 +8,6 @@ import {
   writeNotificationsLastSeen
 } from "../services/notificationReadState";
 import { NotificationsList } from "./NotificationsList";
-import { readShowBurnedNotifications, writeShowBurnedNotifications } from "../services/notificationViewPrefs";
 import { isBurnedNotification } from "../lib/isBurnedNotification";
 
 export type NotificationsModalProps = {
@@ -27,8 +25,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     chainId: props.chainId,
     first: 50
   });
-
-  const [showBurned, setShowBurned] = useState(() => readShowBurnedNotifications());
 
   const [lastSeenTs, setLastSeenTs] = useState(() => readNotificationsLastSeen(props.chainId, props.walletAddress));
 
@@ -55,11 +51,8 @@ export function NotificationsModal(props: NotificationsModalProps) {
 
   const visibleUnreadItems = useMemo(() => {
     const isRemoved = (kind: string) => kind === "POST_REMOVED_BY_ADMIN" || kind === "COMMENT_REMOVED";
-    if (showBurned) {
-      return unreadItems.filter((n) => isRemoved(n.kind) || isBurnedNotification(n, props.chainId));
-    }
     return unreadItems.filter((n) => !isRemoved(n.kind) && !isBurnedNotification(n, props.chainId));
-  }, [unreadItems, showBurned, props.chainId]);
+  }, [unreadItems, props.chainId]);
 
   const body = useMemo(() => {
     const compatNote = amountWeiUnsupported || supportBpsUnsupported ? (
@@ -129,23 +122,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     }
 
     if (!visibleUnreadItems.length) {
-      if (showBurned && unreadItems.length > 0) {
-        return (
-          <>
-            {compatNote}
-            <div className="muted">No unread removed/burned notifications.</div>
-          </>
-        );
-      }
-
-      if (!showBurned && unreadItems.length > 0) {
-        return (
-          <>
-            {compatNote}
-            <div className="muted">Unread notifications are removed/burned (hidden). Enable “Removed posts” to view them.</div>
-          </>
-        );
-      }
       return (
         <>
           {compatNote}
@@ -157,26 +133,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     return (
       <>
         {compatNote}
-        <div className="row" style={{ justifyContent: "flex-end", marginBottom: "0.5rem" }}>
-          <button
-            type="button"
-            className="pill notificationsShowBurnedToggle"
-            aria-pressed={showBurned}
-            onClick={() => {
-              setShowBurned((prev) => {
-                const next = !prev;
-                writeShowBurnedNotifications(next);
-                return next;
-              });
-            }}
-            title="Toggle burned notifications"
-          >
-            <span className="notificationsCheckbox" aria-hidden="true">
-              {showBurned ? <IconCheck size={14} /> : null}
-            </span>
-            <span>Removed posts</span>
-          </button>
-        </div>
         <NotificationsList
           items={visibleUnreadItems}
           lastSeenTs={lastSeenTs}
@@ -202,13 +158,12 @@ export function NotificationsModal(props: NotificationsModalProps) {
     items,
     unreadItems,
     visibleUnreadItems,
-    showBurned,
     navigate,
     lastSeenTs
   ]);
 
   return (
-    <Modal open={props.open} title="Notifications" onClose={handleClose}>
+    <Modal open={props.open} title="Latest notification" onClose={handleClose}>
       {body}
       <div className="rowActions notificationsModalFooter">
         <button
