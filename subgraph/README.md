@@ -83,7 +83,7 @@ Run these from this repo's `subgraph/` directory (do NOT `graph init` into a new
 - Base Sepolia:
   - `npx graph deploy base-sepolia subgraph.yaml --version-label v1.0.0-testnet`
 - Ethereum Sepolia:
-  - `npx graph deploy eth-sepolia subgraph.sepolia.yaml --version-label v1.0.0-testnet`
+  - `npx graph deploy ethereum-sepolia subgraph.sepolia.yaml --version-label v1.0.0-testnet`
 - BSC Testnet:
   - `npx graph deploy bsc-testnet subgraph.bsc-testnet.yaml --version-label v1.0.0-testnet`
 
