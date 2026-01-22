@@ -16,11 +16,13 @@ export type PostCardMediaProps = {
   showBody?: boolean;
 
   fallbackGateway?: string;
+  videoPreload?: "none" | "metadata" | "auto";
 };
 
 export function PostCardMedia(props: PostCardMediaProps) {
   const fallbackGateway = props.fallbackGateway ?? "https://ipfs.io/ipfs/";
   const showBody = props.showBody ?? true;
+  const videoPreload = props.videoPreload ?? "metadata";
 
   const hasMedia = useMemo(() => !!props.image || !!props.animationUrl, [props.image, props.animationUrl]);
 
@@ -78,7 +80,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
             poster={imageSrc || undefined}
             controls
             playsInline
-            preload="auto"
+            preload={videoPreload}
             ref={videoRef}
             onLoadedMetadata={handleVideoLoaded}
             onLoadedData={handleVideoLoaded}
