@@ -49,26 +49,12 @@ export function usePosterApproval(params: {
       }
     };
 
-    const onVisibilityChange = () => {
-      if (cancelled) return;
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        void pollOnce();
-      }
-    };
-
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", onVisibilityChange);
-    }
-
     void pollOnce();
     const t = window.setInterval(() => void pollOnce(), 3500);
 
     return () => {
       cancelled = true;
       window.clearInterval(t);
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-      }
     };
   }, [walletAddress, approvalRequested, contract, setStatus]);
 

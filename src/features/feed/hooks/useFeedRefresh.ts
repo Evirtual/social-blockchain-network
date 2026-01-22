@@ -315,16 +315,10 @@ export function useFeedRefresh(params: {
     };
 
     const id = window.setInterval(refreshNow, 60_000);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshNow();
-    };
-
-    document.addEventListener?.("visibilitychange", onVisibility);
 
     return () => {
       stopped = true;
       window.clearInterval(id);
-      document.removeEventListener?.("visibilitychange", onVisibility);
     };
   }, [isEnabled, provider, walletAddress, refreshFeed, hasAnyReadOnlyRpc, selectedNetworkIds]);
 

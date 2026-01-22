@@ -175,17 +175,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const onVisibilityChange = () => {
-      if (cancelled) return;
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        void checkOnce();
-      }
-    };
-
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", onVisibilityChange);
-    }
-
     void checkOnce();
 
     // Burst a couple of quick retries right after connect / chain change.
@@ -229,10 +218,6 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
       stopPolling();
-
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-      }
     };
   }, [demoModeEnabled, walletAddress, chainId, debug]);
 
