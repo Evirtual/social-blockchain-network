@@ -141,6 +141,20 @@ To reduce Pinata gateway bandwidth (and add an edge cache + a single stable gate
 3. Configure the frontend gateway
    - Set `VITE_IPFS_GATEWAY` to your worker URL (example: `https://your-worker.your-domain.workers.dev/ipfs/`)
 
+## Subgraph proxy worker (Cloudflare)
+
+If you use The Graph Studio endpoints with low daily request limits, deploy the included subgraph proxy worker to add edge caching + basic rate limiting.
+
+1. Deploy the worker
+   - `cd workers/subgraph`
+   - `wrangler deploy`
+2. Configure upstream subgraphs
+   - Edit `workers/subgraph/wrangler.toml` (`SUBGRAPH_*_URL`, TTLs, rate limit)
+3. Configure the frontend
+   - Set each `VITE_*_SUBGRAPH_URL` to the worker route you want, for example:
+     - `https://your-worker.your-domain.workers.dev/base-sepolia`
+     - `https://your-worker.your-domain.workers.dev/eth-sepolia`
+
 ## Frontend environment variables
 
 See `.env.example` for the full list. Common ones:

@@ -1,0 +1,30 @@
+name = "social-posts-subgraph"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+# CORS allowlist:
+# - "*" to allow any origin (simple demos)
+# - or a comma-separated list like "https://yourdomain.com,http://localhost:5173"
+ALLOW_ORIGINS = "*"
+
+# Cache behavior:
+# - Responses are stored in Cloudflare cache for STALE_TTL seconds
+# - Within FRESH_TTL seconds they are served as HIT
+# - After FRESH_TTL they are considered stale; the worker will try to refresh,
+#   and will serve stale-on-error to avoid outages/throttling.
+FRESH_TTL_SECONDS = "10"
+STALE_TTL_SECONDS = "120"
+
+# Very simple per-IP rate limit (best-effort). Tune based on your quota.
+RATE_LIMIT_WINDOW_SECONDS = "60"
+RATE_LIMIT_MAX_REQUESTS = "60"
+
+# Upstream subgraph endpoints (Graph Studio / hosted service).
+# Leave blank to disable that route.
+SUBGRAPH_ETH_URL = ""
+SUBGRAPH_ETH_SEPOLIA_URL = ""
+SUBGRAPH_BASE_URL = ""
+SUBGRAPH_BASE_SEPOLIA_URL = ""
+SUBGRAPH_BSC_URL = ""
+SUBGRAPH_BSC_TESTNET_URL = ""
