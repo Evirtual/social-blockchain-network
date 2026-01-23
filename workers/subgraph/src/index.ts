@@ -229,6 +229,8 @@ export default {
         body: bodyBuf
       });
 
+      const payload = await res.text().catch(() => "");
+
       const headers = new Headers(res.headers);
       headers.delete("set-cookie");
       headers.set("content-type", headers.get("content-type") || "application/json");
@@ -236,13 +238,14 @@ export default {
       headers.set("X-Subgraph-Origin", upstreamHost);
       headers.set("X-Subgraph-Cache", "MISS");
 
-      const out = withCors(new Response(res.body, { status: res.status, headers }), request, env);
+      const out = withCors(new Response(payload, { status: res.status, headers }), request, env);
 
       if (res.ok) {
         const toStoreHeaders = new Headers(out.headers);
         toStoreHeaders.set("Cache-Control", cacheControlPublic(staleTtl));
         toStoreHeaders.set("X-Subgraph-Cached-At", String(Date.now()));
-        const toStore = new Response(out.body, { status: out.status, headers: toStoreHeaders });
+        toStoreHeaders.set("X-Subgraph-Cache", "HIT");
+        const toStore = new Response(payload, { status: out.status, headers: toStoreHeaders });
         ctx.waitUntil(caches.default.put(cacheReq, toStore));
       }
 
@@ -265,4 +268,3 @@ export default {
     }
   }
 };
-
