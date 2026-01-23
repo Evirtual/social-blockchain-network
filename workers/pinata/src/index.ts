@@ -1,21 +1,42 @@
 type Env = {
   PINATA_JWT?: string;
+  ALLOW_ORIGINS?: string;
 };
 
 const PINATA_BASE = "https://api.pinata.cloud/pinning";
 
-function corsHeaders() {
+function parseCsv(value: string | undefined): string[] {
+  return String(value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function pickAllowOrigin(request: Request, env: Env): string {
+  const configured = parseCsv(env.ALLOW_ORIGINS);
+  if (!configured.length) return "*";
+  if (configured.includes("*")) return "*";
+
+  const origin = request.headers.get("origin");
+  if (!origin) return configured[0]!;
+  return configured.includes(origin) ? origin : configured[0]!;
+}
+
+function corsHeaders(request: Request, env: Env) {
+  const allowOrigin = pickAllowOrigin(request, env);
+  const vary = allowOrigin === "*" ? "" : "Origin";
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    ...(vary ? { Vary: vary } : {})
   };
 }
 
-function json(body: unknown, init: ResponseInit = {}) {
+function json(body: unknown, request: Request, env: Env, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
     ...init,
-    headers: { "content-type": "application/json", ...corsHeaders(), ...(init.headers ?? {}) }
+    headers: { "content-type": "application/json", ...corsHeaders(request, env), ...(init.headers ?? {}) }
   });
 }
 
@@ -27,7 +48,7 @@ async function forwardPinata(
   baseHeaders?: HeadersInit
 ) {
   if (!env.PINATA_JWT) {
-    return json({ error: "Missing PINATA_JWT" }, { status: 500 });
+    return json({ error: "Missing PINATA_JWT" }, request, env, { status: 500 });
   }
 
   const headers = new Headers(baseHeaders ?? {});
@@ -42,14 +63,17 @@ async function forwardPinata(
   const text = await res.text();
   return new Response(text, {
     status: res.status,
-    headers: { "content-type": res.headers.get("content-type") || "application/json", ...corsHeaders() }
+    headers: {
+      "content-type": res.headers.get("content-type") || "application/json",
+      ...corsHeaders(request, env)
+    }
   });
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
 
     const url = new URL(request.url);
@@ -72,12 +96,12 @@ export default {
 
     if (request.method === "DELETE" && path.startsWith("/pin/")) {
       const cid = path.slice("/pin/".length);
-      if (!cid) return json({ error: "Missing cid" }, { status: 400 });
+      if (!cid) return json({ error: "Missing cid" }, request, env, { status: 400 });
       return await forwardPinata(request, env, `${PINATA_BASE}/unpin/${cid}`, {
         method: "DELETE"
       });
     }
 
-    return json({ error: "Not found" }, { status: 404 });
+    return json({ error: "Not found" }, request, env, { status: 404 });
   }
 };
