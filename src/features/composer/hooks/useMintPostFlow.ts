@@ -84,18 +84,36 @@ export function useMintPostFlow(params: {
     if (postingInFlightRef.current) return;
     postingInFlightRef.current = true;
     setIsPosting(true);
+    setStatus("Preparing post...");
 
     let pinnedCidsToCleanup: Set<string> | null = null;
     let protectReferencedIn: Set<string> | null = null;
+    let processingToastId: string | null = makeLocalNoticeId();
+
+    const updateProcessingToast = (label: string) => {
+      if (!processingToastId) return;
+      txNotifications.notifyPending({ hash: processingToastId, label, explorerUrl: null });
+    };
+
+    const dismissProcessingToast = () => {
+      if (!processingToastId) return;
+      txNotifications.dismiss(processingToastId);
+      processingToastId = null;
+    };
+
+    updateProcessingToast("Preparing post...");
 
     try {
       if (!walletAddress) {
         requestConnectNudge();
         setStatus("Connect your wallet first.");
+        dismissProcessingToast();
         return;
       }
 
       try {
+        setStatus("Checking posting access...");
+        updateProcessingToast("Checking posting access...");
         const { allowed, requested } = await posterApproval.checkPosterAllowed(walletAddress);
         if (!allowed) {
           posterApproval.setApprovalRequired(true);
@@ -106,6 +124,7 @@ export function useMintPostFlow(params: {
               ? "Posting is in closed beta. Approval requested - wait for an admin to approve your wallet."
               : "Posting is in closed beta. Request approval to post."
           );
+          dismissProcessingToast();
           return;
         }
 
@@ -117,6 +136,7 @@ export function useMintPostFlow(params: {
 
       if (isImageLoading) {
         setStatus("Please wait for the uploaded image to finish processing.");
+        dismissProcessingToast();
         return;
       }
 
@@ -124,11 +144,18 @@ export function useMintPostFlow(params: {
       const validation = validateDraftForMint({ draft, uploadedImageBlob });
       if (!validation.ok) {
         setStatus(validation.error);
+        dismissProcessingToast();
         return;
       }
       const bodyTrimmed = validation.bodyTrimmed;
 
-      const writeContract = await contract.getWriteContract();
+      const willUseIpfs = ipfsConfigured && validation.hasMedia;
+      if (willUseIpfs) {
+        updateProcessingToast("Uploading to IPFS...");
+      }
+      if (willUseIpfs) {
+        setStatus("Uploading to IPFS (Pinata)...");
+      }
 
       const prepared = await preparePostMetadata({
         draft,
@@ -142,28 +169,16 @@ export function useMintPostFlow(params: {
           author: walletAddress
         }
       });
-      const willUseIpfs = prepared.willUseIpfs;
-
-      const processingToastId = willUseIpfs ? makeLocalNoticeId() : null;
-      if (processingToastId) {
-        txNotifications.notifyPending({ hash: processingToastId, label: "Preparing post...", explorerUrl: null });
-      }
 
       let metadataURI = "";
       let imageRefForUi = validation.imageDataUrlTrimmed || validation.imageUrlTrimmed;
       let animationUrlForUi: string | undefined;
 
-      if (willUseIpfs) {
-        setStatus("Uploading to IPFS (Pinata)...");
-        if (processingToastId) {
-          txNotifications.notifyPending({ hash: processingToastId, label: "Uploading to IPFS...", explorerUrl: null });
-        }
-      }
-
       if (!prepared.ok) {
         setStatus(
           "Post metadata is too large to mint on-chain. Use IPFS pinning (recommended via a backend), or use a much smaller image."
         );
+        dismissProcessingToast();
         return;
       }
 
@@ -183,6 +198,14 @@ export function useMintPostFlow(params: {
       metadataURI = prepared.tokenUri;
       imageRefForUi = prepared.imageRef || (prepared.animationRef ? "" : imageRefForUi);
       animationUrlForUi = prepared.animationRef || undefined;
+      setStatus("Confirm in your wallet...");
+      if (willUseIpfs) {
+        updateProcessingToast("Confirm in wallet...");
+      } else {
+        // Avoid a duplicate non-tx toast; runContractTx already shows "confirm in wallet" toasts.
+        dismissProcessingToast();
+      }
+      const writeContract = await contract.getWriteContract();
       const minted = await runContractTx(
         "Mint post NFT",
         () => writeContract.mintPost(metadataURI, titleTrimmed, bodyTrimmed),
@@ -195,7 +218,7 @@ export function useMintPostFlow(params: {
       if (!minted?.mintedTokenId) {
         setStatus("Mint confirmed, but tokenId could not be parsed. Reloading feed...");
         await feed.refreshFeed();
-        if (processingToastId) txNotifications.dismiss(processingToastId);
+        dismissProcessingToast();
         return;
       }
 
@@ -221,31 +244,35 @@ export function useMintPostFlow(params: {
       resetMedia();
       closeComposer();
 
-      if (processingToastId && metadataURI.startsWith("ipfs://")) {
-        txNotifications.notifyPending({
-          hash: processingToastId,
-          label: "Post created - finalizing media...",
-          explorerUrl: null
-        });
-
-        await waitForUrlReachable(ipfsToHttp(metadataURI), 10, 650);
-        const meta = await waitForMetadataReady(metadataURI, 10, 650);
-
-        const mediaRef =
-          (typeof meta.animation_url === "string" && meta.animation_url.trim()) ||
-          (typeof meta.image === "string" && meta.image.trim()) ||
-          "";
-
-        if (mediaRef && mediaRef.startsWith("ipfs://")) {
-          await waitForUrlReachable(ipfsToHttp(mediaRef), 12, 650);
-        }
-      }
-
       feed.setPosts((prev) => {
         const newKey = `${newPost.chainId ?? ""}:${newPost.tokenId}`;
         return [newPost, ...prev.filter((p) => `${p.chainId ?? ""}:${p.tokenId}` !== newKey)];
       });
-      if (processingToastId) {
+
+      if (processingToastId && metadataURI.startsWith("ipfs://")) {
+        const toastId = processingToastId;
+        txNotifications.notifyPending({ hash: toastId, label: "Post created - finalizing media...", explorerUrl: null });
+
+        void (async () => {
+          try {
+            await waitForUrlReachable(ipfsToHttp(metadataURI), 10, 650);
+            const meta = await waitForMetadataReady(metadataURI, 10, 650);
+
+            const mediaRef =
+              (typeof meta.animation_url === "string" && meta.animation_url.trim()) ||
+              (typeof meta.image === "string" && meta.image.trim()) ||
+              "";
+
+            if (mediaRef && mediaRef.startsWith("ipfs://")) {
+              await waitForUrlReachable(ipfsToHttp(mediaRef), 12, 650);
+            }
+          } catch {
+            // ignore; mint already succeeded
+          } finally {
+            txNotifications.notifyConfirmed(toastId);
+          }
+        })();
+      } else if (processingToastId) {
         txNotifications.notifyConfirmed(processingToastId);
       }
     } catch (error) {
@@ -254,6 +281,7 @@ export function useMintPostFlow(params: {
           protectReferencedIn: protectReferencedIn ?? undefined
         });
       }
+      dismissProcessingToast();
       setStatusFromError(setStatus, error as ErrorInput);
     } finally {
       postingInFlightRef.current = false;

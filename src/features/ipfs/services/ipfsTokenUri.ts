@@ -10,6 +10,18 @@ import {
   type PinataNameContext
 } from "./ipfs";
 
+async function bestEffortBlobFromUrl(url: string): Promise<Blob | null> {
+  const raw = String(url ?? "").trim();
+  if (!raw) return null;
+  try {
+    const res = await fetch(raw);
+    if (!res.ok) return null;
+    return await res.blob();
+  } catch {
+    return null;
+  }
+}
+
 async function bestEffortCreateVideoThumbnail(videoBlob: Blob): Promise<Blob | null> {
   if (!videoBlob?.type?.startsWith("video/")) return null;
   if (typeof document === "undefined") return null;
@@ -144,21 +156,32 @@ export async function buildIpfsTokenUri(input: {
   if (input.imageBlob) {
     const isVideo = input.imageBlob.type?.startsWith("video/") ?? false;
     if (isVideo) {
-      const posterBlob = await bestEffortCreateVideoThumbnail(input.imageBlob);
-      if (posterBlob) {
-        const baseThumb = `${baseMedia} thumb`;
-        const uniquePosterName = makeUniquePinName(baseThumb);
-        const uniquePosterFilename = makeUniqueFilename(baseThumb, posterBlob.type);
-        const posterRes = await pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName, {
-          wrapWithDirectory: true
-        });
-        imageRef = `ipfs://${posterRes.IpfsHash}/${uniquePosterFilename}`;
-      }
-
       const uniqueName = makeUniquePinName(baseMedia);
       const uniqueFilename = makeUniqueFilename(baseMedia, input.imageBlob.type);
-      const fileRes = await pinataPinFile(input.imageBlob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
+      const videoPin = pinataPinFile(input.imageBlob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
+
+      // Prefer the already-captured poster from the trim flow. iOS/Safari can be picky about
+      // extracting frames from a detached <video>, so this is both faster and more reliable.
+      const posterBlob =
+        (input.draft.videoPosterUrl ? await bestEffortBlobFromUrl(input.draft.videoPosterUrl) : null) ??
+        (await bestEffortCreateVideoThumbnail(input.imageBlob));
+
+      const posterPin = posterBlob
+        ? (() => {
+            const baseThumb = `${baseMedia} thumb`;
+            const uniquePosterName = makeUniquePinName(baseThumb);
+            const uniquePosterFilename = makeUniqueFilename(baseThumb, posterBlob.type);
+            return pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName, {
+              wrapWithDirectory: true
+            }).then((posterRes) => ({ posterRes, uniquePosterFilename }));
+          })()
+        : null;
+
+      const [fileRes, posterPinned] = await Promise.all([videoPin, posterPin]);
       animationRef = `ipfs://${fileRes.IpfsHash}/${uniqueFilename}`;
+      if (posterPinned) {
+        imageRef = `ipfs://${posterPinned.posterRes.IpfsHash}/${posterPinned.uniquePosterFilename}`;
+      }
     } else {
       const uniqueName = makeUniquePinName(baseMedia);
       const uniqueFilename = makeUniqueFilename(baseMedia, input.imageBlob.type);

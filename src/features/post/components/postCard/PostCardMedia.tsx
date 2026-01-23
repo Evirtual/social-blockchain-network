@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { ipfsToHttp, ipfsToHttpWithGateway } from "@features/ipfs";
+import { ipfsToHttp, ipfsToHttpCandidates, ipfsToHttpWithGateway } from "@features/ipfs";
 
 export type PostCardMediaProps = {
   postUrl: string;
@@ -26,9 +26,15 @@ export function PostCardMedia(props: PostCardMediaProps) {
 
   const hasMedia = useMemo(() => !!props.image || !!props.animationUrl, [props.image, props.animationUrl]);
 
-  const animationPrimaryUrl = useMemo(
-    () => (props.animationUrl ? ipfsToHttp(props.animationUrl) : ""),
-    [props.animationUrl]
+  const animationCandidates = useMemo(
+    () => {
+      if (!props.animationUrl) return [];
+      const base = ipfsToHttpCandidates(props.animationUrl);
+      if (!props.animationUrl.startsWith("ipfs://")) return base;
+      const fallback = ipfsToHttpWithGateway(props.animationUrl, fallbackGateway);
+      return base.includes(fallback) ? base : [...base, fallback];
+    },
+    [props.animationUrl, fallbackGateway]
   );
   const imagePrimaryUrl = useMemo(() => (props.image ? ipfsToHttp(props.image) : ""), [props.image]);
 
@@ -37,19 +43,60 @@ export function PostCardMedia(props: PostCardMediaProps) {
     [props.from, props.postChainId]
   );
 
-  const [animationSrc, setAnimationSrc] = useState<string>(animationPrimaryUrl);
+  const [animationCandidateIndex, setAnimationCandidateIndex] = useState(0);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoGatewayTimeoutIdRef = useRef<number | null>(null);
+
+  const clearVideoGatewayTimeout = useCallback(() => {
+    if (!videoGatewayTimeoutIdRef.current) return;
+    window.clearTimeout(videoGatewayTimeoutIdRef.current);
+    videoGatewayTimeoutIdRef.current = null;
+  }, []);
+
+  const animationSrc = animationCandidates[animationCandidateIndex] ?? animationCandidates[0] ?? "";
+
+  const tryNextVideoGateway = useCallback(() => {
+    if (!props.animationUrl?.startsWith("ipfs://")) return;
+    if (animationCandidates.length <= 1) return;
+    setAnimationCandidateIndex((prev) => (prev + 1 < animationCandidates.length ? prev + 1 : prev));
+  }, [animationCandidates.length, props.animationUrl]);
 
   // Keep state in sync if the post changes.
   // Use effects so user-driven state (like IPFS gateway fallback) isn't overwritten.
   useEffect(() => {
-    setAnimationSrc((prev) => (prev.startsWith("blob:") ? prev : animationPrimaryUrl));
-  }, [animationPrimaryUrl]);
+    setAnimationCandidateIndex(0);
+    clearVideoGatewayTimeout();
+  }, [props.animationUrl, clearVideoGatewayTimeout]);
 
   useEffect(() => {
     setImageSrc((prev) => (prev.startsWith("blob:") ? prev : imagePrimaryUrl));
   }, [imagePrimaryUrl]);
+
+  useEffect(() => {
+    clearVideoGatewayTimeout();
+    if (!props.animationUrl?.startsWith("ipfs://")) return;
+    if (animationCandidates.length <= 1) return;
+    if (!animationSrc) return;
+
+    // Some gateways (or mobile networks) can hang for a while before firing `error`.
+    // If we haven't even loaded metadata after a short grace period, try the next gateway.
+    videoGatewayTimeoutIdRef.current = window.setTimeout(() => {
+      videoGatewayTimeoutIdRef.current = null;
+      const node = videoRef.current;
+      if (!node) return;
+      if (node.readyState >= 1) return; // HAVE_METADATA
+      tryNextVideoGateway();
+    }, 4500);
+
+    return () => clearVideoGatewayTimeout();
+  }, [
+    animationSrc,
+    animationCandidates.length,
+    props.animationUrl,
+    clearVideoGatewayTimeout,
+    tryNextVideoGateway
+  ]);
 
   const description = (
     <>
@@ -60,6 +107,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
   );
 
   const handleVideoLoaded = () => {
+    clearVideoGatewayTimeout();
     if (imageSrc) return;
     const node = videoRef.current;
     if (!node) return;
@@ -84,11 +132,11 @@ export function PostCardMedia(props: PostCardMediaProps) {
             ref={videoRef}
             onLoadedMetadata={handleVideoLoaded}
             onLoadedData={handleVideoLoaded}
+            onCanPlay={clearVideoGatewayTimeout}
+            onPlaying={clearVideoGatewayTimeout}
             onError={() => {
-              if (!props.animationUrl?.startsWith("ipfs://")) return;
-              if (animationSrc.startsWith(fallbackGateway)) return;
-              const next = ipfsToHttpWithGateway(props.animationUrl, fallbackGateway);
-              setAnimationSrc(next);
+              clearVideoGatewayTimeout();
+              tryNextVideoGateway();
             }}
           />
         </div>
