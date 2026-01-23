@@ -1,0 +1,16 @@
+name = "social-posts-media"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+# Comma-separated list of origin IPFS gateway bases to try (first is preferred).
+# These should typically end with "/ipfs/" but the worker will normalize them.
+ORIGIN_GATEWAYS = "https://peach-managing-orangutan-155.mypinata.cloud/ipfs/"
+
+# CORS allowlist:
+# - "*" to allow any origin (simple demos)
+# - or a comma-separated list like "https://yourdomain.com,http://localhost:5173"
+ALLOW_ORIGINS = "*"
+
+# Cache TTL (seconds) for successful GET responses. CIDs are immutable, so long TTL is safe.
+CACHE_TTL_OK_SECONDS = "29030400"

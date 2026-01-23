@@ -129,6 +129,18 @@ To avoid exposing a Pinata JWT in the browser, run the included Cloudflare Worke
 3. Configure the frontend
    - Set `VITE_PINATA_WORKER_URL` in `.env.local` to your worker URL
 
+## Media gateway worker (Cloudflare)
+
+To reduce Pinata gateway bandwidth (and add an edge cache + a single stable gateway URL for the app), deploy the included media proxy worker:
+
+1. Deploy the worker
+   - `cd workers/media`
+   - `wrangler deploy`
+2. Configure origin gateways (optional)
+   - Edit `workers/media/wrangler.toml` (`ORIGIN_GATEWAYS`, `ALLOW_ORIGINS`)
+3. Configure the frontend gateway
+   - Set `VITE_IPFS_GATEWAY` to your worker URL (example: `https://your-worker.your-domain.workers.dev/ipfs/`)
+
 ## Frontend environment variables
 
 See `.env.example` for the full list. Common ones:
