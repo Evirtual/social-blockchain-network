@@ -44,6 +44,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
   );
 
   const [animationCandidateIndex, setAnimationCandidateIndex] = useState(0);
+  const [forceVideoPreloadAuto, setForceVideoPreloadAuto] = useState(false);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const videoGatewayTimeoutIdRef = useRef<number | null>(null);
@@ -66,12 +67,15 @@ export function PostCardMedia(props: PostCardMediaProps) {
   // Use effects so user-driven state (like IPFS gateway fallback) isn't overwritten.
   useEffect(() => {
     setAnimationCandidateIndex(0);
+    setForceVideoPreloadAuto(false);
     clearVideoGatewayTimeout();
   }, [props.animationUrl, clearVideoGatewayTimeout]);
 
   useEffect(() => {
     setImageSrc((prev) => (prev.startsWith("blob:") ? prev : imagePrimaryUrl));
   }, [imagePrimaryUrl]);
+
+  const effectiveVideoPreload = forceVideoPreloadAuto ? "auto" : videoPreload;
 
   useEffect(() => {
     clearVideoGatewayTimeout();
@@ -128,15 +132,23 @@ export function PostCardMedia(props: PostCardMediaProps) {
             poster={imageSrc || undefined}
             controls
             playsInline
-            preload={videoPreload}
+            preload={effectiveVideoPreload}
             ref={videoRef}
             onLoadedMetadata={handleVideoLoaded}
             onLoadedData={handleVideoLoaded}
             onCanPlay={clearVideoGatewayTimeout}
             onPlaying={clearVideoGatewayTimeout}
+            onPointerDown={() => setForceVideoPreloadAuto(true)}
             onError={() => {
               clearVideoGatewayTimeout();
               tryNextVideoGateway();
+            }}
+            style={{
+              backgroundColor: "#000",
+              backgroundImage: imageSrc ? `url("${imageSrc}")` : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat"
             }}
           />
         </div>
