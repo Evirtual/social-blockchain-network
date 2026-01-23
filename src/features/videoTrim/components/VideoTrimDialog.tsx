@@ -348,6 +348,7 @@ export function VideoTrimDialog({ session, onClose }: Props) {
         </div>
         <div className="videoTrimDialogMeta">
           <span>Clip duration: {clipDurationText}</span>
+          <span className="muted">Max: {Math.round(MAX_CLIP_MS / 1000)}s</span>
         </div>
         {errorMessage ? <div className="videoTrimDialogError">{errorMessage}</div> : null}
         <div className="rowActions modalFooterInline videoTrimDialogActions">
