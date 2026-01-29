@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="840" viewBox="0 0 1600 840" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1020"/>
+      <stop offset="0.55" stop-color="#0A2A3A"/>
+      <stop offset="1" stop-color="#1B1440"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(380 250) rotate(25) scale(820 520)">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1180 590) rotate(-10) scale(920 620)">
+      <stop offset="0" stop-color="#A78BFA" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="320" y1="0" x2="1280" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+    <filter id="softShadow" x="-40" y="-40" width="1680" height="920" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="softGlow" x="-30" y="-30" width="1660" height="900" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.65 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#93C5FD" stroke-opacity="0.07" stroke-width="1"/>
+      <path d="M32 0V64M0 32H64" fill="none" stroke="#93C5FD" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="840" fill="url(#bg)"/>
+  <rect width="1600" height="840" fill="url(#grid)"/>
+  <rect width="1600" height="840" fill="url(#glow)"/>
+  <rect width="1600" height="840" fill="url(#glow2)"/>
+
+  <!-- Framing card -->
+  <g filter="url(#softShadow)">
+    <rect x="96" y="86" width="1408" height="668" rx="34" fill="#0B1227" fill-opacity="0.72" stroke="#60A5FA" stroke-opacity="0.18"/>
+    <rect x="124" y="114" width="1352" height="612" rx="26" fill="#0A1024" fill-opacity="0.55" stroke="#22D3EE" stroke-opacity="0.10"/>
+  </g>
+
+  <!-- Decorative network (right) -->
+  <g filter="url(#softGlow)">
+    <path d="M1040 236C1110 178 1214 170 1296 224C1386 283 1416 396 1366 480C1316 564 1210 602 1112 570C1012 536 960 424 990 326C1004 283 1018 258 1040 236Z"
+      fill="none" stroke="url(#accent)" stroke-opacity="0.55" stroke-width="3"/>
+    <path d="M1006 358L1126 310L1248 356L1206 480L1088 508L1006 358Z"
+      fill="none" stroke="#93C5FD" stroke-opacity="0.22" stroke-width="2"/>
+
+    <g>
+      <circle cx="1006" cy="358" r="10" fill="#22D3EE"/>
+      <circle cx="1126" cy="310" r="10" fill="#60A5FA"/>
+      <circle cx="1248" cy="356" r="10" fill="#A78BFA"/>
+      <circle cx="1206" cy="480" r="10" fill="#60A5FA"/>
+      <circle cx="1088" cy="508" r="10" fill="#22D3EE"/>
+    </g>
+
+    <g opacity="0.55">
+      <circle cx="1006" cy="358" r="22" fill="#22D3EE" fill-opacity="0.10"/>
+      <circle cx="1126" cy="310" r="22" fill="#60A5FA" fill-opacity="0.10"/>
+      <circle cx="1248" cy="356" r="22" fill="#A78BFA" fill-opacity="0.10"/>
+      <circle cx="1206" cy="480" r="22" fill="#60A5FA" fill-opacity="0.10"/>
+      <circle cx="1088" cy="508" r="22" fill="#22D3EE" fill-opacity="0.10"/>
+    </g>
+  </g>
+
+  <!-- Left icon row -->
+  <g transform="translate(170 174)">
+    <g opacity="0.9">
+      <rect x="0" y="0" width="84" height="84" rx="18" fill="#0B132E" stroke="#22D3EE" stroke-opacity="0.35"/>
+      <path d="M22 52c10-14 30-14 40 0" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+      <path d="M30 36c6-6 18-6 24 0" stroke="#60A5FA" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="42" cy="56" r="4.5" fill="#A78BFA"/>
+    </g>
+    <g transform="translate(104 0)" opacity="0.9">
+      <rect x="0" y="0" width="84" height="84" rx="18" fill="#0B132E" stroke="#60A5FA" stroke-opacity="0.35"/>
+      <path d="M26 30h32v24H26z" fill="none" stroke="#93C5FD" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M30 48h24" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+      <path d="M34 38h16" stroke="#A78BFA" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(208 0)" opacity="0.9">
+      <rect x="0" y="0" width="84" height="84" rx="18" fill="#0B132E" stroke="#A78BFA" stroke-opacity="0.35"/>
+      <path d="M26 54c0-14 12-26 26-26s26 12 26 26" fill="none" stroke="#A78BFA" stroke-width="4" stroke-linecap="round"/>
+      <path d="M30 54h48" stroke="#60A5FA" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="52" cy="38" r="4.5" fill="#22D3EE"/>
+    </g>
+  </g>
+
+  <!-- Main text -->
+  <g transform="translate(170 300)">
+    <text x="0" y="0" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="68" font-weight="800" fill="#E5E7EB" letter-spacing="-0.8">
+      Built a Multi‑Chain Social dApp
+    </text>
+    <text x="0" y="76" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="52" font-weight="800" fill="#E5E7EB" letter-spacing="-0.6">
+      in about a month
+    </text>
+
+    <rect x="0" y="108" width="860" height="4" rx="2" fill="url(#accent)" opacity="0.9"/>
+
+    <text x="0" y="168" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="30" font-weight="600" fill="#C7D2FE" opacity="0.92">
+      AI pair programming • IPFS media • Subgraph indexing • Edge workers
+    </text>
+
+    <g transform="translate(0 210)">
+      <rect x="0" y="0" width="420" height="56" rx="16" fill="#0B132E" stroke="#22D3EE" stroke-opacity="0.25"/>
+      <text x="20" y="38" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" font-weight="700" fill="#E5E7EB">
+        Demo‑ready • Public testing
+      </text>
+
+      <rect x="440" y="0" width="420" height="56" rx="16" fill="#0B132E" stroke="#A78BFA" stroke-opacity="0.25"/>
+      <text x="460" y="38" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" font-weight="700" fill="#E5E7EB">
+        Posting/editing: gated beta
+      </text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <g transform="translate(170 736)">
+    <text x="0" y="0" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="20" font-weight="600" fill="#93C5FD" opacity="0.75">
+      evirtual.github.io/social-blockchain-network
+    </text>
+  </g>
+</svg>
+

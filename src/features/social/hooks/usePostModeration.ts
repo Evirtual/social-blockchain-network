@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { collectIpfsCidsFromTokenUri } from "@features/ipfs";
+import { collectIpfsCidsFromTokenUri, extractIpfsCid } from "@features/ipfs";
 import { isSamePost } from "../services/postActions/matchPost";
 import { postKeyFromParts } from "@features/post/services";
 import { runSocialAction } from "../services/actions/runSocialAction";
@@ -94,22 +94,38 @@ export function usePostModeration(args: {
           const activeWallet = walletAddress;
           if (!activeWallet) return;
 
+          const post = feed.posts.find((p) => isSamePost({ post: p, tokenId, postChainId }));
+
           // Capture tokenURI + related IPFS CIDs before burn.
           let pinnedCids: Set<string> | null = null;
-          try {
-            if (ipfsConfigured) {
+          if (ipfsConfigured) {
+            const cids = new Set<string>();
+
+            // Prefer capturing from the cached feed entry first (covers cases where the on-chain
+            // metadata is missing the video poster/thumbnail reference, or metadata fetch fails).
+            const cachedRefs = [post?.metadataURI, post?.image, post?.animationUrl].filter(
+              (x): x is string => typeof x === "string" && x.trim().length > 0
+            );
+            for (const ref of cachedRefs) {
+              const cid = extractIpfsCid(ref);
+              if (cid) cids.add(cid);
+            }
+
+            try {
               const readContract = await getReadContract();
               const tokenIdBig = BigInt(tokenId);
               const oldTokenUri = (await readContract.tokenURI(tokenIdBig)) as string;
-              pinnedCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+              const tokenUriCids = await collectIpfsCidsFromTokenUri(oldTokenUri);
+              for (const cid of tokenUriCids) cids.add(cid);
+            } catch {
+              // Best-effort only; still attempt to unpin any cached refs.
             }
-          } catch {
-            pinnedCids = null;
+
+            pinnedCids = cids.size > 0 ? cids : null;
           }
 
           const writeContract = await getWriteContract();
           const tokenIdBig = BigInt(tokenId);
-          const post = feed.posts.find((p) => isSamePost({ post: p, tokenId, postChainId }));
           const author = post?.author;
           const isMine = !!author && activeWallet.toLowerCase() === author.toLowerCase();
           const send =
