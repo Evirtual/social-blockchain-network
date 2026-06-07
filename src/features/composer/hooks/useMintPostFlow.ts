@@ -2,10 +2,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { Draft, Post } from "@types";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
-import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, extractIpfsCid, ipfsToHttp } from "@features/ipfs";
+import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, extractIpfsCid } from "@features/ipfs";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
-import { parseMintPostReceipt, waitForMetadataReady, waitForUrlReachable } from "../services/mintPost";
+import { parseMintPostReceipt, waitForMetadataReady } from "../services/mintPost";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 import { validateDraftForMint } from "../services/validateDraftForMint";
 import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
@@ -56,6 +56,8 @@ export function useMintPostFlow(params: {
   txNotifications: TxNotificationsLike;
   setStatus: (s: string) => void;
   posterApproval: PosterApprovalLike;
+  isUnsupportedNetwork: boolean;
+  unsupportedNetworkMessage: string | null;
 }) {
   const {
     walletAddress,
@@ -74,7 +76,9 @@ export function useMintPostFlow(params: {
     runContractTx,
     txNotifications,
     setStatus,
-    posterApproval
+    posterApproval,
+    isUnsupportedNetwork,
+    unsupportedNetworkMessage
   } = params;
 
   const [isPosting, setIsPosting] = useState(false);
@@ -107,6 +111,12 @@ export function useMintPostFlow(params: {
       if (!walletAddress) {
         requestConnectNudge();
         setStatus("Connect your wallet first.");
+        dismissProcessingToast();
+        return;
+      }
+
+      if (isUnsupportedNetwork) {
+        setStatus(unsupportedNetworkMessage ?? "Wrong network. Select a supported network before posting.");
         dismissProcessingToast();
         return;
       }
@@ -255,17 +265,7 @@ export function useMintPostFlow(params: {
 
         void (async () => {
           try {
-            await waitForUrlReachable(ipfsToHttp(metadataURI), 10, 650);
-            const meta = await waitForMetadataReady(metadataURI, 10, 650);
-
-            const mediaRef =
-              (typeof meta.animation_url === "string" && meta.animation_url.trim()) ||
-              (typeof meta.image === "string" && meta.image.trim()) ||
-              "";
-
-            if (mediaRef && mediaRef.startsWith("ipfs://")) {
-              await waitForUrlReachable(ipfsToHttp(mediaRef), 12, 650);
-            }
+            await waitForMetadataReady(metadataURI, 5, 900);
           } catch {
             // ignore; mint already succeeded
           } finally {
@@ -289,6 +289,8 @@ export function useMintPostFlow(params: {
     }
   }, [
     walletAddress,
+    isUnsupportedNetwork,
+    unsupportedNetworkMessage,
     posterApproval,
     closeComposer,
     setStatus,

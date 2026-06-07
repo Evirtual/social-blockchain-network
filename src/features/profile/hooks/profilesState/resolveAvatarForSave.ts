@@ -16,8 +16,8 @@ export async function resolveAvatarForSave(params: {
       (uploadedAvatarFilename ? String(uploadedAvatarFilename).trim() : "profile-avatar");
     const uniqueName = makeUniquePinName(base);
     const uniqueFilename = makeUniqueFilename(base, uploadedAvatarBlob.type);
-    const pinned = await pinataPinFile(uploadedAvatarBlob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
-    return `ipfs://${pinned.IpfsHash}/${uniqueFilename}`;
+    const pinned = await pinataPinFile(uploadedAvatarBlob, uniqueFilename, uniqueName);
+    return `ipfs://${pinned.IpfsHash}`;
   }
 
   return draftAvatarDataUrl || "";

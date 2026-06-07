@@ -36,7 +36,11 @@ export function HomeHeroSupportedNetworks(props: Props) {
             post, react, and tip.
           </>
         ) : props.isWrongNetwork ? (
-          "Your wallet is connected, but this app isn’t configured for the current network."
+          <>
+            Wrong network{props.currentNetworkLabel ? `: ${props.currentNetworkLabel}` : ""}.
+            <br />
+            Select a supported network to switch or add it to your wallet.
+          </>
         ) : (
           "Use one of these testnets to post, react, and tip."
         )}
@@ -57,7 +61,7 @@ export function HomeHeroSupportedNetworks(props: Props) {
                 void props.onRequestWalletNetworkSwitch(n.chainId);
               }}
               disabled={!props.canSwitchNetwork}
-              title={!props.canSwitchNetwork ? "Connect a wallet to switch networks" : undefined}
+              title={!props.canSwitchNetwork ? "Connect a wallet to switch networks" : "Switch or add this network"}
             >
               <span className="pillIcon" aria-hidden="true">
                 <span className="chainBrandMark" style={brandStyle}>

@@ -10,6 +10,7 @@ import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetwor
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
 import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
 import { useTopbarCenter } from "@features/app";
+import { getAddEthereumChainParameter } from "@features/feed";
 
 type Props = {
   isOwner: boolean;
@@ -88,9 +89,10 @@ export function HomePage(props: Props) {
 
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
-      await requestNetworkSwitch(targetChainId, props.chainId);
+      const network = supportedNetworks.find((n) => n.chainId === targetChainId);
+      await requestNetworkSwitch(targetChainId, props.chainId, network ? getAddEthereumChainParameter(network) : null);
     },
-    [props.chainId]
+    [props.chainId, supportedNetworks]
   );
 
   const canSwitchNetwork = useMemo(() => {
@@ -99,9 +101,13 @@ export function HomePage(props: Props) {
   }, []);
 
   const isDisconnected = !props.walletAddress;
+  const currentChainId = String(props.chainId ?? "").trim();
+  const isUnsupportedWalletNetwork =
+    !!props.walletAddress && (!currentChainId || !supportedNetworks.some((n) => String(n.chainId) === currentChainId));
   const isWrongNetwork =
-    !!props.walletAddress && (props.contractAddress == null || props.contractDeployed === false);
-  const showNetworkCard = !isSupportedNetworksDismissed;
+    isUnsupportedWalletNetwork ||
+    (!!props.walletAddress && (props.contractAddress == null || props.contractDeployed === false));
+  const showNetworkCard = !isSupportedNetworksDismissed || isWrongNetwork;
 
   const showIntroHero = !isHeroDismissed;
   const heroCount = (showIntroHero ? 1 : 0) + (showNetworkCard ? 1 : 0);

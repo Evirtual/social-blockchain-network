@@ -257,8 +257,8 @@ export function useProfileAdminActions(args: {
           const base = makePinataBaseName({ kind: "profile", purpose: "avatar", account: args.address });
           const uniqueName = makeUniquePinName(base);
           const uniqueFilename = makeUniqueFilename(base, next.avatarFile.type);
-          const pinned = await pinataPinFile(next.avatarFile, uniqueFilename, uniqueName, { wrapWithDirectory: true });
-          avatar = `ipfs://${pinned.IpfsHash}/${uniqueFilename}`;
+          const pinned = await pinataPinFile(next.avatarFile, uniqueFilename, uniqueName);
+          avatar = `ipfs://${pinned.IpfsHash}`;
           newAvatarCid = extractIpfsCid(avatar);
         } else {
           avatar = next.avatarDataUrl || "";

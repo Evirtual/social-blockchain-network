@@ -1,5 +1,6 @@
 import { stableHueFromSeed } from "@shared/lib/formatters";
-import { getEnv } from "@shared/lib/env";
+import { getEnv, getEnvString } from "@shared/lib/env";
+import { formatAddEthereumChainId, type AddEthereumChainParameter } from "@shared/lib/networkSwitch";
 import { getConfiguredFeedNetworks } from "./feedNetworks";
 
 export type SupportedNetwork = {
@@ -9,6 +10,28 @@ export type SupportedNetwork = {
   displayName: string;
   description: string;
   brandHue: number;
+};
+
+const DEFAULT_RPC_URL_BY_CHAIN_ID: Record<number, string> = {
+  31337: "http://127.0.0.1:8545",
+  84532: "https://sepolia.base.org",
+  11155111: "https://ethereum-sepolia-rpc.publicnode.com",
+  97: "https://data-seed-prebsc-1-s1.bnbchain.org:8545"
+};
+
+const DEFAULT_EXPLORER_URL_BY_CHAIN_ID: Record<number, string> = {
+  84532: "https://sepolia.basescan.org",
+  11155111: "https://sepolia.etherscan.io",
+  97: "https://testnet.bscscan.com"
+};
+
+const EXPLORER_ENV_KEY_BY_CHAIN_ID: Record<number, string> = {
+  1: "VITE_ETH_EXPLORER_BASE_URL",
+  11155111: "VITE_ETH_SEPOLIA_EXPLORER_BASE_URL",
+  8453: "VITE_BASE_EXPLORER_BASE_URL",
+  84532: "VITE_BASE_SEPOLIA_EXPLORER_BASE_URL",
+  56: "VITE_BSC_EXPLORER_BASE_URL",
+  97: "VITE_BSC_TESTNET_EXPLORER_BASE_URL"
 };
 
 function brandHueForChainId(chainId: number, chainName: string): number {
@@ -60,4 +83,36 @@ export function getSupportedNetworks(): SupportedNetwork[] {
   const env = getEnv();
   const configuredChainIds = new Set(getConfiguredFeedNetworks(env).map((n) => n.chainId));
   return candidates.filter((n) => configuredChainIds.has(n.chainId));
+}
+
+export function isSupportedNetworkChainId(chainId: string | number | null | undefined) {
+  if (chainId == null || chainId === "") return false;
+  const id = Number(chainId);
+  if (!Number.isFinite(id)) return false;
+  return getSupportedNetworks().some((n) => n.chainId === id);
+}
+
+export function getAddEthereumChainParameter(network: SupportedNetwork): AddEthereumChainParameter | null {
+  const env = getEnv();
+  const configured = getConfiguredFeedNetworks(env).find((n) => n.chainId === network.chainId);
+  const rpcUrl = configured?.rpcUrl?.trim() || DEFAULT_RPC_URL_BY_CHAIN_ID[network.chainId];
+  if (!rpcUrl) return null;
+
+  const explorerKey = EXPLORER_ENV_KEY_BY_CHAIN_ID[network.chainId];
+  const explorerUrl = explorerKey
+    ? getEnvString(env, explorerKey)?.trim() || DEFAULT_EXPLORER_URL_BY_CHAIN_ID[network.chainId]
+    : DEFAULT_EXPLORER_URL_BY_CHAIN_ID[network.chainId];
+  const isBnb = network.chainId === 56 || network.chainId === 97;
+
+  return {
+    chainId: formatAddEthereumChainId(network.chainId),
+    chainName: network.displayName,
+    nativeCurrency: {
+      name: isBnb ? "BNB" : "Ether",
+      symbol: isBnb ? "BNB" : "ETH",
+      decimals: 18
+    },
+    rpcUrls: [rpcUrl],
+    ...(explorerUrl ? { blockExplorerUrls: [explorerUrl.replace(/\/+$/, "")] } : {})
+  };
 }

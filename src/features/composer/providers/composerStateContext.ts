@@ -12,6 +12,7 @@ export type ComposerContextValue = {
   draft: Draft;
   isImageLoading: boolean;
   isPosting: boolean;
+  postDisabledReason: string | null;
   handleDraftChange: (field: keyof Draft, value: string) => void;
   onComposerImageUrlChange: (value: string) => void;
   onComposerClearImage: () => void;

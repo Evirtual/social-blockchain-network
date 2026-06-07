@@ -10,7 +10,7 @@ import { useTheme } from "./features/theme";
 import { useComposer } from "./features/composer";
 import { useContractActions } from "./features/contract";
 import { useProfileState } from "./features/profile";
-import { useFeedActions } from "./features/feed";
+import { isSupportedNetworkChainId, useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";
 import { ipfsToHttp } from "./features/ipfs";
 import { NotificationsModal } from "./features/notifications";
@@ -50,6 +50,7 @@ function AppInner() {
     chainId: walletState.chainId,
     first: 30
   });
+  const canCreatePost = Boolean(walletState.walletAddress && isSupportedNetworkChainId(walletState.chainId));
 
   return (
     <TopbarOverflowProvider>
@@ -66,6 +67,7 @@ function AppInner() {
             connectNudge={connectNudge}
             composeNudge={composeNudge}
             walletAddress={walletState.walletAddress}
+            canCreatePost={canCreatePost}
             onToggleTheme={theme.toggleTheme}
             onConnectWallet={connectWallet}
             onOpenComposer={composer.openComposer}
@@ -98,6 +100,7 @@ function AppInner() {
           draft={composer.draft}
           isImageLoading={composer.isImageLoading}
           isPosting={composer.isPosting}
+          postDisabledReason={composer.postDisabledReason}
           onDraftFieldChange={composer.handleDraftChange}
           onSelectFile={composer.onSelectComposerFile}
           onClearImage={composer.onComposerClearImage}

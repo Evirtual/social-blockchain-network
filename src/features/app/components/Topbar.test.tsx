@@ -37,4 +37,21 @@ describe("Topbar", () => {
 
     expect(screen.getByRole("button", { name: "Create post" })).toBeInTheDocument();
   });
+
+  it("hides Create post button when connected on the wrong network", () => {
+    render(
+      <MemoryRouter>
+        <Topbar
+          theme="dark"
+          onToggleTheme={vi.fn()}
+          walletAddress="0x0000000000000000000000000000000000000001"
+          canCreatePost={false}
+          onConnectWallet={vi.fn()}
+          onOpenComposer={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole("button", { name: "Create post" })).not.toBeInTheDocument();
+  });
 });

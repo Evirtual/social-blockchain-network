@@ -158,7 +158,7 @@ export async function buildIpfsTokenUri(input: {
     if (isVideo) {
       const uniqueName = makeUniquePinName(baseMedia);
       const uniqueFilename = makeUniqueFilename(baseMedia, input.imageBlob.type);
-      const videoPin = pinataPinFile(input.imageBlob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
+      const videoPin = pinataPinFile(input.imageBlob, uniqueFilename, uniqueName);
 
       // Prefer the already-captured poster from the trim flow. iOS/Safari can be picky about
       // extracting frames from a detached <video>, so this is both faster and more reliable.
@@ -171,22 +171,23 @@ export async function buildIpfsTokenUri(input: {
             const baseThumb = `${baseMedia} thumb`;
             const uniquePosterName = makeUniquePinName(baseThumb);
             const uniquePosterFilename = makeUniqueFilename(baseThumb, posterBlob.type);
-            return pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName, {
-              wrapWithDirectory: true
-            }).then((posterRes) => ({ posterRes, uniquePosterFilename }));
+            return pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName).then((posterRes) => ({
+              posterRes,
+              uniquePosterFilename
+            }));
           })()
         : null;
 
       const [fileRes, posterPinned] = await Promise.all([videoPin, posterPin]);
-      animationRef = `ipfs://${fileRes.IpfsHash}/${uniqueFilename}`;
+      animationRef = `ipfs://${fileRes.IpfsHash}`;
       if (posterPinned) {
-        imageRef = `ipfs://${posterPinned.posterRes.IpfsHash}/${posterPinned.uniquePosterFilename}`;
+        imageRef = `ipfs://${posterPinned.posterRes.IpfsHash}`;
       }
     } else {
       const uniqueName = makeUniquePinName(baseMedia);
       const uniqueFilename = makeUniqueFilename(baseMedia, input.imageBlob.type);
-      const fileRes = await pinataPinFile(input.imageBlob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
-      imageRef = `ipfs://${fileRes.IpfsHash}/${uniqueFilename}`;
+      const fileRes = await pinataPinFile(input.imageBlob, uniqueFilename, uniqueName);
+      imageRef = `ipfs://${fileRes.IpfsHash}`;
     }
   } else if (input.draft.imageUrl) {
     const url = input.draft.imageUrl.trim();
@@ -211,21 +212,19 @@ export async function buildIpfsTokenUri(input: {
               const baseThumb = `${baseMedia} thumb`;
               const uniquePosterName = makeUniquePinName(baseThumb);
               const uniquePosterFilename = makeUniqueFilename(baseThumb, posterBlob.type);
-              const posterRes = await pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName, {
-                wrapWithDirectory: true
-              });
-              imageRef = `ipfs://${posterRes.IpfsHash}/${uniquePosterFilename}`;
+              const posterRes = await pinataPinFile(posterBlob, uniquePosterFilename, uniquePosterName);
+              imageRef = `ipfs://${posterRes.IpfsHash}`;
             }
 
             const uniqueName = makeUniquePinName(baseMedia);
             const uniqueFilename = makeUniqueFilename(baseMedia, blob.type);
-            const fileRes = await pinataPinFile(blob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
-            animationRef = `ipfs://${fileRes.IpfsHash}/${uniqueFilename}`;
+            const fileRes = await pinataPinFile(blob, uniqueFilename, uniqueName);
+            animationRef = `ipfs://${fileRes.IpfsHash}`;
           } else {
             const uniqueName = makeUniquePinName(baseMedia);
             const uniqueFilename = makeUniqueFilename(baseMedia, blob.type);
-            const fileRes = await pinataPinFile(blob, uniqueFilename, uniqueName, { wrapWithDirectory: true });
-            const mediaRef = `ipfs://${fileRes.IpfsHash}/${uniqueFilename}`;
+            const fileRes = await pinataPinFile(blob, uniqueFilename, uniqueName);
+            const mediaRef = `ipfs://${fileRes.IpfsHash}`;
             if (blob.type.startsWith("image/")) imageRef = mediaRef;
             else if (input.mediaTypeHint === "video") animationRef = mediaRef;
             else imageRef = mediaRef;

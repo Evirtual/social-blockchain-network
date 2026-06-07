@@ -28,7 +28,14 @@ function normalizeGatewayBase(raw: string): string {
 
 function getOriginGatewayBases(env: Env): string[] {
   const bases = parseCsv(env.ORIGIN_GATEWAYS).map(normalizeGatewayBase).filter(Boolean);
-  return bases.length ? bases : [normalizeGatewayBase("https://gateway.pinata.cloud/ipfs/")];
+  return bases.length
+    ? bases
+    : [
+        normalizeGatewayBase("https://gateway.pinata.cloud/ipfs/"),
+        normalizeGatewayBase("https://dweb.link/ipfs/"),
+        normalizeGatewayBase("https://w3s.link/ipfs/"),
+        normalizeGatewayBase("https://ipfs.io/ipfs/")
+      ];
 }
 
 function pickAllowOrigin(request: Request, env: Env): string {

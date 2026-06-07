@@ -36,7 +36,17 @@ export function PostCardMedia(props: PostCardMediaProps) {
     },
     [props.animationUrl, fallbackGateway]
   );
-  const imagePrimaryUrl = useMemo(() => (props.image ? ipfsToHttp(props.image) : ""), [props.image]);
+  const imageCandidates = useMemo(() => {
+    if (!props.image) return [];
+    const base = ipfsToHttpCandidates(props.image);
+    if (!props.image.startsWith("ipfs://")) return base;
+    const fallback = ipfsToHttpWithGateway(props.image, fallbackGateway);
+    return base.includes(fallback) ? base : [...base, fallback];
+  }, [props.image, fallbackGateway]);
+  const imagePrimaryUrl = useMemo(() => imageCandidates[0] ?? (props.image ? ipfsToHttp(props.image) : ""), [
+    imageCandidates,
+    props.image
+  ]);
 
   const postLinkState = useMemo(
     () => ({ from: props.from, chainId: props.postChainId ?? null }),
@@ -44,6 +54,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
   );
 
   const [animationCandidateIndex, setAnimationCandidateIndex] = useState(0);
+  const [, setImageCandidateIndex] = useState(0);
   const [forceVideoPreloadAuto, setForceVideoPreloadAuto] = useState(false);
   const [imageSrc, setImageSrc] = useState<string>(imagePrimaryUrl);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -73,6 +84,7 @@ export function PostCardMedia(props: PostCardMediaProps) {
 
   useEffect(() => {
     setImageSrc((prev) => (prev.startsWith("blob:") ? prev : imagePrimaryUrl));
+    setImageCandidateIndex(0);
   }, [imagePrimaryUrl]);
 
   const effectiveVideoPreload = forceVideoPreloadAuto ? "auto" : videoPreload;
@@ -166,9 +178,13 @@ export function PostCardMedia(props: PostCardMediaProps) {
             loading="lazy"
             onError={() => {
               if (!props.image?.startsWith("ipfs://")) return;
-              if (imageSrc.startsWith(fallbackGateway)) return;
-              const next = ipfsToHttpWithGateway(props.image, fallbackGateway);
-              setImageSrc(next);
+              setImageCandidateIndex((prev) => {
+                const nextIndex = prev + 1;
+                const next = imageCandidates[nextIndex];
+                if (!next) return prev;
+                setImageSrc(next);
+                return nextIndex;
+              });
             }}
           />
         </Link>

@@ -139,7 +139,8 @@ export function makeUploadNonce(): string {
 
 const DEFAULT_IPFS_GATEWAY_BASES = [
   "https://gateway.pinata.cloud/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/",
+  "https://w3s.link/ipfs/",
   "https://ipfs.io/ipfs/"
 ];
 
@@ -165,7 +166,7 @@ export const getIpfsGatewayBases = () => {
         .map((s) => s.trim())
         .filter(Boolean)
     : single
-      ? [single]
+      ? [single, ...DEFAULT_IPFS_GATEWAY_BASES]
       : DEFAULT_IPFS_GATEWAY_BASES;
 
   const uniq = new Set<string>();
@@ -180,6 +181,14 @@ export const getIpfsGatewayBase = () => {
   // Default to Pinata public gateway for better large-media reliability.
   // Can be overridden via VITE_IPFS_GATEWAY.
   return getIpfsGatewayBases()[0] ?? normalizeGatewayBase("https://gateway.pinata.cloud/ipfs/");
+};
+
+export const getIpfsMetadataGatewayBases = () => {
+  // Metadata is small and fetched often. Keep this list conservative so
+  // transient public gateway failures do not flood DevTools with network errors.
+  const preferred = getIpfsGatewayBase();
+  const pinataPublic = normalizeGatewayBase("https://gateway.pinata.cloud/ipfs/");
+  return Array.from(new Set([preferred, pinataPublic].filter(Boolean)));
 };
 
 export const ipfsToHttpWithGateway = (uri: string, gatewayBase: string) => {
@@ -200,7 +209,20 @@ export const ipfsToHttp = (uri: string) => {
 export const ipfsToHttpCandidates = (uri: string, gatewayBases?: string[]) => {
   if (!String(uri ?? "").startsWith("ipfs://")) return [uri];
   const bases = gatewayBases && gatewayBases.length > 0 ? gatewayBases : getIpfsGatewayBases();
-  return bases.map((base) => ipfsToHttpWithGateway(uri, base));
+  const candidates = bases.map((base) => ipfsToHttpWithGateway(uri, base));
+
+  const rest = String(uri).slice("ipfs://".length);
+  const normalizedRest = rest.startsWith("ipfs/") ? rest.slice("ipfs/".length) : rest;
+  const [cid, ...pathParts] = normalizedRest.split("/");
+  if (cid && pathParts.length > 0) {
+    const bareUri = `ipfs://${cid}`;
+    for (const base of bases) {
+      const bare = ipfsToHttpWithGateway(bareUri, base);
+      if (!candidates.includes(bare)) candidates.push(bare);
+    }
+  }
+
+  return candidates;
 };
 
 const getPinataWorkerUrl = (): string => {

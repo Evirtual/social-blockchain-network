@@ -4,6 +4,7 @@ import { ChainLogo } from "@shared/components/ChainLogos";
 import { IconSearch } from "@shared/components/icons";
 import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
 import { useTopbarOverflow } from "@features/app";
+import { getAddEthereumChainParameter } from "../services/supportedNetworks";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 
 type Props = {
@@ -41,6 +42,10 @@ export function FeedTopbarControls(props: Props) {
   const pillText = (props.pillText ?? "").trim();
   const isSearchLoading = Boolean(props.isSearchLoading);
   const hasSearchValue = (props.searchQuery ?? "").trim().length > 0;
+  const isConnected = Boolean(props.walletAddress);
+  const currentChainId = String(props.chainId ?? "").trim();
+  const isWrongNetwork =
+    isConnected && (!currentChainId || !props.supportedNetworks.some((n) => String(n.chainId) === currentChainId));
 
   const selectedNetworks = useMemo(() => {
     if (!props.selectedNetworkChainIds.length) return [];
@@ -49,6 +54,10 @@ export function FeedTopbarControls(props: Props) {
   }, [props.selectedNetworkChainIds, props.supportedNetworks]);
 
   const overflowNetworksIcon = useMemo(() => {
+    if (isWrongNetwork) {
+      return <span className="topbarFeedWrongNetwork">Wrong network</span>;
+    }
+
     const networksToShow = (selectedNetworks.length ? selectedNetworks : props.supportedNetworks).slice(0, 3);
     return (
       <span className="topbarFeedNetworkIcons" aria-hidden="true">
@@ -62,7 +71,7 @@ export function FeedTopbarControls(props: Props) {
         })}
       </span>
     );
-  }, [props.supportedNetworks, selectedNetworks]);
+  }, [isWrongNetwork, props.supportedNetworks, selectedNetworks]);
 
   const overflowSearchIcon = useMemo(
     () => (isSearchLoading ? <span className="spinner" aria-hidden="true" /> : <IconSearch size={18} />),
@@ -89,8 +98,6 @@ export function FeedTopbarControls(props: Props) {
     return actions;
   }, [hasSearchValue, overflowNetworksIcon, overflowSearchIcon, showSearch]);
 
-  const isConnected = Boolean(props.walletAddress);
-
   useEffect(() => {
     setOverflowActions(overflowActions);
     return () => setOverflowActions([]);
@@ -102,7 +109,12 @@ export function FeedTopbarControls(props: Props) {
   }, [props.inlineSlot, setOverflowPanel]);
 
   const handleConnectedNetworkPick = async (chainId: number) => {
-    const ok = await requestNetworkSwitch(chainId, props.chainId);
+    const network = props.supportedNetworks.find((n) => n.chainId === chainId);
+    const ok = await requestNetworkSwitch(
+      chainId,
+      props.chainId,
+      network ? getAddEthereumChainParameter(network) : null
+    );
     if (!ok) return;
     props.onSelectedNetworkChainIdsChange(() => [String(chainId)]);
     setIsNetworksOpen(false);
@@ -139,21 +151,25 @@ export function FeedTopbarControls(props: Props) {
 
           <button
             type="button"
-            className="ghost iconButton topbarFeedNetworks"
+            className={`ghost iconButton topbarFeedNetworks ${isWrongNetwork ? "isWrongNetwork" : ""}`}
             onClick={() => setIsNetworksOpen(true)}
-            aria-label="Networks"
-            title="Networks"
+            aria-label={isWrongNetwork ? "Wrong network" : "Networks"}
+            title={isWrongNetwork ? "Wrong network" : "Networks"}
           >
-            <span className="topbarFeedNetworkIcons" aria-hidden="true">
-              {(selectedNetworks.length ? selectedNetworks : props.supportedNetworks).slice(0, 3).map((n) => {
-                const brandStyle: BrandHueStyle = { ["--brand-hue"]: n.brandHue };
-                return (
-                  <span key={n.chainId} className="chainBrandMark" style={brandStyle}>
-                    <ChainLogo chainId={n.chainId} size={24} />
-                  </span>
-                );
-              })}
-            </span>
+            {isWrongNetwork ? (
+              <span className="topbarFeedWrongNetwork">Wrong network</span>
+            ) : (
+              <span className="topbarFeedNetworkIcons" aria-hidden="true">
+                {(selectedNetworks.length ? selectedNetworks : props.supportedNetworks).slice(0, 3).map((n) => {
+                  const brandStyle: BrandHueStyle = { ["--brand-hue"]: n.brandHue };
+                  return (
+                    <span key={n.chainId} className="chainBrandMark" style={brandStyle}>
+                      <ChainLogo chainId={n.chainId} size={24} />
+                    </span>
+                  );
+                })}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -218,7 +234,9 @@ export function FeedTopbarControls(props: Props) {
       <Modal open={isNetworksOpen} title="Networks" onClose={() => setIsNetworksOpen(false)}>
         <div className="feedNetworksModal">
           <div className="muted">
-            {isConnected
+            {isWrongNetwork
+              ? "Wrong network. Select a supported network to switch your wallet before posting or interacting."
+              : isConnected
               ? "Showing your connected network by default. Switch networks to change what the feed/search queries."
               : "Select one or more networks to filter the feed."}
           </div>

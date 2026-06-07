@@ -5,7 +5,7 @@ import { useComposerMedia } from "../hooks/useComposerMedia";
 import { useMintPostFlow } from "../hooks/useMintPostFlow";
 import { usePosterApproval } from "../hooks/usePosterApproval";
 import { useContractActionsFacade } from "@features/contract";
-import { useFeedActions, useFeedState } from "@features/feed";
+import { isSupportedNetworkChainId, useFeedActions, useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useTxNotifications } from "@features/tx";
 import { useWalletState } from "@features/wallet";
@@ -25,6 +25,12 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
   const ipfsConfigured = hasPinata();
+  const isUnsupportedNetwork = Boolean(walletAddress && !isSupportedNetworkChainId(chainId));
+  const postDisabledReason = isUnsupportedNetwork
+    ? chainId
+      ? "Wrong network. Select a supported network before posting."
+      : "Select a supported network before posting."
+    : null;
 
   const openComposer = useCallback(() => setIsComposerOpen(true), []);
   const closeComposer = useCallback(() => setIsComposerOpen(false), []);
@@ -56,7 +62,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
     runContractTx,
     txNotifications,
     setStatus,
-    posterApproval
+    posterApproval,
+    isUnsupportedNetwork,
+    unsupportedNetworkMessage: postDisabledReason
   });
 
   const value = useMemo<ComposerContextValue>(
@@ -68,6 +76,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       draft,
       isImageLoading: media.isImageLoading,
       isPosting: mintFlow.isPosting,
+      postDisabledReason,
       handleDraftChange,
       onComposerImageUrlChange: media.onComposerImageUrlChange,
       onComposerClearImage: media.onComposerClearImage,
@@ -86,6 +95,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
       ipfsConfigured,
       draft,
       media.isImageLoading,
+      postDisabledReason,
       media.onComposerImageUrlChange,
       media.onComposerClearImage,
       media.onSelectComposerFile,

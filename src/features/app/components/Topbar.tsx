@@ -8,6 +8,7 @@ type Props = {
   theme: "light" | "dark";
   onToggleTheme: () => void;
   walletAddress: string | null;
+  canCreatePost?: boolean;
   onConnectWallet: () => void;
   onOpenComposer: () => void;
   onOpenNotifications?: () => void;
@@ -22,6 +23,7 @@ export function Topbar({
   theme,
   onToggleTheme,
   walletAddress,
+  canCreatePost,
   onConnectWallet,
   onOpenComposer,
   onOpenNotifications,
@@ -35,6 +37,7 @@ export function Topbar({
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const showCreatePost = Boolean(walletAddress && (canCreatePost ?? true));
 
   const closeOverflowMenu = () => {
     if (detailsRef.current) detailsRef.current.open = false;
@@ -65,7 +68,7 @@ export function Topbar({
         </Link>
 
         <div className="topbarControls">
-          {walletAddress ? (
+          {showCreatePost ? (
             <button
               className={`primary iconButton ${composeNudge ? "composeNudge" : ""}`}
               type="button"

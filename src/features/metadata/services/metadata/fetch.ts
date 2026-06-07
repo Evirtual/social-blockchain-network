@@ -1,11 +1,11 @@
 import type { TokenMetadata } from "@types";
-import { ipfsToHttpCandidates } from "@features/ipfs";
+import { getIpfsMetadataGatewayBases, ipfsToHttpCandidates } from "@features/ipfs";
 import { parseTokenMetadataFromDataUri, parseTokenMetadataJson, type TokenMetadataJson } from "./parse";
 
 type TokenMetadataFetchResult = { value: TokenMetadata; ok: boolean };
 
 async function fetchTokenMetadataFromNetwork(tokenUri: string): Promise<TokenMetadataFetchResult> {
-  const urls = ipfsToHttpCandidates(tokenUri);
+  const urls = ipfsToHttpCandidates(tokenUri, getIpfsMetadataGatewayBases());
   const totalTimeoutMs = 4_500;
   const perAttemptTimeoutMs = Math.max(1_500, Math.floor(totalTimeoutMs / Math.max(1, urls.length)));
 

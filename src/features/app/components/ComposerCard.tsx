@@ -7,6 +7,7 @@ type Props = {
   draft: Draft;
   isImageLoading: boolean;
   isPosting: boolean;
+  postDisabledReason?: string | null;
   onDraftFieldChange: (field: keyof Draft, value: string) => void;
   onSelectFile: (file: File | null) => void;
   onClearImage: () => void;
@@ -17,6 +18,7 @@ export function ComposerCard({
   draft,
   isImageLoading,
   isPosting,
+  postDisabledReason,
   onDraftFieldChange,
   onSelectFile,
   onClearImage,
@@ -31,6 +33,8 @@ export function ComposerCard({
     onClearImage();
   };
   const hasPreview = Boolean(draft.imageDataUrl);
+  const hasContent = Boolean(draft.body.trim() || draft.imageDataUrl);
+  const isPostDisabled = isImageLoading || isPosting || !hasContent || Boolean(postDisabledReason);
 
   return (
     <div className="composer">
@@ -111,12 +115,14 @@ export function ComposerCard({
         <button
           className="primary buttonWithSpinner"
           onClick={onPost}
-          disabled={isImageLoading || isPosting || (!draft.body.trim() && !draft.imageDataUrl)}
+          disabled={isPostDisabled}
+          title={postDisabledReason ?? undefined}
         >
           {isPosting ? <span className="spinner" aria-hidden="true" /> : null}
           Post
         </button>
       </div>
+      {postDisabledReason ? <div className="composerBlockReason muted">{postDisabledReason}</div> : null}
     </div>
   );
 }
