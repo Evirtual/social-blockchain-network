@@ -23,8 +23,8 @@ RATE_LIMIT_MAX_REQUESTS = "60"
 # Upstream subgraph endpoints (Graph Studio / hosted service).
 # Leave blank to disable that route.
 SUBGRAPH_ETH_URL = ""
-SUBGRAPH_ETH_SEPOLIA_URL = "https://api.studio.thegraph.com/query/1721419/ethereum-sepolia/v1.0.0-testnet"
+SUBGRAPH_ETH_SEPOLIA_URL = "https://api.studio.thegraph.com/query/1721419/ethereum-sepolia/version/latest"
 SUBGRAPH_BASE_URL = ""
-SUBGRAPH_BASE_SEPOLIA_URL = "https://api.studio.thegraph.com/query/1721419/base-sepolia/v1.0.0-testnet"
+SUBGRAPH_BASE_SEPOLIA_URL = "https://api.studio.thegraph.com/query/1721419/base-sepolia/version/latest"
 SUBGRAPH_BSC_URL = ""
-SUBGRAPH_BSC_TESTNET_URL = "https://api.studio.thegraph.com/query/1721419/bsc-testnet/v1.0.0-testnet"
+SUBGRAPH_BSC_TESTNET_URL = "https://api.studio.thegraph.com/query/1721419/bsc-testnet/version/latest"
