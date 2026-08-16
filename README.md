@@ -63,7 +63,7 @@ To deploy via GitHub Pages:
 2. In GitHub → Settings → Secrets and variables → Actions, add repo variables for the `VITE_*` values you want to bake into the build (see `.env.example`).
 3. Push to `main` to trigger `.github/workflows/pages.yml`.
 
-Note: the workflow sets `VITE_BASE=/<repo>/` so asset paths work on Pages.
+Note: the workflow sets `VITE_BASE=/` and `public/CNAME` pins the custom domain (`social.edgarasneverdauskas.com`) so asset paths and the domain persist across Pages deploys.
 
 ## Deploying to Ethereum + Base
 
