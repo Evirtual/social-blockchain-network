@@ -24,6 +24,25 @@
   box-shadow: t.$card-shadow;
 }
 
+/* Frosted panel used by every floating surface (modals, menus, popovers).
+   Keeps the surface translucent while blurring whatever sits behind it, so page
+   content reads as texture instead of bleeding through as legible text. */
+@mixin glass-panel(
+  $blur: var(--glass-blur),
+  $bg: var(--glass-bg),
+  $fallback: color-mix(in srgb, var(--bg) 97%, var(--surface-2))
+) {
+  background: $bg;
+  /* Unprefixed only: the build adds -webkit- for the configured targets. Hand-writing
+     both here makes the minifier collapse them down to just the prefixed one. */
+  backdrop-filter: blur($blur) saturate(var(--glass-saturate));
+
+  /* No backdrop-filter support: fall back to an opaque panel rather than a see-through one. */
+  @supports not ((backdrop-filter: blur(0.0625rem)) or (-webkit-backdrop-filter: blur(0.0625rem))) {
+    background: $fallback;
+  }
+}
+
 @mixin skeleton-base($bg, $highlight) {
   position: relative;
   overflow: hidden;

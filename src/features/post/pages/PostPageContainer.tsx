@@ -44,9 +44,11 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     feedState.demoStep === "approve" &&
     !!feedState.isFeedLoading;
 
-  // On hard refresh, the wallet provider can be null briefly even though the user is connected.
-  // Keep skeleton until provider is ready so loaders don't early-return and flicker.
-  const isProviderNotReadyGate = !isDemoTokenId && feedState.isLiveFeedEnabled && !wallet.provider;
+  // NOTE: deliberately no "wait for the wallet provider" gate here.
+  // Reads fall back to the configured RPC / subgraph (see getReadContext), so a logged-out
+  // visitor can load a post and its comments. Gating on `wallet.provider` pinned the comments
+  // spinner on forever for anyone without a connected wallet. When a provider does appear the
+  // loader callbacks change identity, so the effects below re-run on their own.
   const demoSeed = useMemo(() => {
     if (!isDemoTokenId) return null;
     const parts = tokenId.split("-");
@@ -94,9 +96,8 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
   useEffect(() => {
     if (isDemoTokenId) return;
     if (isApprovalLoadingGate) return;
-    if (isProviderNotReadyGate) return;
     void loadCommentsForPost(tokenId, postChainId);
-  }, [isDemoTokenId, isApprovalLoadingGate, isProviderNotReadyGate, tokenId, postChainId, loadCommentsForPost]);
+  }, [isDemoTokenId, isApprovalLoadingGate, tokenId, postChainId, loadCommentsForPost]);
 
   useEffect(() => {
     if (isDemoTokenId) {
@@ -105,7 +106,7 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
       return;
     }
 
-    if (isApprovalLoadingGate || isProviderNotReadyGate) {
+    if (isApprovalLoadingGate) {
       setIsPostLoading(true);
       setHasAttemptedLoad(false);
       return;
@@ -135,7 +136,7 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isDemoTokenId, isApprovalLoadingGate, isProviderNotReadyGate, tokenId, postChainId, loadPostsByTokenIds]);
+  }, [isDemoTokenId, isApprovalLoadingGate, tokenId, postChainId, loadPostsByTokenIds]);
 
   const post =
     feedState.posts.find((p) => p.tokenId === tokenId && (postChainId ? String(p.chainId ?? "") === String(postChainId) : true)) ??
@@ -159,11 +160,11 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
 
   const resolvedComments = isDemoTokenId ? (demoComments ?? []) : feedState.postComments[commentsKey] ?? [];
   const resolvedIsLoadingComments =
-    isDemoTokenId ? false : isApprovalLoadingGate || isProviderNotReadyGate ? true : !!feedState.isLoadingPostComments[commentsKey];
+    isDemoTokenId ? false : isApprovalLoadingGate ? true : !!feedState.isLoadingPostComments[commentsKey];
   const resolvedIsPostLoading =
     isDemoTokenId
       ? false
-      : isApprovalLoadingGate || isProviderNotReadyGate
+      : isApprovalLoadingGate
         ? true
         : post
           ? false

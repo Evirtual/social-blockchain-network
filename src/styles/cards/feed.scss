@@ -1,4 +1,5 @@
 @use "../breakpoints" as bp;
+@use "../mixins" as m;
 
 /* Split from src/styles/cards.css (feed header + filters) */
 
@@ -448,10 +449,12 @@
   padding: 0.625rem;
   border-radius: var(--radius-md);
   border: 0.0625rem solid var(--border);
-  background: var(--accent);
+  @include m.glass-panel(
+    $bg: color-mix(in srgb, var(--accent) 62%, transparent),
+    $fallback: color-mix(in srgb, var(--accent) 62%, var(--bg))
+  );
+
   box-shadow: var(--shadow);
-  backdrop-filter: blur(0.75rem);
-  -webkit-backdrop-filter: blur(0.75rem);
   overflow: hidden;
   isolation: isolate;
 
