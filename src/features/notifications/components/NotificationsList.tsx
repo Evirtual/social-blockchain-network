@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactElement, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { formatEther } from "ethers";
 import { getAvatarStyle } from "@shared/lib/avatar";
@@ -72,7 +72,7 @@ function getKindClass(kind: string): string {
   return "isDefault";
 }
 
-function getKindIcon(kind: string): { icon: JSX.Element; label: string; isFilled: boolean } {
+function getKindIcon(kind: string): { icon: ReactElement; label: string; isFilled: boolean } {
   switch (kind) {
     case "FOLLOWED":
       return { icon: <IconRepeat size={14} />, label: "Followed", isFilled: false };
