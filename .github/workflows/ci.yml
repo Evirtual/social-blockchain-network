@@ -1,11 +1,20 @@
 name: CI
 
-# Runs on every push and pull request, including branches that never deploy.
-# The Pages workflow only builds main, so without this nothing enforces the
-# type checks or the test suite.
+# pull_request does the real work here. It fires when a PR opens and again on
+# every push to it, and it tests the branch *merged into main* rather than the
+# branch alone - so a change that only breaks in combination with what landed on
+# main in the meantime is caught before the merge instead of after it.
+#
+# push on main is the safety net: it re-runs the suite on the merge commit, and
+# covers anything that reaches main by another route.
+#
+# Deliberately not push on every branch as well. With both triggers an open PR
+# gets two identical runs, and the concurrency group below cannot collapse them
+# because it keys on github.ref, which differs between the events
+# (refs/heads/<branch> for a push vs refs/pull/<n>/merge for a PR).
 on:
   push:
-    branches-ignore: []
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
