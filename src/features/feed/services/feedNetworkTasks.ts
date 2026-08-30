@@ -1,11 +1,11 @@
 import type { Post } from "@types";
 import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
-import type { FeedNetworkConfig } from "./feedNetworks";
+import type { ContractNetworkConfig } from "@features/contract/services/contractNetworks";
 
 export async function getFeedNetworkTasks(args: {
   currentChainIdNumber: number | null;
-  configuredNetworks: FeedNetworkConfig[];
-  extraNetworks: FeedNetworkConfig[];
+  configuredNetworks: ContractNetworkConfig[];
+  extraNetworks: ContractNetworkConfig[];
   provider: ChainProvider | null | undefined;
   walletAddress: string | null | undefined;
 
@@ -15,7 +15,7 @@ export async function getFeedNetworkTasks(args: {
   getReadContract: ReadContractFactory;
 
   getRpcProvider: (url: string, chainIdNum: number) => ChainProvider;
-  resolveRpcContractAddress: (cfg: FeedNetworkConfig, rpcProvider: ChainProvider) => Promise<string>;
+  resolveRpcContractAddress: (cfg: ContractNetworkConfig, rpcProvider: ChainProvider) => Promise<string>;
 
   taskTimeoutMs: number;
   withTimeout: <T>(promise: Promise<T>, ms: number, label: string) => Promise<T>;
