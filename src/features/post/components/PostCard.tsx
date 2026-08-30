@@ -6,7 +6,7 @@ import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@sha
 import { getPostUrl } from "@features/post/services";
 import { useStatusActions } from "@features/status";
 import { runSocialAction } from "@features/social/services/actions/runSocialAction";
-import { getAvatarStyle, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
+import { getAvatarStyle, PostBurnModal, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
 import { useFeedState } from "@features/feed";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { requestComposeNudge } from "@shared/lib/composeNudge";
@@ -91,6 +91,7 @@ export const PostCard = memo(function PostCard(props: Props) {
   const [reportDraft, setReportDraft] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
+  const [isBurnConfirmOpen, setIsBurnConfirmOpen] = useState(false);
 
   const { setStatus } = useStatusActions();
 
@@ -155,11 +156,18 @@ export const PostCard = memo(function PostCard(props: Props) {
     props.onStartEditPost(props.post);
   }, [props.onStartEditPost, props.post]);
 
-  const onBurn = useCallback(async () => {
+  // The header icon only asks; nothing is destroyed until the dialog confirms.
+  const onRequestBurn = useCallback(() => {
+    if (isBurning) return;
+    setIsBurnConfirmOpen(true);
+  }, [isBurning]);
+
+  const onConfirmBurn = useCallback(async () => {
     if (isBurning) return;
     setIsBurning(true);
     try {
       await props.onBurn(tokenId, postChainId);
+      setIsBurnConfirmOpen(false);
     } finally {
       setIsBurning(false);
     }
@@ -232,6 +240,16 @@ export const PostCard = memo(function PostCard(props: Props) {
           canModerate={props.canModerate}
         />
       </Modal>
+      <PostBurnModal
+        open={isBurnConfirmOpen}
+        avatarStyle={avatarStyle}
+        postBody={props.post.body ?? ""}
+        onConfirm={onConfirmBurn}
+        onClose={() => setIsBurnConfirmOpen(false)}
+        isBurning={isBurning}
+        requiresNetworkSwitch={requiresNetworkSwitch}
+        interactionDisabledTitle={interactionDisabledTitle}
+      />
       <PostReportModal
         open={isReportOpen}
         avatarStyle={avatarStyle}
@@ -264,7 +282,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         onOpenReport={onOpenReport}
         reportDisabled={isDemoNotApproved}
         onStartEdit={onStartEdit}
-        onBurn={onBurn}
+        onBurn={onRequestBurn}
       />
 
       <PostCardBody
