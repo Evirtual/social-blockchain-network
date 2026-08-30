@@ -1,0 +1,92 @@
+name: CI
+
+# Runs on every push and pull request, including branches that never deploy.
+# The Pages workflow only builds main, so without this nothing enforces the
+# type checks or the test suite.
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run per branch; superseded pushes are cancelled.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Typecheck before tests: a type error explains a failing suite, and the
+      # reverse ordering buries it under unrelated test noise.
+      - name: Typecheck
+        run: npx tsc -b --pretty false
+
+      - name: Test
+        run: npm run test:frontend
+
+      # The build is what Pages deploys. Catching a build break here means it
+      # never reaches the deploy workflow.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_ETH_SEPOLIA_SUBGRAPH_URL: ${{ vars.VITE_ETH_SEPOLIA_SUBGRAPH_URL }}
+          VITE_BASE_SEPOLIA_SUBGRAPH_URL: ${{ vars.VITE_BASE_SEPOLIA_SUBGRAPH_URL }}
+          VITE_BSC_TESTNET_SUBGRAPH_URL: ${{ vars.VITE_BSC_TESTNET_SUBGRAPH_URL }}
+
+  workers:
+    name: Workers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The workers have their own tsconfig and are not covered by the
+      # frontend build, so a break there is otherwise only found on deploy.
+      - name: Typecheck workers
+        run: npx tsc --noEmit -p workers/tsconfig.json
+
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install contract dependencies
+        run: npm --prefix contracts ci
+
+      - name: Test
+        run: npm --prefix contracts test

@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from "react";
 import type { Post } from "@types";
-import { profileKey } from "../lib/profileKey";
+import { profileKey, type ProfileKey } from "../lib/profileKey";
 
 export function usePrefetchMissingAuthorProfiles(
   enabled: boolean,
   posts: Post[],
-  profilesByAddress: Record<string, { name: string; bio: string; avatarUrl: string }>,
+  profilesByAddress: Record<ProfileKey, { name: string; bio: string; avatarUrl: string }>,
   loadProfile: (address: string, chainIdOverride?: string | null) => Promise<void>,
   concurrencyLimit = 4
 ) {

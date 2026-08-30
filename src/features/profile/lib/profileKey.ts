@@ -8,8 +8,17 @@
  *
  * Matches the `chainId:address` convention already used for like/save edges.
  */
-export function profileKey(chainId: string | number | null | undefined, address: string): string {
+/**
+ * Branded so a plain address cannot be passed where a key belongs.
+ *
+ * Both are strings, so without this the compiler accepts either in either
+ * position - which is exactly how the follow lookup and the avatar hue ended up
+ * indexed by the wrong one.
+ */
+export type ProfileKey = string & { readonly __brand: "ProfileKey" };
+
+export function profileKey(chainId: string | number | null | undefined, address: string): ProfileKey {
   const chain = String(chainId ?? "").trim().toLowerCase();
   const account = String(address ?? "").trim().toLowerCase();
-  return `${chain}:${account}`;
+  return `${chain}:${account}` as ProfileKey;
 }

@@ -1,4 +1,4 @@
-import { profileKey } from "../lib/profileKey";
+import { profileKey, type ProfileKey } from "../lib/profileKey";
 import type { Post } from "@types";
 import type { BrowserProvider } from "ethers";
 import { useProfileRouteEffects } from "./useProfileRouteEffects";
@@ -31,7 +31,7 @@ export function useProfilePageData(args: {
     loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
   };
   profileState: {
-    profilesByAddress: Record<string, { name?: string; bio?: string; avatarUrl?: string }>;
+    profilesByAddress: Record<ProfileKey, { name?: string; bio?: string; avatarUrl?: string }>;
   };
   profileActions: {
     loadProfile: (address: string) => Promise<void>;

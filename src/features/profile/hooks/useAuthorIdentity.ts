@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Post } from "@types";
 import { stableHueFromSeed } from "@shared/lib/formatters";
-import { profileKey } from "../lib/profileKey";
+import { profileKey, type ProfileKey } from "../lib/profileKey";
 
 export type AuthorIdentity = { name: string; hue: number; avatarUrl?: string };
 
@@ -12,7 +12,7 @@ export type AuthorIdentity = { name: string; hue: number; avatarUrl?: string };
  */
 export function useAuthorIdentity(
   posts: Post[],
-  profilesByAddress: Record<string, { name: string; bio: string; avatarUrl: string }>
+  profilesByAddress: Record<ProfileKey, { name: string; bio: string; avatarUrl: string }>
 ) {
   return useMemo(() => {
     const map = new Map<string, AuthorIdentity>();

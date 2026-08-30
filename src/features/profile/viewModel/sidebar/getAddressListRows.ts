@@ -1,4 +1,4 @@
-import { profileKey } from "../../lib/profileKey";
+import { profileKey, type ProfileKey } from "../../lib/profileKey";
 import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getAvatarStyle } from "@shared/lib/avatar";
 
@@ -11,7 +11,7 @@ export type AddressListRow = {
 export function getAddressListRows(args: {
   addresses: string[];
   chainId: string | null;
-  profilesByAddress: Record<string, { avatarUrl: string } | undefined>;
+  profilesByAddress: Record<ProfileKey, { avatarUrl: string } | undefined>;
   shortAddress: (address: string) => string;
 }): AddressListRow[] {
   return args.addresses.map((addr) => {
