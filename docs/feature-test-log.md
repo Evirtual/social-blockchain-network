@@ -44,19 +44,31 @@ the user gets no indication their choice did not take effect.
 page rather than a not-found state. Harmless, but a visitor following a stale
 link has no idea the address was wrong.
 
+## Write paths exercised
+
+Tested against Base Sepolia with a real wallet (Rabby).
+
+**Tipping more than the balance.** Rejected before any transaction: no wallet
+prompt, no gas, and the dialog shows "Not enough balance to tip 1. You have
+0.079773, and gas is charged on top." This was the originally reported bug,
+where the message wrongly blamed image size.
+
+**Tipping an affordable amount.** 0.00001 ETH passed the balance check, reached
+the wallet, and settled. The post total moved 0.000385 to 0.000395 immediately
+and the dialog closed. The optimistic update means the tipper sees their own
+action at once rather than waiting for the subgraph, so the fifteen second
+event throttle does not delay self-initiated feedback.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
 - Minting a post, including image and video upload through IPFS
 - Editing and burning a post
+- Tipping a comment, and the support-percentage split on either
 - Like, unlike, save, unsave
 - Commenting, editing and deleting a comment
-- Tipping a post or comment, and the support-percentage split
 - Follow and unfollow
 - Withdrawing tips
 - Requesting posting approval, and the owner approving or disapproving
 - Admin moderation: editing a profile, clearing a profile, removing a post
-
-The insufficient-balance path on tipping is worth exercising deliberately, since
-that was the original reported bug and its fix has only been unit tested.
