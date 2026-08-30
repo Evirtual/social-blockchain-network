@@ -50,7 +50,7 @@ export function NotificationsHistoryPage() {
 
   useTopbarCenter(topbarCenter);
 
-  const { items, loading, schemaMismatch, amountWeiUnsupported, error, subgraphUrl } = useNotifications({
+  const { items, loading, schemaMismatch, error, subgraphUrl } = useNotifications({
     open: true,
     walletAddress: wallet.walletAddress,
     chainId: wallet.chainId,
@@ -72,19 +72,6 @@ export function NotificationsHistoryPage() {
   }, [wallet.chainId, wallet.walletAddress]);
 
   const body = useMemo(() => {
-    const compatNote = amountWeiUnsupported ? (
-      <section className="card hero isCompact notificationsCompatHero">
-        <div className="heroSub muted">You're using an older subgraph version. Some notifications may be incomplete.</div>
-        <div className="heroBullets" role="list">
-          <div className="pill" role="listitem">
-            Tip amounts
-          </div>
-          <div className="pill" role="listitem">
-            Newer notification types
-          </div>
-        </div>
-      </section>
-    ) : null;
 
     if (!wallet.walletAddress) return <div className="muted">Connect your wallet to view notifications.</div>;
 
@@ -97,7 +84,6 @@ export function NotificationsHistoryPage() {
     if (error) {
       return (
         <>
-          {compatNote}
           <div className="muted">Failed to load notifications: {error}</div>
         </>
       );
@@ -106,7 +92,6 @@ export function NotificationsHistoryPage() {
     if (loading) {
       return (
         <>
-          {compatNote}
           <div className="list" aria-busy="true">
             <div className="listRow" aria-hidden="true">
               <span className="listRowLeft">
@@ -126,7 +111,6 @@ export function NotificationsHistoryPage() {
       if (showBurned && items.length > 0) {
         return (
           <>
-            {compatNote}
             <div className="muted">No removed/burned notifications.</div>
           </>
         );
@@ -135,14 +119,12 @@ export function NotificationsHistoryPage() {
       if (!showBurned && items.length > 0) {
         return (
           <>
-            {compatNote}
             <div className="muted">No notifications (removed/burned hidden). Enable “Removed posts” to view them.</div>
           </>
         );
       }
       return (
         <>
-          {compatNote}
           <div className="muted">No notifications yet.</div>
         </>
       );
@@ -150,7 +132,6 @@ export function NotificationsHistoryPage() {
 
     return (
       <>
-        {compatNote}
         <NotificationsList
           items={visibleItems}
           lastSeenTs={lastSeenTs}
@@ -166,7 +147,6 @@ export function NotificationsHistoryPage() {
     wallet.chainId,
     subgraphUrl,
     schemaMismatch,
-    amountWeiUnsupported,
     error,
     loading,
     items,

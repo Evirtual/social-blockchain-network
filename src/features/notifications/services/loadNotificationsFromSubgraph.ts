@@ -9,8 +9,6 @@ import { isCommentDeleted } from "@shared/lib/deletedCommentsCache";
 const inFlight: InFlightMap<{
   items: NotificationItem[];
   schemaMismatch: boolean;
-  amountWeiUnsupported: boolean;
-  supportBpsUnsupported: boolean;
 }> = {};
 const CACHE_TTL_MS = 20 * 1000;
 const BURNED_CHECK_LIMIT = 200;
@@ -98,22 +96,20 @@ export async function loadNotificationsFromSubgraph(args: {
   first?: number;
   bypassCache?: boolean;
   chainIdStr?: string | null;
-}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean; amountWeiUnsupported: boolean; supportBpsUnsupported: boolean }> {
+}): Promise<{ items: NotificationItem[]; schemaMismatch: boolean }> {
   const first = Math.max(1, Math.min(200, Number(args.first ?? 50)));
   const recipient = String(args.recipient ?? "").trim().toLowerCase();
   const url = String(args.url ?? "").trim();
   const bypassCache = Boolean(args.bypassCache);
   const chainIdStr = typeof args.chainIdStr === "string" ? args.chainIdStr.trim() : "";
 
-  if (!url || !recipient) return { items: [], schemaMismatch: false, amountWeiUnsupported: false, supportBpsUnsupported: false };
+  if (!url || !recipient) return { items: [], schemaMismatch: false };
 
   const cacheKey = `socialBlockchainNetwork.notifications.${recipient}.${first}.${url}`;
   if (!bypassCache) {
     const cached = readLocalCache<{
       items?: NotificationItem[];
       schemaMismatch?: boolean;
-      amountWeiUnsupported?: boolean;
-      supportBpsUnsupported?: boolean;
       ts?: number;
     }>(cacheKey);
     if (
@@ -124,15 +120,13 @@ export async function loadNotificationsFromSubgraph(args: {
       return {
         items: filterDeleted(cached.items, chainIdStr),
         schemaMismatch: Boolean(cached?.schemaMismatch),
-        amountWeiUnsupported: Boolean(cached?.amountWeiUnsupported),
-        supportBpsUnsupported: Boolean(cached?.supportBpsUnsupported)
       };
     }
   }
 
   const inFlightKey = bypassCache ? `${cacheKey}.fresh` : cacheKey;
   return await runInFlight(inFlight, inFlightKey, async () => {
-    const queryWithMessageAmountAndSupport = `
+    const notificationsQuery = `
       query Notifications($first: Int!, $recipient: ID!) {
         notifications(
           first: $first,
@@ -157,124 +151,22 @@ export async function loadNotificationsFromSubgraph(args: {
       }
     `;
 
-    const queryWithAmountAndSupport = `
-      query Notifications($first: Int!, $recipient: ID!) {
-        notifications(
-          first: $first,
-          orderBy: timestamp,
-          orderDirection: desc,
-          where: { recipient: $recipient }
-        ) {
-          id
-          kind
-          tokenId
-          commentId
-          amountWei
-          supportBps
-          timestamp
-          actor {
-            id
-            name
-            avatar
-          }
-        }
-      }
-    `;
-
-    // Backwards compatibility:
-    // - Older subgraphs may not have Notification.amountWei
-    // - Even newer notifications add supportBps (basis points)
-    // Retry with progressively older queries.
-    const queryWithAmountOnly = `
-      query Notifications($first: Int!, $recipient: ID!) {
-        notifications(
-          first: $first,
-          orderBy: timestamp,
-          orderDirection: desc,
-          where: { recipient: $recipient }
-        ) {
-          id
-          kind
-          tokenId
-          commentId
-          amountWei
-          timestamp
-          actor {
-            id
-            name
-            avatar
-          }
-        }
-      }
-    `;
-
-    const queryWithoutAmountWei = `
-      query Notifications($first: Int!, $recipient: ID!) {
-        notifications(
-          first: $first,
-          orderBy: timestamp,
-          orderDirection: desc,
-          where: { recipient: $recipient }
-        ) {
-          id
-          kind
-          tokenId
-          commentId
-          timestamp
-          actor {
-            id
-            name
-            avatar
-          }
-        }
-      }
-    `;
-
-    const runQuery = async (query: string) =>
-      await querySubgraph<{ notifications: SubgraphNotificationRow[] }>({
+    let data: { notifications: SubgraphNotificationRow[] };
+    try {
+      data = await querySubgraph<{ notifications: SubgraphNotificationRow[] }>({
         url,
-        query,
+        query: notificationsQuery,
         variables: { first, recipient } satisfies SubgraphVariables,
         timeoutMs: 8_000
       });
-
-    let data: { notifications: SubgraphNotificationRow[] };
-    let schemaMismatch = false;
-
-    let amountWeiUnsupported = false;
-    let supportBpsUnsupported = false;
-    try {
-      data = await runQuery(queryWithMessageAmountAndSupport);
     } catch (err) {
       if (!isLikelySubgraphSchemaMismatch(err)) throw err;
 
-      try {
-        // Try dropping message first.
-        data = await runQuery(queryWithAmountAndSupport);
-      } catch (err2) {
-        if (!isLikelySubgraphSchemaMismatch(err2)) throw err2;
-
-        try {
-          // Try dropping supportBps next.
-          supportBpsUnsupported = true;
-          data = await runQuery(queryWithAmountOnly);
-        } catch (err3) {
-          if (!isLikelySubgraphSchemaMismatch(err3)) throw err3;
-
-          // Likely even older subgraph: no amountWei.
-          amountWeiUnsupported = true;
-          try {
-            data = await runQuery(queryWithoutAmountWei);
-          } catch (err4) {
-            if (isLikelySubgraphSchemaMismatch(err4)) {
-              const res = { items: [], schemaMismatch: true, amountWeiUnsupported: true, supportBpsUnsupported: true };
-              writeLocalCache(cacheKey, { ...res, ts: Date.now() });
-              return res;
-            }
-            throw err4;
-          }
-        }
-      }
+      // The deployed subgraph is older than this client. Surface it rather than
+      // degrading the query, so the mismatch gets fixed by redeploying.
+      const res = { items: [], schemaMismatch: true };
+      writeLocalCache(cacheKey, { ...res, ts: Date.now() });
+      return res;
     }
 
     const rows = Array.isArray(data?.notifications) ? data.notifications : [];
@@ -315,7 +207,7 @@ export async function loadNotificationsFromSubgraph(args: {
       }
     }
 
-    const res = { items: filtered, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported };
+    const res = { items: filtered, schemaMismatch: false };
     writeLocalCache(cacheKey, { ...res, ts: Date.now() });
     return res;
   });
