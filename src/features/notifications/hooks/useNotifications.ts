@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { NotificationItem } from "../types";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFromSubgraph";
 import { getEnv, getEnvBoolean } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -9,14 +8,15 @@ import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/soci
 import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
 import { useContractState } from "@features/contract";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
+import { initialNotificationsState, notificationsReducer } from "../lib/notificationsState";
 
 const EVENT_REFRESH_INTERVAL_MS = 15_000;
 
 export function useNotifications(args: { open: boolean; walletAddress: string | null; chainId: string | null; first?: number }) {
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [schemaMismatch, setSchemaMismatch] = useState(false);
-  const [error, setError] = useState<string>("");
+  // One reducer rather than four independent setters: the list, the error and
+  // the loading flag can no longer contradict each other.
+  const [state, dispatch] = useReducer(notificationsReducer, initialNotificationsState);
+  const { items, error, schemaMismatch, isLoading: loading } = state;
   const refreshTimeoutRef = useRef<number | null>(null);
   const { isOwner } = useContractState();
 
@@ -28,6 +28,16 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
 
   const subgraphUrl = useMemo(() => getSubgraphUrlForChainId(env, chainIdNum), [env, chainIdNum]);
   const demoModeEnabled = getEnvBoolean(env, "VITE_DEMO_MODE", false);
+
+  // Notifications belong to one account on one chain. Without clearing, a load
+  // that fails after switching would keep the previous account visible.
+  const identity = `${args.chainId ?? ""}:${(args.walletAddress ?? "").toLowerCase()}`;
+  const lastIdentityRef = useRef(identity);
+  useEffect(() => {
+    if (lastIdentityRef.current === identity) return;
+    lastIdentityRef.current = identity;
+    dispatch({ type: "reset" });
+  }, [identity]);
 
   const [gateEpoch, setGateEpoch] = useState(0);
   useEffect(() => {
@@ -43,7 +53,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
 
     // Demo mode: only seed notifications while the wallet is not approved (live feed disabled).
     const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
-    setItems((prev) => (prev.length ? prev : filterNotificationsForViewer(demo, isOwner)));
+    dispatch({ type: "seed-demo", items: filterNotificationsForViewer(demo, isOwner) });
   }, [args.open, args.walletAddress, args.chainId, demoModeEnabled, env, gateEpoch, isOwner]);
 
   useEffect(() => {
@@ -56,8 +66,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError("");
+    dispatch({ type: "load-started" });
 
     loadNotificationsFromSubgraph({
       url: subgraphUrl,
@@ -67,27 +76,28 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     })
       .then((res) => {
         if (cancelled) return;
-        setSchemaMismatch(res.schemaMismatch);
         const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
 
-        // If we're approved (live), always show the real subgraph result (even if empty).
-        if (res.items.length > 0 || !canUseDemoFallback) {
-          setItems(filterNotificationsForViewer(res.items, isOwner));
-        } else {
+        // Live results always win, including an empty one. Demo notifications
+        // stand in only while the wallet is unapproved and nothing real exists.
+        if (res.items.length === 0 && canUseDemoFallback) {
           const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
-          setItems((prev) => (prev.length ? prev : filterNotificationsForViewer(demo, isOwner)));
+          dispatch({ type: "seed-demo", items: filterNotificationsForViewer(demo, isOwner) });
+          return;
         }
+
+        dispatch({
+          type: "load-succeeded",
+          items: filterNotificationsForViewer(res.items, isOwner),
+          schemaMismatch: res.schemaMismatch
+        });
       })
       .catch((err) => {
         if (cancelled) return;
-        const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
-        setItems((prev) => (canUseDemoFallback && prev.length ? prev : []));
-        setSchemaMismatch(false);
-        setError(err instanceof Error ? err.message : String(err ?? ""));
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
+        dispatch({
+          type: "load-failed",
+          message: err instanceof Error ? err.message : String(err ?? "")
+        });
       });
 
     return () => {
@@ -118,13 +128,17 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
         })
           .then((res) => {
             if (cancelled) return;
-            setSchemaMismatch(res.schemaMismatch);
-            if (res.items.length > 0) {
-              setItems(filterNotificationsForViewer(res.items, isOwner));
-            }
+            // Applied even when empty: a list that has genuinely been cleared
+            // must not keep showing items the previous load happened to find.
+            dispatch({
+              type: "refresh-succeeded",
+              items: filterNotificationsForViewer(res.items, isOwner),
+              schemaMismatch: res.schemaMismatch
+            });
           })
           .catch(() => {
-            // ignore background refresh errors
+            if (cancelled) return;
+            dispatch({ type: "refresh-failed" });
           });
       }, 400);
     };
