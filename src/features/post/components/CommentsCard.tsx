@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getPostNetworkUi } from "@shared/lib/network";
 import { useContractState } from "@features/contract";
-import { useProfileActions, useProfileState } from "@features/profile";
+import { profileKey, useProfileActions, useProfileState } from "@features/profile";
 import { CommentItem } from "./comments/CommentItem";
 import { NewCommentComposer } from "./comments/NewCommentComposer";
 import type { ActionInFlight, ActiveComposer } from "./comments/types";
@@ -99,7 +99,7 @@ export function CommentsCard(props: Props) {
       new Set(visibleComments.map((c) => (c.author ? c.author.toLowerCase() : "")).filter(Boolean))
     );
     if (unique.length === 0) return [];
-    return unique.filter((addr) => !profileState.profilesByAddress[addr]);
+    return unique.filter((addr) => !profileState.profilesByAddress[profileKey(resolvedChainId, addr)]);
   }, [props.disableAuthorProfileLookup, visibleComments, profileState.profilesByAddress, explorerChainId]);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export function CommentsCard(props: Props) {
           if (!addr) continue;
           try {
             // Reuse the Profile feature loader (deduped + gated).
-            await profileActions.loadProfile(addr);
+            await profileActions.loadProfile(addr, resolvedChainId);
           } catch {
             // ignore
           }
@@ -160,10 +160,10 @@ export function CommentsCard(props: Props) {
 
   const getDisplayProfile = useCallback(
     (address: string) => {
-      const key = address.toLowerCase();
-      return profileState.profilesByAddress[key];
+      // Every comment here belongs to one post, so they all share its chain.
+      return profileState.profilesByAddress[profileKey(explorerChainId, address)];
     },
-    [profileState.profilesByAddress]
+    [profileState.profilesByAddress, explorerChainId]
   );
 
   const getDisplayName = useCallback(

@@ -1,3 +1,4 @@
+import { profileKey } from "../lib/profileKey";
 import type { Post } from "@types";
 import type { BrowserProvider } from "ethers";
 import { useProfileRouteEffects } from "./useProfileRouteEffects";
@@ -43,7 +44,7 @@ export function useProfilePageData(args: {
   };
   setStatus: (next: string) => void;
 }) {
-  const key = args.address.toLowerCase();
+  const key = profileKey(args.walletState.chainId, args.address);
   const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === key;
   const subgraphEnabled = Boolean(args.feedState.isLiveFeedEnabled);
 

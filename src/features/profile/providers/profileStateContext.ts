@@ -26,7 +26,7 @@ export type ProfileState = {
 };
 
 export type ProfileActions = {
-  loadProfile: (address: string) => Promise<void>;
+  loadProfile: (address: string, chainIdOverride?: string | null) => Promise<void>;
   setProfileDraftName: (v: string) => void;
   setProfileDraftBio: (v: string) => void;
   onSelectProfileAvatarFile: (file: File | null) => Promise<void>;

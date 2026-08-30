@@ -13,6 +13,7 @@ export function getFeedEntries(args: {
   return args.posts.map((post) => {
     const { authorLabel, authorHue, authorAvatarUrl } = getAuthorPresentation({
       author: post.author,
+      chainId: post.chainId,
       authorIdentity: args.authorIdentity,
       shortAddress: args.shortAddress,
       guestHue: args.guestHue

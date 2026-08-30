@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect } from "react";
 
-import { useProfileActions, useProfileState } from "@features/profile";
+import { profileKey, useProfileActions, useProfileState } from "@features/profile";
 import { useWalletState } from "@features/wallet";
 import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getAvatarStyle } from "@shared/lib/avatar";
@@ -30,7 +30,7 @@ export function ApprovalListRow(props: {
   const profileActions = useProfileActions();
   const wallet = useWalletState();
 
-  const addrKey = props.addr.toLowerCase();
+  const addrKey = profileKey(wallet.chainId, props.addr);
   const profileName = profileState.profilesByAddress[addrKey]?.name?.trim();
   const avatarUrl = profileState.profilesByAddress[addrKey]?.avatarUrl?.trim();
   const avatarStyle = getAvatarStyle({ avatarUrl, hue: stableHueFromSeed(props.addr) });
