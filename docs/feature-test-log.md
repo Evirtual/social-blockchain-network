@@ -85,15 +85,53 @@ app, so the wallet prompt is the only thing between a mis-click and a destroyed
 post. Worth a confirmation dialog, since every other destructive action in the
 app is reached through a menu rather than a single icon in the post header.
 
+## Write paths exercised, second sweep
+
+Base Sepolia, real wallet (Rabby), 2026-08-30.
+
+**Editing a post.** Save stays disabled until the text actually changes. The
+edit uploads new metadata before asking for a signature, so there is a pause
+with a spinner before the wallet appears. Confirmed both directions: appending
+to the text and reverting it. The post keeps its likes, saves, comments and
+tips across the edit, and the feed shows the new text as soon as the receipt
+lands.
+
+One wrinkle worth noting: the success toast reads "confirmed" while its message
+says "Post updated - finalizing media...", so it claims to be finished and still
+working at the same time.
+
+**Commenting.** Posts, clears the input, and the new comment appears with its
+own actions and a zero tip total. The toast said "confirm in wallet" while the
+wallet was open, which is clearer than the "in progress" wording used elsewhere.
+
+**Editing a comment.** Inline editor, Save disabled until changed, and the
+"Edited" badge appears on the comment once the receipt lands.
+
+**Deleting a comment.** Works, and removes the comment from the list.
+
+## Found and fixed during this sweep
+
+**Deleting a comment had no confirmation.** One click on a small trash icon went
+straight to the wallet - the same shape as the post burn issue found in the
+first sweep, which had already been given a confirmation dialog. The wallet
+prompt is not a substitute: it confirms a transaction rather than an intent,
+showing a contract call rather than what is about to be lost, and it is exactly
+the kind of dialog people learn to click through. Comment deletion now asks
+first, matching post burning. The two dialogs share one set of styles, renamed
+from burnConfirm to confirmDialog now that they serve both.
+
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Editing a post
 - Tipping a comment, and the support-percentage split on either
-- Like, unlike, save, unsave
-- Commenting, editing and deleting a comment
+- Replying to a comment
 - Follow and unfollow
 - Withdrawing tips
 - Requesting posting approval, and the owner approving or disapproving
 - Admin moderation: editing a profile, clearing a profile, removing a post
+
+Like, unlike, save and unsave were listed here previously but have since been
+exercised on Base Sepolia while recording, so they have been removed from the
+list.

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { PostComment } from "@types";
 import { Link } from "react-router-dom";
@@ -6,6 +7,7 @@ import { getProfileUrl } from "@shared/lib/profile";
 import { formatTipsWei, getStatButtonClass } from "../postCard/footer";
 import type { ActionInFlight, ActiveComposer } from "./types";
 import { CommentComposerPanels } from "./CommentComposerPanels";
+import { CommentDeleteModal } from "./CommentDeleteModal";
 import { CommentHeader } from "./CommentHeader";
 
 type Props = {
@@ -72,6 +74,7 @@ export function CommentItem(props: Props) {
   const saveCount = comment.saveCount ?? 0;
   const isLikeBusy = isBusy && props.actionInFlight.action === "like";
   const isSaveBusy = isBusy && props.actionInFlight.action === "save";
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const isDeleteBusy = isBusy && props.actionInFlight.action === "delete";
   const isReportBusy = isBusy && props.actionInFlight.action === "report";
 
@@ -85,10 +88,18 @@ export function CommentItem(props: Props) {
     props.setEditDrafts((prev) => ({ ...prev, [comment.commentId]: comment.comment }));
   };
 
-  const onDelete = async () => {
+  // The icon only asks; nothing is deleted until the dialog confirms.
+  const onRequestDelete = () => {
+    if (isDeleteBusy) return;
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const onConfirmDelete = async () => {
+    if (isDeleteBusy) return;
     props.setActionInFlight({ id: comment.commentId, action: "delete" });
     try {
       await props.onDeleteComment(props.tokenId, comment.commentId, props.postChainId);
+      setIsDeleteConfirmOpen(false);
     } finally {
       props.setActionInFlight({ id: null, action: null });
     }
@@ -111,7 +122,7 @@ export function CommentItem(props: Props) {
         isDeleteBusy={isDeleteBusy}
         onOpenReport={onOpenReport}
         onOpenEdit={onOpenEdit}
-        onDelete={onDelete}
+        onDelete={onRequestDelete}
       />
 
       <div className="post-body">
@@ -263,6 +274,16 @@ export function CommentItem(props: Props) {
           onReportComment={props.onReportComment}
         />
       </div>
+
+      <CommentDeleteModal
+        open={isDeleteConfirmOpen}
+        commentText={comment.comment}
+        onConfirm={onConfirmDelete}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        isDeleting={isDeleteBusy}
+        requiresNetworkSwitch={props.requiresNetworkSwitch}
+        interactionDisabledTitle={props.interactionDisabledTitle}
+      />
     </>
   );
 }
