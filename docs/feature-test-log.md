@@ -78,6 +78,13 @@ live, and applying the trim re-encoded the clip: the composer preview came back
 at 0:02 rather than the original 0:05. The upload and mint settled and the post
 renders in the feed playing the trimmed clip.
 
+**Burning a post.** Removes the post from the feed once the transaction
+settles, and the surrounding posts keep their counters. Burning is permanent,
+and the button commits to it immediately: there is no confirmation step in the
+app, so the wallet prompt is the only thing between a mis-click and a destroyed
+post. Worth a confirmation dialog, since every other destructive action in the
+app is reached through a menu rather than a single icon in the post header.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
