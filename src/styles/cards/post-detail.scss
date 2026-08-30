@@ -392,3 +392,36 @@
   align-self: flex-start;
 }
 
+
+// Burning is permanent, so the dialog leads with what will be lost rather than
+// with the button that does it.
+.burnConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.burnConfirmWarning {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.burnConfirmPreview {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  // A long post must not push the actions off screen.
+  max-height: 6rem;
+  overflow-y: auto;
+}
+
+.burnConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
