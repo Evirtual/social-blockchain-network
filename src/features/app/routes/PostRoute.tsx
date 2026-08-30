@@ -1,5 +1,5 @@
 import { Navigate, useLocation, useParams } from "react-router-dom";
-import { PostPageContainer } from "../../post/pages/PostPageContainer";
+import { PostPageContainer } from "@features/post/pages/PostPageContainer";
 
 export function PostRoute() {
   const params = useParams();

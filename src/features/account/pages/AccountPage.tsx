@@ -1,12 +1,12 @@
-import type { ProfileCardProps } from "../../app/components/sidebar/ProfileCard";
-import type { WalletCardProps } from "../../app/components/sidebar/WalletCard";
-import { Feed } from "../../feed/components/Feed";
+import type { ProfileCardProps } from "@features/app/components/sidebar/ProfileCard";
+import type { WalletCardProps } from "@features/app/components/sidebar/WalletCard";
+import { Feed } from "@features/feed/components/Feed";
 import type { Post } from "@types";
-import { FeedTopbarControls } from "../../feed/components/FeedTopbarControls";
+import { FeedTopbarControls } from "@features/feed/components/FeedTopbarControls";
 import { useAccountPageViewModel } from "../hooks/useAccountPageViewModel";
 import { AccountSidebar } from "../components/AccountSidebar";
-import type { PostActionsController } from "../../post/types";
-import { useTopbarCenter } from "../../app/hooks/useTopbarCenter";
+import type { PostActionsController } from "@features/post/types";
+import { useTopbarCenter } from "@features/app/hooks/useTopbarCenter";
 import { useMemo } from "react";
 
 type Props = {

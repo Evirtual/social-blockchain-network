@@ -1,5 +1,5 @@
 import type { Post } from "@types";
-import type { PostActionsController } from "../post/types";
+import type { PostActionsController } from "@features/post/types";
 
 export type FeedViewModel = {
   title?: string;

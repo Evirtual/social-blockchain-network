@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Modal } from "@shared/components/Modal";
-import { useContractActionsFacade } from "../../../contract/hooks/useContractActionsFacade";
-import { useContractState } from "../../../contract/providers/useContractState";
-import { useFeedState } from "../../../feed/providers/useFeedState";
-import { useWalletState } from "../../../wallet/providers/useWalletState";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
+import { useContractState } from "@features/contract/providers/useContractState";
+import { useFeedState } from "@features/feed/providers/useFeedState";
+import { useWalletState } from "@features/wallet/providers/useWalletState";
 import { useApprovalActions, useOnChainApprovalRequests, usePosterStatusMaps } from "./approvals";
 import type { ApprovalRow } from "./approvals/types";
 import { PendingApprovalsSection } from "./approvals/PendingApprovalsSection";

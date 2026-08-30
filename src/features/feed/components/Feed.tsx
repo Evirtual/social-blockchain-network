@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import type { PostPanel } from "../../post/components/postCard/postPanel";
+import type { PostPanel } from "@features/post/components/postCard/postPanel";
 import { usePanelById } from "@shared/hooks/usePanelById";
 import { normalizeAddress } from "@shared/lib/address";
 import { FeedHeader, FeedPostList, getFeedFromLocation, getSkeletonCount } from "./feed/index";

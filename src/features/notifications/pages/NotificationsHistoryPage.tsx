@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTopbarCenter } from "../../app/hooks/useTopbarCenter";
-import { FeedTopbarControls } from "../../feed/components/FeedTopbarControls";
-import { useSupportedNetworks } from "../../feed/hooks/useSupportedNetworks";
-import { useWalletState } from "../../wallet/providers/useWalletState";
+import { useTopbarCenter } from "@features/app/hooks/useTopbarCenter";
+import { FeedTopbarControls } from "@features/feed/components/FeedTopbarControls";
+import { useSupportedNetworks } from "@features/feed/hooks/useSupportedNetworks";
+import { useWalletState } from "@features/wallet/providers/useWalletState";
 import { IconCheck } from "@shared/components/icons";
 import { useNotifications } from "../hooks/useNotifications";
 import { NotificationsList } from "../components/NotificationsList";

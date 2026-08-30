@@ -3,7 +3,7 @@ import { Modal } from "@shared/components/Modal";
 import { ChainLogo } from "@shared/components/ChainLogos";
 import { IconSearch } from "@shared/components/icons";
 import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
-import { useTopbarOverflow } from "../../app/components/TopbarOverflowContext";
+import { useTopbarOverflow } from "@features/app/components/TopbarOverflowContext";
 import { getAddEthereumChainParameter } from "../services/supportedNetworks";
 import type { SupportedNetwork } from "../services/supportedNetworks";
 

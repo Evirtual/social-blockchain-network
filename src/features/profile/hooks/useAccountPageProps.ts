@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import type { Draft, Post } from "@types";
-import type { PostActionsController } from "../../post/types";
+import type { PostActionsController } from "@features/post/types";
 
 const EMPTY_DRAFT: Draft = { title: "", body: "", imageUrl: "", imageDataUrl: "" };
 

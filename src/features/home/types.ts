@@ -1,5 +1,5 @@
 import type { Draft, Post } from "@types";
-import type { PostActionsController } from "../post/types";
+import type { PostActionsController } from "@features/post/types";
 
 export type HomePageViewModel = {
   isOwner: boolean;
