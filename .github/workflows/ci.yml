@@ -1,12 +1,19 @@
 name: CI
 
-# Runs on every push and pull request, including branches that never deploy.
-# The Pages workflow only builds main, so without this nothing enforces the
-# type checks or the test suite.
+# Runs on every push, including branches that never deploy. The Pages workflow
+# only builds main, so without this nothing enforces the type checks or the
+# test suite.
+#
+# Deliberately not also on pull_request: with both triggers an open PR gets two
+# identical runs, because the concurrency group below keys on github.ref, which
+# differs between the two events (refs/heads/<branch> vs refs/pull/<n>/merge) and
+# so never collapses them. Checks attach to the commit SHA, so a PR still shows
+# these results. The trade is that CI tests the branch tip rather than the
+# prospective merge, and PRs opened from forks would get no run - add
+# pull_request back, guarded to forks only, if this repo ever takes outside
+# contributions.
 on:
   push:
-    branches-ignore: []
-  pull_request:
   workflow_dispatch:
 
 permissions:
