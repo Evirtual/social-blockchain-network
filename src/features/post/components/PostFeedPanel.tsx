@@ -14,10 +14,6 @@ type Props = {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export function PostFeedPanel(props: Props) {
@@ -36,10 +32,6 @@ export function PostFeedPanel(props: Props) {
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}
         postActions={props.postActions}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getNativeSymbol={props.getNativeSymbol}
-        getExplorerTxUrl={props.getExplorerTxUrl}
       />
     );
   }
@@ -56,10 +48,6 @@ export function PostFeedPanel(props: Props) {
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}
         postActions={props.postActions}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getNativeSymbol={props.getNativeSymbol}
-        getExplorerTxUrl={props.getExplorerTxUrl}
       />
     );
   }

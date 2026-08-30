@@ -5,8 +5,6 @@ import { useFeedQueries } from "@features/feed";
 import { useProfileState } from "@features/profile";
 import { useWalletState } from "@features/wallet";
 import { useStatusState } from "@features/status";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { HomePage } from "./HomePage";
 import { buildHomePageViewModel } from "../viewModel/buildHomePageViewModel";
 
@@ -40,10 +38,6 @@ export function HomePageContainer() {
     walletAddress: wallet.walletAddress,
     authorIdentity: profile.authorIdentity,
     postActions,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   });
 
   return <HomePage {...viewModel} />;

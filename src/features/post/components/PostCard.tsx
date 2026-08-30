@@ -8,6 +8,7 @@ import { useStatusActions } from "@features/status";
 import { runSocialAction } from "@features/social/services/actions/runSocialAction";
 import { getAvatarStyle, PostBurnModal, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
+import { getExplorerTxUrl } from "@shared/lib/chain";
 
 export type PostPanel = "comment" | "tip";
 
@@ -71,10 +72,6 @@ type Props = {
   onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export const PostCard = memo(function PostCard(props: Props) {
@@ -93,8 +90,8 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   const explorer = useMemo(() => {
     if (!props.post.mintTxHash) return null;
-    return props.getExplorerTxUrl(postChainId ?? props.chainId, props.post.mintTxHash);
-  }, [props.post.mintTxHash, props.getExplorerTxUrl, postChainId, props.chainId]);
+    return getExplorerTxUrl(postChainId ?? props.chainId, props.post.mintTxHash);
+  }, [props.post.mintTxHash, postChainId, props.chainId]);
 
   const postUrl = useMemo(() => getPostUrl(postChainId, tokenId), [postChainId, tokenId]);
   const postLinkState = useMemo(() => ({ from: props.from, chainId: postChainId }), [props.from, postChainId]);
@@ -307,10 +304,6 @@ export const PostCard = memo(function PostCard(props: Props) {
         onReportComment={props.onReportComment}
         avatarStyle={avatarStyle}
         canModerateComments={props.isMine || props.canModerate}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getExplorerTxUrl={props.getExplorerTxUrl}
-        getNativeSymbol={props.getNativeSymbol}
       />
 
       {hasMedia && !!props.post.body?.trim() ? (

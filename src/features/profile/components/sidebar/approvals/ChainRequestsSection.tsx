@@ -6,7 +6,6 @@ type Props = {
   isLoadingOnChainRequests: boolean;
   onChainRequestsLoadError: boolean;
   chainRows: ApprovalRow[];
-  shortAddress: (address: string) => string;
   isLoadingPosterStatuses: boolean;
   actionInFlight: { addr: string; action: "approve" | "disapprove" | "reset" | "moderator" } | null;
   onApprove: (addr: string) => void;
@@ -52,7 +51,6 @@ export function ChainRequestsSection(props: Props) {
               key={row.addr}
               rowNumber={idx + 1}
               addr={row.addr}
-              shortAddress={props.shortAddress}
               isFlagged={row.isFlagged}
               isAllowed={row.isAllowed}
               isModerator={row.isModerator}

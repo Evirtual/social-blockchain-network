@@ -5,7 +5,6 @@ export type FollowingModalProps = {
   following: string[];
   isLoadingFollowing?: boolean;
   onClose: () => void;
-  shortAddress: (address: string) => string;
   headerLeading?: React.ReactNode;
 };
 
@@ -18,7 +17,6 @@ export function FollowingModal(props: FollowingModalProps) {
       isLoading={props.isLoadingFollowing}
       emptyText="Not following anyone yet."
       onClose={props.onClose}
-      shortAddress={props.shortAddress}
       headerLeading={props.headerLeading}
     />
   );

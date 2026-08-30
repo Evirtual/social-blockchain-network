@@ -11,10 +11,6 @@ type Props = {
   singleColumn?: boolean;
   chainId: string | null;
   walletAddress: string | null;
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
   from: string;
   postActions: PostActionsController;
   postEntries: PostFeedEntry[];
@@ -71,10 +67,6 @@ export function FeedPostList(props: Props) {
             onReportComment={props.postActions.reportComment}
             onBurn={props.postActions.onBurn}
             onFreezePost={props.postActions.onFreezePost}
-            shortAddress={props.shortAddress}
-            stableHueFromSeed={props.stableHueFromSeed}
-            getNativeSymbol={props.getNativeSymbol}
-            getExplorerTxUrl={props.getExplorerTxUrl}
           />
         );
       })}

@@ -26,10 +26,6 @@ type Props = {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export function AccountPage(props: Props) {
@@ -58,7 +54,6 @@ export function AccountPage(props: Props) {
     chainId: props.chainId,
     walletAddress: props.walletAddress,
     authorIdentity: props.authorIdentity,
-    shortAddress: props.shortAddress
   });
 
   const topbarCenter = useMemo(
@@ -118,10 +113,6 @@ export function AccountPage(props: Props) {
           walletAddress={props.walletAddress}
           authorIdentity={props.authorIdentity}
           postActions={props.postActions}
-          shortAddress={props.shortAddress}
-          stableHueFromSeed={props.stableHueFromSeed}
-          getNativeSymbol={props.getNativeSymbol}
-          getExplorerTxUrl={props.getExplorerTxUrl}
         />
       </section>
     </main>

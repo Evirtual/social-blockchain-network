@@ -7,6 +7,8 @@ import { profileKey, useProfileActions, useProfileState } from "@features/profil
 import { CommentItem } from "./comments/CommentItem";
 import { NewCommentComposer } from "./comments/NewCommentComposer";
 import type { ActionInFlight, ActiveComposer } from "./comments/types";
+import { shortAddress } from "@shared/lib/format";
+import { getNativeSymbol } from "@shared/lib/chain";
 
 type Props = {
   tokenId: string;
@@ -44,10 +46,6 @@ type Props = {
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
-  getNativeSymbol: (chainId: string | null) => string;
 };
 
 export function CommentsCard(props: Props) {
@@ -85,7 +83,7 @@ export function CommentsCard(props: Props) {
     : baseInteractionDisabledTitle;
 
   const explorerChainId = props.postChainId ?? props.chainId;
-  const nativeSymbol = props.getNativeSymbol(explorerChainId);
+  const nativeSymbol = getNativeSymbol(explorerChainId);
   const walletLower = props.walletAddress?.toLowerCase() ?? null;
   const defaultSupportBps = contractState.tipSupportPreferenceBps || 0;
 
@@ -169,9 +167,9 @@ export function CommentsCard(props: Props) {
   const getDisplayName = useCallback(
     (address: string) => {
       const profile = getDisplayProfile(address);
-      return profile?.name?.trim() ? profile.name : props.shortAddress(address);
+      return profile?.name?.trim() ? profile.name : shortAddress(address);
     },
-    [getDisplayProfile, props.shortAddress]
+    [getDisplayProfile]
   );
 
   const getDisplayAvatarUrl = useCallback(
@@ -315,9 +313,6 @@ export function CommentsCard(props: Props) {
                   onToggleCommentSave={props.onToggleCommentSave}
                   onTipComment={props.onTipComment}
                   onReportComment={props.onReportComment}
-                  shortAddress={props.shortAddress}
-                  stableHueFromSeed={props.stableHueFromSeed}
-                  getExplorerTxUrl={props.getExplorerTxUrl}
                 />
                 {replies.length ? (
                   <div className="commentReplies">
@@ -370,9 +365,6 @@ export function CommentsCard(props: Props) {
                           onToggleCommentSave={props.onToggleCommentSave}
                           onTipComment={props.onTipComment}
                           onReportComment={props.onReportComment}
-                          shortAddress={props.shortAddress}
-                          stableHueFromSeed={props.stableHueFromSeed}
-                          getExplorerTxUrl={props.getExplorerTxUrl}
                         />
                       </div>
                     ))}

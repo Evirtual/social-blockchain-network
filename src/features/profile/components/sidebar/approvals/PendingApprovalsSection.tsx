@@ -7,7 +7,6 @@ type Props = {
   onAdd: () => void;
   approvalsError: string | null;
   pendingRows: ApprovalRow[];
-  shortAddress: (address: string) => string;
   isLoadingPosterStatuses: boolean;
   actionInFlight: { addr: string; action: "approve" | "disapprove" | "reset" | "moderator" } | null;
   onRemove: (addr: string) => void;
@@ -42,7 +41,6 @@ export function PendingApprovalsSection(props: Props) {
               key={row.addr}
               rowNumber={idx + 1}
               addr={row.addr}
-              shortAddress={props.shortAddress}
               isFlagged={row.isFlagged}
               isAllowed={row.isAllowed}
               isModerator={row.isModerator}

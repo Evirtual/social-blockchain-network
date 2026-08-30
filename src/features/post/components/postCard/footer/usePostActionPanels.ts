@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { usePostComments } from "@features/feed";
 import type { PostPanel } from "../../PostCard";
+import { getNativeSymbol } from "@shared/lib/chain";
 
 type Params = {
   tokenId: string;
@@ -18,7 +19,6 @@ type Params = {
     savePreference?: boolean
   ) => Promise<TipOutcome>;
   defaultSupportBps?: number | null;
-  getNativeSymbol: (chainId: string | null) => string;
 };
 
 export function usePostActionPanels(params: Params) {
@@ -30,12 +30,11 @@ export function usePostActionPanels(params: Params) {
     onTogglePanel,
     onTip,
     defaultSupportBps,
-    getNativeSymbol
   } = params;
 
   const nativeSymbol = useMemo(
     () => getNativeSymbol(postChainId ?? chainId),
-    [getNativeSymbol, postChainId, chainId]
+    [postChainId, chainId]
   );
 
   const { comments, isLoadingComments } = usePostComments({

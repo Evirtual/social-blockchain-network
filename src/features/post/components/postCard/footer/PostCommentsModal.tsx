@@ -38,10 +38,6 @@ type Props = {
   ) => Promise<boolean>;
   onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
-  getNativeSymbol: (chainId: string | null) => string;
 };
 
 export function PostCommentsModal(props: Props) {
@@ -73,10 +69,6 @@ export function PostCommentsModal(props: Props) {
         onTipComment={props.onTipComment}
         onReportPost={props.onReportPost}
         onReportComment={props.onReportComment}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getExplorerTxUrl={props.getExplorerTxUrl}
-        getNativeSymbol={props.getNativeSymbol}
       />
     </Modal>
   );

@@ -5,7 +5,6 @@ import { getAuthorPresentation } from "./getAuthorPresentation";
 export function getFeedEntries(args: {
   posts: Post[];
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
   guestHue: number;
   walletLower: string | null;
   isOwner?: boolean;
@@ -15,7 +14,6 @@ export function getFeedEntries(args: {
       author: post.author,
       chainId: post.chainId,
       authorIdentity: args.authorIdentity,
-      shortAddress: args.shortAddress,
       guestHue: args.guestHue
     });
     const isMine = !!args.walletLower && !!post.author && args.walletLower === post.author.toLowerCase();

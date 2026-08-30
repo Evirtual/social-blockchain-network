@@ -6,6 +6,7 @@ import { normalizeAddress } from "@shared/lib/address";
 import { FeedHeader, FeedPostList, getFeedFromLocation, getSkeletonCount } from "./feed/index";
 import { getFeedEntries } from "../viewModel";
 import type { FeedViewModel } from "../types";
+import { stableHueFromSeed } from "@shared/lib/format";
 
 export const Feed = memo(function Feed({
   title,
@@ -23,10 +24,6 @@ export const Feed = memo(function Feed({
   walletAddress,
   authorIdentity,
   postActions,
-  shortAddress,
-  stableHueFromSeed,
-  getNativeSymbol,
-  getExplorerTxUrl
 }: FeedViewModel) {
   const location = useLocation();
   const from = getFeedFromLocation(location);
@@ -48,12 +45,11 @@ export const Feed = memo(function Feed({
       getFeedEntries({
         posts,
         authorIdentity,
-        shortAddress,
         guestHue,
         walletLower,
         isOwner
       }),
-    [posts, authorIdentity, shortAddress, guestHue, walletLower, isOwner]
+    [posts, authorIdentity, guestHue, walletLower, isOwner]
   );
 
   return (
@@ -77,10 +73,6 @@ export const Feed = memo(function Feed({
         singleColumn={singleColumn}
         chainId={chainId}
         walletAddress={walletAddress}
-        shortAddress={shortAddress}
-        stableHueFromSeed={stableHueFromSeed}
-        getNativeSymbol={getNativeSymbol}
-        getExplorerTxUrl={getExplorerTxUrl}
         from={from}
         postActions={postActions}
         postEntries={postEntries}

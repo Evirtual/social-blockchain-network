@@ -1,6 +1,4 @@
 import type { ProfilePageViewModel, ProfilePageViewModelInput } from "../types";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
 import { useAccountPageProps } from "./useAccountPageProps";
 import { useProfilePagePropsViewModel } from "../viewModel/useProfilePagePropsViewModel";
 
@@ -65,10 +63,6 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     isWithdrawSubmitting: args.handlers.isWithdrawSubmitting,
     onSaveProfile: args.handlers.onSaveProfile,
     postActions: args.postActions,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   });
 
   const profilePageProps = useProfilePagePropsViewModel({
@@ -96,10 +90,6 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     onAdminReset: args.handlers.onAdminReset,
     onAdminSetProfile: args.handlers.onAdminSetProfile,
     postActions: args.postActions,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   });
 
   return { accountPageProps, profilePageProps, isSelf: args.data.isSelf };

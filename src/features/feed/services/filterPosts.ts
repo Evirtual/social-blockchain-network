@@ -1,13 +1,13 @@
 import type { Post } from "@types";
+import { shortAddress } from "@shared/lib/format";
 
 export function filterPosts(params: {
   posts: Post[];
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
   searchQuery: string;
   selectedNetworkChainIds: string[];
 }): Post[] {
-  const { posts, authorIdentity, shortAddress, searchQuery, selectedNetworkChainIds } = params;
+  const { posts, authorIdentity, searchQuery, selectedNetworkChainIds } = params;
 
   const selectedSet = new Set(selectedNetworkChainIds);
 

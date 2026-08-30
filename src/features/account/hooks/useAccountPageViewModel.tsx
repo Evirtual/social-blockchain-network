@@ -16,7 +16,6 @@ type Args = {
   chainId: string | null;
   walletAddress: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
 };
 
 export function useAccountPageViewModel(args: Args) {
@@ -59,7 +58,6 @@ export function useAccountPageViewModel(args: Args) {
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: args.authorIdentity,
-    shortAddress: args.shortAddress,
     ...getFeedStorageKeys({ kind: "profile", address: args.walletAddress }),
     walletAddress: args.walletAddress,
     chainId: args.chainId,

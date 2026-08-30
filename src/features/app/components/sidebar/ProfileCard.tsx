@@ -14,6 +14,7 @@ import { ProfileSidebarActions } from "./profileCard/ProfileSidebarActions";
 import { IconChevronDown } from "@shared/components/icons";
 import { ProfileHeader } from "@shared/components/ProfileHeader";
 import { getAvatarStyle } from "@shared/lib/avatar";
+import { shortAddress } from "@shared/lib/format";
 
 export type ProfileCardProps = {
   walletAddress: string | null;
@@ -43,7 +44,6 @@ export type ProfileCardProps = {
   onCancelEditProfile: () => void;
   onSaveProfile: () => void | Promise<void>;
   selfAvatarHue: number;
-  shortAddress: (address: string) => string;
 };
 
 export function ProfileCard(props: ProfileCardProps) {
@@ -96,7 +96,7 @@ export function ProfileCard(props: ProfileCardProps) {
     >
       <summary className="cardDropdownSummary">
         <span className="cardTitle">Profile</span>
-        <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+        <span className="cardDropdownMeta">{props.walletAddress ? shortAddress(props.walletAddress) : "Disconnected"}</span>
         <span className="cardDropdownChevron" aria-hidden="true">
           <IconChevronDown size={18} />
         </span>
@@ -125,7 +125,7 @@ export function ProfileCard(props: ProfileCardProps) {
           name={profileLink ? <Link to={profileLink}>{props.displayName}</Link> : props.displayName}
           meta={
             props.walletAddress ? (
-              <Link to={profileLink!}>{props.shortAddress(props.walletAddress)}</Link>
+              <Link to={profileLink!}>{shortAddress(props.walletAddress)}</Link>
             ) : (
               "Connect wallet to edit profile"
             )
@@ -151,7 +151,6 @@ export function ProfileCard(props: ProfileCardProps) {
           open={isApprovalsOpen}
           isOwner={isOwner}
           onClose={() => setIsApprovalsOpen(false)}
-          shortAddress={props.shortAddress}
           headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
@@ -177,7 +176,6 @@ export function ProfileCard(props: ProfileCardProps) {
           followers={followers}
           isLoadingFollowers={props.isLoadingFollowers}
           onClose={() => setIsFollowersOpen(false)}
-          shortAddress={props.shortAddress}
           headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 
@@ -186,7 +184,6 @@ export function ProfileCard(props: ProfileCardProps) {
           following={following}
           isLoadingFollowing={props.isLoadingFollowing}
           onClose={() => setIsFollowingOpen(false)}
-          shortAddress={props.shortAddress}
           headerLeading={<div className="avatar small" style={avatarStyle} />}
         />
 

@@ -6,8 +6,6 @@ import { useProfileState } from "@features/profile";
 import { buildPostPageViewModel } from "@features/post";
 import { usePostActionsController } from "@features/post/actions";
 import { useWalletState } from "@features/wallet";
-import { getExplorerTxUrl, getNativeSymbol } from "@shared/lib/network";
-import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { commentKey } from "@features/post/services";
 import { PostPage } from "./PostPage";
 
@@ -124,10 +122,6 @@ export function PostPageContainer({ tokenId, postChainId }: Props) {
     walletAddress: wallet.walletAddress,
     authorIdentity: profile.authorIdentity,
     postActions,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   });
 
   return <PostPage {...viewModel} />;
