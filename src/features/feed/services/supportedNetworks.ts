@@ -1,7 +1,7 @@
 import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getEnv, getEnvString } from "@shared/lib/env";
 import { formatAddEthereumChainId, type AddEthereumChainParameter } from "@shared/lib/networkSwitch";
-import { getConfiguredFeedNetworks } from "./feedNetworks";
+import { getConfiguredContractNetworks } from "@features/contract/services/contractNetworks";
 
 export type SupportedNetwork = {
   chainId: number;
@@ -81,7 +81,7 @@ export function getSupportedNetworks(): SupportedNetwork[] {
   ];
 
   const env = getEnv();
-  const configuredChainIds = new Set(getConfiguredFeedNetworks(env).map((n) => n.chainId));
+  const configuredChainIds = new Set(getConfiguredContractNetworks(env).map((n) => n.chainId));
   return candidates.filter((n) => configuredChainIds.has(n.chainId));
 }
 
@@ -94,7 +94,7 @@ export function isSupportedNetworkChainId(chainId: string | number | null | unde
 
 export function getAddEthereumChainParameter(network: SupportedNetwork): AddEthereumChainParameter | null {
   const env = getEnv();
-  const configured = getConfiguredFeedNetworks(env).find((n) => n.chainId === network.chainId);
+  const configured = getConfiguredContractNetworks(env).find((n) => n.chainId === network.chainId);
   const rpcUrl = configured?.rpcUrl?.trim() || DEFAULT_RPC_URL_BY_CHAIN_ID[network.chainId];
   if (!rpcUrl) return null;
 

@@ -1,6 +1,6 @@
-import type { FeedNetworkConfig } from "../../services/feedNetworks";
+import type { ContractNetworkConfig } from "@features/contract/services/contractNetworks";
 import type { EnvMap } from "@shared/lib/env";
-import { getConfiguredFeedNetworks } from "../../services/feedNetworks";
+import { getConfiguredContractNetworks } from "@features/contract/services/contractNetworks";
 
 const FEED_RPC_FALLBACK_LOOKBACK_BLOCKS = 200_000;
 
@@ -9,14 +9,14 @@ export function getFeedRefreshConfig(params: {
   currentChainIdNumber: number | null;
 }): {
   maxLookbackBlocks: number;
-  configuredNetworks: FeedNetworkConfig[];
-  extraNetworks: FeedNetworkConfig[];
+  configuredNetworks: ContractNetworkConfig[];
+  extraNetworks: ContractNetworkConfig[];
 } {
   const { env, currentChainIdNumber } = params;
 
   const maxLookbackBlocks = FEED_RPC_FALLBACK_LOOKBACK_BLOCKS;
 
-  const configuredNetworks = getConfiguredFeedNetworks(env);
+  const configuredNetworks = getConfiguredContractNetworks(env);
 
   const extraNetworks = configuredNetworks.filter(
     (n) => currentChainIdNumber == null || n.chainId !== currentChainIdNumber

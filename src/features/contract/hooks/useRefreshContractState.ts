@@ -2,7 +2,7 @@ import type { BrowserProvider } from "ethers";
 import { useCallback } from "react";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { resolveConfiguredSocialPostsAddress } from "@shared/lib/configuredSocialPostsAddress";
-import type { ReadContractFactory } from "@features/contract";
+import type { ReadContractFactory } from "../types";
 
 export function useRefreshContractState(params: {
   provider: BrowserProvider | null;

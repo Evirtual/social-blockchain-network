@@ -1,5 +1,5 @@
-import type { FeedNetworkConfig } from "../../services/feedNetworks";
-import { resolveSocialPostsAddress } from "../../services/resolveSocialPostsAddress";
+import type { ContractNetworkConfig } from "@features/contract/services/contractNetworks";
+import { resolveSocialPostsAddress } from "@features/contract/services/resolveSocialPostsAddress";
 import type { ChainProvider } from "@features/contract";
 
 export function createResolveRpcContractAddress(params: {
@@ -7,7 +7,7 @@ export function createResolveRpcContractAddress(params: {
 }) {
   const { withTimeout } = params;
 
-  return async (cfg: FeedNetworkConfig, rpcProvider: ChainProvider) => {
+  return async (cfg: ContractNetworkConfig, rpcProvider: ChainProvider) => {
     return await resolveSocialPostsAddress(cfg, rpcProvider, {
       withTimeout,
       codeTimeoutMs: 3_000,

@@ -1,9 +1,10 @@
-import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
-import { getConfiguredFeedNetworks } from "@features/feed/services/feedNetworks";
+import { getSocialContract } from "../contracts/socialPosts";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "../types";
+import { getConfiguredContractNetworks } from "./contractNetworks";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getEnv } from "@shared/lib/env";
 import { getRpcProvider } from "@shared/lib/rpc";
-import { resolveSocialPostsAddress } from "@features/feed/services/resolveSocialPostsAddress";
+import { resolveSocialPostsAddress } from "./resolveSocialPostsAddress";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;
@@ -37,7 +38,7 @@ export async function getReadContext(args: {
   const chainIdNum = parseChainIdNumber(keyChainId);
 
   const env = getEnv();
-  const configuredNetworks = getConfiguredFeedNetworks(env);
+  const configuredNetworks = getConfiguredContractNetworks(env);
   const targetCfg = chainIdNum != null ? configuredNetworks.find((n) => n.chainId === chainIdNum) : undefined;
   const targetRpcUrl = typeof targetCfg?.rpcUrl === "string" ? String(targetCfg.rpcUrl).trim() : "";
 

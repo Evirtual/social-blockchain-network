@@ -1,4 +1,5 @@
-import { getSocialContract, type ChainProvider } from "@features/contract";
+import { getSocialContract } from "../contracts/socialPosts";
+import type { ChainProvider } from "../types";
 
 export type ResolveSocialPostsAddressConfig = {
   chainId: number;
