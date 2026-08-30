@@ -6,11 +6,19 @@ import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@sha
 import { getPostUrl } from "@features/post/services";
 import { useStatusActions } from "@features/status";
 import { runSocialAction } from "@features/social/services/actions/runSocialAction";
-import { getAvatarStyle, PostBurnModal, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
+import { getAvatarStyle } from "./postCard/postCardDerived";
+import { PostBurnModal } from "./postCard/PostBurnModal";
+import { PostCardBody } from "./postCard/PostCardBody";
+import { PostCardEditBox } from "./postCard/PostCardEditBox";
+import { PostCardFooter } from "./postCard/PostCardFooter";
+import { PostCardHeader } from "./postCard/PostCardHeader";
+import { PostReportModal } from "./postCard/PostReportModal";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { getExplorerTxUrl } from "@shared/lib/chain";
 
-export type PostPanel = "comment" | "tip";
+import type { PostPanel } from "./postCard/postPanel";
+
+export type { PostPanel } from "./postCard/postPanel";
 
 type Props = {
   post: Readonly<Post>;

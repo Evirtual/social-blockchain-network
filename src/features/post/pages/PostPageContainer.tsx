@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Post } from "@types";
-import { useContractState } from "@features/contract";
-import { useFeedMutations, useFeedQueries } from "@features/feed";
-import { useProfileState } from "@features/profile";
-import { buildPostPageViewModel } from "@features/post";
+import { useContractState } from "../../contract/providers/useContractState";
+import { useFeedMutations } from "../../feed/providers/useFeedMutations";
+import { useFeedQueries } from "../../feed/providers/useFeedQueries";
+import { useProfileState } from "../../profile/providers/useProfileState";
+import { buildPostPageViewModel } from "../viewModel/buildPostPageViewModel";
 import { usePostActionsController } from "@features/post/actions";
-import { useWalletState } from "@features/wallet";
+import { useWalletState } from "../../wallet/providers/useWalletState";
 import { commentKey } from "@features/post/services";
 import { PostPage } from "./PostPage";
 

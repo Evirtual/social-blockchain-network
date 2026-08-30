@@ -3,7 +3,7 @@ import { memo, useCallback } from "react";
 
 import type { Post } from "@types";
 import type { CSSProperties } from "react";
-import type { PostPanel } from "../PostCard";
+import type { PostPanel } from "./postPanel";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
 import { useContractState } from "@features/contract";

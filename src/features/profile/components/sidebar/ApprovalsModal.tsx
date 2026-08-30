@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Modal } from "@shared/components/Modal";
-import { useContractActionsFacade, useContractState } from "@features/contract";
-import { useFeedState } from "@features/feed";
-import { useWalletState } from "@features/wallet";
+import { useContractActionsFacade } from "../../../contract/hooks/useContractActionsFacade";
+import { useContractState } from "../../../contract/providers/useContractState";
+import { useFeedState } from "../../../feed/providers/useFeedState";
+import { useWalletState } from "../../../wallet/providers/useWalletState";
 import { useApprovalActions, useOnChainApprovalRequests, usePosterStatusMaps } from "./approvals";
 import type { ApprovalRow } from "./approvals/types";
 import { PendingApprovalsSection } from "./approvals/PendingApprovalsSection";
 import { ChainRequestsSection } from "./approvals/ChainRequestsSection";
-import { useOwnerAddress } from "@features/profile";
+import { useOwnerAddress } from "../../hooks/useOwnerAddress";
 import { buildApprovalRows } from "@features/profile/services/approvals";
 
 export type ApprovalsModalProps = {

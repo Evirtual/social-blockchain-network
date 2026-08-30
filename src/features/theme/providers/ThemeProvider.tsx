@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
-import { requireContext } from "@shared/lib";
+import { requireContext } from "@shared/lib/reactContext";
 
 export type Theme = "light" | "dark";
 

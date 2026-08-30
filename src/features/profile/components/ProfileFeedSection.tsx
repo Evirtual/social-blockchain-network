@@ -1,10 +1,11 @@
 import type { Post } from "@types";
-import { Feed, FeedTopbarControls } from "@features/feed";
+import { Feed } from "../../feed/components/Feed";
+import { FeedTopbarControls } from "../../feed/components/FeedTopbarControls";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
-import { getFeedStorageKeys } from "@features/feed";
-import type { PostActionsController } from "@features/post";
+import { getFeedStorageKeys } from "../../feed/lib/feedStorageKeys";
+import type { PostActionsController } from "../../post/types";
 import { useMemo } from "react";
-import { useTopbarCenter } from "@features/app";
+import { useTopbarCenter } from "../../app/hooks/useTopbarCenter";
 
 type Props = {
   posts: Post[];

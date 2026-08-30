@@ -2,9 +2,13 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
-import { ApprovalsModal, FollowersModal, FollowingModal, useOwnerAddress } from "@features/profile";
-import { useContractActionsFacade, useContractState } from "@features/contract";
-import { useWalletState } from "@features/wallet";
+import { ApprovalsModal } from "../../../profile/components/sidebar/ApprovalsModal";
+import { FollowersModal } from "../../../profile/components/sidebar/FollowersModal";
+import { FollowingModal } from "../../../profile/components/sidebar/FollowingModal";
+import { useOwnerAddress } from "../../../profile/hooks/useOwnerAddress";
+import { useContractActionsFacade } from "../../../contract/hooks/useContractActionsFacade";
+import { useContractState } from "../../../contract/providers/useContractState";
+import { useWalletState } from "../../../wallet/providers/useWalletState";
 import { useOnChainApprovalRequests } from "@features/profile/components/sidebar/approvals";
 import { normalizeAddress } from "@shared/lib/address";
 import { getProfileUrl } from "@shared/lib/profile";

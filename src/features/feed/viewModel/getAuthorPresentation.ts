@@ -1,5 +1,5 @@
 import { normalizeAddress } from "@shared/lib/address";
-import { profileKey } from "@features/profile";
+import { profileKey } from "../../profile/lib/profileKey";
 import { shortAddress } from "@shared/lib/format";
 
 export function getAuthorPresentation(params: {

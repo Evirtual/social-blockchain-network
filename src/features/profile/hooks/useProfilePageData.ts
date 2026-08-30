@@ -5,8 +5,9 @@ import { useProfileRouteEffects } from "./useProfileRouteEffects";
 import { useLikedPostsByAddress } from "./useLikedPostsByAddress";
 import { useSavedPostsByAddress } from "./useSavedPostsByAddress";
 import { useSelfSavedLikedPosts } from "./useSelfSavedLikedPosts";
-import type { ReadContractFactory } from "@features/contract";
-import { useNetworkFilterState, useSupportedNetworks } from "@features/feed";
+import type { ReadContractFactory } from "../../contract/types";
+import { useNetworkFilterState } from "../../feed/hooks/useNetworkFilterState";
+import { useSupportedNetworks } from "../../feed/hooks/useSupportedNetworks";
 import type { LoadPostsByTokenIdsResult } from "@features/feed/providers/feedStateContext";
 
 export function useProfilePageData(args: {

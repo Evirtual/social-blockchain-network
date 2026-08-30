@@ -1,5 +1,7 @@
 import type { Post } from "@types";
-import { PostCard, type PostPanel, type PostActionsController } from "@features/post";
+import { PostCard } from "../../../post/components/PostCard";
+import type { PostPanel } from "../../../post/components/postCard/postPanel";
+import type { PostActionsController } from "../../../post/types";
 import type { PostFeedEntry } from "@features/post/types";
 import { FeedSkeleton } from "./FeedSkeleton";
 

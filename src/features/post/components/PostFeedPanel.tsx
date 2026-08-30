@@ -1,6 +1,6 @@
 import type { Post } from "@types";
-import { Feed } from "@features/feed";
-import type { PostActionsController } from "@features/post";
+import { Feed } from "../../feed/components/Feed";
+import type { PostActionsController } from "../types";
 
 type Props = {
   title: string;
