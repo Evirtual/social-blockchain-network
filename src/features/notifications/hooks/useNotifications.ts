@@ -4,7 +4,7 @@ import { getEnv } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
-import { useContractState } from "@features/contract";
+import { useContractState } from "@features/contract/providers/useContractState";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
 import { initialNotificationsState, notificationsReducer } from "../lib/notificationsState";
 

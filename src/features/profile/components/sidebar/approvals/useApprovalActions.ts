@@ -12,7 +12,7 @@ import {
 import type { Post } from "@types";
 import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 import type { TransactionResponse } from "ethers";
-import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 type RunContractTxLike = <T = void>(
   label: string,

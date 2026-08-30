@@ -8,7 +8,7 @@ import { markPostBurned } from "@shared/lib/burnedPostsCache";
 
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
-import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 type FeedLike = {
   posts: Post[];

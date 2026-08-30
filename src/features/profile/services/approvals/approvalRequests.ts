@@ -3,7 +3,7 @@ import { isAddress } from "ethers";
 import { scanRecentUniqueAddressesFromEvent } from "../eventAddressScanner";
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
-import type { ReadContractFactory } from "@features/contract";
+import type { ReadContractFactory } from "@features/contract/types";
 
 type ApprovalRequestsResult = {
   addresses: string[];

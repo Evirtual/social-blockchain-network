@@ -7,7 +7,7 @@ import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
 import { getEnv } from "@shared/lib/env";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import { createEventRefreshThrottle } from "@shared/lib/eventRefreshThrottle";
-import type { ChainProvider, ReadContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory } from "@features/contract/types";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;

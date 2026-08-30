@@ -1,4 +1,4 @@
-import { socialInterface } from "@features/contract";
+import { socialInterface } from "@features/contract/contracts/socialPosts";
 import type { Log, TransactionReceipt } from "ethers";
 
 export { waitForMetadataReady } from "@features/metadata";

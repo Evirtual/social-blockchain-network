@@ -4,7 +4,7 @@ import { useFeedRefresh } from "../hooks/useFeedRefresh";
 import { usePostsByTokenIds } from "../hooks/usePostsByTokenIds";
 import { useNetworkFilterState } from "../hooks/useNetworkFilterState";
 import { useSupportedNetworks } from "../hooks/useSupportedNetworks";
-import { useContractActionsFacade } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import {

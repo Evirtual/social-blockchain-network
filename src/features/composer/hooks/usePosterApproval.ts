@@ -3,7 +3,7 @@ import { fetchPosterGateStatuses, fetchPosterStatuses } from "@shared/lib/poster
 import { runInFlight } from "@shared/lib/inFlight";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import type { TransactionResponse } from "ethers";
-import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 type ContractLike = {
   getReadContract: ReadContractFactory;

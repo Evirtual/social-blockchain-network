@@ -14,7 +14,7 @@ import { resetProfileUiState } from "./profilesState/resetProfileUiState";
 import { resolveAvatarForSave } from "./profilesState/resolveAvatarForSave";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { getEnv } from "@shared/lib/env";
-import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 import { useImageCrop } from "@features/imageCrop";
 
 import type { ProfileRecord } from "./profilesState/profileRecord";

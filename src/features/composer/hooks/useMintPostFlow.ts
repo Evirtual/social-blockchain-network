@@ -8,7 +8,7 @@ import { makeLocalNoticeId, normalizeChainIdToString } from "../services/utils";
 import { parseMintPostReceipt, waitForMetadataReady } from "../services/mintPost";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 import { validateDraftForMint } from "../services/validateDraftForMint";
-import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 type TxNotificationsLike = {
   notifyPending: (p: { hash: string; label: string; explorerUrl: string | null }) => void;

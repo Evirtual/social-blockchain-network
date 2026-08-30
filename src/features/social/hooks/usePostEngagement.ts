@@ -6,7 +6,7 @@ import { runSocialAction } from "../services/actions/runSocialAction";
 import type { Post, PostComment } from "@types";
 import type { TransactionResponse } from "ethers";
 import type { TransactionReceipt } from "ethers";
-import type { WriteContractFactory } from "@features/contract";
+import type { WriteContractFactory } from "@features/contract/types";
 import { commentKey } from "@features/post/services";
 import { parseCommentAddedFromReceipt } from "../services/commentAddedFromReceipt";
 

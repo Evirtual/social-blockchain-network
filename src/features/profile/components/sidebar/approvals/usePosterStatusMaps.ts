@@ -6,7 +6,7 @@ import { parseChainIdNumber } from "@shared/lib/chainId";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { querySubgraph } from "@shared/lib/subgraphQuery";
 import { getEnv } from "@shared/lib/env";
-import type { ReadContractFactory } from "@features/contract";
+import type { ReadContractFactory } from "@features/contract/types";
 
 export function usePosterStatusMaps(args: {
   open: boolean;

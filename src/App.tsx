@@ -8,7 +8,7 @@ import { ScrollToTop } from "./features/app/components/ScrollToTop";
 import { useStatusActions } from "./features/status";
 import { useTheme } from "./features/theme";
 import { useComposer } from "./features/composer";
-import { useContractActions } from "./features/contract";
+import { useContractActions } from "./features/contract/providers/useContractActions";
 import { useProfileState } from "./features/profile";
 import { isSupportedNetworkChainId, useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";

@@ -9,7 +9,7 @@ import {
   onNotificationsLastSeenChanged,
   readNotificationsLastSeen,
 } from "../services/notificationReadState";
-import { useContractState } from "@features/contract";
+import { useContractState } from "@features/contract/providers/useContractState";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
 
 const EVENT_REFRESH_INTERVAL_MS = 15_000;

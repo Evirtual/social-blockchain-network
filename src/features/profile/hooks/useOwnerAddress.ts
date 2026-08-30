@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useContractActions } from "@features/contract";
+import { useContractActions } from "@features/contract/providers/useContractActions";
 import { normalizeAddress } from "@shared/lib/address";
 
 export function useOwnerAddress(walletAddress: string | null) {

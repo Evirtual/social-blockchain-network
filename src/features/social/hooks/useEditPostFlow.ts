@@ -13,7 +13,7 @@ import { parsePostKey, postKey } from "@features/post/services";
 import { preparePostMetadata } from "@features/post/services/preparePostMetadata";
 import { getDraftMediaState } from "@features/post/services/draftMediaState";
 import type { TransactionResponse } from "ethers";
-import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 import { useVideoTrim } from "@features/videoTrim";
 import type { VideoTrimResult } from "@features/videoTrim/types";
 import { useImageCrop } from "@features/imageCrop";

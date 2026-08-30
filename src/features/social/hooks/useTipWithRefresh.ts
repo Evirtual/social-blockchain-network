@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useContractActionsFacade } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
 import { useSocialActions } from "../providers/useSocialActions";
 
 export function useTipWithRefresh() {

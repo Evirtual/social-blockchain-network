@@ -2,7 +2,7 @@ import type { Post } from "@types";
 import { usePosterAdminStatus } from "./usePosterAdminStatus";
 import { useProfileAdminActions } from "./useProfileAdminActions";
 import type { TransactionResponse } from "ethers";
-import type { ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 export function useProfileAdminController(params: {
   address: string;
