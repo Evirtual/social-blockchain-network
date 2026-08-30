@@ -25,7 +25,6 @@ export function useProfilePageData(args: {
   };
   feedState: {
     posts: Post[];
-    isLiveFeedEnabled: boolean;
   };
   feedActions: {
     loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
@@ -49,7 +48,7 @@ export function useProfilePageData(args: {
   const account = args.address.toLowerCase();
   const key = profileKey(args.walletState.chainId, args.address);
   const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === account;
-  const subgraphEnabled = Boolean(args.feedState.isLiveFeedEnabled);
+  const subgraphEnabled = true;
 
   const loadPostsByTokenIds = (tokenIds: string[], postChainId?: string | null) =>
     args.feedActions.loadPostsByTokenIds(tokenIds, postChainId);

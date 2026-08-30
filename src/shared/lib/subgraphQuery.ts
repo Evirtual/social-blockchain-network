@@ -1,7 +1,6 @@
 import { withTimeout } from "./feedQuery";
 import { getEnv, getEnvBoolean, getEnvString } from "./env";
 import { getNetworkBadgeLabel } from "./chain";
-import { areSubgraphQueriesEnabled } from "./subgraphGate";
 import {
   SubgraphRateLimitError,
   getCooldownRemainingMs,
@@ -165,10 +164,6 @@ export async function querySubgraph<T>(args: {
   timeoutMs?: number;
 }): Promise<T> {
   const env = getEnv();
-  if (!areSubgraphQueriesEnabled(env)) {
-    throw new Error("Subgraph queries are disabled until the wallet is approved.");
-  }
-
   const logEnabled = getEnvBoolean(env, "VITE_SUBGRAPH_LOG", false);
   const summaryEveryRaw = getEnvString(env, "VITE_SUBGRAPH_LOG_SUMMARY_EVERY");
   const summaryEvery = Math.max(1, Math.min(500, Number(summaryEveryRaw ?? 25)));

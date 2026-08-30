@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getEnv, getEnvBoolean } from "@shared/lib/env";
+import { getEnv } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFromSubgraph";
-import { buildDemoNotifications } from "../services/demo/demoNotifications";
-import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
 import {
   countUnreadNotifications,
   onNotificationsLastSeenChanged,
   readNotificationsLastSeen,
-  seedDemoUnreadOncePerLoad
 } from "../services/notificationReadState";
 import { useContractState } from "@features/contract";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
@@ -18,27 +15,16 @@ import { filterNotificationsForViewer } from "../lib/notificationFilters";
 const EVENT_REFRESH_INTERVAL_MS = 15_000;
 
 export function useNotificationsBadge(args: { walletAddress: string | null; chainId: string | null; first?: number }) {
-  const [hasUnread, setHasUnread] = useState(false);
-  const [gateEpoch, setGateEpoch] = useState(0);
-  const refreshTimeoutRef = useRef<number | null>(null);
+  const [hasUnread, setHasUnread] = useState(false);  const refreshTimeoutRef = useRef<number | null>(null);
   const { isOwner } = useContractState();
 
   const env = getEnv();
-  const demoModeEnabled = getEnvBoolean(env, "VITE_DEMO_MODE", false);
-
   const chainIdNum = useMemo(() => {
     const n = Number(args.chainId);
     return Number.isFinite(n) ? n : null;
   }, [args.chainId]);
 
-  const subgraphUrl = useMemo(() => getSubgraphUrlForChainId(env, chainIdNum), [env, chainIdNum]);
-
-  useEffect(() => {
-    if (!demoModeEnabled) return;
-    return onSubgraphQueriesEnabledChanged(() => setGateEpoch((n) => n + 1));
-  }, [demoModeEnabled]);
-
-  useEffect(() => {
+  const subgraphUrl = useMemo(() => getSubgraphUrlForChainId(env, chainIdNum), [env, chainIdNum]);  useEffect(() => {
     const wallet = String(args.walletAddress ?? "").trim();
     if (!wallet) {
       setHasUnread(false);
@@ -47,18 +33,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
 
     let cancelled = false;
 
-    const compute = async () => {
-      // Demo mode: show demo notifications + unread dot until marked seen.
-      if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) {
-        seedDemoUnreadOncePerLoad(args.chainId, wallet);
-        const lastSeen = readNotificationsLastSeen(args.chainId, wallet);
-        const demoItems = filterNotificationsForViewer(buildDemoNotifications(wallet, args.chainId), isOwner);
-        const unread = countUnreadNotifications(demoItems, lastSeen);
-        if (!cancelled) setHasUnread(unread > 0);
-        return;
-      }
-
-      const lastSeen = readNotificationsLastSeen(args.chainId, wallet);
+    const compute = async () => {      const lastSeen = readNotificationsLastSeen(args.chainId, wallet);
 
       if (!subgraphUrl) {
         if (!cancelled) setHasUnread(false);
@@ -134,7 +109,7 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       offSeen();
       offEvents();
     };
-  }, [args.walletAddress, args.chainId, args.first, demoModeEnabled, subgraphUrl, env, gateEpoch, chainIdNum, isOwner]);
+  }, [args.walletAddress, args.chainId, args.first, subgraphUrl, env, chainIdNum, isOwner]);
 
   return { hasUnread };
 }

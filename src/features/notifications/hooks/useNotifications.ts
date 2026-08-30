@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFromSubgraph";
-import { getEnv, getEnvBoolean } from "@shared/lib/env";
+import { getEnv } from "@shared/lib/env";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
-import { buildDemoNotifications } from "../services/demo/demoNotifications";
-import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
 import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
 import { useContractState } from "@features/contract";
@@ -27,7 +25,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
   }, [args.chainId]);
 
   const subgraphUrl = useMemo(() => getSubgraphUrlForChainId(env, chainIdNum), [env, chainIdNum]);
-  const demoModeEnabled = getEnvBoolean(env, "VITE_DEMO_MODE", false);
 
   // Notifications belong to one account on one chain. Without clearing, a load
   // that fails after switching would keep the previous account visible.
@@ -39,31 +36,10 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     dispatch({ type: "reset" });
   }, [identity]);
 
-  const [gateEpoch, setGateEpoch] = useState(0);
-  useEffect(() => {
-    if (!demoModeEnabled) return;
-    return onSubgraphQueriesEnabledChanged(() => setGateEpoch((n) => n + 1));
-  }, [demoModeEnabled]);
-
-  useEffect(() => {
-    if (!args.open) return;
-    if (!demoModeEnabled) return;
-    if (!args.walletAddress) return;
-    if (areSubgraphQueriesEnabled(env)) return;
-
-    // Demo mode: only seed notifications while the wallet is not approved (live feed disabled).
-    const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
-    dispatch({ type: "seed-demo", items: filterNotificationsForViewer(demo, isOwner) });
-  }, [args.open, args.walletAddress, args.chainId, demoModeEnabled, env, gateEpoch, isOwner]);
-
   useEffect(() => {
     if (!args.open) return;
     if (!args.walletAddress) return;
     if (!subgraphUrl) return;
-
-    // Demo mode: if the wallet isn't approved yet, don't hit the subgraph at all.
-    // (subgraph queries are intentionally blocked until approval)
-    if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) return;
 
     let cancelled = false;
     dispatch({ type: "load-started" });
@@ -76,16 +52,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     })
       .then((res) => {
         if (cancelled) return;
-        const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
-
-        // Live results always win, including an empty one. Demo notifications
-        // stand in only while the wallet is unapproved and nothing real exists.
-        if (res.items.length === 0 && canUseDemoFallback) {
-          const demo = buildDemoNotifications(args.walletAddress as string, args.chainId);
-          dispatch({ type: "seed-demo", items: filterNotificationsForViewer(demo, isOwner) });
-          return;
-        }
-
         dispatch({
           type: "load-succeeded",
           items: filterNotificationsForViewer(res.items, isOwner),
@@ -103,7 +69,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     return () => {
       cancelled = true;
     };
-  }, [args.open, args.walletAddress, args.chainId, args.first, subgraphUrl, demoModeEnabled, env, gateEpoch, isOwner]);
+  }, [args.open, args.walletAddress, args.chainId, args.first, subgraphUrl, isOwner]);
 
   useEffect(() => {
     if (!args.open) return;
@@ -111,7 +77,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     if (!subgraphUrl) return;
     if (schemaMismatch) return;
 
-    if (demoModeEnabled && !areSubgraphQueriesEnabled(env)) return;
 
     let cancelled = false;
     const scheduleRefresh = () => {
@@ -191,9 +156,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     args.first,
     subgraphUrl,
     schemaMismatch,
-    demoModeEnabled,
     env,
-    gateEpoch,
     chainIdNum,
     isOwner
   ]);

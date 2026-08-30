@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useFollowScans, useIsFollowing } from "../hooks";
 import { useContractActionsFacade } from "@features/contract";
-import { useFeedState } from "@features/feed";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import { FollowContext, type FollowContextValue } from "./followStateContext";
@@ -10,7 +9,6 @@ export type { FollowContextValue } from "./followStateContext";
 
 export function FollowProvider({ children }: { children: React.ReactNode }) {
   const { provider, walletAddress, chainId } = useWalletState();
-  const feed = useFeedState();
   const { setStatus } = useStatusActions();
   const contract = useContractActionsFacade();
   const { runContractTx } = contract;
@@ -62,13 +60,12 @@ export function FollowProvider({ children }: { children: React.ReactNode }) {
 
   // Prefetch self follow data so sidebar stats/modals don't wait on route-level effects.
   useEffect(() => {
-    if (!feed.isLiveFeedEnabled) return;
     if (!walletAddress) return;
     if (!chainId) return;
     void loadFollowerCountForAddress(walletAddress);
     void loadFollowersForAddress(walletAddress);
     void loadFollowingForAddress(walletAddress);
-  }, [feed.isLiveFeedEnabled, walletAddress, chainId, loadFollowerCountForAddress, loadFollowersForAddress, loadFollowingForAddress]);
+  }, [walletAddress, chainId, loadFollowerCountForAddress, loadFollowersForAddress, loadFollowingForAddress]);
 
   const value = useMemo<FollowContextValue>(
     () => ({

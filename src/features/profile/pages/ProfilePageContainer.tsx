@@ -149,9 +149,7 @@ export function ProfilePageContainer({ address }: Props) {
       isFollowingByAddress: follow.isFollowingByAddress
     },
     feedState: {
-      isFeedLoading: feedState.isFeedLoading,
-      isDemoModeEnabled: feedState.isDemoModeEnabled,
-      isLiveFeedEnabled: feedState.isLiveFeedEnabled
+      isFeedLoading: feedState.isFeedLoading
     },
     admin: {
       isPosterAllowed: admin.isPosterAllowed,

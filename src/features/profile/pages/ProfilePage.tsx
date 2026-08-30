@@ -14,9 +14,6 @@ type Props = {
   avatarHue: number;
   avatarUrl?: string;
 
-  isDemoModeEnabled: boolean;
-  isLiveFeedEnabled: boolean;
-
   isPosterAllowed?: boolean;
   wasPosterDisapprovedEver?: boolean;
   adminActionInFlight?: "approve" | "disapprove" | "reset" | "save" | null;
@@ -55,17 +52,9 @@ export function ProfilePage(props: Props) {
 
   const canFollow = !!props.walletAddress && props.walletAddress.toLowerCase() !== props.address.toLowerCase();
 
-  const isDemoProfile =
-    props.isDemoModeEnabled &&
-    props.posts.some((p) => String((p as any)?.tokenId ?? "").startsWith("demo-"));
+  const isFollowing = props.isFollowing;
 
-  // Not-approved accounts should not attempt follow lookups or show loading.
-  // Demo profiles also don't need follow state.
-  const isFollowDisabled = !props.isLiveFeedEnabled || isDemoProfile;
-  const isFollowing = isFollowDisabled ? false : props.isFollowing;
-
-  // In demo mode, demo-generated profiles should still show the Follow control even when disconnected.
-  const showFollowButton = canFollow || isDemoProfile;
+  const showFollowButton = canFollow;
 
   const canAdminEdit = props.isOwner && (!props.walletAddress || props.walletAddress.toLowerCase() !== props.address.toLowerCase());
   const [isAdminEditing, setIsAdminEditing] = useState(false);
@@ -92,7 +81,6 @@ export function ProfilePage(props: Props) {
           onAdminReset={props.onAdminReset}
           adminActionInFlight={props.adminActionInFlight}
           canFollow={showFollowButton}
-          isFollowDisabled={isFollowDisabled}
           isFollowing={isFollowing}
           isFollowSubmitting={props.isFollowSubmitting}
           onToggleFollow={props.onToggleFollow}

@@ -72,9 +72,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [myPostsCountFromSubgraph, setMyPostsCountFromSubgraph] = useState<number | null>(null);
 
   useEffect(() => {
-    let active = true;
-    // In demo mode we gate all subgraph reads until wallet is approved (live feed enabled).
-    if (!walletAddress || !feedState.isLiveFeedEnabled) {
+    let active = true;    if (!walletAddress) {
       setMyPostsCountFromSubgraph(null);
       return () => {
         active = false;
@@ -93,13 +91,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [walletAddress, feedState.isLiveFeedEnabled]);
+  }, [walletAddress]);
 
   const authorIdentity = useAuthorIdentity(posts, profilesByAddress);
 
   // Author profiles are read from the subgraph, not through the wallet, so
   // they resolve for visitors who have not connected one.
-  usePrefetchMissingAuthorProfiles(feedState.isLiveFeedEnabled, posts, profilesByAddress, loadProfile, 4);
+  usePrefetchMissingAuthorProfiles(true, posts, profilesByAddress, loadProfile, 4);
 
   const resolvedMyPostsCount =
     myPostsCountFromSubgraph == null
