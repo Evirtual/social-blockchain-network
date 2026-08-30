@@ -10,7 +10,9 @@ ORIGIN_GATEWAYS = "https://peach-managing-orangutan-155.mypinata.cloud/ipfs/"
 # CORS allowlist:
 # - "*" to allow any origin (simple demos)
 # - or a comma-separated list like "https://yourdomain.com,http://localhost:5173"
-ALLOW_ORIGINS = "https://social.edgarasneverdauskas.com,https://evirtual.github.io,http://localhost:5173"
+# The last entry is a LAN address for testing the dev server from a phone on
+# the same network. Machine-specific; update or drop it as needed.
+ALLOW_ORIGINS = "https://social.edgarasneverdauskas.com,https://evirtual.github.io,http://localhost:5173,http://192.168.0.67:5173"
 
 # Cache TTL (seconds) for successful GET responses. CIDs are immutable, so long TTL is safe.
 CACHE_TTL_OK_SECONDS = "29030400"
