@@ -3,7 +3,6 @@
 .input,
 .textarea,
 .file-input,
-.comment-box input,
 select,
 .select {
   width: 100%;
@@ -20,8 +19,7 @@ select,
 }
 
 .input::placeholder,
-.textarea::placeholder,
-.comment-box input::placeholder {
+.textarea::placeholder {
   color: color-mix(in srgb, var(--muted) 55%, transparent);
   opacity: 1;
 }

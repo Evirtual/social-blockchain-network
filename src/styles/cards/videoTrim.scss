@@ -57,27 +57,6 @@
   border: 0.0625rem solid var(--border);
 }
 
-.videoTrimDialogInfo {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.75rem;
-  font-size: 0.8rem;
-  color: var(--muted-2);
-}
-
-.videoTrimDialogInfoMeta {
-  font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 0.25rem;
-}
-
-.videoTrimDialogInfoDescription {
-  margin: 0;
-  color: var(--muted-2);
-  line-height: 1.4;
-}
-
 .videoTrimDialogSliderWrapper {
   display: flex;
   flex-direction: column;

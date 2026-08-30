@@ -171,7 +171,6 @@
   gap: 0.35rem;
 }
 
-
 .notificationMessage {
   margin-top: 0.125rem;
   color: var(--muted);
@@ -312,72 +311,6 @@
 .notificationPostThumb.isRemoved svg {
   width: 1.2rem;
   height: 1.2rem;
-}
-
-.notificationActionIcon {
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-}
-
-.notificationActionIcon svg {
-  display: block;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-// Make filled icons a bit lighter, while keeping outline icons crisp.
-.notificationActionIcon.isFilled svg {
-  fill-opacity: 0.7;
-  stroke-opacity: 0.85;
-}
-
-.notificationActionIcon.isLike {
-  color: var(--danger);
-}
-
-.notificationActionIcon.isSave {
-  color: var(--link);
-}
-
-.notificationActionIcon.isComment {
-  color: var(--accent);
-}
-
-.notificationActionIcon.isTip {
-  color: color-mix(in srgb, var(--accent) 80%, var(--text));
-}
-
-.notificationActionIcon.isFollow {
-  color: var(--link);
-}
-
-.notificationActionIcon.isAdmin {
-  color: var(--accent);
-}
-
-.notificationActionIcon.isApproval {
-  color: var(--link);
-}
-
-.notificationActionIcon.isRemove,
-.notificationActionIcon.isReport {
-  color: var(--danger);
-}
-
-.notificationDetailText {
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 
 .notificationActorLink {
