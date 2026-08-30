@@ -15,7 +15,6 @@ export type AddressListModalProps = {
   isLoading?: boolean;
   emptyText: string;
   onClose: () => void;
-  shortAddress: (address: string) => string;
   headerLeading?: React.ReactNode;
 };
 
@@ -58,7 +57,6 @@ export function AddressListModal(props: AddressListModalProps) {
           addresses: props.addresses,
           chainId: wallet.chainId,
           profilesByAddress: profileState.profilesByAddress,
-          shortAddress: props.shortAddress
         }).map((row) => (
           <Link key={row.addr} className="listRow" to={getProfileUrl(wallet.chainId, row.addr)} onClick={props.onClose}>
             <span className="listRowLeft">

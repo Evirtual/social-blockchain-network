@@ -35,10 +35,6 @@ type Props = {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export function HomePage(props: Props) {
@@ -61,7 +57,6 @@ export function HomePage(props: Props) {
   } = useFeedFilterViewModel({
     posts: props.posts,
     authorIdentity: props.authorIdentity,
-    shortAddress: props.shortAddress,
     ...getFeedStorageKeys({ kind: "home" }),
     walletAddress: props.walletAddress,
     chainId: props.chainId,
@@ -177,10 +172,6 @@ export function HomePage(props: Props) {
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}
         postActions={props.postActions}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getNativeSymbol={props.getNativeSymbol}
-        getExplorerTxUrl={props.getExplorerTxUrl}
       />
     </main>
   );

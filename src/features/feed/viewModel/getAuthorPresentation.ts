@@ -1,18 +1,18 @@
 import { normalizeAddress } from "@shared/lib/address";
 import { profileKey } from "@features/profile";
+import { shortAddress } from "@shared/lib/format";
 
 export function getAuthorPresentation(params: {
   author: string | undefined | null;
   chainId?: string | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
   guestHue: number;
 }): {
   authorLabel: string;
   authorHue: number;
   authorAvatarUrl: string | undefined;
 } {
-  const { author, chainId, authorIdentity, shortAddress, guestHue } = params;
+  const { author, chainId, authorIdentity, guestHue } = params;
 
   // Identities are per chain: the same address can be "BSC Origin" on one
   // network and "Base Origin" on another.

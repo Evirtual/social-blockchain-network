@@ -49,10 +49,6 @@ export function PostPage(props: PostPageViewModel) {
             walletAddress={props.walletAddress}
             authorIdentity={props.authorIdentity}
             postActions={props.postActions}
-            shortAddress={props.shortAddress}
-            stableHueFromSeed={props.stableHueFromSeed}
-            getNativeSymbol={props.getNativeSymbol}
-            getExplorerTxUrl={props.getExplorerTxUrl}
           />
         </div>
 
@@ -77,10 +73,6 @@ export function PostPage(props: PostPageViewModel) {
             onTipComment={props.postActions.tipComment}
             onReportPost={props.postActions.reportPost}
             onReportComment={props.postActions.reportComment}
-            shortAddress={props.shortAddress}
-            stableHueFromSeed={props.stableHueFromSeed}
-            getExplorerTxUrl={props.getExplorerTxUrl}
-            getNativeSymbol={props.getNativeSymbol}
           />
         </div>
       </div>

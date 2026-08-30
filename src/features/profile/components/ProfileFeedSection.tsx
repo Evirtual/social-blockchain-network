@@ -9,16 +9,12 @@ import { useTopbarCenter } from "@features/app";
 type Props = {
   posts: Post[];
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
   chainId: string | null;
   walletAddress: string | null;
   isFeedLoading: boolean;
   status: string;
   isOwner: boolean;
   postActions: PostActionsController;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
   authorAddress: string;
 };
 
@@ -43,7 +39,6 @@ export function ProfileFeedSection(props: Props) {
   } = useFeedFilterViewModel({
     posts: activePosts,
     authorIdentity: props.authorIdentity,
-    shortAddress: props.shortAddress,
     ...getFeedStorageKeys({ kind: "profile", address: props.authorAddress }),
     walletAddress: props.walletAddress,
     chainId: props.chainId,
@@ -102,10 +97,6 @@ export function ProfileFeedSection(props: Props) {
         walletAddress={props.walletAddress}
         authorIdentity={props.authorIdentity}
         postActions={props.postActions}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getNativeSymbol={props.getNativeSymbol}
-        getExplorerTxUrl={props.getExplorerTxUrl}
       />
     </section>
   );

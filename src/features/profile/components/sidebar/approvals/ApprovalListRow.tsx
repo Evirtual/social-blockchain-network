@@ -7,11 +7,11 @@ import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getAvatarStyle } from "@shared/lib/avatar";
 import { IconCheck, IconPower, IconRepeat, IconTrash, IconX } from "@shared/components/icons";
 import { getProfileUrl } from "@shared/lib/profile";
+import { shortAddress } from "@shared/lib/format";
 
 export function ApprovalListRow(props: {
   rowNumber?: number;
   addr: string;
-  shortAddress: (address: string) => string;
 
   isFlagged: boolean;
   isAllowed: boolean;
@@ -56,7 +56,7 @@ export function ApprovalListRow(props: {
         <div className="avatar" style={avatarStyle} aria-hidden="true" />
         <Link className="approvalIdentity" to={getProfileUrl(wallet.chainId, props.addr)} title={props.addr}>
           <span className="approvalIdentityTop">
-            <span className="approvalName">{profileName || props.shortAddress(props.addr)}</span>
+            <span className="approvalName">{profileName || shortAddress(props.addr)}</span>
           </span>
           <span className="approvalAddress">
             <code>{props.addr}</code>

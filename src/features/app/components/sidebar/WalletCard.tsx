@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useIsMobile } from "@features/app/hooks/useIsMobile";
 import { Modal } from "@shared/components/Modal";
 import { IconCheck, IconChevronDown, IconCoin, IconCopy } from "@shared/components/icons";
+import { shortAddress } from "@shared/lib/format";
+import { getNativeSymbol } from "@shared/lib/chain";
 
 export type WalletCardProps = {
   walletAddress: string | null;
@@ -23,8 +25,6 @@ export type WalletCardProps = {
   status: string;
   onWithdrawTips: () => void;
   isWithdrawSubmitting: boolean;
-  shortAddress: (address: string) => string;
-  getNativeSymbol: (chainId: string | null) => string;
 };
 
 export function WalletCard(props: WalletCardProps) {
@@ -108,7 +108,7 @@ export function WalletCard(props: WalletCardProps) {
     >
       <summary className="cardDropdownSummary">
         <span className="cardTitle">Wallet</span>
-        <span className="cardDropdownMeta">{props.walletAddress ? props.shortAddress(props.walletAddress) : "Disconnected"}</span>
+        <span className="cardDropdownMeta">{props.walletAddress ? shortAddress(props.walletAddress) : "Disconnected"}</span>
         <span className="cardDropdownChevron" aria-hidden="true">
           <IconChevronDown size={18} />
         </span>
@@ -125,7 +125,7 @@ export function WalletCard(props: WalletCardProps) {
               <div className="label">Address</div>
               <div className="walletValueWithAction">
                 <span className="walletValueText">
-                  {props.walletAddress ? props.shortAddress(props.walletAddress) : "?"}
+                  {props.walletAddress ? shortAddress(props.walletAddress) : "?"}
                 </span>
                 {props.walletAddress ? (
                   <button
@@ -152,13 +152,13 @@ export function WalletCard(props: WalletCardProps) {
             <div className="walletField">
               <div className="label">Balance</div>
               <div className="value">
-                {isBalanceLoading ? balanceSkeleton : props.nativeBalance} {props.getNativeSymbol(props.chainId)}
+                {isBalanceLoading ? balanceSkeleton : props.nativeBalance} {getNativeSymbol(props.chainId)}
               </div>
             </div>
             <div className="walletField">
               <div className="label">Tips</div>
               <div className="value">
-                {isTipsLoading ? balanceSkeleton : formatEtherTrim(props.withdrawableTipsWei, 4)} {props.getNativeSymbol(props.chainId)}
+                {isTipsLoading ? balanceSkeleton : formatEtherTrim(props.withdrawableTipsWei, 4)} {getNativeSymbol(props.chainId)}
               </div>
             </div>
           </div>
@@ -168,7 +168,7 @@ export function WalletCard(props: WalletCardProps) {
               <div className="label">Contract</div>
               <div className="walletValueWithAction">
                 <span className="walletValueText">
-                  {props.contractAddress ? props.shortAddress(String(props.contractAddress)) : "?"}
+                  {props.contractAddress ? shortAddress(String(props.contractAddress)) : "?"}
                   {props.contractDeployed === false ? " (not on this chain)" : ""}
                 </span>
 
@@ -216,7 +216,7 @@ export function WalletCard(props: WalletCardProps) {
                       <div className="label">Treasury</div>
                       <div className="walletValueWithAction">
                         <span className="walletValueText">
-                          {props.protocolTreasuryAddress ? props.shortAddress(props.protocolTreasuryAddress) : "?"}
+                          {props.protocolTreasuryAddress ? shortAddress(props.protocolTreasuryAddress) : "?"}
                         </span>
                         {props.protocolTreasuryAddress ? (
                           <button
@@ -240,7 +240,7 @@ export function WalletCard(props: WalletCardProps) {
                     <div>
                       <div className="label">Treasury wallet balance</div>
                       <div className="value">
-                        {isTipsLoading ? "…" : formatEtherTrim(props.treasuryNativeBalanceWei, 6)} {props.getNativeSymbol(props.chainId)}
+                        {isTipsLoading ? "…" : formatEtherTrim(props.treasuryNativeBalanceWei, 6)} {getNativeSymbol(props.chainId)}
                       </div>
                     </div>
                   </div>
@@ -252,7 +252,7 @@ export function WalletCard(props: WalletCardProps) {
                     <div>
                       <div className="label">Treasury withdrawable</div>
                       <div className="value">
-                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {props.getNativeSymbol(props.chainId)}
+                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {getNativeSymbol(props.chainId)}
                       </div>
                     </div>
                   </div>
@@ -283,7 +283,7 @@ export function WalletCard(props: WalletCardProps) {
                     <div>
                       <div className="label">Available tips</div>
                       <div className="value">
-                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {props.getNativeSymbol(props.chainId)}
+                        {isTipsLoading ? "…" : formatEtherTrim(props.withdrawableTipsWei, 6)} {getNativeSymbol(props.chainId)}
                       </div>
                     </div>
                   </div>
@@ -291,7 +291,7 @@ export function WalletCard(props: WalletCardProps) {
                     <div style={{ textAlign: "right" }}>
                       <div className="label">Fee ({formatBpsPercent(props.withdrawFeeBps)})</div>
                       <div className="value">
-                        {isTipsLoading ? "…" : formatEtherTrim(withdrawFeeWei, 6)} {props.getNativeSymbol(props.chainId)}
+                        {isTipsLoading ? "…" : formatEtherTrim(withdrawFeeWei, 6)} {getNativeSymbol(props.chainId)}
                       </div>
                     </div>
                   </div>
@@ -302,7 +302,7 @@ export function WalletCard(props: WalletCardProps) {
                     <div>
                       <div className="label">You receive</div>
                       <div className="value">
-                        {isTipsLoading ? "…" : formatEtherTrim(withdrawNetWei, 6)} {props.getNativeSymbol(props.chainId)}
+                        {isTipsLoading ? "…" : formatEtherTrim(withdrawNetWei, 6)} {getNativeSymbol(props.chainId)}
                       </div>
                     </div>
                   </div>

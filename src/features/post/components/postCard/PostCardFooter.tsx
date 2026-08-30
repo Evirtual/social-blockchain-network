@@ -53,10 +53,6 @@ export type PostCardFooterProps = {
 
   avatarStyle?: CSSProperties;
   canModerateComments?: boolean;
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
@@ -89,7 +85,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     onTogglePanel: props.onTogglePanel,
     onTip: props.onTip,
     defaultSupportBps: contractState.tipSupportPreferenceBps,
-    getNativeSymbol: props.getNativeSymbol
   });
 
   const onLike = useCallback(async () => {
@@ -197,10 +192,6 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         onTipComment={props.onTipComment}
         onReportPost={props.onReportPost}
         onReportComment={props.onReportComment}
-        shortAddress={props.shortAddress}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getExplorerTxUrl={props.getExplorerTxUrl}
-        getNativeSymbol={props.getNativeSymbol}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import type { Draft, Post } from "@types";
 import type { PostActionsController } from "@features/post";
+import { stableHueFromSeed } from "@shared/lib/format";
 
 const EMPTY_DRAFT: Draft = { title: "", body: "", imageUrl: "", imageDataUrl: "" };
 
@@ -42,10 +43,6 @@ export function useProfilePageProps(args: {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 }) {
   const {
     isOwner,
@@ -70,10 +67,6 @@ export function useProfilePageProps(args: {
     onAdminReset,
     onAdminSetProfile,
     postActions,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   } = args;
 
   return useMemo(() => {
@@ -103,10 +96,6 @@ export function useProfilePageProps(args: {
         ...postActions,
         editDraft: postActions.editDraft ?? EMPTY_DRAFT
       },
-      shortAddress,
-      stableHueFromSeed,
-      getNativeSymbol,
-      getExplorerTxUrl
     };
   }, [
     isOwner,
@@ -144,9 +133,5 @@ export function useProfilePageProps(args: {
     postActions.onTip,
     postActions.onBurn,
     postActions.onFreezePost,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   ]);
 }

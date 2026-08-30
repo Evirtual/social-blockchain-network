@@ -16,10 +16,6 @@ export function buildPostPageViewModel(args: {
   walletAddress: string | null;
   authorIdentity: PostPageViewModel["authorIdentity"];
   postActions: PostPageViewModel["postActions"];
-  shortAddress: PostPageViewModel["shortAddress"];
-  stableHueFromSeed: PostPageViewModel["stableHueFromSeed"];
-  getNativeSymbol: PostPageViewModel["getNativeSymbol"];
-  getExplorerTxUrl: PostPageViewModel["getExplorerTxUrl"];
 }): PostPageViewModel {
   return {
     isOwner: args.isOwner,
@@ -36,9 +32,5 @@ export function buildPostPageViewModel(args: {
     walletAddress: args.walletAddress,
     authorIdentity: args.authorIdentity,
     postActions: args.postActions,
-    shortAddress: args.shortAddress,
-    stableHueFromSeed: args.stableHueFromSeed,
-    getNativeSymbol: args.getNativeSymbol,
-    getExplorerTxUrl: args.getExplorerTxUrl
   };
 }

@@ -15,7 +15,6 @@ export type ApprovalsModalProps = {
   open: boolean;
   isOwner: boolean;
   onClose: () => void;
-  shortAddress: (address: string) => string;
   headerLeading?: React.ReactNode;
 };
 
@@ -172,7 +171,6 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
           onAdd={() => addPendingApproval(pendingInput)}
           approvalsError={approvalsError}
           pendingRows={pendingRows}
-          shortAddress={props.shortAddress}
           isLoadingPosterStatuses={isLoadingPosterStatuses}
           actionInFlight={actionInFlight}
           onRemove={handleRemove}
@@ -187,7 +185,6 @@ export function ApprovalsModal(props: ApprovalsModalProps) {
           isLoadingOnChainRequests={isLoadingOnChainRequests}
           onChainRequestsLoadError={onChainRequestsLoadError}
           chainRows={chainRows}
-          shortAddress={props.shortAddress}
           isLoadingPosterStatuses={isLoadingPosterStatuses}
           actionInFlight={actionInFlight}
           onApprove={handleApprove}

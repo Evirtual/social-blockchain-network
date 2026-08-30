@@ -23,7 +23,6 @@ import { useSessionStorageState } from "@shared/hooks/useSessionStorageState";
 type Args = {
   posts: Post[];
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
-  shortAddress: (address: string) => string;
   searchQueryKey: string;
   selectedNetworksKey: string;
   walletAddress: string | null;
@@ -100,11 +99,10 @@ export function useFeedFilterViewModel(args: Args) {
     return filterPosts({
       posts: scopedPosts,
       authorIdentity: args.authorIdentity,
-      shortAddress: args.shortAddress,
       searchQuery: appliedSearchQuery,
       selectedNetworkChainIds: effectiveSelectedNetworkChainIds
     });
-  }, [scopedPosts, args.authorIdentity, args.shortAddress, appliedSearchQuery, effectiveSelectedNetworkChainIds]);
+  }, [scopedPosts, args.authorIdentity, appliedSearchQuery, effectiveSelectedNetworkChainIds]);
 
   useEffect(() => {
     if (countMode !== "auto") {

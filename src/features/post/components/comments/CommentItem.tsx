@@ -9,6 +9,8 @@ import type { ActionInFlight, ActiveComposer } from "./types";
 import { CommentComposerPanels } from "./CommentComposerPanels";
 import { CommentDeleteModal } from "./CommentDeleteModal";
 import { CommentHeader } from "./CommentHeader";
+import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
+import { getExplorerTxUrl } from "@shared/lib/chain";
 
 type Props = {
   comment: PostComment;
@@ -56,16 +58,13 @@ type Props = {
     savePreference?: boolean
   ) => Promise<boolean>;
   onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export function CommentItem(props: Props) {
   const { comment } = props;
   const authorKey = comment.author.toLowerCase();
-  const hue = props.stableHueFromSeed(authorKey);
-  const explorer = comment.txHash ? props.getExplorerTxUrl(props.explorerChainId, comment.txHash) : null;
+  const hue = stableHueFromSeed(authorKey);
+  const explorer = comment.txHash ? getExplorerTxUrl(props.explorerChainId, comment.txHash) : null;
   const isMine = !!props.walletLower && comment.author.toLowerCase() === props.walletLower;
   const canEdit = isMine && !comment.deleted;
   const canDelete = (isMine || !!props.canModerateComments) && !comment.deleted;
@@ -134,7 +133,7 @@ export function CommentItem(props: Props) {
               <>
                 {props.replyToAddress ? (
                   <Link className="commentReplyTo" to={getProfileUrl(props.postChainId, props.replyToAddress)}>
-                    @{props.replyToLabel?.trim() ? props.replyToLabel : props.shortAddress(props.replyToAddress)}
+                    @{props.replyToLabel?.trim() ? props.replyToLabel : shortAddress(props.replyToAddress)}
                   </Link>
                 ) : null}
                 {comment.comment}

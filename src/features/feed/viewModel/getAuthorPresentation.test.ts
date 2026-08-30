@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getAuthorPresentation } from "./getAuthorPresentation";
 import { profileKey } from "@features/profile";
+import { shortAddress } from "@shared/lib/format";
 
 const ALICE = "0x91484B0e55C3d577602763784E34b5c08ABfdFcc";
 const GUEST_HUE = 999;
-const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 // The same account, holding a different profile on each network.
 const identity = new Map([
@@ -14,7 +14,7 @@ const identity = new Map([
 ]);
 
 function present(author: string | null | undefined, chainId?: string | null) {
-  return getAuthorPresentation({ author, chainId, authorIdentity: identity, shortAddress, guestHue: GUEST_HUE });
+  return getAuthorPresentation({ author, chainId, authorIdentity: identity, guestHue: GUEST_HUE });
 }
 
 describe("getAuthorPresentation", () => {
@@ -76,7 +76,6 @@ describe("getAuthorPresentation", () => {
       author: ALICE,
       chainId: "84532",
       authorIdentity: blank,
-      shortAddress,
       guestHue: GUEST_HUE
     });
     expect(result.authorLabel).toBe(shortAddress(ALICE));

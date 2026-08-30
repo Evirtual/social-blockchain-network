@@ -5,6 +5,7 @@ import { ProfileFeedSection } from "../components/ProfileFeedSection";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
 import type { PostActionsController } from "@features/post";
 import { getAvatarStyle } from "@shared/lib/avatar";
+import { shortAddress } from "@shared/lib/format";
 
 type Props = {
   isOwner: boolean;
@@ -41,14 +42,10 @@ type Props = {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 };
 
 export function ProfilePage(props: Props) {
-  const addressLabel = props.shortAddress(props.address);
+  const addressLabel = shortAddress(props.address);
 
   const canFollow = !!props.walletAddress && props.walletAddress.toLowerCase() !== props.address.toLowerCase();
 
@@ -105,16 +102,12 @@ export function ProfilePage(props: Props) {
       <ProfileFeedSection
         posts={props.posts}
         authorIdentity={props.authorIdentity}
-        shortAddress={props.shortAddress}
         chainId={props.chainId}
         walletAddress={props.walletAddress}
         isFeedLoading={props.isFeedLoading}
         status={props.status}
         isOwner={props.isOwner}
         postActions={props.postActions}
-        stableHueFromSeed={props.stableHueFromSeed}
-        getNativeSymbol={props.getNativeSymbol}
-        getExplorerTxUrl={props.getExplorerTxUrl}
         authorAddress={props.address}
       />
     </main>

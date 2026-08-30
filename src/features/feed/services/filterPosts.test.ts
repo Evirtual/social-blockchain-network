@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { filterPosts } from "./filterPosts";
 import type { Post } from "@types";
+import { shortAddress } from "@shared/lib/format";
 
 function post(overrides: Partial<Post> & Pick<Post, "tokenId">): Post {
   return {
@@ -21,13 +22,11 @@ const ALICE = "0x1111111111111111111111111111111111111111";
 const BOB = "0x2222222222222222222222222222222222222222";
 
 const identity = new Map([[ALICE.toLowerCase(), { name: "Base Origin", hue: 200 }]]);
-const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 function filter(params: { posts: Post[]; searchQuery?: string; networks?: string[] }) {
   return filterPosts({
     posts: params.posts,
     authorIdentity: identity,
-    shortAddress,
     searchQuery: params.searchQuery ?? "",
     selectedNetworkChainIds: params.networks ?? ["84532"]
   });

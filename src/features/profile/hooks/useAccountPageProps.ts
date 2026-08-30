@@ -80,10 +80,6 @@ export function useAccountPageProps(args: {
 
   postActions: PostActionsController;
 
-  shortAddress: (address: string) => string;
-  stableHueFromSeed: (seed: string) => number;
-  getNativeSymbol: (chainId: string | null) => string;
-  getExplorerTxUrl: (chainId: string | null, txHash: string) => string | null;
 }) {
   const {
     isOwner,
@@ -104,10 +100,6 @@ export function useAccountPageProps(args: {
     onWithdrawTips,
     isWithdrawSubmitting,
     onSaveProfile,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   } = args;
 
   return useMemo(() => {
@@ -155,8 +147,6 @@ export function useAccountPageProps(args: {
         status,
         onWithdrawTips,
         isWithdrawSubmitting,
-        shortAddress,
-        getNativeSymbol
       },
       status,
       isFeedLoading: feed.isFeedLoading,
@@ -172,10 +162,6 @@ export function useAccountPageProps(args: {
         ...postActions,
         editDraft: postActions.editDraft ?? EMPTY_DRAFT
       },
-      shortAddress,
-      stableHueFromSeed,
-      getNativeSymbol,
-      getExplorerTxUrl
     };
   }, [
     isOwner,
@@ -239,9 +225,5 @@ export function useAccountPageProps(args: {
     postActions.onTip,
     postActions.onBurn,
     postActions.onFreezePost,
-    shortAddress,
-    stableHueFromSeed,
-    getNativeSymbol,
-    getExplorerTxUrl
   ]);
 }
