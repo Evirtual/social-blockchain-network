@@ -60,6 +60,24 @@ export function ConnectWalletModal({ open, isBusy, error, options, onSelect, onC
             </button>
           ))}
         </div>
+
+        {/* Every action here costs gas, and the networks are testnets, so a
+            visitor with a wallet but no test funds can connect and still do
+            nothing. Point them at where to get some. */}
+        <p className="walletConnectHint">
+          These are testnets. Need funds?{" "}
+          <a href="https://portal.cdp.coinbase.com/products/faucet" target="_blank" rel="noreferrer noopener">
+            Base Sepolia
+          </a>
+          {", "}
+          <a href="https://www.alchemy.com/faucets/ethereum-sepolia" target="_blank" rel="noreferrer noopener">
+            Ethereum Sepolia
+          </a>
+          {", "}
+          <a href="https://www.bnbchain.org/en/testnet-faucet" target="_blank" rel="noreferrer noopener">
+            BSC Testnet
+          </a>
+        </p>
       </div>
     </Modal>
   );

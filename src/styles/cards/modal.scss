@@ -168,6 +168,19 @@
   gap: 0.75rem;
 }
 
+// Quiet by design: useful to the visitor who has no test funds, ignorable by
+// everyone else.
+.walletConnectHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+
+  a {
+    color: var(--link);
+  }
+}
+
 .walletConnectItem {
   width: 100%;
   text-align: left;
