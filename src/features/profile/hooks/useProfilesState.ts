@@ -17,7 +17,9 @@ import { getEnv } from "@shared/lib/env";
 import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
 import { useImageCrop } from "@features/imageCrop";
 
-export type ProfileRecord = { name: string; bio: string; avatarUrl: string };
+import type { ProfileRecord } from "./profilesState/profileRecord";
+
+export type { ProfileRecord } from "./profilesState/profileRecord";
 
 type UseProfilesStateArgs = {
   provider: ChainProvider | null;

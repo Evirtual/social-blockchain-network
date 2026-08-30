@@ -48,6 +48,12 @@ jobs:
       - name: Typecheck
         run: npx tsc -b --pretty false
 
+      # 46 import cycles were removed by importing concrete modules instead of
+      # barrels. A new one is added by accident and stays invisible until
+      # something initialises in the wrong order, so hold the count at zero.
+      - name: Check import cycles
+        run: npm run check:cycles
+
       - name: Test
         run: npm run test:frontend
 
