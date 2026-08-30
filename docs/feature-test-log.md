@@ -60,11 +60,22 @@ and the dialog closed. The optimistic update means the tipper sees their own
 action at once rather than waiting for the subgraph, so the fifteen second
 event throttle does not delay self-initiated feedback.
 
+**Minting a text post.** Composer validation clamps the body at 280 characters,
+dropping anything typed past the limit rather than letting an oversized post
+reach the chain. The mint reached the wallet, settled, and the post appeared at
+the top of the feed with its counters at zero.
+
+**Minting a post with an image.** Selecting a file opens a crop step before the
+composer accepts it. The upload through the pinata worker completed, the mint
+settled, and the image renders in the feed, fetched back through the media
+worker. This exercises the whole chain: crop, IPFS upload, metadata, mint, and
+media retrieval.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Minting a post, including image and video upload through IPFS
+- Minting a post with a video, and the video trim step
 - Editing and burning a post
 - Tipping a comment, and the support-percentage split on either
 - Like, unlike, save, unsave
