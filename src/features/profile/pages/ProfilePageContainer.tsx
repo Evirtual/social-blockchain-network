@@ -75,7 +75,6 @@ export function ProfilePageContainer({ address }: Props) {
 
 
   const {
-    key,
     isSelf,
     name,
     bio,
@@ -172,7 +171,6 @@ export function ProfilePageContainer({ address }: Props) {
     },
     postActions,
     data: {
-      key,
       isSelf,
       name,
       bio,

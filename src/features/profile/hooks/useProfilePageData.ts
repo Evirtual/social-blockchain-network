@@ -117,7 +117,6 @@ export function useProfilePageData(args: {
   const selfKey = args.walletState.walletAddress?.toLowerCase() ?? "";
 
   return {
-    key,
     isSelf,
     name,
     bio,

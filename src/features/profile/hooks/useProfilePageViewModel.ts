@@ -77,11 +77,13 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     wasPosterDisapprovedEver: args.admin.wasPosterDisapprovedEver,
     adminActionInFlight: args.handlers.adminActionInFlight,
     address: args.address,
-    key: args.data.key,
+    account: args.address.toLowerCase(),
     name: args.data.name,
     bio: args.data.bio,
     avatarUrl: args.data.avatarUrl,
-    isFollowing: args.follow.isFollowingByAddress[args.data.key],
+    // Follow state is keyed by address. The profile cache key is a different
+    // kind of string and never matches here.
+    isFollowing: args.follow.isFollowingByAddress[args.address.toLowerCase()],
     isFollowSubmitting: args.handlers.isFollowSubmitting,
     posts: args.data.filtered,
     chainId: args.walletState.chainId,
