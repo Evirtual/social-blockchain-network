@@ -21,10 +21,3 @@ export function writeApprovalsChainRequestsCache(cacheKey: string | undefined, r
   approvalsChainRequestsCache.set(key, { requesters, updatedAt: Date.now() });
 }
 
-export function readPendingApprovals(): string[] {
-  return [];
-}
-
-export function writePendingApprovals(next: string[]) {
-  void next;
-}

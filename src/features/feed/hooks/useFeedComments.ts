@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post, PostComment } from "@types";
-import { getSocialContract } from "@features/contract";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { queryLogsPaged, withTimeout } from "@shared/lib/feedQuery";
 import { runInFlight } from "@shared/lib/inFlight";
@@ -124,9 +123,6 @@ export function useFeedComments(params: {
           return;
         }
 
-        // NOTE: keep this to preserve prior behavior even if it isn't used by all paths.
-        // (Some bundlers/tree-shakers can be sensitive to unused imports in certain configs.)
-        void getSocialContract;
 
         const readProvider: ChainProvider = readCtx.readProvider;
         const readContract: SocialPostsContract = readCtx.readContract;

@@ -107,7 +107,7 @@ describe("readRateLimitSource", () => {
 describe("SubgraphRateLimitError", () => {
   it("stays recognisable to the shared error mapper", async () => {
     const { getErrorMessage } = await import("./errors");
-    const err = new SubgraphRateLimitError(URL_A, 60_000, "worker");
+    const err = new SubgraphRateLimitError(60_000, "worker");
 
     // The mapper keys off "429" in the message.
     expect(err.message).toContain("429");
@@ -115,7 +115,7 @@ describe("SubgraphRateLimitError", () => {
   });
 
   it("carries the delay and source for callers that want to show them", () => {
-    const err = new SubgraphRateLimitError(URL_A, 30_000, "upstream");
+    const err = new SubgraphRateLimitError(30_000, "upstream");
     expect(err.retryAfterMs).toBe(30_000);
     expect(err.source).toBe("upstream");
   });

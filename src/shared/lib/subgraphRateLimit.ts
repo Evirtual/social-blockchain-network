@@ -13,14 +13,12 @@ export class SubgraphRateLimitError extends Error {
   readonly retryAfterMs: number;
   readonly source: RateLimitSource;
 
-  constructor(host: string, retryAfterMs: number, source: RateLimitSource) {
+  constructor(retryAfterMs: number, source: RateLimitSource) {
     const seconds = Math.ceil(retryAfterMs / 1000);
     super(`Subgraph HTTP 429: rate limited by ${source} (retry in ~${seconds}s)`);
     this.name = "SubgraphRateLimitError";
     this.retryAfterMs = retryAfterMs;
     this.source = source;
-    // Keeps the shared error mapper's `includes("429")` branch working.
-    void host;
   }
 }
 
