@@ -1,3 +1,4 @@
+import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import type { Draft, Post, PostComment } from "@types";
 
 export type PostActionsController = {
@@ -37,7 +38,7 @@ export type PostActionsController = {
     postChainId?: string | null,
     supportBps?: number | null,
     savePreference?: boolean
-  ) => Promise<boolean>;
+  ) => Promise<TipOutcome>;
   onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
   onFreezePost: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
 };

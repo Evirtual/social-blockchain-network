@@ -17,6 +17,8 @@ type Props = {
   savePreference: boolean;
   onSavePreferenceChange: (next: boolean) => void;
   onSubmitTip: () => void;
+  /** Why the last attempt was rejected, shown in the dialog rather than the sidebar. */
+  tipError?: string;
   onClose: () => void;
   requiresNetworkSwitch: boolean;
   inFlight: string | null;
@@ -110,6 +112,12 @@ export function PostTipModal(props: Props) {
             Tip
           </button>
         </div>
+
+        {props.tipError ? (
+          <div className="tipError" role="alert">
+            {props.tipError}
+          </div>
+        ) : null}
 
         <div className="tipSupport" aria-label="Protocol support">
           <div className="tipSupportHeader">

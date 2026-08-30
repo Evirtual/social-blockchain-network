@@ -61,3 +61,57 @@ describe("describeTipShortfall", () => {
     });
   });
 });
+
+describe("amount formatting", () => {
+  const wallet = "0x1111111111111111111111111111111111111111";
+
+  it("trims a full-precision balance to something readable", async () => {
+    const contract = contractWithBalance(79773680895274633n);
+    const message = await describeTipShortfall(contract, wallet, parseEther("1"));
+
+    expect(message).toContain("0.079773");
+    expect(message).not.toContain("0.079773680895274633");
+  });
+
+  it("drops trailing zeros rather than padding", async () => {
+    const contract = contractWithBalance(parseEther("0.5"));
+    await expect(describeTipShortfall(contract, wallet, parseEther("1"))).resolves.toContain("0.5");
+  });
+
+  it("does not render a tiny non-zero balance as zero", async () => {
+    // Showing "0" would suggest an empty wallet when it holds dust.
+    const contract = contractWithBalance(1n);
+    const message = await describeTipShortfall(contract, wallet, parseEther("1"));
+
+    expect(message).toContain("<0.000001");
+    expect(message).not.toMatch(/You have 0,/);
+  });
+
+  it("renders a genuinely empty wallet as zero", async () => {
+    const contract = contractWithBalance(0n);
+    await expect(describeTipShortfall(contract, wallet, parseEther("1"))).resolves.toContain("You have 0,");
+  });
+});
+
+describe("whole amounts", () => {
+  const wallet = "0x1111111111111111111111111111111111111111";
+
+  it("renders a whole tip amount as a whole number", async () => {
+    // Regression: 1.0 trims to an empty fraction, which briefly fell through
+    // to the dust case and displayed the tip as "<0.000001".
+    const contract = contractWithBalance(parseEther("0.05"));
+    const message = await describeTipShortfall(contract, wallet, parseEther("1"));
+
+    expect(message).toMatch(/tip 1[.,]/);
+    expect(message).not.toContain("tip <0.000001");
+  });
+
+  it.each([
+    ["2", "tip 2"],
+    ["10", "tip 10"],
+    ["1.5", "tip 1.5"]
+  ])("renders %s correctly", async (amount, expected) => {
+    const contract = contractWithBalance(0n);
+    await expect(describeTipShortfall(contract, wallet, parseEther(amount))).resolves.toContain(expected);
+  });
+});

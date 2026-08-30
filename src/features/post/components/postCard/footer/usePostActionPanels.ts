@@ -1,3 +1,4 @@
+import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { usePostComments } from "@features/feed";
@@ -15,7 +16,7 @@ type Params = {
     postChainId?: string | null,
     supportBps?: number | null,
     savePreference?: boolean
-  ) => Promise<boolean>;
+  ) => Promise<TipOutcome>;
   defaultSupportBps?: number | null;
   getNativeSymbol: (chainId: string | null) => string;
 };
@@ -47,23 +48,32 @@ export function usePostActionPanels(params: Params) {
   const [supportBpsDraft, setSupportBpsDraft] = useState<number | null>(defaultSupportBps ?? null);
   const [saveSupportPreference, setSaveSupportPreference] = useState<boolean>(false);
   const [inFlight, setInFlight] = useState<null | "like" | "save" | "tip">(null);
+  const [tipError, setTipError] = useState("");
 
   useEffect(() => {
     setTipDraft("");
     setSupportBpsDraft(defaultSupportBps ?? null);
     setSaveSupportPreference(false);
     setInFlight(null);
+    setTipError("");
   }, [tokenId, defaultSupportBps]);
 
   const onSubmitTip = useCallback(async () => {
     if (inFlight) return;
     setInFlight("tip");
+    setTipError("");
     try {
-      const ok = await onTip(tokenId, tipDraft, postChainId, supportBpsDraft, saveSupportPreference);
-      if (ok) {
+      const result = await onTip(tokenId, tipDraft, postChainId, supportBpsDraft, saveSupportPreference);
+      if (result.ok) {
         setTipDraft("");
         onTogglePanel("tip");
+        return;
       }
+
+      // A rejected tip writes its reason to the shared status, which is only
+      // rendered in the sidebar - absent on the feed and at mobile widths. Show
+      // it in the dialog the user is actually looking at.
+      setTipError(result.error || "Tip failed.");
     } finally {
       setInFlight(null);
     }
@@ -74,10 +84,12 @@ export function usePostActionPanels(params: Params) {
   }, [onTogglePanel]);
 
   const onCloseTip = useCallback(() => {
+    setTipError("");
     onTogglePanel("tip");
   }, [onTogglePanel]);
 
   return {
+    tipError,
     comments,
     isLoadingComments,
     nativeSymbol,

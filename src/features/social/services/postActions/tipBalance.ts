@@ -39,5 +39,24 @@ export async function describeTipShortfall(
 
   if (balance > valueWei) return null;
 
-  return `Not enough balance to tip ${formatEther(valueWei)}. You have ${formatEther(balance)}, and gas is charged on top.`;
+  return `Not enough balance to tip ${trimAmount(valueWei)}. You have ${trimAmount(balance)}, and gas is charged on top.`;
+}
+
+/**
+ * Six decimals is enough to tell two testnet balances apart while staying
+ * readable; the full eighteen render as an unreadable run of digits.
+ */
+function trimAmount(wei: bigint): string {
+  const text = formatEther(wei);
+  if (!text.includes(".")) return text;
+
+  const [whole = "0", fraction = ""] = text.split(".");
+  const trimmed = fraction.slice(0, 6).replace(/0+$/, "");
+  if (trimmed) return `${whole}.${trimmed}`;
+
+  // Nothing left after the decimal point: a whole amount such as 1.0 reads as
+  // "1", and only a value below the shown precision needs the "less than"
+  // form, which must never be applied to an amount that has a whole part.
+  if (whole !== "0") return whole;
+  return wei > 0n ? "<0.000001" : "0";
 }

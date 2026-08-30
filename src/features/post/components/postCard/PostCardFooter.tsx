@@ -1,3 +1,4 @@
+import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { memo, useCallback } from "react";
 
 import type { Post } from "@types";
@@ -35,7 +36,7 @@ export type PostCardFooterProps = {
     postChainId?: string | null,
     supportBps?: number | null,
     savePreference?: boolean
-  ) => Promise<boolean>;
+  ) => Promise<TipOutcome>;
   onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
@@ -80,6 +81,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
   const tokenId = props.tokenId;
   const postChainId = props.post.chainId ?? null;
   const {
+    tipError,
     comments,
     isLoadingComments,
     nativeSymbol,
@@ -194,6 +196,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         savePreference={saveSupportPreference}
         onSavePreferenceChange={setSaveSupportPreference}
         onSubmitTip={onSubmitTip}
+        tipError={tipError}
         onClose={onCloseTip}
         requiresNetworkSwitch={props.requiresNetworkSwitch}
         inFlight={inFlight}
