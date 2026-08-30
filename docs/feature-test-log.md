@@ -1,5 +1,4 @@
-
-| Network switch failure | Rejected in wallet | Dialog stays open and reports "Network switch cancelled in wallet." |)# Feature test log
+# Feature test log
 
 Manual sweep of the running app, 2026-08-30. Read and navigation paths only;
 write paths that require a signed transaction are listed at the end as not yet
@@ -24,6 +23,7 @@ the LAN dev origin.
 | Notification history | Full page | Real notifications listed with actor names |
 | Search | Query submitted | Returns results |
 | Theme toggle | Dark to light | Switches correctly; both themes render properly |
+| Network switch failure | Rejected in the wallet | Dialog stays open and reports "Network switch cancelled in wallet." |
 | Console | Throughout | No JavaScript errors or unhandled rejections |
 
 ## Found and fixed during the sweep
