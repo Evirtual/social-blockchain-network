@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 
 import { isSamePost } from "../services/postActions/matchPost";
-import { buildTokenKey, updateSessionTokenKeys } from "@shared/lib/sessionTokenKeys";
 import { runSocialAction } from "../services/actions/runSocialAction";
 
 import type { Post, PostComment } from "@types";
@@ -45,9 +44,6 @@ export function usePostEngagement(args: {
         action: async () => {
           const activeWallet = walletAddress;
           if (!activeWallet) return false;
-
-          const addressLower = activeWallet.toLowerCase();
-          const tokenKey = buildTokenKey({ tokenId, postChainId, currentChainId: chainId });
 
           const writeContract = await getWriteContract();
           const tokenIdBig = BigInt(tokenId);
@@ -130,14 +126,6 @@ export function usePostEngagement(args: {
                 return { ...post, likes: next, likedByMe: !already };
               })
             );
-
-            // Persist for the Saved/Liked profile views (fast reload without rescans).
-            updateSessionTokenKeys({
-              prefix: "likesTokenKeysByAddress:",
-              addressLower,
-              tokenKey,
-              add: !already
-            });
             return true;
           }
 
@@ -157,14 +145,6 @@ export function usePostEngagement(args: {
                 return { ...post, saves: next, savedByMe: !already };
               })
             );
-
-            // Persist for the Saved/Liked profile views (fast reload without rescans).
-            updateSessionTokenKeys({
-              prefix: "savedTokenKeysByAddress:",
-              addressLower,
-              tokenKey,
-              add: !already
-            });
             return true;
           }
 

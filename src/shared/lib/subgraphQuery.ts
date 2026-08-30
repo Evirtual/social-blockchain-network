@@ -192,7 +192,7 @@ export async function querySubgraph<T>(args: {
     // that caused it.
     const cooldownMs = getCooldownRemainingMs(url);
     if (cooldownMs > 0) {
-      throw new SubgraphRateLimitError(url, cooldownMs, getCooldownSource(url) ?? "worker");
+      throw new SubgraphRateLimitError(cooldownMs, getCooldownSource(url) ?? "worker");
     }
 
     const res = await fetch(url, {
@@ -205,7 +205,7 @@ export async function querySubgraph<T>(args: {
       const retryAfterMs = parseRetryAfterMs(res.headers.get("Retry-After"));
       const source = readRateLimitSource(res.headers);
       noteRateLimited(url, retryAfterMs, source);
-      throw new SubgraphRateLimitError(url, retryAfterMs, source);
+      throw new SubgraphRateLimitError(retryAfterMs, source);
     }
 
     if (!res.ok) {
