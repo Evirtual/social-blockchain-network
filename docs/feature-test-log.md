@@ -1,4 +1,5 @@
-# Feature test log
+
+| Network switch failure | Rejected in wallet | Dialog stays open and reports "Network switch cancelled in wallet." |)# Feature test log
 
 Manual sweep of the running app, 2026-08-30. Read and navigation paths only;
 write paths that require a signed transaction are listed at the end as not yet
@@ -35,10 +36,10 @@ from a phone would have looked broken.
 
 ## Found, not yet fixed
 
-**A failed network switch is silent.** Choosing a different network in the
-Networks dialog issues `wallet_switchEthereumChain`. When that call fails or is
-rejected, nothing is shown: the dialog keeps the previous network selected and
-the user gets no indication their choice did not take effect.
+**The wrong-network prompt on the home page ignores the outcome.** The Networks
+dialog now reports a failed or rejected switch, but
+`HomePage.requestWalletNetworkSwitch` discards the result and has no surface to
+show a message on.
 
 **Unknown routes fall back to the feed.** `#/does-not-exist` renders the home
 page rather than a not-found state. Harmless, but a visitor following a stale

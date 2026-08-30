@@ -36,6 +36,7 @@ export function FeedTopbarControls(props: Props) {
   const { setActions: setOverflowActions, setPanel: setOverflowPanel } = useTopbarOverflow();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNetworksOpen, setIsNetworksOpen] = useState(false);
+  const [networkSwitchError, setNetworkSwitchError] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const showSearch = props.showSearch ?? true;
 
@@ -110,12 +111,21 @@ export function FeedTopbarControls(props: Props) {
 
   const handleConnectedNetworkPick = async (chainId: number) => {
     const network = props.supportedNetworks.find((n) => n.chainId === chainId);
-    const ok = await requestNetworkSwitch(
+    setNetworkSwitchError("");
+
+    const result = await requestNetworkSwitch(
       chainId,
       props.chainId,
       network ? getAddEthereumChainParameter(network) : null
     );
-    if (!ok) return;
+
+    if (!result.ok) {
+      // Keeping the dialog open with the reason on it: closing silently made a
+      // rejected switch look like nothing had happened.
+      setNetworkSwitchError(result.error ?? "Could not switch network.");
+      return;
+    }
+
     props.onSelectedNetworkChainIdsChange(() => [String(chainId)]);
     setIsNetworksOpen(false);
   };
@@ -231,7 +241,14 @@ export function FeedTopbarControls(props: Props) {
         </Modal>
       ) : null}
 
-      <Modal open={isNetworksOpen} title="Networks" onClose={() => setIsNetworksOpen(false)}>
+      <Modal
+        open={isNetworksOpen}
+        title="Networks"
+        onClose={() => {
+          setNetworkSwitchError("");
+          setIsNetworksOpen(false);
+        }}
+      >
         <div className="feedNetworksModal">
           <div className="muted">
             {isWrongNetwork
@@ -240,6 +257,12 @@ export function FeedTopbarControls(props: Props) {
               ? "Showing your connected network by default. Switch networks to change what the feed/search queries."
               : "Select one or more networks to filter the feed."}
           </div>
+
+          {networkSwitchError ? (
+            <div className="feedNetworksError" role="alert">
+              {networkSwitchError}
+            </div>
+          ) : null}
 
           <div className="feedNetworksModalList" role="group" aria-label="Network filters">
             {props.supportedNetworks.map((n) => {
