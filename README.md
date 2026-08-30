@@ -1,6 +1,37 @@
 # Social Blockchain Network
 
-A React + Vite frontend with a Hardhat-based `SocialPosts` contract.
+A social network where every post is an NFT and every reaction is a signed
+transaction. Posts, likes, comments, saves, follows and tips all live on chain,
+media lives on IPFS, and reads come from a subgraph rather than from the chain
+directly.
+
+**Live on testnet:** [social.edgarasneverdauskas.com](https://social.edgarasneverdauskas.com)
+
+Deployed to three testnets — Base Sepolia, Ethereum Sepolia and BSC Testnet —
+and the feed reads from all of them at once. An account holds a separate profile
+on each network, because each network runs its own deployment of the contract.
+
+## How it fits together
+
+```
+SocialPosts.sol  ──emits──▶  subgraph  ──▶  Cloudflare worker  ──▶  React app
+   (per chain)              (per chain)      (proxy + cache)          │
+                                                                      │
+                              IPFS ◀── pinata worker ◀── media upload ─┘
+```
+
+The contract emits per-recipient events so the indexer never has to call back
+into it. The workers sit in front of the subgraph and IPFS to add caching and to
+keep credentials out of the browser. The frontend reads from the subgraph where
+one is configured, and falls back to reading event logs over RPC — per chain, so
+one network's subgraph failing does not affect the others.
+
+Written with React + Vite, a Hardhat-based `SocialPosts` contract, and a
+Graph subgraph per network.
+
+- [docs/architecture/](docs/architecture/) — how individual features work
+- [docs/feature-test-log.md](docs/feature-test-log.md) — what has been verified
+  by hand against a real wallet, and what has not
 
 Repo structure:
 
@@ -51,9 +82,13 @@ Repo structure:
 
 ## CI
 
-GitHub Actions runs on every PR and push to `main`:
+`.github/workflows/ci.yml` runs on every push and pull request:
 
-- Production build (`npm run build`)
+- **Frontend** — typecheck (`tsc -b`), the test suite (`vitest`), production build
+- **Workers** — typechecked against `workers/tsconfig.json`, which the frontend build does not cover
+- **Contracts** — the Hardhat suite
+
+`.github/workflows/pages.yml` separately builds `main` and deploys it to GitHub Pages.
 
 ## GitHub Pages (Actions)
 
