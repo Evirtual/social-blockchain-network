@@ -15,27 +15,6 @@
   backdrop-filter: blur(var(--overlay-blur)) saturate(0.8);
 }
 
-/* Modals portal to <body>, so a dialog opened from inside another one is a
-   sibling rather than a child and both overlays paint. Blurring twice muddies
-   the page and dimming twice turns it near-black, but dropping the scrim
-   entirely leaves the panel underneath at full contrast, competing with the
-   dialog in front. So: blur once, and add only a light scrim to push the
-   panel below back. */
-
-.modalOverlay ~ .modalOverlay {
-  background: transparent;
-  backdrop-filter: none;
-}
-
-/* Only the top dialog is shown. Leaving the panel underneath visible put an
-   edge above and below the dialog with nothing to do with the question being
-   asked. Its overlay stays, so the page keeps exactly one dim and one blur -
-   hiding the overlay too would leave the dialog floating on an unblurred page.
-   Hidden rather than unmounted, so cancelling returns to it unchanged. */
-.modalOverlay:has(~ .modalOverlay) > .modalContent {
-  visibility: hidden;
-}
-
 .modalContent {
   @include m.glass-panel;
 
