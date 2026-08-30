@@ -19,7 +19,7 @@ export type NotificationsModalProps = {
 
 export function NotificationsModal(props: NotificationsModalProps) {
   const navigate = useNavigate();
-  const { items, loading, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported, error, subgraphUrl } = useNotifications({
+  const { items, loading, schemaMismatch, error, subgraphUrl } = useNotifications({
     open: props.open,
     walletAddress: props.walletAddress,
     chainId: props.chainId,
@@ -55,27 +55,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
   }, [unreadItems, props.chainId]);
 
   const body = useMemo(() => {
-    const compatNote = amountWeiUnsupported || supportBpsUnsupported ? (
-      <section className="card hero isCompact notificationsCompatHero">
-        <div className="heroSub muted">You're using an older subgraph version. Some notifications may be incomplete.</div>
-        <div className="heroBullets" role="list">
-          {amountWeiUnsupported ? (
-            <div className="pill" role="listitem">
-              Tip amounts
-            </div>
-          ) : null}
-          {supportBpsUnsupported ? (
-            <div className="pill" role="listitem">
-              Tip/fee percentages
-            </div>
-          ) : null}
-          <div className="pill" role="listitem">
-            Newer notification types
-          </div>
-        </div>
-      </section>
-    ) : null;
-
     if (!props.walletAddress) return <div className="muted">Connect your wallet to view notifications.</div>;
 
     if (!subgraphUrl) return <div className="muted">No subgraph is configured for this network.</div>;
@@ -87,7 +66,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     if (error) {
       return (
         <>
-          {compatNote}
           <div className="muted">Failed to load notifications: {error}</div>
         </>
       );
@@ -96,7 +74,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     if (loading) {
       return (
         <>
-          {compatNote}
           <div className="list" aria-busy="true">
             <div className="listRow" aria-hidden="true">
               <span className="listRowLeft">
@@ -115,7 +92,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     if (!items.length) {
       return (
         <>
-          {compatNote}
           <div className="muted">No notifications yet.</div>
         </>
       );
@@ -124,7 +100,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     if (!visibleUnreadItems.length) {
       return (
         <>
-          {compatNote}
           <div className="muted">You're all caught up.</div>
         </>
       );
@@ -132,7 +107,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
 
     return (
       <>
-        {compatNote}
         <NotificationsList
           items={visibleUnreadItems}
           lastSeenTs={lastSeenTs}
@@ -151,8 +125,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
     props.onClose,
     subgraphUrl,
     schemaMismatch,
-    amountWeiUnsupported,
-    supportBpsUnsupported,
     error,
     loading,
     items,

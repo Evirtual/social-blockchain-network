@@ -1,18 +1,31 @@
 import { useEffect, useMemo } from "react";
 import type { Post } from "@types";
+import { profileKey, type ProfileKey } from "../lib/profileKey";
 
 export function usePrefetchMissingAuthorProfiles(
   enabled: boolean,
   posts: Post[],
-  profilesByAddress: Record<string, { name: string; bio: string; avatarUrl: string }>,
-  loadProfile: (address: string) => Promise<void>,
+  profilesByAddress: Record<ProfileKey, { name: string; bio: string; avatarUrl: string }>,
+  loadProfile: (address: string, chainIdOverride?: string | null) => Promise<void>,
   concurrencyLimit = 4
 ) {
+  // Each author is looked up against the chain its post came from. Resolving
+  // them all against the connected wallet's chain queries the wrong subgraph
+  // for posts from any other network, and finds nothing when no wallet is
+  // connected at all.
   const missingAuthors = useMemo(() => {
-    const uniqueAuthors = Array.from(new Set(posts.map((p) => (p.author ? p.author.toLowerCase() : "")).filter(Boolean)));
+    // Deduplicated by author *and* chain: one author appearing on three
+    // networks needs three lookups, since each carries its own profile.
+    const wanted = new Map<string, { author: string; chainId: string | undefined }>();
+    for (const post of posts) {
+      const author = post.author ? post.author.toLowerCase() : "";
+      if (!author) continue;
+      const key = profileKey(post.chainId, author);
+      if (wanted.has(key) || profilesByAddress[key]) continue;
+      wanted.set(key, { author, chainId: post.chainId });
+    }
 
-    if (uniqueAuthors.length === 0) return [];
-    return uniqueAuthors.filter((a) => !profilesByAddress[a]);
+    return Array.from(wanted.values());
   }, [posts, profilesByAddress]);
 
   useEffect(() => {
@@ -27,7 +40,8 @@ export function usePrefetchMissingAuthorProfiles(
         while (true) {
           const i = next++;
           if (i >= missingAuthors.length) break;
-          await loadProfile(missingAuthors[i]);
+          const entry = missingAuthors[i];
+          if (entry) await loadProfile(entry.author, entry.chainId);
         }
       });
 

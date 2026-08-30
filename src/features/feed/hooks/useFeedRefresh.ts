@@ -6,6 +6,7 @@ import { refreshFeedFromNetworks } from "../services/feedRefresh";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
 import { getEnv } from "@shared/lib/env";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
+import { createEventRefreshThrottle } from "@shared/lib/eventRefreshThrottle";
 import type { ChainProvider, ReadContractFactory } from "@features/contract";
 
 type ContractLike = {
@@ -19,6 +20,8 @@ type WalletParams = {
   chainId: string | null;
   walletEpoch: number;
 };
+
+const EVENT_REFRESH_INTERVAL_MS = 15_000;
 
 export function useFeedRefresh(params: {
   wallet: WalletParams;
@@ -281,12 +284,28 @@ export function useFeedRefresh(params: {
     const wsChainIds = selectedNetworkIds.filter((id) => isSocialEventsAvailable(id, env));
     if (wsChainIds.length === 0) return;
 
+    // One throttle per chain, so a burst on one network cannot starve another
+    // while still capping each chain's refresh rate.
+    const throttles = new Map<number, ReturnType<typeof createEventRefreshThrottle>>();
+    const throttleFor = (chainId: number) => {
+      const existing = throttles.get(chainId);
+      if (existing) return existing;
+      const created = createEventRefreshThrottle({
+        onRefresh: () => scheduleEventRefresh(chainId),
+        intervalMs: EVENT_REFRESH_INTERVAL_MS
+      });
+      throttles.set(chainId, created);
+      return created;
+    };
+
     const off = subscribeSocialEvents({
       chainIds: wsChainIds,
-      onEvent: (event) => scheduleEventRefresh(event.chainId),
+      onEvent: (event) => throttleFor(event.chainId).request(),
       env
     });
     return () => {
+      for (const throttle of throttles.values()) throttle.cancel();
+      throttles.clear();
       if (eventRefreshTimeoutRef.current != null) {
         window.clearTimeout(eventRefreshTimeoutRef.current);
         eventRefreshTimeoutRef.current = null;

@@ -5,6 +5,7 @@ import { loadNotificationsFromSubgraph } from "../services/loadNotificationsFrom
 import { buildDemoNotifications } from "../services/demo/demoNotifications";
 import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
+import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
 import {
   countUnreadNotifications,
   onNotificationsLastSeenChanged,
@@ -13,6 +14,8 @@ import {
 } from "../services/notificationReadState";
 import { useContractState } from "@features/contract";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
+
+const EVENT_REFRESH_INTERVAL_MS = 15_000;
 
 export function useNotificationsBadge(args: { walletAddress: string | null; chainId: string | null; first?: number }) {
   const [hasUnread, setHasUnread] = useState(false);
@@ -105,14 +108,25 @@ export function useNotificationsBadge(args: { walletAddress: string | null; chai
       };
     }
 
+    // Same reasoning as useNotifications: cap event-driven refreshes so
+    // unrelated network activity cannot drive the request rate.
+    const throttle = createEventRefreshThrottle({
+      onRefresh: scheduleCompute,
+      intervalMs: EVENT_REFRESH_INTERVAL_MS
+    });
+
     const offEvents = subscribeSocialEvents({
       chainIds: [chainIdNum ?? -1],
-      onEvent: () => scheduleCompute(),
+      onEvent: (event) => {
+        if (isSelfOnlyEvent(event, args.walletAddress)) return;
+        throttle.request();
+      },
       env
     });
 
     return () => {
       cancelled = true;
+      throttle.cancel();
       if (refreshTimeoutRef.current != null) {
         window.clearTimeout(refreshTimeoutRef.current);
         refreshTimeoutRef.current = null;

@@ -261,24 +261,17 @@ export async function loadFeedFromSubgraph(args: {
       if (primary.ok) return primary.data.posts;
 
       if (!isLikelySubgraphSchemaMismatch(primary.error)) throw primary.error;
-      try {
-        const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
-          url: args.url,
-          query,
-          variables,
-          timeoutMs: 12_000
-        });
-        return fallback.posts;
-      } catch (err) {
-        if (!isLikelySubgraphSchemaMismatch(err)) throw err;
-        const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
-          url: args.url,
-          query: queryMinimal,
-          variables: { first },
-          timeoutMs: 12_000
-        });
-        return fallback.posts;
-      }
+
+      // Drop straight to the minimal query. The previous middle step re-sent
+      // `query` unchanged, so it could only fail the same way it just had,
+      // costing a request against the rate limit for no possible gain.
+      const fallback = await querySubgraph<{ posts: SubgraphPostRow[] }>({
+        url: args.url,
+        query: queryMinimal,
+        variables: { first },
+        timeoutMs: 12_000
+      });
+      return fallback.posts;
     });
 
     writeSessionCache(postsCacheKey, { posts, ts: Date.now() });

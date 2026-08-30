@@ -6,15 +6,16 @@ import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { buildDemoNotifications } from "../services/demo/demoNotifications";
 import { areSubgraphQueriesEnabled, onSubgraphQueriesEnabledChanged } from "@shared/lib/subgraphGate";
 import { isSocialEventsAvailable, subscribeSocialEvents } from "@shared/lib/socialEvents";
+import { createEventRefreshThrottle, isSelfOnlyEvent } from "@shared/lib/eventRefreshThrottle";
 import { useContractState } from "@features/contract";
 import { filterNotificationsForViewer } from "../lib/notificationFilters";
+
+const EVENT_REFRESH_INTERVAL_MS = 15_000;
 
 export function useNotifications(args: { open: boolean; walletAddress: string | null; chainId: string | null; first?: number }) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [schemaMismatch, setSchemaMismatch] = useState(false);
-  const [amountWeiUnsupported, setAmountWeiUnsupported] = useState(false);
-  const [supportBpsUnsupported, setSupportBpsUnsupported] = useState(false);
   const [error, setError] = useState<string>("");
   const refreshTimeoutRef = useRef<number | null>(null);
   const { isOwner } = useContractState();
@@ -67,8 +68,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
       .then((res) => {
         if (cancelled) return;
         setSchemaMismatch(res.schemaMismatch);
-        setAmountWeiUnsupported(res.amountWeiUnsupported);
-        setSupportBpsUnsupported(res.supportBpsUnsupported);
         const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
 
         // If we're approved (live), always show the real subgraph result (even if empty).
@@ -84,8 +83,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
         const canUseDemoFallback = demoModeEnabled && !areSubgraphQueriesEnabled(env);
         setItems((prev) => (canUseDemoFallback && prev.length ? prev : []));
         setSchemaMismatch(false);
-        setAmountWeiUnsupported(false);
-        setSupportBpsUnsupported(false);
         setError(err instanceof Error ? err.message : String(err ?? ""));
       })
       .finally(() => {
@@ -122,8 +119,6 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
           .then((res) => {
             if (cancelled) return;
             setSchemaMismatch(res.schemaMismatch);
-            setAmountWeiUnsupported(res.amountWeiUnsupported);
-            setSupportBpsUnsupported(res.supportBpsUnsupported);
             if (res.items.length > 0) {
               setItems(filterNotificationsForViewer(res.items, isOwner));
             }
@@ -150,13 +145,25 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
       };
     }
 
+    // Events arrive for the whole network. Skip the ones that provably cannot
+    // notify this user, and cap the rest so a busy chain cannot drive one
+    // request per event.
+    const throttle = createEventRefreshThrottle({
+      onRefresh: scheduleRefresh,
+      intervalMs: EVENT_REFRESH_INTERVAL_MS
+    });
+
     const off = subscribeSocialEvents({
       chainIds: [chainIdNum ?? -1],
-      onEvent: () => scheduleRefresh(),
+      onEvent: (event) => {
+        if (isSelfOnlyEvent(event, args.walletAddress)) return;
+        throttle.request();
+      },
       env
     });
     return () => {
       cancelled = true;
+      throttle.cancel();
       if (refreshTimeoutRef.current != null) {
         window.clearTimeout(refreshTimeoutRef.current);
         refreshTimeoutRef.current = null;
@@ -166,6 +173,7 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
   }, [
     args.open,
     args.walletAddress,
+    args.chainId,
     args.first,
     subgraphUrl,
     schemaMismatch,
@@ -176,5 +184,5 @@ export function useNotifications(args: { open: boolean; walletAddress: string | 
     isOwner
   ]);
 
-  return { items, loading, schemaMismatch, amountWeiUnsupported, supportBpsUnsupported, error, subgraphUrl };
+  return { items, loading, schemaMismatch, error, subgraphUrl };
 }

@@ -97,7 +97,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const authorIdentity = useAuthorIdentity(posts, profilesByAddress);
 
-  usePrefetchMissingAuthorProfiles(Boolean(provider) && feedState.isLiveFeedEnabled, posts, profilesByAddress, loadProfile, 4);
+  // Author profiles are read from the subgraph, not through the wallet, so
+  // they resolve for visitors who have not connected one.
+  usePrefetchMissingAuthorProfiles(feedState.isLiveFeedEnabled, posts, profilesByAddress, loadProfile, 4);
 
   const resolvedMyPostsCount =
     myPostsCountFromSubgraph == null

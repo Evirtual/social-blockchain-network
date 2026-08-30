@@ -92,7 +92,6 @@ export type ProfilePageViewModelInput = {
   };
   postActions: PostActionsController;
   data: {
-    key: string;
     isSelf: boolean;
     name: string;
     bio: string;

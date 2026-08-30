@@ -3,7 +3,9 @@ import { parseEther } from "ethers";
 
 import { isSamePost } from "../services/postActions/matchPost";
 import { parseTipAmountRaw } from "../services/postActions/tipAmount";
+import { describeTipShortfall } from "../services/postActions/tipBalance";
 import { runSocialAction } from "../services/actions/runSocialAction";
+import { tipRejected, tipSucceeded } from "../services/postActions/tipOutcome";
 
 import type { Post } from "@types";
 import type { TransactionResponse } from "ethers";
@@ -46,6 +48,16 @@ export function usePostTips(args: {
       supportBps?: number | null,
       savePreference?: boolean
     ) => {
+      // Kept alongside setStatus so the reason can travel back to the caller.
+      // The status itself is only rendered in the sidebar, and reading it back
+      // after the attempt races the render that publishes it.
+      let rejection = "";
+      const reject = (message: string) => {
+        setStatus(message);
+        rejection = message;
+        return false;
+      };
+
       const result = await runSocialAction<boolean>({
         walletAddress,
         setStatus,
@@ -53,20 +65,20 @@ export function usePostTips(args: {
         postChainId,
         action: async () => {
           const parsed = parseTipAmountRaw(amountRaw);
-          if (!parsed.ok) {
-            setStatus(parsed.error);
-            return false;
-          }
+          if (!parsed.ok) return reject(parsed.error);
 
           const valueWei = parseEther(parsed.raw);
           const writeContract = await getWriteContract();
           const tokenIdBig = BigInt(tokenId);
 
           const supportBpsInt = Number.isFinite(supportBps as number) ? Number(supportBps) : 0;
-          if (supportBpsInt < 0 || supportBpsInt > 1000) {
-            setStatus("Support percentage must be 0-10%.");
-            return false;
-          }
+          if (supportBpsInt < 0 || supportBpsInt > 1000) return reject("Support percentage must be 0-10%.");
+
+          // Catch the shortfall here rather than letting gas estimation fail:
+          // an underfunded tip reverts with no revert data, which reads as a
+          // generic contract failure by the time it reaches the user.
+          const shortfall = await describeTipShortfall(writeContract, walletAddress, valueWei);
+          if (shortfall) return reject(shortfall);
 
           const hasSupport = supportBpsInt > 0;
           const ok = await runContractTx<boolean>(
@@ -95,7 +107,8 @@ export function usePostTips(args: {
           return true;
         }
       });
-      return result.ok ? result.value : false;
+      const ok = result.ok ? result.value : false;
+      return ok ? tipSucceeded : tipRejected(rejection || "Tip failed.");
     },
     [
       walletAddress,

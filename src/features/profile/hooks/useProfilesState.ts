@@ -6,6 +6,7 @@ import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { tryQuerySubgraph } from "@shared/lib/subgraphQuery";
 import { parseChainIdNumber } from "@shared/lib/chainId";
+import { profileKey } from "../lib/profileKey";
 import { compressAvatarForIpfs } from "@shared/lib/avatarCompression";
 import { parseProfileTuple } from "./profilesState/parseProfileTuple";
 import { readFileAsDataUrl } from "./profilesState/readFileAsDataUrl";
@@ -78,9 +79,10 @@ export function useProfilesState({
     if (isInitial) return;
 
     bumpEpoch();
-    profilesByAddressRef.current = {};
     profileLoadInFlightRef.current = {};
-    setProfilesByAddress({});
+    // The profile cache is keyed by chain, so entries for other networks stay
+    // valid across a wallet chain switch and are kept. A multi-chain feed
+    // otherwise refetches every author it had already resolved.
 
     resetProfileUiState({
       setProfileName,
@@ -108,15 +110,20 @@ export function useProfilesState({
   }, [profilesByAddress]);
 
   const loadProfile = useCallback(
-    async (address: string) => {
-      const key = address.toLowerCase();
+    async (address: string, chainIdOverride?: string | null) => {
+      const account = address.toLowerCase();
+      // Callers that know which chain the address came from say so. The
+      // connected wallet's chain is only a fallback, and is absent entirely
+      // when no wallet is connected.
+      const resolvedChainId = chainIdOverride ?? chainId;
+      const key = profileKey(resolvedChainId, account);
       const epoch = snapshotEpoch();
       if (profilesByAddressRef.current[key]) return;
 
       await runInFlight(profileLoadInFlightRef.current, key, async () => {
         try {
           const env = getEnv();
-          const chainIdNum = parseChainIdNumber(chainId);
+          const chainIdNum = parseChainIdNumber(resolvedChainId);
           const subgraphUrl = getSubgraphUrlForChainId(env, chainIdNum);
           if (subgraphUrl) {
             try {
@@ -135,7 +142,9 @@ export function useProfilesState({
               }>({
                 url: subgraphUrl,
                 query,
-                variables: { id: key },
+                // The subgraph keys Account by address alone; the chain is
+                // implicit in which deployment is being queried.
+                variables: { id: account },
                 timeoutMs: 10_000
               });
 
@@ -155,7 +164,7 @@ export function useProfilesState({
 
                 const currentWalletAddress = walletAddressRef.current;
                 const currentIsEditingProfile = isEditingProfileRef.current;
-                if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
+                if (currentWalletAddress && currentWalletAddress.toLowerCase() === account && !currentIsEditingProfile) {
                   if (isStale(epoch)) return;
                   setProfileName(parsed.name);
                   setProfileBio(parsed.bio);
@@ -170,6 +179,11 @@ export function useProfilesState({
           }
 
           if (!provider) return;
+          // The on-chain fallback reads through the wallet's contract, which
+          // only speaks for the wallet's own chain. Reading it for an author
+          // from another network would file that network's answer under the
+          // wrong chain.
+          if (profileKey(resolvedChainId, account) !== profileKey(chainId, account)) return;
 
           await ensureContractDeployedOnCurrentNetwork();
           const readContract = await getReadContract();
@@ -187,7 +201,7 @@ export function useProfilesState({
 
           const currentWalletAddress = walletAddressRef.current;
           const currentIsEditingProfile = isEditingProfileRef.current;
-          if (currentWalletAddress && currentWalletAddress.toLowerCase() === key && !currentIsEditingProfile) {
+          if (currentWalletAddress && currentWalletAddress.toLowerCase() === account && !currentIsEditingProfile) {
             if (isStale(epoch)) return;
             setProfileName(parsed.name);
             setProfileBio(parsed.bio);
@@ -220,7 +234,7 @@ export function useProfilesState({
       return;
     }
 
-    const key = walletAddress.toLowerCase();
+    const key = profileKey(chainId, walletAddress);
     const existingProfile = profilesByAddress[key];
     if (existingProfile && !isEditingProfile) {
       setProfileName(existingProfile.name);
@@ -431,7 +445,7 @@ export function useProfilesState({
         }
       }
 
-      const key = walletAddress.toLowerCase();
+      const key = profileKey(chainId, walletAddress);
       setProfilesByAddress((prev) => ({ ...prev, [key]: { name, bio, avatarUrl: avatar } }));
       setProfileName(name);
       setProfileBio(bio);

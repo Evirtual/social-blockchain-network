@@ -339,6 +339,19 @@
   flex-wrap: wrap;
 }
 
+// Sits directly under the amount field, where the tip was attempted. The
+// shared status this reflects is only rendered in the sidebar, which the feed
+// does not show at all and narrow viewports drop entirely.
+.tipError {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .tipSupportSummary {
   margin-top: 0.125rem;
   padding: 0.5rem 0.625rem;

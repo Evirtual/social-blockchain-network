@@ -1,3 +1,4 @@
+import type { TipOutcome } from "../services/postActions/tipOutcome";
 import { createContext } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
 import type { Dispatch, SetStateAction } from "react";
@@ -35,7 +36,7 @@ export type SocialActionsContextValue = {
     postChainId?: string | null,
     supportBps?: number | null,
     savePreference?: boolean
-  ) => Promise<boolean>;
+  ) => Promise<TipOutcome>;
   replyToComment: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   editComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   deleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;

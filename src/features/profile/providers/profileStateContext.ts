@@ -1,9 +1,10 @@
+import type { ProfileKey } from "../lib/profileKey";
 import { createContext } from "react";
 import { createStableContext } from "@shared/lib/createStableContext";
 
 export type ProfileState = {
   // On-chain profiles
-  profilesByAddress: Record<string, { name: string; bio: string; avatarUrl: string }>;
+  profilesByAddress: Record<ProfileKey, { name: string; bio: string; avatarUrl: string }>;
 
   // Profile (self)
   profileName: string;
@@ -26,7 +27,7 @@ export type ProfileState = {
 };
 
 export type ProfileActions = {
-  loadProfile: (address: string) => Promise<void>;
+  loadProfile: (address: string, chainIdOverride?: string | null) => Promise<void>;
   setProfileDraftName: (v: string) => void;
   setProfileDraftBio: (v: string) => void;
   onSelectProfileAvatarFile: (file: File | null) => Promise<void>;

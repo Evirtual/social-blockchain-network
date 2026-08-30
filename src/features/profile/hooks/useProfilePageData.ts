@@ -1,3 +1,4 @@
+import { profileKey, type ProfileKey } from "../lib/profileKey";
 import type { Post } from "@types";
 import type { BrowserProvider } from "ethers";
 import { useProfileRouteEffects } from "./useProfileRouteEffects";
@@ -30,7 +31,7 @@ export function useProfilePageData(args: {
     loadPostsByTokenIds: (tokenIds: string[], postChainId?: string | null) => Promise<LoadPostsByTokenIdsResult>;
   };
   profileState: {
-    profilesByAddress: Record<string, { name?: string; bio?: string; avatarUrl?: string }>;
+    profilesByAddress: Record<ProfileKey, { name?: string; bio?: string; avatarUrl?: string }>;
   };
   profileActions: {
     loadProfile: (address: string) => Promise<void>;
@@ -43,8 +44,11 @@ export function useProfilePageData(args: {
   };
   setStatus: (next: string) => void;
 }) {
-  const key = args.address.toLowerCase();
-  const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === key;
+  // The address identifies the account; the key only addresses the profile
+  // cache. Comparing an address against the key silently never matches.
+  const account = args.address.toLowerCase();
+  const key = profileKey(args.walletState.chainId, args.address);
+  const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === account;
   const subgraphEnabled = Boolean(args.feedState.isLiveFeedEnabled);
 
   const loadPostsByTokenIds = (tokenIds: string[], postChainId?: string | null) =>
@@ -100,7 +104,7 @@ export function useProfilePageData(args: {
   const bio = profile?.bio ?? "";
   const avatarUrl = profile?.avatarUrl ?? "";
 
-  const filtered = args.feedState.posts.filter((p) => p.author?.toLowerCase() === key);
+  const filtered = args.feedState.posts.filter((p) => p.author?.toLowerCase() === account);
 
   const { savedPosts, likedPosts } = useSelfSavedLikedPosts({
     isSelf,
@@ -113,7 +117,6 @@ export function useProfilePageData(args: {
   const selfKey = args.walletState.walletAddress?.toLowerCase() ?? "";
 
   return {
-    key,
     isSelf,
     name,
     bio,

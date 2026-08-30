@@ -2,6 +2,14 @@ import { withTimeout } from "./feedQuery";
 import { getEnv, getEnvBoolean, getEnvString } from "./env";
 import { getNetworkBadgeLabel } from "./chain";
 import { areSubgraphQueriesEnabled } from "./subgraphGate";
+import {
+  SubgraphRateLimitError,
+  getCooldownRemainingMs,
+  getCooldownSource,
+  noteRateLimited,
+  parseRetryAfterMs,
+  readRateLimitSource
+} from "./subgraphRateLimit";
 
 export type SubgraphVariables = Record<string, string | number | boolean | null | Array<string | number | boolean | null>>;
 
@@ -181,11 +189,25 @@ export async function querySubgraph<T>(args: {
   const timeoutMs = Number(args.timeoutMs ?? 10_000);
 
   const task = (async () => {
+    // Fail fast while a cooldown is in effect rather than adding to the load
+    // that caused it.
+    const cooldownMs = getCooldownRemainingMs(url);
+    if (cooldownMs > 0) {
+      throw new SubgraphRateLimitError(url, cooldownMs, getCooldownSource(url) ?? "worker");
+    }
+
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ query: args.query, variables: args.variables ?? {} })
     });
+
+    if (res.status === 429) {
+      const retryAfterMs = parseRetryAfterMs(res.headers.get("Retry-After"));
+      const source = readRateLimitSource(res.headers);
+      noteRateLimited(url, retryAfterMs, source);
+      throw new SubgraphRateLimitError(url, retryAfterMs, source);
+    }
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");

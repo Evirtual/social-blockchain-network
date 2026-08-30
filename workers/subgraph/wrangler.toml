@@ -6,7 +6,10 @@ compatibility_date = "2024-12-01"
 # CORS allowlist:
 # - "*" to allow any origin (simple demos)
 # - or a comma-separated list like "https://yourdomain.com,http://localhost:5173"
-ALLOW_ORIGINS = "https://social.edgarasneverdauskas.com,https://evirtual.github.io,http://localhost:5173"
+# The last entry is a LAN address for testing the dev server from a phone on the
+# same network. It is specific to one machine and changes when the router
+# reassigns the address; update or drop it as needed.
+ALLOW_ORIGINS = "https://social.edgarasneverdauskas.com,https://evirtual.github.io,http://localhost:5173,http://192.168.0.67:5173"
 
 # Cache behavior:
 # - Responses are stored in Cloudflare cache for STALE_TTL seconds
@@ -17,8 +20,15 @@ FRESH_TTL_SECONDS = "10"
 STALE_TTL_SECONDS = "120"
 
 # Very simple per-IP rate limit (best-effort). Tune based on your quota.
+#
+# Only requests that miss the cache and go upstream are counted, so this budget
+# now maps to real origin load rather than to total client traffic.
+#
+# Keyed by IP, which mobile carriers share across many subscribers via NAT, so
+# the ceiling has to accommodate a whole shared address rather than one user.
+# When it is hit, cached data is served stale in preference to a 429.
 RATE_LIMIT_WINDOW_SECONDS = "60"
-RATE_LIMIT_MAX_REQUESTS = "60"
+RATE_LIMIT_MAX_REQUESTS = "240"
 
 # Upstream subgraph endpoints (Graph Studio / hosted service).
 # Leave blank to disable that route.

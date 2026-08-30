@@ -56,6 +56,7 @@ export function AddressListModal(props: AddressListModalProps) {
 
         {getAddressListRows({
           addresses: props.addresses,
+          chainId: wallet.chainId,
           profilesByAddress: profileState.profilesByAddress,
           shortAddress: props.shortAddress
         }).map((row) => (

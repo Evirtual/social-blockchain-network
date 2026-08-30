@@ -39,7 +39,8 @@ function corsHeaders(request: Request, env: Env) {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Accept",
-    "Access-Control-Expose-Headers": "Content-Type,Cache-Control,ETag,X-Subgraph-Cache,X-Subgraph-Origin",
+    "Access-Control-Expose-Headers":
+      "Content-Type,Cache-Control,ETag,X-Subgraph-Cache,X-Subgraph-Origin,X-RateLimit-Source,X-RateLimit-Limit,Retry-After",
     ...(vary ? { Vary: vary } : {})
   };
 }
@@ -174,15 +175,6 @@ export default {
       return withCors(json({ error: "Subgraph route not configured" }, { status: 404 }), request, env);
     }
 
-    const rate = await checkRateLimit(request, env, route);
-    if (!rate.ok) {
-      return withCors(
-        json({ error: "Rate limited" }, { status: 429, headers: { "Retry-After": "60" } }),
-        request,
-        env
-      );
-    }
-
     const freshTtl = parsePositiveInt(env.FRESH_TTL_SECONDS, 10, 1, 3600);
     const staleTtl = Math.max(freshTtl, parsePositiveInt(env.STALE_TTL_SECONDS, 120, 1, 24 * 3600));
 
@@ -193,20 +185,53 @@ export default {
     const cacheReq = new Request(cacheKeyUrl, { method: "GET" });
 
     const cached = await caches.default.match(cacheReq);
-    if (cached) {
-      const cachedAt = Number(cached.headers.get("X-Subgraph-Cached-At") ?? "0");
-      const ageSeconds = cachedAt ? Math.max(0, Math.floor((Date.now() - cachedAt) / 1000)) : staleTtl + 1;
-      if (ageSeconds <= freshTtl) {
-        return withCors(
-          cached,
-          request,
-          env,
-          {
-            "X-Subgraph-Cache": "HIT",
-            "Cache-Control": cacheControlPublic(freshTtl)
-          }
-        );
+    const cachedAgeSeconds = cached
+      ? (() => {
+          const cachedAt = Number(cached.headers.get("X-Subgraph-Cached-At") ?? "0");
+          return cachedAt ? Math.max(0, Math.floor((Date.now() - cachedAt) / 1000)) : staleTtl + 1;
+        })()
+      : null;
+
+    // The cache is consulted before the rate limiter on purpose. A hit costs
+    // nothing and never reaches upstream, so charging it against the caller's
+    // budget would throttle the very requests the cache exists to absorb.
+    if (cached && cachedAgeSeconds !== null && cachedAgeSeconds <= freshTtl) {
+      return withCors(cached, request, env, {
+        "X-Subgraph-Cache": "HIT",
+        "Cache-Control": cacheControlPublic(freshTtl)
+      });
+    }
+
+    // Only requests that will actually hit upstream are rate limited.
+    const rate = await checkRateLimit(request, env, route);
+    if (!rate.ok) {
+      // Prefer serving stale data over failing: a slightly old feed beats an
+      // error, and it keeps a shared NAT address from breaking the app for
+      // everyone behind it.
+      if (cached) {
+        return withCors(cached, request, env, {
+          "X-Subgraph-Cache": "STALE-RATE-LIMITED",
+          "Cache-Control": cacheControlPublic(3)
+        });
       }
+
+      return withCors(
+        json(
+          { error: "Rate limited", source: "worker" },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": "60",
+              // Lets the client tell this apart from an upstream 429, which is
+              // passed through with the origin's own status and body.
+              "X-RateLimit-Source": "worker",
+              "X-RateLimit-Limit": String(parsePositiveInt(env.RATE_LIMIT_MAX_REQUESTS, 60, 1, 10_000))
+            }
+          }
+        ),
+        request,
+        env
+      );
     }
 
     const upstreamUrl = upstream;

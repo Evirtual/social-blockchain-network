@@ -1,3 +1,4 @@
+import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { memo, useCallback, useMemo, useState, type MouseEvent } from "react";
 import type { Draft, Post } from "@types";
 import { Modal } from "@shared/components/Modal";
@@ -53,7 +54,7 @@ type Props = {
     postChainId?: string | null,
     supportBps?: number | null,
     savePreference?: boolean
-  ) => Promise<boolean>;
+  ) => Promise<TipOutcome>;
   onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
   onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;

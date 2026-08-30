@@ -9,7 +9,8 @@ export function useProfilePageProps(args: {
   isOwner: boolean;
 
   address: string;
-  key: string;
+  /** Lowercased account address. Seeds the avatar hue, which stays per-account rather than per-chain. */
+  account: string;
   name: string;
   bio: string;
   avatarUrl: string;
@@ -51,7 +52,7 @@ export function useProfilePageProps(args: {
   const {
     isOwner,
     address,
-    key,
+    account,
     name,
     bio,
     avatarUrl,
@@ -87,7 +88,7 @@ export function useProfilePageProps(args: {
       address,
       name,
       bio,
-      avatarHue: stableHueFromSeed(key),
+      avatarHue: stableHueFromSeed(account),
       avatarUrl,
       isFollowing,
       isFollowSubmitting,
@@ -118,7 +119,7 @@ export function useProfilePageProps(args: {
     isPosterAllowed,
     wasPosterDisapprovedEver,
     address,
-    key,
+    account,
     name,
     bio,
     avatarUrl,
