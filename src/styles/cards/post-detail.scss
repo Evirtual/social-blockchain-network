@@ -82,11 +82,6 @@
   line-height: 1;
 }
 
-.badge.networkBadge {
-  margin-left: 0.375rem;
-  font-size: 0.75rem;
-}
-
 .postNetworkMarkLink {
   display: inline-flex;
   align-items: center;
@@ -99,20 +94,6 @@
   width: 24px;
   height: 24px;
 }
-
-.badge.networkBadge.isCurrentNetwork {
-  border-color: var(--link);
-  background: var(--surface);
-  color: var(--text);
-}
-
-.badge.savedBadge {
-  margin-left: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--link);
-  gap: 0.25rem;
-}
-
 
 .postImageLink {
   display: block;
@@ -147,12 +128,6 @@
 
 .post-body p:last-child {
   margin-bottom: 0;
-}
-
-.comment-box {
-  display: flex;
-  gap: 0.625rem;
-  margin-top: 0.625rem;
 }
 
 .postText {
@@ -391,7 +366,6 @@
 .tipSupportSaveButton {
   align-self: flex-start;
 }
-
 
 // Burning is permanent, so the dialog leads with what will be lost rather than
 // with the button that does it.
