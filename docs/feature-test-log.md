@@ -71,11 +71,17 @@ settled, and the image renders in the feed, fetched back through the media
 worker. This exercises the whole chain: crop, IPFS upload, metadata, mint, and
 media retrieval.
 
+**Minting a post with a video.** Selecting a video opens a trim step with a
+preview, draggable start and end handles, a live clip duration and a thirty
+second cap. Dragging the end handle from 0:05 to 0:02.83 updated the duration
+live, and applying the trim re-encoded the clip: the composer preview came back
+at 0:02 rather than the original 0:05. The upload and mint settled and the post
+renders in the feed playing the trimmed clip.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Minting a post with a video, and the video trim step
 - Editing and burning a post
 - Tipping a comment, and the support-percentage split on either
 - Like, unlike, save, unsave
