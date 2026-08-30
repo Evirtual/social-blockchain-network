@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { useEffect } from "react";
 
-import { profileKey, useProfileActions, useProfileState } from "@features/profile";
+import { profileKey } from "../../../lib/profileKey";
+import { useProfileActions } from "../../../providers/useProfileActions";
+import { useProfileState } from "../../../providers/useProfileState";
 import { useWalletState } from "@features/wallet";
 import { stableHueFromSeed } from "@shared/lib/formatters";
 import { getAvatarStyle } from "@shared/lib/avatar";

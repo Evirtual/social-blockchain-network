@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { hasPinata } from "@features/ipfs";
+import { hasPinata } from "../../ipfs/services/ipfs";
 import { useBestEffortUnpinCidsSafe } from "../hooks/useBestEffortUnpinCidsSafe";
 import { useCommentActions } from "../hooks/useCommentActions";
 import { useEditPostFlow } from "../hooks/useEditPostFlow";
@@ -7,11 +7,14 @@ import { useEnsureMatchingNetwork } from "../hooks/useEnsureMatchingNetwork";
 import { usePostEngagement } from "../hooks/usePostEngagement";
 import { usePostModeration } from "../hooks/usePostModeration";
 import { usePostTips } from "../hooks/usePostTips";
-import { useContractActionsFacade, useContractState } from "@features/contract";
-import { useFeedActions, useFeedState } from "@features/feed";
-import { useStatusActions } from "@features/status";
-import { useTxNotifications } from "@features/tx";
-import { useWalletActions, useWalletState } from "@features/wallet";
+import { useContractActionsFacade } from "../../contract/hooks/useContractActionsFacade";
+import { useContractState } from "../../contract/providers/useContractState";
+import { useFeedActions } from "../../feed/providers/useFeedActions";
+import { useFeedState } from "../../feed/providers/useFeedState";
+import { useStatusActions } from "../../status/providers/StatusProvider";
+import { useTxNotifications } from "../../tx/providers/TxNotificationsProvider";
+import { useWalletActions } from "../../wallet/providers/useWalletActions";
+import { useWalletState } from "../../wallet/providers/useWalletState";
 import { SocialActionsContext, type SocialActionsContextValue } from "./socialActionsStateContext";
 
 export function SocialActionsProvider({ children }: { children: React.ReactNode }) {

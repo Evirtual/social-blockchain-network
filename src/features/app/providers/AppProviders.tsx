@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
-import { ContractProvider } from "@features/contract";
-import { FeedProvider } from "@features/feed";
-import { FollowProvider } from "@features/follow";
-import { ProfileProvider } from "@features/profile";
-import { ComposerProvider } from "@features/composer";
-import { SocialActionsProvider } from "@features/social";
-import { StatusProvider } from "@features/status";
-import { ThemeProvider } from "@features/theme";
-import { TxNotificationsProvider } from "@features/tx";
-import { WalletProvider } from "@features/wallet";
-import { VideoTrimProvider } from "@features/videoTrim";
-import { ImageCropProvider } from "@features/imageCrop";
+import { ContractProvider } from "../../contract/providers/ContractProvider";
+import { FeedProvider } from "../../feed/providers/FeedProvider";
+import { FollowProvider } from "../../follow/providers/FollowProvider";
+import { ProfileProvider } from "../../profile/providers/ProfileProvider";
+import { ComposerProvider } from "../../composer/providers/ComposerProvider";
+import { SocialActionsProvider } from "../../social/providers/SocialActionsProvider";
+import { StatusProvider } from "../../status/providers/StatusProvider";
+import { ThemeProvider } from "../../theme/providers/ThemeProvider";
+import { TxNotificationsProvider } from "../../tx/providers/TxNotificationsProvider";
+import { WalletProvider } from "../../wallet/providers/WalletProvider";
+import { VideoTrimProvider } from "../../videoTrim/providers/VideoTrimProvider";
+import { ImageCropProvider } from "../../imageCrop/providers/ImageCropProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (

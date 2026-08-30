@@ -1,8 +1,8 @@
 import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { usePostComments } from "@features/feed";
-import type { PostPanel } from "../../PostCard";
+import { usePostComments } from "../../../../feed/hooks/usePostComments";
+import type { PostPanel } from "../postPanel";
 import { getNativeSymbol } from "@shared/lib/chain";
 
 type Params = {

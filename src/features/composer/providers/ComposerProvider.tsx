@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Draft } from "@types";
-import { hasPinata } from "@features/ipfs";
+import { hasPinata } from "../../ipfs/services/ipfs";
 import { useComposerMedia } from "../hooks/useComposerMedia";
 import { useMintPostFlow } from "../hooks/useMintPostFlow";
 import { usePosterApproval } from "../hooks/usePosterApproval";
-import { useContractActionsFacade } from "@features/contract";
-import { isSupportedNetworkChainId, useFeedActions, useFeedState } from "@features/feed";
-import { useStatusActions } from "@features/status";
-import { useTxNotifications } from "@features/tx";
-import { useWalletState } from "@features/wallet";
+import { useContractActionsFacade } from "../../contract/hooks/useContractActionsFacade";
+import { useFeedActions } from "../../feed/providers/useFeedActions";
+import { useFeedState } from "../../feed/providers/useFeedState";
+import { isSupportedNetworkChainId } from "../../feed/services/supportedNetworks";
+import { useStatusActions } from "../../status/providers/StatusProvider";
+import { useTxNotifications } from "../../tx/providers/TxNotificationsProvider";
+import { useWalletState } from "../../wallet/providers/useWalletState";
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from "@shared/lib/postLimits";
 import { ComposerContext, type ComposerContextValue } from "./composerStateContext";
 

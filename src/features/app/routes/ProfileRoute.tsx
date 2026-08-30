@@ -1,6 +1,6 @@
 import { Navigate, useLocation, useParams } from "react-router-dom";
-import { ProfilePageContainer } from "@features/profile";
-import { useWalletState } from "@features/wallet";
+import { ProfilePageContainer } from "../../profile/pages/ProfilePageContainer";
+import { useWalletState } from "../../wallet/providers/useWalletState";
 
 export function ProfileRoute() {
   const params = useParams();

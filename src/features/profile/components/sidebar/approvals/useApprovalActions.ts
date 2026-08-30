@@ -2,7 +2,7 @@ import { isAddress } from "ethers";
 
 import { getScanProviderFromReadContract } from "@shared/lib/contractRunner";
 import { hasPinata } from "@features/ipfs";
-import { discoverMintedTokenIdsForAuthor } from "@features/profile";
+import { discoverMintedTokenIdsForAuthor } from "../../../services/mintedTokenDiscovery";
 import {
   bestEffortUnpinCids,
   collectPinnedCidsForTokenIds,

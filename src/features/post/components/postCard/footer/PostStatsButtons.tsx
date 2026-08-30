@@ -1,7 +1,7 @@
 import { IconBookmark, IconCoin, IconHeart, IconMessage } from "@shared/components/icons";
 import { formatTipsWei } from "./formatTips";
 import { getStatButtonClass } from "./getStatButtonClass";
-import type { PostPanel } from "../../PostCard";
+import type { PostPanel } from "../postPanel";
 import type { Post } from "@types";
 
 type Props = {

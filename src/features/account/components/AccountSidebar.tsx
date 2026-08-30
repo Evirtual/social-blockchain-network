@@ -1,5 +1,7 @@
-import type { ProfileCardProps, WalletCardProps } from "@features/app";
-import { ProfileCard, WalletCard } from "@features/app";
+import type { ProfileCardProps } from "../../app/components/sidebar/ProfileCard";
+import type { WalletCardProps } from "../../app/components/sidebar/WalletCard";
+import { ProfileCard } from "../../app/components/sidebar/ProfileCard";
+import { WalletCard } from "../../app/components/sidebar/WalletCard";
 
 type Props = ProfileCardProps & WalletCardProps;
 

@@ -1,5 +1,5 @@
 import type { TokenMetadata } from "@types";
-import { getIpfsMetadataGatewayBases, ipfsToHttpCandidates } from "@features/ipfs";
+import { getIpfsMetadataGatewayBases, ipfsToHttpCandidates } from "@features/ipfs/services/ipfs";
 import { parseTokenMetadataFromDataUri, parseTokenMetadataJson, type TokenMetadataJson } from "./parse";
 
 type TokenMetadataFetchResult = { value: TokenMetadata; ok: boolean };

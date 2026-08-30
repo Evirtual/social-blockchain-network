@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:cycles": "node scripts/check-import-cycles.mjs",
     "preview": "vite preview",
     "test": "npm run test:contracts && npm run test:frontend",
     "test:contracts": "npm --prefix contracts test",

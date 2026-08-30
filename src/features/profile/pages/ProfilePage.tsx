@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ProfileAdminPanel } from "../components/ProfileAdminPanel";
 import { ProfileFeedSection } from "../components/ProfileFeedSection";
 import { ProfileHeaderCard } from "../components/ProfileHeaderCard";
-import type { PostActionsController } from "@features/post";
+import type { PostActionsController } from "../../post/types";
 import { getAvatarStyle } from "@shared/lib/avatar";
 import { shortAddress } from "@shared/lib/format";
 

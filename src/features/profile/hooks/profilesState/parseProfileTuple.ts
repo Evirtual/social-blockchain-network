@@ -1,4 +1,4 @@
-import type { ProfileRecord } from "../useProfilesState";
+import type { ProfileRecord } from "./profileRecord";
 
 export function parseProfileTuple(
   tuple: | [string, string, string] | { name: string; bio: string; avatar: string } | null | undefined

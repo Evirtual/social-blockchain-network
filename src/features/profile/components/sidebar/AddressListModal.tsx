@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { getAddressListRows } from "@features/profile/viewModel";
 
 import { Modal } from "@shared/components/Modal";
-import { useProfileActions, useProfileState } from "@features/profile";
+import { useProfileActions } from "../../providers/useProfileActions";
+import { useProfileState } from "../../providers/useProfileState";
 import { useWalletState } from "@features/wallet";
 import { getProfileUrl } from "@shared/lib/profile";
 

@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { requireContext } from "@shared/lib";
+import { requireContext } from "@shared/lib/reactContext";
 import { SocialActionsContext } from "./socialActionsStateContext";
 
 export function useSocialActions() {

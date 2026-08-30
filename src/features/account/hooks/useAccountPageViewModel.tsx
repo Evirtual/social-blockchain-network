@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Post } from "@types";
 import { AccountFeedHeaderAction } from "../components/AccountFeedHeaderAction";
 import { useAccountFeedView } from "./useAccountFeedView";
-import { useFeedFilterViewModel } from "@features/feed";
-import { getFeedStorageKeys } from "@features/feed";
+import { useFeedFilterViewModel } from "../../feed/hooks/useFeedFilterViewModel";
+import { getFeedStorageKeys } from "../../feed/lib/feedStorageKeys";
 import { loadAccountCountsFromSubgraphs } from "../services/subgraph/loadAccountCounts";
 
 type Args = {

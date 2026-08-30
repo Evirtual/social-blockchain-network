@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { requireContext } from "@shared/lib";
+import { requireContext } from "@shared/lib/reactContext";
 import { ContractStateContext } from "./contractStateContext";
 
 export function useContractState() {

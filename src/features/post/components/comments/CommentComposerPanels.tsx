@@ -3,7 +3,7 @@ import type { ActionInFlight, ActiveComposer } from "./types";
 import { IconCheck, IconQuestion } from "@shared/components/icons";
 import { parseEther } from "ethers";
 import { parseTipAmountRaw } from "@features/social/services/postActions/tipAmount";
-import { formatTipsWei } from "../postCard/footer";
+import { formatTipsWei } from "../postCard/footer/formatTips";
 
 type Props = {
   commentId: string;

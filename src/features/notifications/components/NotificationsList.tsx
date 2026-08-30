@@ -6,8 +6,9 @@ import { shortAddress, stableHueFromSeed } from "@shared/lib/formatters";
 import { getProfileUrl } from "@shared/lib/profile";
 import { postKeyFromParts } from "@shared/lib/post";
 import type { Post } from "@types";
-import { useFeedActions, useFeedState } from "@features/feed";
-import { ipfsToHttp } from "@features/ipfs";
+import { useFeedActions } from "../../feed/providers/useFeedActions";
+import { useFeedState } from "../../feed/providers/useFeedState";
+import { ipfsToHttp } from "../../ipfs/services/ipfs";
 import { getNativeSymbol } from "@shared/lib/network";
 import {
   IconBookmark,
