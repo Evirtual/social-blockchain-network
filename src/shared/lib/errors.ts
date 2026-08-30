@@ -27,6 +27,11 @@ export function getErrorMessage(error: ErrorInput) {
     return "Transaction rejected in wallet.";
   }
 
+  // Ethers v6 reports this before the error text is populated in some providers.
+  if (err.code === "INSUFFICIENT_FUNDS") {
+    return "Not enough balance to cover this transaction (amount plus gas fees).";
+  }
+
   const pickString = (...values: Array<string | null | undefined>) => {
     for (const v of values) {
       if (typeof v === "string" && v.trim()) return v;
@@ -88,12 +93,22 @@ export function getErrorMessage(error: ErrorInput) {
     return reasonText ? `Transaction reverted: ${reasonText}` : "Transaction reverted.";
   }
 
-  if (lower.includes("missing revert data")) {
-    return "Transaction reverted (no reason returned). This commonly happens when the post metadata is too large (e.g. big uploaded images). Try a smaller image, or use an image URL (IPFS/http).";
+  // Balance shortfalls are checked before the generic "missing revert data"
+  // branch: an underfunded transaction fails gas estimation and surfaces as a
+  // CALL_EXCEPTION carrying no revert data, so the order here decides which
+  // message the user sees.
+  if (
+    lower.includes("insufficient funds") ||
+    lower.includes("insufficient balance") ||
+    lower.includes("exceeds balance") ||
+    lower.includes("doesn't have enough funds") ||
+    lower.includes("does not have enough funds")
+  ) {
+    return "Not enough balance to cover this transaction (amount plus gas fees).";
   }
 
-  if (lower.includes("insufficient funds")) {
-    return "Insufficient funds for gas.";
+  if (lower.includes("missing revert data")) {
+    return "Transaction reverted without a reason. Check the amount and your balance, then try again.";
   }
   if (lower.includes("eaddrinuse")) {
     return "Local RPC port is already in use.";
