@@ -44,8 +44,11 @@ export function useProfilePageData(args: {
   };
   setStatus: (next: string) => void;
 }) {
+  // The address identifies the account; the key only addresses the profile
+  // cache. Comparing an address against the key silently never matches.
+  const account = args.address.toLowerCase();
   const key = profileKey(args.walletState.chainId, args.address);
-  const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === key;
+  const isSelf = !!args.walletState.walletAddress && args.walletState.walletAddress.toLowerCase() === account;
   const subgraphEnabled = Boolean(args.feedState.isLiveFeedEnabled);
 
   const loadPostsByTokenIds = (tokenIds: string[], postChainId?: string | null) =>
@@ -101,7 +104,7 @@ export function useProfilePageData(args: {
   const bio = profile?.bio ?? "";
   const avatarUrl = profile?.avatarUrl ?? "";
 
-  const filtered = args.feedState.posts.filter((p) => p.author?.toLowerCase() === key);
+  const filtered = args.feedState.posts.filter((p) => p.author?.toLowerCase() === account);
 
   const { savedPosts, likedPosts } = useSelfSavedLikedPosts({
     isSelf,
