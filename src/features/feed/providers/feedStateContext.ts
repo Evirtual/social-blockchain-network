@@ -12,10 +12,6 @@ export type FeedState = {
   isFeedLoading: boolean;
   postComments: Record<string, PostComment[]>;
   isLoadingPostComments: Record<string, boolean>;
-
-  isDemoModeEnabled: boolean;
-  isLiveFeedEnabled: boolean;
-  demoStep: "connect" | "approve" | null;
 };
 
 export type FeedActions = {

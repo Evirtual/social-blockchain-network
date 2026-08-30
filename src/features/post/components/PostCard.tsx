@@ -7,9 +7,7 @@ import { getPostUrl } from "@features/post/services";
 import { useStatusActions } from "@features/status";
 import { runSocialAction } from "@features/social/services/actions/runSocialAction";
 import { getAvatarStyle, PostBurnModal, PostCardBody, PostCardEditBox, PostCardFooter, PostCardHeader, PostReportModal } from "./postCard/index";
-import { useFeedState } from "@features/feed";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
-import { requestComposeNudge } from "@shared/lib/composeNudge";
 
 export type PostPanel = "comment" | "tip";
 
@@ -80,10 +78,6 @@ type Props = {
 };
 
 export const PostCard = memo(function PostCard(props: Props) {
-  const feedState = useFeedState();
-  const isDemoPost = String(props.post.tokenId ?? "").startsWith("demo-");
-  const isDemoGated = feedState.isDemoModeEnabled && (!feedState.isLiveFeedEnabled || isDemoPost);
-  const isDemoNotApproved = (isDemoGated && feedState.demoStep === "approve") || isDemoPost;
 
   const tokenId = props.post.tokenId;
   const postChainId = props.post.chainId ?? null;
@@ -125,7 +119,7 @@ export const PostCard = memo(function PostCard(props: Props) {
 
   const onTogglePanel = useCallback(
     (panel: PostPanel) => {
-      if ((isDemoGated || !props.walletAddress) && panel === "comment") {
+      if (!props.walletAddress && panel === "comment") {
         props.togglePanel(props.panelKey, panel);
         return;
       }
@@ -137,7 +131,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         }
       });
     },
-    [isDemoGated, props.togglePanel, props.panelKey, props.walletAddress, setStatus]
+    [props.togglePanel, props.panelKey, props.walletAddress, setStatus]
   );
 
   const onOpenReport = useCallback(() => {
@@ -145,12 +139,8 @@ export const PostCard = memo(function PostCard(props: Props) {
       requestConnectNudge();
       return;
     }
-    if (isDemoGated && isDemoNotApproved) {
-      requestComposeNudge();
-      return;
-    }
     setIsReportOpen(true);
-  }, [isDemoGated, isDemoNotApproved, props.walletAddress]);
+  }, [props.walletAddress]);
 
   const onStartEdit = useCallback(() => {
     props.onStartEditPost(props.post);
@@ -280,7 +270,6 @@ export const PostCard = memo(function PostCard(props: Props) {
         hasMintTxHash={hasMintTxHash}
         onCopyMintTx={onCopyMintTx}
         onOpenReport={onOpenReport}
-        reportDisabled={isDemoNotApproved}
         onStartEdit={onStartEdit}
         onBurn={onRequestBurn}
       />

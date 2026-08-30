@@ -127,17 +127,6 @@ describe("notificationsReducer", () => {
     });
   });
 
-  describe("demo seeding", () => {
-    it("seeds only into an empty list", () => {
-      const demo = [item("demo")];
-      expect(run({ type: "seed-demo", items: demo }).items).toEqual(demo);
-    });
-
-    it("never displaces real data", () => {
-      const state = run(loaded(), { type: "seed-demo", items: [item("demo")] });
-      expect(state.items).toEqual(LOADED);
-    });
-  });
 
   describe("reset", () => {
     it("returns to the initial state on a wallet or chain change", () => {

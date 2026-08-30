@@ -3,8 +3,6 @@ import type { NotificationItem } from "../types";
 
 const EVENT_NAME = "sbn:notificationsSeen";
 
-let demoUnreadSeededThisLoad = false;
-
 function norm(s: string | null | undefined): string {
   return String(s ?? "").trim().toLowerCase();
 }
@@ -30,21 +28,6 @@ export function writeNotificationsLastSeen(chainId: string | null, walletAddress
   } catch {
     // ignore
   }
-}
-
-/**
- * Demo-only: ensure there's always at least one unread example after a page refresh.
- * Seeds lastSeen to "now - 21s" once per page load.
- */
-export function seedDemoUnreadOncePerLoad(chainId: string | null, walletAddress: string | null): void {
-  if (demoUnreadSeededThisLoad) return;
-  demoUnreadSeededThisLoad = true;
-  const wallet = norm(walletAddress);
-  if (!wallet) return;
-
-  const now = Math.floor(Date.now() / 1000);
-  const ts = Math.max(0, now - 21);
-  writeNotificationsLastSeen(chainId, walletAddress, ts);
 }
 
 export function onNotificationsLastSeenChanged(handler: () => void): () => void {

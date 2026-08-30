@@ -23,8 +23,6 @@ export function useProfilePageProps(args: {
 
   posts: Post[];
   isFeedLoading: boolean;
-  isDemoModeEnabled: boolean;
-  isLiveFeedEnabled: boolean;
   chainId: string | null;
   status: string;
   walletAddress: string | null;
@@ -63,8 +61,6 @@ export function useProfilePageProps(args: {
     adminActionInFlight,
     posts,
     isFeedLoading,
-    isDemoModeEnabled,
-    isLiveFeedEnabled,
     chainId,
     status,
     walletAddress,
@@ -101,8 +97,6 @@ export function useProfilePageProps(args: {
       chainId,
       status,
       isFeedLoading,
-      isDemoModeEnabled,
-      isLiveFeedEnabled,
       walletAddress,
       authorIdentity,
       postActions: {
@@ -130,8 +124,6 @@ export function useProfilePageProps(args: {
     chainId,
     status,
     isFeedLoading,
-    isDemoModeEnabled,
-    isLiveFeedEnabled,
     walletAddress,
     authorIdentity,
     postActions.editDraft,

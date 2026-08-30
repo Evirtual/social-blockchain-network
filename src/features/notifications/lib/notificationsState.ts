@@ -33,8 +33,7 @@ export type NotificationsAction =
   | { type: "load-succeeded"; items: NotificationItem[]; schemaMismatch: boolean }
   | { type: "load-failed"; message: string }
   | { type: "refresh-succeeded"; items: NotificationItem[]; schemaMismatch: boolean }
-  | { type: "refresh-failed" }
-  | { type: "seed-demo"; items: NotificationItem[] };
+  | { type: "refresh-failed" };
 
 export const initialNotificationsState: NotificationsState = {
   items: [],
@@ -81,9 +80,6 @@ export function notificationsReducer(
       // Background refreshes are invisible by design, successful or not.
       return state;
 
-    case "seed-demo":
-      if (state.items.length > 0) return state;
-      return { ...state, items: action.items };
 
     default:
       return state;

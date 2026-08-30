@@ -81,7 +81,7 @@ export function useFeedComments(params: {
       const subgraphUrl = getSubgraphUrlForChainId(env, keyChainIdNum);
       const accountLower = typeof walletAddress === "string" ? walletAddress.toLowerCase() : null;
 
-      // Demo posts (and other non-numeric IDs) should never hit BigInt parsing / on-chain scanning.
+      // Non-numeric ids should never hit BigInt parsing or on-chain scanning.
       // Treat them as having no on-chain comments.
       let tokenIdBig: bigint | null = null;
       try {

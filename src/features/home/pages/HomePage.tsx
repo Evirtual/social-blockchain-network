@@ -3,7 +3,6 @@ import { Feed, FeedTopbarControls } from "@features/feed";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post";
-import { DemoFeedBanner } from "@features/feed/components/DemoFeedBanner";
 import { getFeedStorageKeys } from "@features/feed";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
@@ -32,9 +31,6 @@ type Props = {
   status: string;
   isFeedLoading: boolean;
   walletAddress: string | null;
-  isDemoModeEnabled: boolean;
-  isLiveFeedEnabled: boolean;
-  demoStep: "connect" | "approve" | null;
   authorIdentity: Map<string, { name: string; hue: number; avatarUrl?: string }>;
 
   postActions: PostActionsController;
@@ -47,14 +43,6 @@ type Props = {
 
 export function HomePage(props: Props) {
   const [isHeroDismissed, setIsHeroDismissed] = usePersistedFlag("socialBlockchainNetwork.heroDismissed");
-
-  const demoFallbackSelectedNetworkChainIds = useMemo(() => {
-    if (!props.isDemoModeEnabled || props.isLiveFeedEnabled) return undefined;
-    const ids = props.posts
-      .map((p) => String(p.chainId ?? "").trim())
-      .filter(Boolean);
-    return Array.from(new Set(ids));
-  }, [props.isDemoModeEnabled, props.isLiveFeedEnabled, props.posts]);
 
   const {
     supportedNetworks,
@@ -78,8 +66,7 @@ export function HomePage(props: Props) {
     walletAddress: props.walletAddress,
     chainId: props.chainId,
     isFeedLoading: props.isFeedLoading,
-    useSubgraphSearch: props.isLiveFeedEnabled,
-    fallbackSelectedNetworkChainIds: demoFallbackSelectedNetworkChainIds,
+    useSubgraphSearch: true,
     countMode: "visible"
   });
 
@@ -156,13 +143,6 @@ export function HomePage(props: Props) {
 
   useTopbarCenter(topbarCenter);
 
-  const banner = useMemo(() => {
-    if (!props.isDemoModeEnabled || props.isLiveFeedEnabled) return null;
-    if (!props.demoStep) return null;
-    const isLoading = props.demoStep === "approve" && props.isFeedLoading;
-    return <DemoFeedBanner step={props.demoStep} isLoading={isLoading} />;
-  }, [props.isDemoModeEnabled, props.isLiveFeedEnabled, props.demoStep, props.isFeedLoading]);
-
   return (
     <main className="home">
       {showIntroHero || showNetworkCard ? (
@@ -189,7 +169,6 @@ export function HomePage(props: Props) {
       <Feed
         title="Main Feed"
         pillText=""
-        banner={banner}
         hideHeader
         isLoading={isDisplayLoading}
         posts={displayPosts}

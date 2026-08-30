@@ -89,8 +89,6 @@ export function useProfilePageViewModel(args: ProfilePageViewModelInput): Profil
     chainId: args.walletState.chainId,
     status: args.status,
     isFeedLoading: args.feedState.isFeedLoading,
-    isDemoModeEnabled: args.feedState.isDemoModeEnabled,
-    isLiveFeedEnabled: args.feedState.isLiveFeedEnabled,
     walletAddress: args.walletState.walletAddress,
     authorIdentity: args.profileState.authorIdentity,
     onToggleFollow: args.handlers.onToggleFollow,
