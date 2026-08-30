@@ -23,6 +23,7 @@ the LAN dev origin.
 | Notification history | Full page | Real notifications listed with actor names |
 | Search | Query submitted | Returns results |
 | Theme toggle | Dark to light | Switches correctly; both themes render properly |
+| Network switch failure | Rejected in the wallet | Dialog stays open and reports "Network switch cancelled in wallet." |
 | Console | Throughout | No JavaScript errors or unhandled rejections |
 
 ## Found and fixed during the sweep
@@ -35,10 +36,10 @@ from a phone would have looked broken.
 
 ## Found, not yet fixed
 
-**A failed network switch is silent.** Choosing a different network in the
-Networks dialog issues `wallet_switchEthereumChain`. When that call fails or is
-rejected, nothing is shown: the dialog keeps the previous network selected and
-the user gets no indication their choice did not take effect.
+**The wrong-network prompt on the home page ignores the outcome.** The Networks
+dialog now reports a failed or rejected switch, but
+`HomePage.requestWalletNetworkSwitch` discards the result and has no surface to
+show a message on.
 
 **Unknown routes fall back to the feed.** `#/does-not-exist` renders the home
 page rather than a not-found state. Harmless, but a visitor following a stale

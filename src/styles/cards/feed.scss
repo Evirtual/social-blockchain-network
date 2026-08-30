@@ -291,6 +291,17 @@
   gap: 0.75rem;
 }
 
+// Shown in place of closing the dialog, so a rejected or failed switch is
+// visible next to the network the user just picked.
+.feedNetworksError {
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .feedNetworksModalList {
   display: flex;
   flex-direction: column;
