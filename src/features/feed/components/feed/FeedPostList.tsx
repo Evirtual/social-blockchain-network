@@ -30,7 +30,6 @@ export function FeedPostList(props: Props) {
     >
       {props.postEntries.map((entry, index) => {
         const openPanel = props.panelById[entry.panelKey] ?? null;
-        const isEditing = props.postActions.editingTokenId === entry.panelKey;
 
         return (
           <PostCard
@@ -45,30 +44,10 @@ export function FeedPostList(props: Props) {
             authorAvatarUrl={entry.author.authorAvatarUrl}
             isMine={entry.isMine}
             canModerate={entry.canModerate}
-            isEditing={isEditing}
-            editDraft={isEditing ? props.postActions.editDraft : null}
-            isEditImageLoading={isEditing ? props.postActions.isEditImageLoading : false}
             openPanel={openPanel}
             panelKey={entry.panelKey}
+            postActions={props.postActions}
             togglePanel={props.togglePanel}
-            onSetEditDraft={props.postActions.onSetEditDraft}
-            onStartEditPost={props.postActions.onStartEditPost}
-            onCancelEditPost={props.postActions.onCancelEditPost}
-            onSaveEditedPost={props.postActions.onSaveEditedPost}
-            onEditSelectFile={props.postActions.onEditSelectFile}
-            onEditClearImage={props.postActions.onEditClearImage}
-            onAction={props.postActions.onAction}
-            onTip={props.postActions.onTip}
-            onReply={props.postActions.replyToComment}
-            onEditComment={props.postActions.editComment}
-            onDeleteComment={props.postActions.deleteComment}
-            onToggleCommentLike={props.postActions.toggleCommentLike}
-            onToggleCommentSave={props.postActions.toggleCommentSave}
-            onTipComment={props.postActions.tipComment}
-            onReportPost={props.postActions.reportPost}
-            onReportComment={props.postActions.reportComment}
-            onBurn={props.postActions.onBurn}
-            onFreezePost={props.postActions.onFreezePost}
           />
         );
       })}

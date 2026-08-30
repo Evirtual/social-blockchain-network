@@ -1,6 +1,5 @@
-import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { memo, useCallback, useMemo, useState, type MouseEvent } from "react";
-import type { Draft, Post } from "@types";
+import type { Post } from "@types";
 import { Modal } from "@shared/components/Modal";
 import { getNetworkBadgeLabel, getNetworkBrandHue, getPostNetworkUi } from "@shared/lib/network";
 import { getPostUrl } from "@features/post/services";
@@ -17,6 +16,7 @@ import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { getExplorerTxUrl } from "@shared/lib/chain";
 
 import type { PostPanel } from "./postCard/postPanel";
+import type { PostActionsController } from "@features/post/types";
 
 export type { PostPanel } from "./postCard/postPanel";
 
@@ -33,56 +33,22 @@ type Props = {
   isMine: boolean;
   canModerate?: boolean;
 
-  isEditing: boolean;
-  editDraft: Draft | null;
-  isEditImageLoading: boolean;
 
   openPanel: PostPanel | null;
   panelKey: string;
   togglePanel: (id: string, panel: PostPanel) => void;
 
-  onSetEditDraft: (next: Draft) => void;
-
-  onStartEditPost: (post: Readonly<Post>) => void;
-  onCancelEditPost: () => void;
-  onSaveEditedPost: () => Promise<void>;
-  onEditSelectFile: (file: File | null) => void;
-  onEditClearImage: () => void;
-
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onTip: (
-    tokenId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<TipOutcome>;
-  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (
-    tokenId: string,
-    commentId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<boolean>;
-  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onBurn: (tokenId: string, postChainId?: string | null) => void | Promise<void>;
-  onFreezePost: (tokenId: string, postChainId?: string | null) => void;
-
+  /** Every post action, as one object. It is built once by
+   * usePostActionsController and was previously unpacked into 20 props. */
+  postActions: PostActionsController;
 };
 
 export const PostCard = memo(function PostCard(props: Props) {
+
+  const actions = props.postActions;
+  const isEditing = actions.editingTokenId === props.panelKey;
+  const editDraft = isEditing ? actions.editDraft : null;
+  const isEditImageLoading = isEditing ? actions.isEditImageLoading : false;
 
   const tokenId = props.post.tokenId;
   const postChainId = props.post.chainId ?? null;
@@ -148,8 +114,8 @@ export const PostCard = memo(function PostCard(props: Props) {
   }, [props.walletAddress]);
 
   const onStartEdit = useCallback(() => {
-    props.onStartEditPost(props.post);
-  }, [props.onStartEditPost, props.post]);
+    actions.onStartEditPost(props.post);
+  }, [actions.onStartEditPost, props.post]);
 
   // The header icon only asks; nothing is destroyed until the dialog confirms.
   const onRequestBurn = useCallback(() => {
@@ -161,18 +127,18 @@ export const PostCard = memo(function PostCard(props: Props) {
     if (isBurning) return;
     setIsBurning(true);
     try {
-      await props.onBurn(tokenId, postChainId);
+      await actions.onBurn(tokenId, postChainId);
       setIsBurnConfirmOpen(false);
     } finally {
       setIsBurning(false);
     }
-  }, [props.onBurn, tokenId, postChainId, isBurning]);
+  }, [actions.onBurn, tokenId, postChainId, isBurning]);
 
   const onSubmitReport = useCallback(async () => {
     if (isReporting) return;
     setIsReporting(true);
     try {
-      const ok = await props.onReportPost(tokenId, reportDraft, postChainId);
+      const ok = await actions.reportPost(tokenId, reportDraft, postChainId);
       if (ok) {
         setReportDraft("");
         setIsReportOpen(false);
@@ -180,7 +146,7 @@ export const PostCard = memo(function PostCard(props: Props) {
     } finally {
       setIsReporting(false);
     }
-  }, [isReporting, props.onReportPost, tokenId, reportDraft, postChainId]);
+  }, [isReporting, actions.reportPost, tokenId, reportDraft, postChainId]);
 
   const onCopyMintTx = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
@@ -196,7 +162,7 @@ export const PostCard = memo(function PostCard(props: Props) {
   return (
     <article className="post" style={{ animationDelay: `${props.animationDelayMs ?? 0}ms` }}>
       <Modal
-        open={props.isEditing}
+        open={isEditing}
         title="Edit post"
         headerLeading={<div className="avatar small" style={avatarStyle} />}
         headerTrailing={
@@ -204,7 +170,7 @@ export const PostCard = memo(function PostCard(props: Props) {
             <button
               type="button"
               className="ghost iconButton modalFreezeButton"
-              onClick={() => props.onFreezePost(tokenId, postChainId)}
+              onClick={() => actions.onFreezePost(tokenId, postChainId)}
               disabled={requiresNetworkSwitch}
               title={interactionDisabledTitle || "Freeze post"}
               aria-label="Freeze post"
@@ -213,7 +179,7 @@ export const PostCard = memo(function PostCard(props: Props) {
             </button>
           ) : null
         }
-        onClose={props.onCancelEditPost}
+        onClose={actions.onCancelEditPost}
       >
         <PostCardEditBox
           tokenId={tokenId}
@@ -223,14 +189,14 @@ export const PostCard = memo(function PostCard(props: Props) {
           originalMediaUrl={props.post.animationUrl ?? props.post.image}
           requiresNetworkSwitch={requiresNetworkSwitch}
           interactionDisabledTitle={interactionDisabledTitle}
-          editDraft={props.editDraft}
-          isEditImageLoading={props.isEditImageLoading}
-          onSetEditDraft={props.onSetEditDraft}
-          onCancelEditPost={props.onCancelEditPost}
-          onSaveEditedPost={props.onSaveEditedPost}
-          onEditSelectFile={props.onEditSelectFile}
-          onEditClearImage={props.onEditClearImage}
-          onFreezePost={props.onFreezePost}
+          editDraft={editDraft}
+          isEditImageLoading={isEditImageLoading}
+          onSetEditDraft={actions.onSetEditDraft}
+          onCancelEditPost={actions.onCancelEditPost}
+          onSaveEditedPost={actions.onSaveEditedPost}
+          onEditSelectFile={actions.onEditSelectFile}
+          onEditClearImage={actions.onEditClearImage}
+          onFreezePost={actions.onFreezePost}
           isMine={props.isMine}
           canModerate={props.canModerate}
         />
@@ -263,7 +229,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         avatarStyle={avatarStyle}
         isMine={props.isMine}
         canModerate={props.canModerate}
-        isEditing={props.isEditing}
+        isEditing={isEditing}
         isBurning={isBurning}
         requiresNetworkSwitch={requiresNetworkSwitch}
         postNetworkLabel={postNetworkLabel}
@@ -300,16 +266,16 @@ export const PostCard = memo(function PostCard(props: Props) {
         interactionDisabledTitle={interactionDisabledTitle}
         openPanel={props.openPanel}
         onTogglePanel={onTogglePanel}
-        onAction={props.onAction}
-        onTip={props.onTip}
-        onReply={props.onReply}
-        onEditComment={props.onEditComment}
-        onDeleteComment={props.onDeleteComment}
-        onToggleCommentLike={props.onToggleCommentLike}
-        onToggleCommentSave={props.onToggleCommentSave}
-        onTipComment={props.onTipComment}
-        onReportPost={props.onReportPost}
-        onReportComment={props.onReportComment}
+        onAction={actions.onAction}
+        onTip={actions.onTip}
+        onReply={actions.replyToComment}
+        onEditComment={actions.editComment}
+        onDeleteComment={actions.deleteComment}
+        onToggleCommentLike={actions.toggleCommentLike}
+        onToggleCommentSave={actions.toggleCommentSave}
+        onTipComment={actions.tipComment}
+        onReportPost={actions.reportPost}
+        onReportComment={actions.reportComment}
         avatarStyle={avatarStyle}
         canModerateComments={props.isMine || props.canModerate}
       />
