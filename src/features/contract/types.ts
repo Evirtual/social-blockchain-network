@@ -1,7 +1,6 @@
-import type { Contract, ContractRunner, Provider } from "ethers";
+import type { Contract, Provider } from "ethers";
 
 export type SocialPostsContract = Contract;
-export type ContractRunnerLike = ContractRunner;
 export type ChainProvider = Provider;
 
 export type ReadContractFactory = () => Promise<SocialPostsContract>;

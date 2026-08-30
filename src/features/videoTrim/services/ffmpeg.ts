@@ -82,14 +82,6 @@ async function probeInputText(inputPath: string, timeoutMs = 2000) {
   return lines.join("\n");
 }
 
-export async function probeVideoFrameRate(inputPath: string) {
-  const text = await probeInputText(inputPath);
-  const match = text.match(/, (\d+(?:\.\d+)?) fps/);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
-}
-
 export async function probeStreamCodecs(inputPath: string) {
   const text = await probeInputText(inputPath);
   const videoMatch = text.match(/Video:\s*([^\s,]+)/);

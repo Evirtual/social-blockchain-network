@@ -1,4 +1,3 @@
-import type { NotificationItem } from "../types";
 
 export function notificationActionText(kind: string): string {
   switch (kind) {
@@ -59,20 +58,4 @@ export function notificationActionText(kind: string): string {
     default:
       return "interacted with you";
   }
-}
-
-export function notificationDetailText(n: NotificationItem): string {
-  if (n.kind === "POSTER_APPROVAL_REQUESTED") return "Posting approval requested";
-  if (n.kind === "POSTER_APPROVED") return "Posting approved";
-  if (n.kind === "POSTER_DISAPPROVED") return "Posting disapproved";
-  if (n.kind === "PROFILE_MODERATED") return "Profile moderated";
-  if (n.kind === "PROFILE_CLEARED_BY_ADMIN") return "Profile cleared";
-  if (n.kind === "FOLLOWED") return "New follower";
-
-  if (n.tokenId === "0") return "";
-  if (n.kind === "COMMENT_REPLIED") return "Reply to your comment";
-  if (n.kind === "COMMENT_REMOVED") return "Comment removed";
-  if (n.kind === "COMMENT_REPORTED") return "Comment reported";
-  if (n.kind === "POST_REPORTED") return "Post reported";
-  return "";
 }
