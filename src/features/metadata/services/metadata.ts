@@ -1,2 +1,2 @@
-export { createMetadataUri, decodeMetadataUri } from "./metadata/uri";
+export { createMetadataUri } from "./metadata/uri";
 export { fetchTokenMetadata } from "./metadata/fetch";

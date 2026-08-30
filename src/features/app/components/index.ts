@@ -1,5 +1,6 @@
 export * from "./ComposerCard";
-export * from "./Sidebar";
+export * from "./sidebar/ProfileCard";
+export * from "./sidebar/WalletCard";
 export * from "./Topbar";
 export * from "./TopbarOverflowContext";
 export * from "./TopbarSlotsContext";

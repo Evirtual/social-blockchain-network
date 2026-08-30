@@ -205,30 +205,11 @@ export function IconExternalLink(props: IconProps) {
   );
 }
 
-export function IconLink(props: IconProps) {
-  return (
-    <BaseIcon {...props}>
-      <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
-      <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
-    </BaseIcon>
-  );
-}
-
 export function IconSearch(props: IconProps) {
   return (
     <BaseIcon {...props}>
       <circle cx="11" cy="11" r="7" />
       <path d="M20 20l-3.5-3.5" />
-    </BaseIcon>
-  );
-}
-
-export function IconWindowOpen(props: IconProps) {
-  return (
-    <BaseIcon {...props}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M3 8h18" />
-      <path d="M8 3v2" />
     </BaseIcon>
   );
 }
