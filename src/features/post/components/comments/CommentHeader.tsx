@@ -19,7 +19,9 @@ type Props = {
   isDeleteBusy: boolean;
   onOpenReport: () => void;
   onOpenEdit: () => void;
-  onDelete: () => Promise<void>;
+  // Opening the confirmation dialog is synchronous; the awaited work happens
+  // after the dialog confirms.
+  onDelete: () => void;
 };
 
 export function CommentHeader(props: Props) {

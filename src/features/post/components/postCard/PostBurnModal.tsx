@@ -28,15 +28,15 @@ export function PostBurnModal(props: Props) {
       headerLeading={<div className="avatar small" style={props.avatarStyle} />}
       onClose={props.onClose}
     >
-      <div className="postForm burnConfirm">
-        <p className="burnConfirmWarning">
+      <div className="postForm confirmDialog">
+        <p className="confirmDialogWarning">
           This permanently destroys the post on chain. It cannot be undone, and its likes, comments and tips go
           with it.
         </p>
 
-        {preview ? <blockquote className="burnConfirmPreview">{preview}</blockquote> : null}
+        {preview ? <blockquote className="confirmDialogPreview">{preview}</blockquote> : null}
 
-        <div className="burnConfirmActions">
+        <div className="confirmDialogActions">
           <button className="secondary" type="button" onClick={props.onClose} disabled={props.isBurning}>
             Cancel
           </button>
