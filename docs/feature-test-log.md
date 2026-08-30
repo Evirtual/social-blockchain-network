@@ -89,7 +89,7 @@ app is reached through a menu rather than a single icon in the post header.
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Editing and burning a post
+- Editing a post
 - Tipping a comment, and the support-percentage split on either
 - Like, unlike, save, unsave
 - Commenting, editing and deleting a comment
