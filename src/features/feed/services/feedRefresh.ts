@@ -11,7 +11,7 @@ import { loadFeedFromSubgraph } from "./subgraph/loadFeedFromSubgraph";
 import { getFeedRefreshConfig } from "../hooks/refresh/getFeedRefreshConfig";
 import { createResolveRpcContractAddress } from "../hooks/refresh/createResolveRpcContractAddress";
 import { getEnv } from "@shared/lib/env";
-import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useFollowScans, useIsFollowing } from "../hooks";
-import { useContractActionsFacade } from "@features/contract";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
 import { useStatusActions } from "@features/status";
 import { useWalletState } from "@features/wallet";
 import { FollowContext, type FollowContextValue } from "./followStateContext";

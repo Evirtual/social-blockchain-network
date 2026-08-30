@@ -8,7 +8,7 @@ import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 import { getEnv } from "@shared/lib/env";
 import type { TransactionReceipt, TransactionResponse } from "ethers";
-import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 export function useIsFollowing(params: {
   provider: ChainProvider | null;

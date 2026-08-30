@@ -3,7 +3,7 @@ import { isAddress } from "ethers";
 import { fetchPosterStatuses } from "@shared/lib/posterStatus";
 import { onPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 import { normalizeAddress } from "@shared/lib/address";
-import type { ReadContractFactory } from "@features/contract";
+import type { ReadContractFactory } from "@features/contract/types";
 
 type ContractLike = {
   isOwner: boolean;

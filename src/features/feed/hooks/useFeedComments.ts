@@ -11,7 +11,7 @@ import { computeCommentsFromBlock, findMintBlockHint } from "./comments/computeC
 import { parseCommentLogs } from "./comments/parseCommentLogs";
 import { loadCommentsFromSubgraph } from "./comments/subgraph/loadCommentsFromSubgraph";
 import { getEnv } from "@shared/lib/env";
-import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;

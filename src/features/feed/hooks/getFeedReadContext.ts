@@ -1,5 +1,6 @@
 import { withTimeout } from "@shared/lib/feedQuery";
-import { getReadContext, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import { getReadContext } from "@features/contract/services/getReadContext";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 
 type ContractLike = {
   ensureContractDeployedOnCurrentNetwork: () => Promise<void>;

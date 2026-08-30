@@ -8,7 +8,7 @@ import { discoverMintedTokenIdsForAuthor } from "../services/mintedTokenDiscover
 import { bestEffortUnpinCids, collectReferencedIpfsCidsFromPosts, collectPinnedCidsForTokenIds } from "@features/ipfs";
 import { emitPosterAllowedChanged } from "@shared/lib/posterAllowedEvents";
 import type { TransactionResponse } from "ethers";
-import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, WriteContractFactory } from "@features/contract/types";
 
 export function useProfileAdminActions(args: {
   address: string;

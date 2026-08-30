@@ -1,4 +1,4 @@
-import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 import { getFeedReadContext } from "../getFeedReadContext";
 
 type ContractLike = {

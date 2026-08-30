@@ -4,7 +4,7 @@ import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
 import { fetchApprovalRequests } from "@features/profile/services/approvals";
 import { getEnv } from "@shared/lib/env";
 import { readApprovalsChainRequestsCache, writeApprovalsChainRequestsCache } from "@shared/lib/approvalsCache";
-import type { ReadContractFactory } from "@features/contract";
+import type { ReadContractFactory } from "@features/contract/types";
 
 const APPROVAL_REQUESTS_CACHE_TTL_MS = 60_000;
 

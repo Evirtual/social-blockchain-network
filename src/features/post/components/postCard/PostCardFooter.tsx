@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import type { PostPanel } from "./postPanel";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
-import { useContractState } from "@features/contract";
+import { useContractState } from "@features/contract/providers/useContractState";
 
 export type PostCardFooterProps = {
   className?: string;

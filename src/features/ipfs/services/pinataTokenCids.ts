@@ -1,6 +1,6 @@
 import { collectIpfsCidsFromTokenUri } from "./pinataCleanup";
 import { mapWithConcurrency } from "@shared/lib/async";
-import type { SocialPostsContract } from "@features/contract";
+import type { SocialPostsContract } from "@features/contract/types";
 
 export async function collectPinnedCidsForTokenIds(opts: {
   readContract: SocialPostsContract;

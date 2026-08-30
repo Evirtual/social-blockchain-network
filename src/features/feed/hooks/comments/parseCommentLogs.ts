@@ -1,5 +1,5 @@
 import type { PostComment } from "@types";
-import { socialInterface } from "@features/contract";
+import { socialInterface } from "@features/contract/contracts/socialPosts";
 import { markCommentDeleted } from "@shared/lib/deletedCommentsCache";
 import type { EventLog, Log, LogDescription } from "ethers";
 

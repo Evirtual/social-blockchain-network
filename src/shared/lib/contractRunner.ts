@@ -1,5 +1,5 @@
 import type { ContractRunner, Provider } from "ethers";
-import type { SocialPostsContract } from "@features/contract";
+import type { SocialPostsContract } from "@features/contract/types";
 
 export function getScanProviderFromReadContract(
   readContract: SocialPostsContract | null | undefined,

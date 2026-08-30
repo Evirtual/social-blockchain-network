@@ -4,7 +4,7 @@ import { fetchTokenMetadata } from "@features/metadata";
 import type { Post } from "@types";
 import { isAddress } from "ethers";
 import type { Block, Contract, DeferredTopicFilter, EventLog, Log, TopicFilter } from "ethers";
-import type { ChainProvider, SocialPostsContract } from "@features/contract";
+import type { ChainProvider, SocialPostsContract } from "@features/contract/types";
 
 export type MintedEventLite = {
   author?: string;

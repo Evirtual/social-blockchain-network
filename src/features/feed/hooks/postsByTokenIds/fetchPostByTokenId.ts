@@ -1,6 +1,6 @@
 import type { Post } from "@types";
 import { fetchTokenMetadata } from "@features/metadata";
-import type { SocialPostsContract } from "@features/contract";
+import type { SocialPostsContract } from "@features/contract/types";
 
 export async function fetchPostByTokenId(params: {
   id: string;

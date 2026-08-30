@@ -2,7 +2,8 @@ import { type Log, type EventLog } from "ethers";
 import { getEnv, type EnvMap } from "./env";
 import { getRpcWsProvider, getRpcWsUrlForChainId } from "./rpc";
 import { resolveConfiguredSocialPostsAddress } from "./configuredSocialPostsAddress";
-import { getSocialContract, type SocialPostsContract } from "@features/contract";
+import { getSocialContract } from "@features/contract/contracts/socialPosts";
+import type { SocialPostsContract } from "@features/contract/types";
 
 type SocialEvent = {
   chainId: number;

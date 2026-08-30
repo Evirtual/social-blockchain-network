@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { BrowserProvider } from "ethers";
-import { getSocialContract, socialInterface, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import { getSocialContract, socialInterface } from "@features/contract/contracts/socialPosts";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { getRpcProvider, getRpcUrlForChainId, parseChainIdNumber } from "@shared/lib/rpc";
 import { parseChainKey } from "@shared/lib/chainKey";

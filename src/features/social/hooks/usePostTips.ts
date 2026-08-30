@@ -9,7 +9,7 @@ import { tipRejected, tipSucceeded } from "../services/postActions/tipOutcome";
 
 import type { Post } from "@types";
 import type { TransactionResponse } from "ethers";
-import type { WriteContractFactory } from "@features/contract";
+import type { WriteContractFactory } from "@features/contract/types";
 
 type FeedLike = {
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;

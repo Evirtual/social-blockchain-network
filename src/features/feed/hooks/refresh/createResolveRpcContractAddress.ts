@@ -1,6 +1,6 @@
 import type { ContractNetworkConfig } from "@features/contract/services/contractNetworks";
 import { resolveSocialPostsAddress } from "@features/contract/services/resolveSocialPostsAddress";
-import type { ChainProvider } from "@features/contract";
+import type { ChainProvider } from "@features/contract/types";
 
 export function createResolveRpcContractAddress(params: {
   withTimeout: <T>(promise: Promise<T>, ms: number, label: string) => Promise<T>;

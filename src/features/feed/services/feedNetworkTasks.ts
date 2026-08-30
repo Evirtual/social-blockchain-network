@@ -1,5 +1,6 @@
 import type { Post } from "@types";
-import { getSocialContract, type ChainProvider, type ReadContractFactory, type SocialPostsContract } from "@features/contract";
+import { getSocialContract } from "@features/contract/contracts/socialPosts";
+import type { ChainProvider, ReadContractFactory, SocialPostsContract } from "@features/contract/types";
 import type { ContractNetworkConfig } from "@features/contract/services/contractNetworks";
 
 export async function getFeedNetworkTasks(args: {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { socialInterface } from "@features/contract";
+import { socialInterface } from "@features/contract/contracts/socialPosts";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
 import { runInFlight } from "@shared/lib/inFlight";
 import { getSubgraphUrlForChainId } from "@shared/lib/subgraph";
@@ -10,7 +10,7 @@ import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
 import { useEpochGuard } from "@shared/lib/epochGuard";
 import { getEnv } from "@shared/lib/env";
-import type { ChainProvider, ReadContractFactory } from "@features/contract";
+import type { ChainProvider, ReadContractFactory } from "@features/contract/types";
 
 export function useFollowScans(params: {
   provider: ChainProvider | null;
