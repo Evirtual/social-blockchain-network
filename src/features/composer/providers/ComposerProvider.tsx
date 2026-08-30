@@ -1,16 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Draft } from "@types";
-import { hasPinata } from "../../ipfs/services/ipfs";
+import { hasPinata } from "@features/ipfs/services/ipfs";
 import { useComposerMedia } from "../hooks/useComposerMedia";
 import { useMintPostFlow } from "../hooks/useMintPostFlow";
 import { usePosterApproval } from "../hooks/usePosterApproval";
-import { useContractActionsFacade } from "../../contract/hooks/useContractActionsFacade";
-import { useFeedActions } from "../../feed/providers/useFeedActions";
-import { useFeedState } from "../../feed/providers/useFeedState";
-import { isSupportedNetworkChainId } from "../../feed/services/supportedNetworks";
-import { useStatusActions } from "../../status/providers/StatusProvider";
-import { useTxNotifications } from "../../tx/providers/TxNotificationsProvider";
-import { useWalletState } from "../../wallet/providers/useWalletState";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
+import { useFeedActions } from "@features/feed/providers/useFeedActions";
+import { useFeedState } from "@features/feed/providers/useFeedState";
+import { isSupportedNetworkChainId } from "@features/feed/services/supportedNetworks";
+import { useStatusActions } from "@features/status/providers/StatusProvider";
+import { useTxNotifications } from "@features/tx/providers/TxNotificationsProvider";
+import { useWalletState } from "@features/wallet/providers/useWalletState";
 import { MAX_POST_BODY_LENGTH, MAX_POST_TITLE_LENGTH } from "@shared/lib/postLimits";
 import { ComposerContext, type ComposerContextValue } from "./composerStateContext";
 

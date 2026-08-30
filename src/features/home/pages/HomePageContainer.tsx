@@ -1,10 +1,10 @@
 import { usePostActionsController } from "@features/post/actions";
-import { useContractState } from "../../contract/providers/useContractState";
-import { useComposer } from "../../composer/providers/useComposer";
-import { useFeedQueries } from "../../feed/providers/useFeedQueries";
-import { useProfileState } from "../../profile/providers/useProfileState";
-import { useWalletState } from "../../wallet/providers/useWalletState";
-import { useStatusState } from "../../status/providers/StatusProvider";
+import { useContractState } from "@features/contract/providers/useContractState";
+import { useComposer } from "@features/composer/providers/useComposer";
+import { useFeedQueries } from "@features/feed/providers/useFeedQueries";
+import { useProfileState } from "@features/profile/providers/useProfileState";
+import { useWalletState } from "@features/wallet/providers/useWalletState";
+import { useStatusState } from "@features/status/providers/StatusProvider";
 import { HomePage } from "./HomePage";
 import { buildHomePageViewModel } from "../viewModel/buildHomePageViewModel";
 

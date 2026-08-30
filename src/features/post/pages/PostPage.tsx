@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { CommentsCard, PostFeedPanel } from "../components";
 import type { PostPageViewModel } from "../types";
-import { useTopbarCenter } from "../../app/hooks/useTopbarCenter";
-import { FeedTopbarControls } from "../../feed/components/FeedTopbarControls";
-import { getSupportedNetworks } from "../../feed/services/supportedNetworks";
+import { useTopbarCenter } from "@features/app/hooks/useTopbarCenter";
+import { FeedTopbarControls } from "@features/feed/components/FeedTopbarControls";
+import { getSupportedNetworks } from "@features/feed/services/supportedNetworks";
 
 export function PostPage(props: PostPageViewModel) {
   const supportedNetworks = useMemo(() => getSupportedNetworks(), []);

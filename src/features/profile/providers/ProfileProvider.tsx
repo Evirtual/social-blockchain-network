@@ -3,11 +3,11 @@ import { useAuthorIdentity } from "../hooks/useAuthorIdentity";
 import { usePrefetchMissingAuthorProfiles } from "../hooks/usePrefetchMissingAuthorProfiles";
 import { useProfileDerived } from "../hooks/useProfileDerived";
 import { useProfilesState } from "../hooks/useProfilesState";
-import { useContractActionsFacade } from "../../contract/hooks/useContractActionsFacade";
-import { useFeedState } from "../../feed/providers/useFeedState";
-import { useStatusActions } from "../../status/providers/StatusProvider";
-import { useWalletState } from "../../wallet/providers/useWalletState";
-import { getSupportedNetworks } from "../../feed/services/supportedNetworks";
+import { useContractActionsFacade } from "@features/contract/hooks/useContractActionsFacade";
+import { useFeedState } from "@features/feed/providers/useFeedState";
+import { useStatusActions } from "@features/status/providers/StatusProvider";
+import { useWalletState } from "@features/wallet/providers/useWalletState";
+import { getSupportedNetworks } from "@features/feed/services/supportedNetworks";
 import { loadAccountCountsFromSubgraphs } from "@features/account/services/subgraph/loadAccountCounts";
 import {
   ProfileActionsContext,

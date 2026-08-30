@@ -1,7 +1,7 @@
 import type { Post } from "@types";
-import type { ProfileCardProps } from "../app/components/sidebar/ProfileCard";
-import type { WalletCardProps } from "../app/components/sidebar/WalletCard";
-import type { PostActionsController } from "../post/types";
+import type { ProfileCardProps } from "@features/app/components/sidebar/ProfileCard";
+import type { WalletCardProps } from "@features/app/components/sidebar/WalletCard";
+import type { PostActionsController } from "@features/post/types";
 
 export type AccountPageViewModel = {
   isOwner: boolean;

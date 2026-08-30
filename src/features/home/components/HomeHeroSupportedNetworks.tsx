@@ -1,6 +1,6 @@
 import { ChainLogo } from "@shared/components/ChainLogos";
 import type { CSSProperties } from "react";
-import type { SupportedNetwork } from "../../feed/services/supportedNetworks";
+import type { SupportedNetwork } from "@features/feed/services/supportedNetworks";
 
 type Props = {
   isDisconnected: boolean;

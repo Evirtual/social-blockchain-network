@@ -4,18 +4,18 @@ import { ComposerCard, Topbar, TopbarOverflowProvider, TopbarSlotsProvider, TxTo
 import { Modal } from "@shared/components/Modal";
 import { HomeRoute, NotificationsRoute, PostRoute, ProfileRoute } from "./features/app";
 import { useComposeNudge, useConnectNudge, useConnectWallet } from "./features/app";
-import { ScrollToTop } from "./features/app/components/ScrollToTop";
+import { ScrollToTop } from "@features/app/components/ScrollToTop";
 import { useStatusActions } from "./features/status";
 import { useTheme } from "./features/theme";
 import { useComposer } from "./features/composer";
-import { useContractActions } from "./features/contract/providers/useContractActions";
+import { useContractActions } from "@features/contract/providers/useContractActions";
 import { useProfileState } from "./features/profile";
 import { isSupportedNetworkChainId, useFeedActions } from "./features/feed";
 import { useWalletActions, useWalletState } from "./features/wallet";
 import { ipfsToHttp } from "./features/ipfs";
 import { NotificationsModal } from "./features/notifications";
 import { useState, type ReactNode } from "react";
-import { useNotificationsBadge } from "./features/notifications/hooks/useNotificationsBadge";
+import { useNotificationsBadge } from "@features/notifications/hooks/useNotificationsBadge";
 
 function AppInner() {
   const [topbarCenter, setTopbarCenter] = useState<ReactNode | null>(null);

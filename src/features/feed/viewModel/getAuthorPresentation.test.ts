@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getAuthorPresentation } from "./getAuthorPresentation";
-import { profileKey } from "../../profile/lib/profileKey";
+import { profileKey } from "@features/profile/lib/profileKey";
 import { shortAddress } from "@shared/lib/format";
 
 const ALICE = "0x91484B0e55C3d577602763784E34b5c08ABfdFcc";

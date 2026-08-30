@@ -1,16 +1,16 @@
 import type { Draft, Post } from "@types";
-import { Feed } from "../../feed/components/Feed";
-import { FeedTopbarControls } from "../../feed/components/FeedTopbarControls";
+import { Feed } from "@features/feed/components/Feed";
+import { FeedTopbarControls } from "@features/feed/components/FeedTopbarControls";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
 import { useCallback, useMemo } from "react";
-import type { PostActionsController } from "../../post/types";
-import { getFeedStorageKeys } from "../../feed/lib/feedStorageKeys";
+import type { PostActionsController } from "@features/post/types";
+import { getFeedStorageKeys } from "@features/feed/lib/feedStorageKeys";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
 import { HomeHeroSupportedNetworks } from "../components/HomeHeroSupportedNetworks";
 import { usePersistedFlag } from "../hooks/usePersistedFlag";
 import { requestNetworkSwitch } from "@shared/lib/networkSwitch";
-import { useTopbarCenter } from "../../app/hooks/useTopbarCenter";
-import { getAddEthereumChainParameter } from "../../feed/services/supportedNetworks";
+import { useTopbarCenter } from "@features/app/hooks/useTopbarCenter";
+import { getAddEthereumChainParameter } from "@features/feed/services/supportedNetworks";
 
 type Props = {
   isOwner: boolean;
