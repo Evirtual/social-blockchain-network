@@ -164,7 +164,11 @@ export async function querySubgraph<T>(args: {
   timeoutMs?: number;
 }): Promise<T> {
   const env = getEnv();
-  const logEnabled = getEnvBoolean(env, "VITE_SUBGRAPH_LOG", false);
+  // Statically false in a production build, so the logging helpers below are
+  // dropped from the bundle rather than shipped and never run. They are a
+  // development diagnostic - the request counts they produce are what located
+  // the rate limiting - and are worth keeping for that, not for shipping.
+  const logEnabled = import.meta.env.DEV && getEnvBoolean(env, "VITE_SUBGRAPH_LOG", false);
   const summaryEveryRaw = getEnvString(env, "VITE_SUBGRAPH_LOG_SUMMARY_EVERY");
   const summaryEvery = Math.max(1, Math.min(500, Number(summaryEveryRaw ?? 25)));
 
