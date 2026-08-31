@@ -266,16 +266,7 @@ export const PostCard = memo(function PostCard(props: Props) {
         interactionDisabledTitle={interactionDisabledTitle}
         openPanel={props.openPanel}
         onTogglePanel={onTogglePanel}
-        onAction={actions.onAction}
-        onTip={actions.onTip}
-        onReply={actions.replyToComment}
-        onEditComment={actions.editComment}
-        onDeleteComment={actions.deleteComment}
-        onToggleCommentLike={actions.toggleCommentLike}
-        onToggleCommentSave={actions.toggleCommentSave}
-        onTipComment={actions.tipComment}
-        onReportPost={actions.reportPost}
-        onReportComment={actions.reportComment}
+        postActions={props.postActions}
         avatarStyle={avatarStyle}
         canModerateComments={props.isMine || props.canModerate}
       />

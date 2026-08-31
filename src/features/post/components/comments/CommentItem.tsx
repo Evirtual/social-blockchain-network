@@ -12,6 +12,7 @@ import { CommentDeleteModal } from "./CommentDeleteModal";
 import { CommentHeader } from "./CommentHeader";
 import { shortAddress, stableHueFromSeed } from "@shared/lib/format";
 import { getExplorerTxUrl } from "@shared/lib/chain";
+import type { PostActionsController } from "@features/post/types";
 
 type Props = {
   comment: PostComment;
@@ -45,20 +46,8 @@ type Props = {
   setReportDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   actionInFlight: ActionInFlight;
   setActionInFlight: Dispatch<SetStateAction<ActionInFlight>>;
-  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (
-    tokenId: string,
-    commentId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<boolean>;
-  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
+
+  postActions: PostActionsController;
 };
 
 export function CommentItem(props: Props) {
@@ -98,7 +87,7 @@ export function CommentItem(props: Props) {
     if (isDeleteBusy) return;
     props.setActionInFlight({ id: comment.commentId, action: "delete" });
     try {
-      await props.onDeleteComment(props.tokenId, comment.commentId, props.postChainId);
+      await props.postActions.deleteComment(props.tokenId, comment.commentId, props.postChainId);
       setIsDeleteConfirmOpen(false);
     } finally {
       props.setActionInFlight({ id: null, action: null });
@@ -155,7 +144,7 @@ export function CommentItem(props: Props) {
             onClick={async () => {
               props.setActionInFlight({ id: comment.commentId, action: "like" });
               try {
-                await props.onToggleCommentLike(props.tokenId, comment.commentId, props.postChainId);
+                await props.postActions.toggleCommentLike(props.tokenId, comment.commentId, props.postChainId);
               } finally {
                 props.setActionInFlight({ id: null, action: null });
               }
@@ -180,7 +169,7 @@ export function CommentItem(props: Props) {
             onClick={async () => {
               props.setActionInFlight({ id: comment.commentId, action: "save" });
               try {
-                await props.onToggleCommentSave(props.tokenId, comment.commentId, props.postChainId);
+                await props.postActions.toggleCommentSave(props.tokenId, comment.commentId, props.postChainId);
               } finally {
                 props.setActionInFlight({ id: null, action: null });
               }
@@ -268,10 +257,10 @@ export function CommentItem(props: Props) {
           setReportDraft={(next) => props.setReportDrafts((prev) => ({ ...prev, [comment.commentId]: next }))}
           actionInFlight={props.actionInFlight}
           setActionInFlight={props.setActionInFlight}
-          onReply={props.onReply}
-          onEditComment={props.onEditComment}
-          onTipComment={props.onTipComment}
-          onReportComment={props.onReportComment}
+          onReply={props.postActions.replyToComment}
+          onEditComment={props.postActions.editComment}
+          onTipComment={props.postActions.tipComment}
+          onReportComment={props.postActions.reportComment}
         />
       </div>
 
