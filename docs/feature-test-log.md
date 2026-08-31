@@ -121,17 +121,38 @@ first, matching post burning. The two dialogs share one set of styles, renamed
 from burnConfirm to confirmDialog now that they serve both.
 
 
+## Write paths exercised, third sweep
+
+BSC Testnet, real wallet (Rabby), 2026-08-31.
+
+**Replying to a comment.** Posts and renders nested under its parent with an
+@mention of the parent's author. Tight against the parent rather than spaced
+apart, which is how a reply is distinguished from a sibling comment.
+
+**Tipping a comment, with the support split.** The panel offers 1, 3, 5 and 10
+percent and a "save as default" toggle. Choosing a percentage shows the split
+live before signing - 0.0001 BNB at 3 percent previewed as 0.000097 to the
+author and 0.000003 to the protocol - and the comment's total afterwards read
+0.000097, so the figure that reached the chain matched the preview.
+
+**Deleting a comment.** The confirmation added earlier this cycle behaves as
+intended in real use: it names the comment being deleted, and only the dialog's
+own button sends anything.
+
+**Follow and unfollow.** Round-tripped against another account holding a
+profile. The button flips between Follow and Unfollow and the state survives, so
+the follow record is read back rather than only held locally. The button spins
+for as long as the transaction is pending - about forty seconds here - which is
+the in-flight state working rather than a stall.
+
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Tipping a comment, and the support-percentage split on either
-- Replying to a comment
-- Follow and unfollow
 - Withdrawing tips
 - Requesting posting approval, and the owner approving or disapproving
 - Admin moderation: editing a profile, clearing a profile, removing a post
 
-Like, unlike, save and unsave were listed here previously but have since been
-exercised on Base Sepolia while recording, so they have been removed from the
-list.
+The approval and moderation items need a second account to act as the
+requester, not just a second address to point at.
