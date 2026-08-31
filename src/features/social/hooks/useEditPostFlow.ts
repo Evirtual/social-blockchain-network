@@ -21,7 +21,7 @@ import { clearObjectUrlRef, replaceObjectUrlRef } from "@shared/lib/objectUrl";
 
 type TxNotificationsLike = {
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
-  notifyConfirmed: (hash: string) => void;
+  notifyConfirmed: (hash: string, label?: string) => void;
   notifyFailed: (args: { hash: string; label: string; error: string }) => void;
   dismiss: (hash: string) => void;
 };
@@ -389,7 +389,7 @@ export function useEditPostFlow(args: {
           // ignore
         } finally {
           // Don't leave the local toast stuck.
-          txNotifications.notifyConfirmed(finalizingToastId);
+          txNotifications.notifyConfirmed(finalizingToastId, "Post updated");
         }
       }
 

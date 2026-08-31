@@ -11,6 +11,8 @@ type Props = {
   currentChainId: string | null;
   onDismiss: () => void;
   onRequestWalletNetworkSwitch: (targetChainId: number) => void | Promise<void>;
+  /** Set when a switch is rejected or fails, so the card can say so. */
+  networkSwitchError?: string;
 };
 
 type BrandHueStyle = CSSProperties & { ["--brand-hue"]?: string | number };
@@ -73,6 +75,12 @@ export function HomeHeroSupportedNetworks(props: Props) {
           );
         })}
       </div>
+
+      {props.networkSwitchError ? (
+        <div className="feedNetworksError" role="alert">
+          {props.networkSwitchError}
+        </div>
+      ) : null}
     </section>
   );
 }
