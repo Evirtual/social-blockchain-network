@@ -52,6 +52,9 @@ export function WalletCard(props: WalletCardProps) {
     />
   );
 
+  // Truncates rather than rounds, deliberately: rounding up would show a balance
+  // larger than the one actually held. Understating is the safe direction for
+  // money, so 0.004788 reads as 0.0047 rather than 0.0048.
   const formatEtherTrim = (wei: bigint, maxDecimals: number) => {
     const raw = formatEther(wei);
     const [intPart, fracRaw = ""] = raw.split(".");
