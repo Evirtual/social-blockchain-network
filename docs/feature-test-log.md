@@ -146,13 +146,24 @@ for as long as the transaction is pending - about forty seconds here - which is
 the in-flight state working rather than a stall.
 
 
+**Withdrawing tips.** The dialog names the treasury, its wallet balance and
+the withdrawable amount before anything is signed. Withdrawing moved the tips
+into the wallet: balance 0.0002 to 0.0050 BNB and tips 0.0047 to 0, which is the
+0.004788 withdrawable less gas. The card updated as soon as it settled.
+
+Worth a look at some point: the wallet card reads 0.0047 where the dialog reads
+0.004788, so the card truncates where it should round. Cosmetic, and only
+visible if you compare the two.
+
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
 
-- Withdrawing tips
 - Requesting posting approval, and the owner approving or disapproving
 - Admin moderation: editing a profile, clearing a profile, removing a post
 
-The approval and moderation items need a second account to act as the
-requester, not just a second address to point at.
+Both need a second account able to sign as the requester, not just a second
+address to point at. Three requesters already sit in the approvals list from
+chain, so the owner half could be exercised against those without arranging
+anything - but approving one is a real grant, not a reversible test.
