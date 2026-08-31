@@ -7,7 +7,6 @@ import { useContractActionsFacade } from "@features/contract/hooks/useContractAc
 import { useFeedState } from "@features/feed/providers/useFeedState";
 import { useStatusActions } from "@features/status/providers/StatusProvider";
 import { useWalletState } from "@features/wallet/providers/useWalletState";
-import { getSupportedNetworks } from "@features/feed/services/supportedNetworks";
 import { loadAccountCountsFromSubgraphs } from "@features/account/services/subgraph/loadAccountCounts";
 import {
   ProfileActionsContext,
@@ -79,10 +78,20 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const supported = getSupportedNetworks().map((n) => String(n.chainId));
+    // Scoped to the chain in the wallet, because that is the chain the feed is
+    // pinned to while connected. Counting every supported network here made the
+    // card read 9 while three posts were on screen, until the feed finished
+    // loading and the number dropped to 3.
+    const chainKey = String(chainId ?? "").trim();
+    if (!chainKey) {
+      setMyPostsCountFromSubgraph(null);
+      return () => {
+        active = false;
+      };
+    }
 
     const load = async () => {
-      const counts = await loadAccountCountsFromSubgraphs({ walletAddress, selectedChainIds: supported });
+      const counts = await loadAccountCountsFromSubgraphs({ walletAddress, selectedChainIds: [chainKey] });
       if (active) setMyPostsCountFromSubgraph(counts.posted);
     };
 
@@ -91,7 +100,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [walletAddress]);
+  }, [walletAddress, chainId]);
 
   const authorIdentity = useAuthorIdentity(posts, profilesByAddress);
 
@@ -99,12 +108,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   // they resolve for visitors who have not connected one.
   usePrefetchMissingAuthorProfiles(true, posts, profilesByAddress, loadProfile, 4);
 
+  // Both numbers now describe the same chain, so the subgraph count simply
+  // stands in until the feed has loaded rather than being clamped against it.
   const resolvedMyPostsCount =
-    myPostsCountFromSubgraph == null
-      ? myPostsCount
-      : feedState.isFeedLoading
-        ? myPostsCountFromSubgraph
-        : Math.min(myPostsCountFromSubgraph, myPostsCount);
+    myPostsCountFromSubgraph == null || !feedState.isFeedLoading ? myPostsCount : myPostsCountFromSubgraph;
 
   const stateValue = useMemo<ProfileState>(
     () => ({
