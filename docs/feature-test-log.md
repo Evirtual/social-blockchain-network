@@ -180,6 +180,14 @@ Covered by a regression test that fails without it. `useProfilesState` shares th
 guard but is clean: its epoch-guarded path sets no loading flag, and its two flags
 are set and cleared symmetrically outside that path.
 
+**Follow bundle skipped after a chain switch.** Found while refactoring, not
+from a report. One bundled query answers followers, following and the count
+together, and a per-address mark stops it repeating. The chain-change reset
+cleared every other mark but not that one, so after the first switch the bundle
+was skipped for good and each loader fell through to its own query. The data
+stayed correct - three round trips where one would do. Covered by a test that
+fails against the old code.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:

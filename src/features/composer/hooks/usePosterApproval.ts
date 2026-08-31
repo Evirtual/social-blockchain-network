@@ -76,20 +76,20 @@ export function usePosterApproval(params: {
       return;
     }
 
+    setIsApprovalLoading(true);
     try {
-      setIsApprovalLoading(true);
       await runContractTx("Request posting approval", async () => {
         const writeContract = await contract.getWriteContract();
         return writeContract.requestPosterApproval();
       });
     } catch {
-      setIsApprovalLoading(false);
       return;
+    } finally {
+      setIsApprovalLoading(false);
     }
 
     setApprovalRequired(true);
     setApprovalRequested(true);
-    setIsApprovalLoading(false);
     setStatus("Approval requested. An admin must approve your wallet before you can post.");
   }, [walletAddress, isApprovalLoading, approvalRequested, runContractTx, contract, setStatus]);
 
