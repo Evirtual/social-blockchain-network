@@ -12,7 +12,7 @@ import type { ReadContractFactory, WriteContractFactory } from "@features/contra
 
 type TxNotificationsLike = {
   notifyPending: (p: { hash: string; label: string; explorerUrl: string | null }) => void;
-  notifyConfirmed: (hash: string) => void;
+  notifyConfirmed: (hash: string, label?: string) => void;
   dismiss: (hash: string) => void;
 };
 
@@ -269,7 +269,7 @@ export function useMintPostFlow(params: {
           } catch {
             // ignore; mint already succeeded
           } finally {
-            txNotifications.notifyConfirmed(toastId);
+            txNotifications.notifyConfirmed(toastId, "Post created");
           }
         })();
       } else if (processingToastId) {

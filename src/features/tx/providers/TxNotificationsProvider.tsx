@@ -8,7 +8,7 @@ export type TxNotificationsContextValue = {
   txNotices: TxNotice[];
   notifySigning: (label: string) => string;
   notifyPending: (args: { hash: string; label: string; explorerUrl: string | null }) => void;
-  notifyConfirmed: (hash: string) => void;
+  notifyConfirmed: (hash: string, label?: string) => void;
   notifyFailed: (args: { hash?: string; label: string; error: string }) => void;
   notifyCancelled: (label: string) => void;
   dismiss: (hash: string) => void;

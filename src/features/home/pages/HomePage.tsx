@@ -2,7 +2,7 @@ import type { Draft, Post } from "@types";
 import { Feed } from "@features/feed/components/Feed";
 import { FeedTopbarControls } from "@features/feed/components/FeedTopbarControls";
 import { useFeedFilterViewModel } from "@features/feed/viewModel";
-import { useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { PostActionsController } from "@features/post/types";
 import { getFeedStorageKeys } from "@features/feed/lib/feedStorageKeys";
 import { HomeHeroIntro } from "../components/HomeHeroIntro";
@@ -70,10 +70,22 @@ export function HomePage(props: Props) {
     "socialBlockchainNetwork.supportedNetworksDismissed"
   );
 
+  const [networkSwitchError, setNetworkSwitchError] = useState("");
+
   const requestWalletNetworkSwitch = useCallback(
     async (targetChainId: number) => {
       const network = supportedNetworks.find((n) => n.chainId === targetChainId);
-      await requestNetworkSwitch(targetChainId, props.chainId, network ? getAddEthereumChainParameter(network) : null);
+      setNetworkSwitchError("");
+
+      const result = await requestNetworkSwitch(
+        targetChainId,
+        props.chainId,
+        network ? getAddEthereumChainParameter(network) : null
+      );
+
+      // A rejected switch used to look like nothing had happened: the result
+      // was awaited and dropped, and the card had nowhere to say so.
+      if (!result.ok) setNetworkSwitchError(result.error ?? "Could not switch network.");
     },
     [props.chainId, supportedNetworks]
   );
@@ -157,6 +169,7 @@ export function HomePage(props: Props) {
               currentChainId={props.chainId}
               onDismiss={() => setIsSupportedNetworksDismissed(true)}
               onRequestWalletNetworkSwitch={requestWalletNetworkSwitch}
+              networkSwitchError={networkSwitchError}
             />
           ) : null}
         </div>

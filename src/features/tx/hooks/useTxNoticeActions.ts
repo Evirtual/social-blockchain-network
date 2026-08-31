@@ -50,9 +50,13 @@ export function useTxNoticeActions(args: {
     [clearDismissTimer, setTxNotices]
   );
 
+  // A notice that finishes while still labelled "finalizing media..." claims to be
+  // done and still working at the same time, so confirming can replace the label.
   const notifyConfirmed = useCallback(
-    (hash: string) => {
-      setTxNotices((prev) => patchNotice(prev, hash, { state: "confirmed" }));
+    (hash: string, label?: string) => {
+      setTxNotices((prev) =>
+        patchNotice(prev, hash, label ? { state: "confirmed", label } : { state: "confirmed" })
+      );
       scheduleAutoDismiss(hash);
     },
     [scheduleAutoDismiss, setTxNotices]
