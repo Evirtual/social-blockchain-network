@@ -151,9 +151,11 @@ the withdrawable amount before anything is signed. Withdrawing moved the tips
 into the wallet: balance 0.0002 to 0.0050 BNB and tips 0.0047 to 0, which is the
 0.004788 withdrawable less gas. The card updated as soon as it settled.
 
-Worth a look at some point: the wallet card reads 0.0047 where the dialog reads
-0.004788, so the card truncates where it should round. Cosmetic, and only
-visible if you compare the two.
+The wallet card reads 0.0047 where the dialog reads 0.004788, because balances
+are truncated rather than rounded. That is deliberate: rounding up would show a
+balance larger than the one actually held, and truncating can only ever
+understate it. Recorded here because it looks like an inconsistency at a glance
+and is not one.
 
 
 ## Not yet exercised
