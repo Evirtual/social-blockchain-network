@@ -54,6 +54,15 @@ export function useFollowScans(params: {
       if (!subgraphUrl) return;
 
       await runInFlight(followBundleInFlightRef.current, key, async () => {
+        // Marking "loading" has to be as guarded as clearing it. This runs at
+        // least a microtask after the epoch was snapshotted - and in the callers
+        // below, a whole subgraph round trip later - so a chain change can land
+        // in between. That resets the loading maps, and an unguarded write here
+        // put the key back as true afterwards, while the finally below saw a
+        // stale epoch and declined to clear it. The skeleton then stayed up for
+        // good: no error, nothing retrying, and only on slow connections where
+        // the window was wide enough to hit.
+        if (isStale(epoch)) return;
         setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
         setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
         setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
@@ -174,6 +183,7 @@ export function useFollowScans(params: {
         if (loadedFollowerCountByAddressRef.current[key]) return;
 
         await runInFlight(followerCountInFlightRef.current, key, async () => {
+          if (isStale(epoch)) return;
           setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const query = `
@@ -221,6 +231,7 @@ export function useFollowScans(params: {
       if (!params.provider) return;
 
       await runInFlight(followerCountInFlightRef.current, key, async () => {
+        if (isStale(epoch)) return;
         setIsLoadingFollowerCountByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await params.ensureContractDeployedOnCurrentNetwork();
@@ -287,6 +298,7 @@ export function useFollowScans(params: {
         if (loadedFollowersByAddressRef.current[key]) return;
 
         await runInFlight(followersInFlightRef.current, key, async () => {
+          if (isStale(epoch)) return;
           setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const query = `
@@ -345,6 +357,7 @@ export function useFollowScans(params: {
       if (!params.provider) return;
 
       await runInFlight(followersInFlightRef.current, key, async () => {
+        if (isStale(epoch)) return;
         setIsLoadingFollowersByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await params.ensureContractDeployedOnCurrentNetwork();
@@ -413,6 +426,7 @@ export function useFollowScans(params: {
         if (loadedFollowingByAddressRef.current[key]) return;
 
         await runInFlight(followingInFlightRef.current, key, async () => {
+          if (isStale(epoch)) return;
           setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
           try {
             const query = `
@@ -469,6 +483,7 @@ export function useFollowScans(params: {
       if (!params.provider) return;
 
       await runInFlight(followingInFlightRef.current, key, async () => {
+        if (isStale(epoch)) return;
         setIsLoadingFollowingByAddress((prev) => ({ ...prev, [key]: true }));
         try {
           await params.ensureContractDeployedOnCurrentNetwork();

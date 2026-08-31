@@ -158,6 +158,17 @@ understate it. Recorded here because it looks like an inconsistency at a glance
 and is not one.
 
 
+**Followers and following stuck loading.** Seen once on the public site and
+never on localhost: the counts sat as skeletons indefinitely, with no console
+error and nothing retrying. The cause was an asymmetry in `useFollowScans` -
+clearing a loading flag was guarded against a stale epoch, setting it was not.
+A chain switch landing during the subgraph round trip reset the loading maps,
+then the in-flight request wrote its flag back as true, and its `finally`
+declined to clear it because the epoch was by then stale. Only reachable when
+the round trip is slow enough for a chain change to land inside it, which is
+why localhost never showed it. Covered by a regression test that fails without
+the guard.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
