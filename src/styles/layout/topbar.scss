@@ -101,12 +101,13 @@
   display: flex;
   gap: 0.625rem;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   margin-left: auto;
   padding: 0.25rem;
   border-radius: 62.4375rem;
   border: 0.0625rem solid var(--border);
   background: transparent;
+  min-width: 0;
 }
 
 .topbarLogo {
@@ -120,6 +121,37 @@
   display: flex;
   gap: 0.625rem;
   align-items: center;
+  /* Without this the pill cannot shrink, whatever width it is given: a flex item
+     defaults to min-width auto and refuses to go below its content, so the
+     overflow is pushed out to the topbar instead of being absorbed here. */
+  min-width: 0;
+}
+
+.walletProfileLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+/* Smaller than .avatar.tiny, which is sized for a list row rather than a pill. */
+.walletProfileLinkAvatar {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  flex: none;
+}
+
+/* Profile names are user-set and can be any length, so the pill truncates rather
+   than pushing the rest of the topbar around. The cap scales with the viewport
+   because a fixed one that reads well on a desktop crowds the overflow menu on a
+   phone. */
+.walletProfileLinkName {
+  min-width: 0;
+  max-width: min(9rem, 20vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .walletProfileLinkChain.chainBrandMark {

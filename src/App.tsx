@@ -79,6 +79,9 @@ function AppInner() {
                 profileLink={profile.profileLink}
                 walletAddress={walletState.walletAddress}
                 chainId={walletState.chainId}
+                displayName={profile.displayName}
+                avatarUrl={profile.profileAvatarUrl}
+                avatarHue={profile.selfAvatarHue}
               />
             }
           />
