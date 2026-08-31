@@ -199,6 +199,7 @@ export function useFeedRefresh(params: {
 
     // On network filter change, reset state so we don't show stale networks.
     bumpEpoch();
+    setIsFeedLoading(false);
     setPosts([]);
     postsRef.current = [];
     refreshFeedInFlightRef.current = null;
@@ -244,8 +245,14 @@ export function useFeedRefresh(params: {
     lastWalletAddressLowerRef.current = walletAddressLower;
 
     // On network change, reset state so we don't show stale data.
+    // Clearing the loading flag is part of the reset. Bumping the epoch makes
+    // every in-flight refresh stale, and a stale refresh's finally declines to
+    // clear it. Nothing else would: a wallet switch leaves the posts on screen,
+    // so the refresh that follows sees a populated feed, never turns the spinner
+    // on, and so never turns it off either.
     if ((chainChanged || walletChanged) && !isInitial) {
       bumpEpoch();
+      setIsFeedLoading(false);
     }
 
     if (chainChanged && !isInitial) {

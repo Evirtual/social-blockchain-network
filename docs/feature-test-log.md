@@ -169,6 +169,17 @@ the round trip is slow enough for a chain change to land inside it, which is
 why localhost never showed it. Covered by a regression test that fails without
 the guard.
 
+**Feed spinner stuck after a wallet switch.** Found by auditing the other two
+hooks that share the epoch guard, not from a report. `useFeedRefresh` bumps the
+epoch on a chain *or* wallet change but only clears the posts on a chain change.
+On a wallet switch the in-flight refresh had already turned the spinner on, its
+`finally` then declined to turn it off because the epoch was stale, and the next
+refresh saw a populated feed so never touched the flag at all - leaving it on for
+good. Fixed by clearing the flag as part of the reset, alongside the epoch bump.
+Covered by a regression test that fails without it. `useProfilesState` shares the
+guard but is clean: its epoch-guarded path sets no loading flag, and its two flags
+are set and cleared symmetrically outside that path.
+
 ## Not yet exercised
 
 Everything below needs a signed transaction and so has not been tested:
