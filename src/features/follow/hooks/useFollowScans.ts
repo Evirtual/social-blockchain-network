@@ -8,7 +8,7 @@ import { withTimeout } from "@shared/lib/feedQuery";
 import { scanActiveFollowAddresses } from "../services/followEventScanner";
 import { parseChainIdNumber } from "@shared/lib/chainId";
 import { addressKey } from "./utils";
-import { useEpochGuard } from "@shared/lib/epochGuard";
+import { useEpochGuard, useEpochLoadingMap } from "@shared/lib/epochGuard";
 import { getEnv } from "@shared/lib/env";
 import type { ChainProvider, ReadContractFactory } from "@features/contract/types";
 
@@ -19,7 +19,8 @@ export function useFollowScans(params: {
   getReadContract: ReadContractFactory;
   setStatus: (v: string) => void;
 }) {
-  const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
+  const epochGuard = useEpochGuard();
+  const { bumpEpoch, snapshotEpoch, isStale } = epochGuard;
   const loadedFollowerCountByAddressRef = useRef<Record<string, boolean>>({});
   const loadedFollowersByAddressRef = useRef<Record<string, boolean>>({});
   const loadedFollowingByAddressRef = useRef<Record<string, boolean>>({});
@@ -28,15 +29,15 @@ export function useFollowScans(params: {
   const followBundleInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const [followerCountByAddress, setFollowerCountByAddress] = useState<Record<string, number>>({});
-  const [isLoadingFollowerCountByAddress, setIsLoadingFollowerCountByAddress] = useState<Record<string, boolean>>({});
+  const [isLoadingFollowerCountByAddress, setIsLoadingFollowerCountByAddress] = useEpochLoadingMap(epochGuard);
   const followerCountInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const [followersByAddress, setFollowersByAddress] = useState<Record<string, string[]>>({});
-  const [isLoadingFollowersByAddress, setIsLoadingFollowersByAddress] = useState<Record<string, boolean>>({});
+  const [isLoadingFollowersByAddress, setIsLoadingFollowersByAddress] = useEpochLoadingMap(epochGuard);
   const followersInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const [followingByAddress, setFollowingByAddress] = useState<Record<string, string[]>>({});
-  const [isLoadingFollowingByAddress, setIsLoadingFollowingByAddress] = useState<Record<string, boolean>>({});
+  const [isLoadingFollowingByAddress, setIsLoadingFollowingByAddress] = useEpochLoadingMap(epochGuard);
   const followingInFlightRef = useRef<Record<string, Promise<void> | null>>({});
 
   const loadFollowBundleForAddress = useCallback(
@@ -157,11 +158,8 @@ export function useFollowScans(params: {
     followingInFlightRef.current = {};
 
     setFollowerCountByAddress({});
-    setIsLoadingFollowerCountByAddress({});
     setFollowersByAddress({});
-    setIsLoadingFollowersByAddress({});
     setFollowingByAddress({});
-    setIsLoadingFollowingByAddress({});
   }, [params.chainId]);
 
   const loadFollowerCountForAddress = useCallback(

@@ -63,6 +63,11 @@ that ran before the cache lookup.
 - Point the alias at the module, not the barrel, for anything other features
   depend on heavily. Barrels remain for leaf features that cannot cycle, and CI
   catches it if that ever changes.
+- Loading state that an epoch guard invalidates is created through the guard,
+  with `useEpochLoadingFlag` or `useEpochLoadingMap`, never a bare `useState`.
+  A stale request declines to clear its own flag, so the bump has to - and
+  relying on each hook to remember that stranded a spinner twice. The guard now
+  clears what it owns by construction.
 - A small type shared between a component and its helper gets its own file.
   `PostPanel` and `ProfileRecord` were the last two cycles, both caused by a type
   living in the component its helper needed.

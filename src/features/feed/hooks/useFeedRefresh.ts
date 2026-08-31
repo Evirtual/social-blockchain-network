@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Post } from "@types";
 import { setStatusFromError, type ErrorInput } from "@shared/lib/errors";
-import { useEpochGuard } from "@shared/lib/epochGuard";
+import { useEpochGuard, useEpochLoadingFlag } from "@shared/lib/epochGuard";
 import { refreshFeedFromNetworks } from "../services/feedRefresh";
 import { useHasAnyReadOnlyRpc } from "./refresh/useHasAnyReadOnlyRpc";
 import { getEnv } from "@shared/lib/env";
@@ -41,8 +41,10 @@ export function useFeedRefresh(params: {
   const isEnabled = enabled !== false;
 
   const [posts, setPosts] = useState<Post[]>([]);
-  const [isFeedLoading, setIsFeedLoading] = useState(false);
-  const { bumpEpoch, snapshotEpoch, isStale } = useEpochGuard();
+  const epochGuard = useEpochGuard();
+  const { bumpEpoch, snapshotEpoch, isStale } = epochGuard;
+  // Owned by the guard, so a bump clears it without anyone remembering to.
+  const [isFeedLoading, setIsFeedLoading] = useEpochLoadingFlag(epochGuard);
 
   const postsRef = useRef<Post[]>([]);
   useEffect(() => {
@@ -199,7 +201,6 @@ export function useFeedRefresh(params: {
 
     // On network filter change, reset state so we don't show stale networks.
     bumpEpoch();
-    setIsFeedLoading(false);
     setPosts([]);
     postsRef.current = [];
     refreshFeedInFlightRef.current = null;
@@ -245,14 +246,8 @@ export function useFeedRefresh(params: {
     lastWalletAddressLowerRef.current = walletAddressLower;
 
     // On network change, reset state so we don't show stale data.
-    // Clearing the loading flag is part of the reset. Bumping the epoch makes
-    // every in-flight refresh stale, and a stale refresh's finally declines to
-    // clear it. Nothing else would: a wallet switch leaves the posts on screen,
-    // so the refresh that follows sees a populated feed, never turns the spinner
-    // on, and so never turns it off either.
     if ((chainChanged || walletChanged) && !isInitial) {
       bumpEpoch();
-      setIsFeedLoading(false);
     }
 
     if (chainChanged && !isInitial) {
