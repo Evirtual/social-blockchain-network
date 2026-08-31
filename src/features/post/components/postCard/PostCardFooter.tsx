@@ -1,4 +1,3 @@
-import type { TipOutcome } from "@features/social/services/postActions/tipOutcome";
 import { memo, useCallback } from "react";
 
 import type { Post } from "@types";
@@ -7,6 +6,7 @@ import type { PostPanel } from "./postPanel";
 import { requestConnectNudge } from "@shared/lib/connectNudge";
 import { PostCommentsModal, PostStatsButtons, PostTipModal, usePostActionPanels } from "./footer/index";
 import { useContractState } from "@features/contract/providers/useContractState";
+import type { PostActionsController } from "@features/post/types";
 
 export type PostCardFooterProps = {
   className?: string;
@@ -22,37 +22,11 @@ export type PostCardFooterProps = {
   openPanel: PostPanel | null;
   onTogglePanel: (panel: PostPanel) => void;
 
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onTip: (
-    tokenId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<TipOutcome>;
-  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (
-    tokenId: string,
-    commentId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<boolean>;
-  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
 
   avatarStyle?: CSSProperties;
   canModerateComments?: boolean;
+
+  postActions: PostActionsController;
 };
 
 export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooterProps) {
@@ -83,7 +57,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     chainId: props.chainId,
     openPanel: props.openPanel,
     onTogglePanel: props.onTogglePanel,
-    onTip: props.onTip,
+    onTip: props.postActions.onTip,
     defaultSupportBps: contractState.tipSupportPreferenceBps,
   });
 
@@ -95,11 +69,11 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     }
     setInFlight("like");
     try {
-      await props.onAction(tokenId, "like", postChainId);
+      await props.postActions.onAction(tokenId, "like", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, props.walletAddress, props.onAction, tokenId, postChainId]);
+  }, [inFlight, props.walletAddress, props.postActions.onAction, tokenId, postChainId]);
 
   const onSave = useCallback(async () => {
     if (inFlight) return;
@@ -109,11 +83,11 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
     }
     setInFlight("save");
     try {
-      await props.onAction(tokenId, "save", postChainId);
+      await props.postActions.onAction(tokenId, "save", postChainId);
     } finally {
       setInFlight(null);
     }
-  }, [inFlight, props.walletAddress, props.onAction, tokenId, postChainId]);
+  }, [inFlight, props.walletAddress, props.postActions.onAction, tokenId, postChainId]);
 
   const canOpenComments = !(props.requiresNetworkSwitch && props.post.comments === 0);
 
@@ -183,15 +157,7 @@ export const PostCardFooter = memo(function PostCardFooter(props: PostCardFooter
         canModerateComments={props.canModerateComments}
         comments={comments}
         isLoadingComments={isLoadingComments}
-        onAction={props.onAction}
-        onReply={props.onReply}
-        onEditComment={props.onEditComment}
-        onDeleteComment={props.onDeleteComment}
-        onToggleCommentLike={props.onToggleCommentLike}
-        onToggleCommentSave={props.onToggleCommentSave}
-        onTipComment={props.onTipComment}
-        onReportPost={props.onReportPost}
-        onReportComment={props.onReportComment}
+        postActions={props.postActions}
       />
     </div>
   );

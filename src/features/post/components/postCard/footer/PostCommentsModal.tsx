@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Modal } from "@shared/components/Modal";
 import { CommentsCard } from "../../CommentsCard";
 import type { PostComment } from "@types";
+import type { PostActionsController } from "@features/post/types";
 
 type Props = {
   open: boolean;
@@ -17,27 +18,8 @@ type Props = {
   canModerateComments?: boolean;
   comments: PostComment[];
   isLoadingComments: boolean;
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (
-    tokenId: string,
-    commentId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<boolean>;
-  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
+
+  postActions: PostActionsController;
 };
 
 export function PostCommentsModal(props: Props) {
@@ -60,15 +42,7 @@ export function PostCommentsModal(props: Props) {
         canModerateComments={props.canModerateComments}
         comments={props.comments}
         isLoadingComments={props.isLoadingComments}
-        onAction={props.onAction}
-        onReply={props.onReply}
-        onEditComment={props.onEditComment}
-        onDeleteComment={props.onDeleteComment}
-        onToggleCommentLike={props.onToggleCommentLike}
-        onToggleCommentSave={props.onToggleCommentSave}
-        onTipComment={props.onTipComment}
-        onReportPost={props.onReportPost}
-        onReportComment={props.onReportComment}
+        postActions={props.postActions}
       />
     </Modal>
   );

@@ -64,15 +64,7 @@ export function PostPage(props: PostPageViewModel) {
             disableAuthorProfileLookup={!!props.disableCommentAuthorProfileLookup}
             comments={props.comments}
             isLoadingComments={props.isLoadingComments}
-            onAction={props.postActions.onAction}
-            onReply={props.postActions.replyToComment}
-            onEditComment={props.postActions.editComment}
-            onDeleteComment={props.postActions.deleteComment}
-            onToggleCommentLike={props.postActions.toggleCommentLike}
-            onToggleCommentSave={props.postActions.toggleCommentSave}
-            onTipComment={props.postActions.tipComment}
-            onReportPost={props.postActions.reportPost}
-            onReportComment={props.postActions.reportComment}
+            postActions={props.postActions}
           />
         </div>
       </div>

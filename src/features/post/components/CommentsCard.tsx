@@ -11,6 +11,7 @@ import { NewCommentComposer } from "./comments/NewCommentComposer";
 import type { ActionInFlight, ActiveComposer } from "./comments/types";
 import { shortAddress } from "@shared/lib/format";
 import { getNativeSymbol } from "@shared/lib/chain";
+import type { PostActionsController } from "@features/post/types";
 
 type Props = {
   tokenId: string;
@@ -26,28 +27,7 @@ type Props = {
   comments: ReadonlyArray<PostComment>;
   isLoadingComments: boolean;
 
-  onAction: (
-    tokenId: string,
-    action: "like" | "comment" | "save",
-    postChainId?: string | null,
-    comment?: string
-  ) => Promise<boolean>;
-  onReply: (tokenId: string, parentCommentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onEditComment: (tokenId: string, commentId: string, comment: string, postChainId?: string | null) => Promise<boolean>;
-  onDeleteComment: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentLike: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onToggleCommentSave: (tokenId: string, commentId: string, postChainId?: string | null) => Promise<boolean>;
-  onTipComment: (
-    tokenId: string,
-    commentId: string,
-    amountRaw: string,
-    postChainId?: string | null,
-    supportBps?: number | null,
-    savePreference?: boolean
-  ) => Promise<boolean>;
-  onReportPost: (tokenId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-  onReportComment: (tokenId: string, commentId: string, reason: string, postChainId?: string | null) => Promise<boolean>;
-
+  postActions: PostActionsController;
 };
 
 export function CommentsCard(props: Props) {
@@ -216,7 +196,7 @@ export function CommentsCard(props: Props) {
     if (isSigning) return;
     setIsSigning(true);
     try {
-      const ok = await props.onAction(props.tokenId, "comment", props.postChainId, commentDraft);
+      const ok = await props.postActions.onAction(props.tokenId, "comment", props.postChainId, commentDraft);
       if (ok) setCommentDraft("");
     } finally {
       setIsSigning(false);
@@ -308,13 +288,7 @@ export function CommentsCard(props: Props) {
                   setReportDrafts={setReportDrafts}
                   actionInFlight={actionInFlight}
                   setActionInFlight={setActionInFlight}
-                  onReply={props.onReply}
-                  onEditComment={props.onEditComment}
-                  onDeleteComment={props.onDeleteComment}
-                  onToggleCommentLike={props.onToggleCommentLike}
-                  onToggleCommentSave={props.onToggleCommentSave}
-                  onTipComment={props.onTipComment}
-                  onReportComment={props.onReportComment}
+                  postActions={props.postActions}
                 />
                 {replies.length ? (
                   <div className="commentReplies">
@@ -325,6 +299,7 @@ export function CommentsCard(props: Props) {
                         className="commentReply"
                       >
                         <CommentItem
+                          postActions={props.postActions}
                           comment={reply}
                           defaultSupportBps={defaultSupportBps}
                           replyToAddress={reply.parentId ? authorById.get(reply.parentId) ?? reply.parentId : null}
@@ -360,13 +335,6 @@ export function CommentsCard(props: Props) {
                           setReportDrafts={setReportDrafts}
                           actionInFlight={actionInFlight}
                           setActionInFlight={setActionInFlight}
-                          onReply={props.onReply}
-                          onEditComment={props.onEditComment}
-                          onDeleteComment={props.onDeleteComment}
-                          onToggleCommentLike={props.onToggleCommentLike}
-                          onToggleCommentSave={props.onToggleCommentSave}
-                          onTipComment={props.onTipComment}
-                          onReportComment={props.onReportComment}
                         />
                       </div>
                     ))}
