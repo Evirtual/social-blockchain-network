@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { shortAddress } from "@shared/lib/formatters";
+import { getAvatarStyle } from "@shared/lib/avatar";
 import { getNetworkBadgeLabel, getNetworkBrandHue } from "@shared/lib/network";
 import { ChainLogo } from "@shared/components/ChainLogos";
 import type { CSSProperties } from "react";
@@ -11,18 +11,25 @@ export const WalletProfileLink = memo(function WalletProfileLink(props: {
   profileLink: string | null;
   walletAddress: string | null;
   chainId: string | null;
+  /** Already falls back to the short address when no name is set. */
+  displayName: string;
+  avatarUrl?: string;
+  avatarHue: number;
 }) {
-  const { profileLink, walletAddress, chainId } = props;
+  const { profileLink, walletAddress, chainId, displayName, avatarUrl, avatarHue } = props;
   if (!profileLink) return null;
 
   const showChain = typeof chainId === "string" && chainId.trim();
   const brandStyle: BrandHueStyle = showChain ? { ["--brand-hue"]: getNetworkBrandHue(chainId) } : {};
 
   return (
-    <Link className="btn secondary" to={profileLink}>
+    <Link className="btn secondary walletProfileLink" to={profileLink}>
       {walletAddress ? (
         <>
-          {shortAddress(walletAddress)}
+          {/* The avatar shows either the uploaded image or the address's own hue,
+              so the pill identifies the account whether a profile is set or not. */}
+          <span className="avatar tiny walletProfileLinkAvatar" style={getAvatarStyle({ avatarUrl, hue: avatarHue })} />
+          <span className="walletProfileLinkName">{displayName}</span>
           {showChain ? (
             <span
               className="walletProfileLinkChain chainBrandMark"
