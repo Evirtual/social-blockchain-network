@@ -11,6 +11,18 @@ Deployed to three testnets â€” Base Sepolia, Ethereum Sepolia and BSC Testnet â€
 and the feed reads from all of them at once. An account holds a separate profile
 on each network, because each network runs its own deployment of the contract.
 
+![The feed, reading from Base Sepolia, Ethereum Sepolia and BSC Testnet at once. Each post is an NFT with its own like, save, comment and tip totals.](docs/screenshots/feed.jpg)
+
+Tips are split between the author and the protocol, and the share is shown
+before anything is signed rather than after.
+
+![Tipping a comment. Choosing a support percentage shows the split - to author and to protocol - before the transaction is sent.](docs/screenshots/comment-tip.jpg)
+
+A profile is per network, so the same address carries a different name, picture
+and balance on each chain it has posted from.
+
+![A profile on Base Sepolia, with its own name and picture, alongside the wallet card showing the balance, accumulated tips and a withdraw action.](docs/screenshots/profile.jpg)
+
 ## How it fits together
 
 ```
