@@ -246,5 +246,8 @@ Before using it in production on a public network:
 - **Set a real contract address per network**. Prefer `VITE_CONTRACT_ADDRESS_BASE` (Base) and `VITE_CONTRACT_ADDRESS_BSC` (BSC).
 - **Review contract and wallet flows**. If real value is involved, do a security review/audit.
 
+## Licence
 
-
+[MIT](LICENSE), as the contracts' own SPDX headers say. Use it, change it,
+build on it; keep the copyright notice.
+© 2025–2026 Edgaras Neverdauskas.
