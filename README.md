@@ -1,4 +1,8 @@
+<p align="center"><img src="public/logo.svg" width="112" alt="Two linked nodes"></p>
+
 # Social Blockchain Network
+
+[![CI](https://github.com/Evirtual/social-blockchain-network/actions/workflows/ci.yml/badge.svg)](https://github.com/Evirtual/social-blockchain-network/actions/workflows/ci.yml)
 
 A social network where every post is an NFT and every reaction is a signed
 transaction. Posts, likes, comments, saves, follows and tips all live on chain,
